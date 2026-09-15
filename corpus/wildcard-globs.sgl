@@ -1,0 +1,55 @@
+// Name globs on wildcard endpoints: prefix, suffix, both ends, and the cases
+// that must NOT match.
+@title: "Wildcard globs"
+
+switch: { @label: "Switch" }
+
+lane1: {
+  @label: "Lane 1"
+  cam1: {}
+  cam2: {}
+  cam-hd: {}
+  camera: {}
+  mic1: {}                    // not matched by cam*
+  door1: { @label: "Camera" } // label says Camera; the key does not. Not matched.
+  cam9: { @hidden: true }     // hidden, so never matched
+}
+
+stores: {
+  orders-db: {}
+  users-db: {}
+  cache: {}                   // not matched by *-db
+  "order service": {}         // quoted key, matched on decoded text by order*
+}
+
+mixed: {
+  camAhd: {}
+  camBhd: {}
+  camB: {}                    // no "hd" tail — not matched by cam*hd
+  cam: {}                     // shorter than prefix+suffix — not matched by cam*hd
+}
+
+// Prefix: cam1, cam2, cam-hd, camera. Not mic1, not door1, not the hidden cam9.
+lane1.cam* -> switch
+
+// Prefix ending in a dash.
+lane1.cam-* -> switch: "hd only"
+
+// Suffix: orders-db, users-db. Not cache.
+stores.*-db -> switch
+
+// Quoted key matched on its decoded text.
+stores.order* -> switch
+
+// Both ends: camAhd, camBhd. Not camB, and not cam.
+mixed.cam*hd -> switch
+
+// Globs on both sides are still a cross product.
+lane1.cam* -> mixed.cam*hd
+
+// A glob with a port suffix.
+lane1.cam*[out] -> switch
+
+// No spaces anywhere — the token must not swallow the arrow.
+lane1.cam*->switch
+stores.*-db->switch

@@ -1,0 +1,1 @@
+a: { @label: "&lt;script&gt;alert(1)&lt;/script&gt; &amp; &#x3C;img onerror=x&#x3E;" }

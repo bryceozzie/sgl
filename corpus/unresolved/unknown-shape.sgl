@@ -1,0 +1,2 @@
+// expects: SGL3001
+a: { @shape: trapezoid }

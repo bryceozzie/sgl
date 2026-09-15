@@ -1,0 +1,4 @@
+// expects: SGL3003
+switch
+lane1: { cam1: {} cam2: {} }
+lane1.xyz* -> switch

@@ -1,0 +1,16 @@
+// Every operator, mixed chains, labels on chains.
+a
+b
+c
+d
+e
+
+a -> b
+b <- c
+c <-> d
+d -- e
+
+a -> b -> c -> d
+a -> b: "labelled"
+c <-> d: { @label: "both ways", @style: dashed }
+a -> c -> e: "chain label"

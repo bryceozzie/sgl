@@ -1,0 +1,16 @@
+{
+  "name": "@sgl/render-svg",
+  "version": "0.0.0",
+  "description": "Pure string renderer: StyledGraph + LayoutResult + ResolvedTheme to accessible SVG.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": ["dist"],
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+  },
+  "scripts": {
+    "build": "tsdown"
+  },
+  "dependencies": { "@sgl/core": "workspace:*", "@sgl/theme": "workspace:*" }
+}

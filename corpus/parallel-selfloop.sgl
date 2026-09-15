@@ -1,0 +1,11 @@
+// Parallel edges, self-loops, and <-> between the same pair.
+a
+b
+
+a -> a
+a -> a: "twice"
+a -> b
+a -> b
+a -> b: "third"
+a <-> b
+b -- b

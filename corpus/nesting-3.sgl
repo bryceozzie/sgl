@@ -1,0 +1,28 @@
+// Three levels, edges at every level, ../ and / paths.
+@title: "Nesting"
+
+external: {
+  cdn: {}
+}
+
+platform: {
+  @label: "Platform"
+
+  ingress: {
+    @label: "Ingress"
+    lb: { @label: "Load balancer" }
+    waf: {}
+    waf -> lb
+  }
+
+  services: {
+    api: {}
+    worker: {}
+    api -> worker
+    api -> ../ingress.lb
+  }
+
+  ingress.lb -> services.api
+}
+
+platform.services.worker -> /external.cdn

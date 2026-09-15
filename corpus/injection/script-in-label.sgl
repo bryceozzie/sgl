@@ -1,0 +1,2 @@
+// One hostile string per context. None may produce executable content (DD-07 §8).
+a: { @label: "</text><script>alert(1)</script>" }

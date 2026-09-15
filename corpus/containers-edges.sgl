@@ -1,0 +1,21 @@
+// Edges to containers and boundary-crossing edges — the ELK case (06 §4, pitfall 8).
+outside
+
+alpha: {
+  @label: "Alpha"
+  one: {}
+  two: {}
+  one -> two
+}
+
+beta: {
+  @label: "Beta"
+  three: {}
+  four: {}
+}
+
+outside -> alpha
+alpha -> beta
+alpha.two -> beta.three
+beta.four -> alpha.one
+outside -> beta.three

@@ -1,0 +1,4 @@
+// expects: SGL2003
+router: { @ports: { in: west } }
+client
+client -> router[missing]

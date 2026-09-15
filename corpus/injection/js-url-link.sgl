@@ -1,0 +1,2 @@
+// expects: SGL6001
+a: { @label: "link", @link: "javascript:alert(1)" }

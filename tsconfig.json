@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/theme" },
+    { "path": "./packages/measure" },
+    { "path": "./packages/layout-api" },
+    { "path": "./packages/layout-elk" },
+    { "path": "./packages/layout-std" },
+    { "path": "./packages/render-svg" }
+  ]
+}

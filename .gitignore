@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.tsbuild/
+*.tsbuildinfo
+coverage/
+.vite/
+test-results/
+playwright-report/
+.DS_Store
+.wrangler/

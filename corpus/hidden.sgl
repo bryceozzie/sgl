@@ -1,0 +1,8 @@
+// Hidden nodes with edges to them (SGL3002).
+visible
+ghost: { @hidden: true }
+other
+
+visible -> ghost
+ghost -> other
+visible -> other

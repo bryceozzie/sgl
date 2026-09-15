@@ -1,0 +1,19 @@
+// Inheritance diamond, override order, theme byClass.
+@classes: {
+  Base:     { @shape: round, @style.strokeWidth: 1 }
+  Left:     { @extends: Base, @style.fill: "@surface.sunken" }
+  Right:    { @extends: Base, @style.stroke: "@accent" }
+  Diamond:  { @extends: [Left, Right] }
+  Critical: { @style: { stroke: "@danger", strokeWidth: 3 } }
+}
+
+plain:    Base
+left:     Left
+right:    Right
+diamond:  Diamond
+both:     { @type: [Diamond, Critical] }
+override: { @type: Critical, @style.stroke: "#123456" }
+
+plain -> left -> diamond
+right -> both
+both -> override

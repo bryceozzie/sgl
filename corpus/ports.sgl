@@ -1,0 +1,18 @@
+// All four sides, port-to-port edges.
+router: {
+  @ports: { in: west, out: east, mgmt: north, drain: south }
+}
+
+switch: {
+  @ports: { uplink: west, down: east }
+}
+
+client
+server
+console
+
+client -> router[in]
+router[out] -> switch[uplink]
+switch[down] -> server
+console -> router[mgmt]
+router[drain] -> server

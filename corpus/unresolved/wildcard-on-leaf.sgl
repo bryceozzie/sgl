@@ -1,0 +1,4 @@
+// expects: SGL3003
+switch
+leaf
+leaf.* -> switch

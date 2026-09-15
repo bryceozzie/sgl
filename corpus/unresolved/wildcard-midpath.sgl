@@ -1,0 +1,4 @@
+// expects: SGL3004
+switch
+lane1: { a: { handler: {} } }
+lane1.*.handler -> switch

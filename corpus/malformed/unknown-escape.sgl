@@ -1,0 +1,2 @@
+// expects: SGL1004
+a: { @label: "back\qslash" }

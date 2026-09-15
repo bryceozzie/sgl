@@ -1,0 +1,4 @@
+// expects: SGL1002 — ** takes no glob; a glob never crosses a level
+switch
+lane1: { cam1: {} }
+lane1.cam** -> switch

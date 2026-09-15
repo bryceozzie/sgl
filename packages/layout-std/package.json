@@ -1,0 +1,16 @@
+{
+  "name": "@sgl/layout-std",
+  "version": "0.0.0",
+  "description": "In-house layout engines. MVP ships grid.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": ["dist"],
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+  },
+  "scripts": {
+    "build": "tsdown"
+  },
+  "dependencies": { "@sgl/core": "workspace:*", "@sgl/layout-api": "workspace:*" }
+}

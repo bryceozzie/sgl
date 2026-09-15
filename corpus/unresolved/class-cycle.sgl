@@ -1,0 +1,6 @@
+// expects: SGL2004
+@classes: {
+  A: { @extends: B }
+  B: { @extends: A }
+}
+a: A

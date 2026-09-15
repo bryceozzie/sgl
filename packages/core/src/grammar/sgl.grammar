@@ -1,0 +1,86 @@
+// SGL surface grammar — normative source is DD-01 §2.
+//
+// Compiled by @lezer/generator at build time into sgl.parser.js +
+// sgl.parser.terms.js, both of which are committed (DD-10 §3) so that a checkout
+// builds without the generator and `git blame` on the parser stays meaningful.
+// CI regenerates and fails if the committed output differs.
+
+// A document is either a bare entry list or one anonymous root block —
+// the second form is what makes any JSON object a valid SGL document.
+@top Document { Block | Entry* }
+
+@skip { space | LineComment | BlockComment | "," }
+
+Entry { ConfigEntry | EdgeStmt | NodeDecl }
+
+// ---- configuration ----------------------------------------------------
+ConfigEntry { ConfigKey ":" Value }
+
+// ---- nodes ------------------------------------------------------------
+NodeDecl  { NodeKey (":" NodeValue)? }
+NodeKey   { Identifier | String }
+NodeValue { Block | String | ClassRef }
+ClassRef  { Identifier }
+Block     { "{" Entry* "}" }
+
+// ---- edges ------------------------------------------------------------
+EdgeStmt  { Endpoint (EdgeOp Endpoint)+ (":" EdgeValue)? }
+EdgeValue { String | Block }
+Endpoint  { Path Port? }
+Port      { "[" Identifier "]" }
+Path      { Root? Parent* PathStep ("." PathStep)* }
+PathStep  { PathSegment | Wildcard }
+PathSegment { Identifier | String }
+
+// ---- values (configuration context only) ------------------------------
+Value  { String | Number | Bool | Null | Word | Array | Object }
+Word   { Identifier }                       // bareword enum: hexagon, down, dashed
+Array  { "[" Value* "]" }
+Object { "{" Property* "}" }
+Property { PropKey ":" Value }
+PropKey  { Identifier | String | ConfigKey }  // @-keys allowed inside class bodies
+
+Bool { @specialize<Identifier, "true" | "false"> }
+Null { @specialize<Identifier, "null"> }
+
+@tokens {
+  space        { @whitespace+ }
+  LineComment  { "//" ![\n]* }
+  BlockComment { "/*" blockRest }
+  blockRest    { ![*] blockRest | "*" blockAfterStar }
+  blockAfterStar { "/" | "*" blockAfterStar | ![/*] blockRest }
+
+  // A dash is allowed inside an identifier only when followed by an identifier
+  // character, so `a->b` lexes as Identifier EdgeOp Identifier, not `a-` `>b`.
+  Identifier { $[A-Za-z_] ($[A-Za-z0-9_] | "-" $[A-Za-z0-9_])* }
+  ConfigKey  { "@" Identifier ("." Identifier)* }
+  String     { '"' (![\\"\n] | "\\" _)* '"' }
+  Number     { "-"? @digit+ ("." @digit+)? }
+  EdgeOp     { "->" | "<-" | "<->" | "--" }
+  // Fan-out over children (*) or descendants (**), optionally narrowed by a name
+  // glob with one star: `cam*`, `*-db`, `cam*hd`. Legal only in an edge endpoint,
+  // because Path appears only in Endpoint. Position within the path is a compile
+  // concern, not a syntax one (SGL3004) — the grammar stays permissive so a
+  // mid-path wildcard still yields a usable partial tree.
+  //
+  // One token, for two reasons. `cam *` must not mean `cam*`, and skipped space
+  // would make it so. And the star must be reachable without a dash-swallowing
+  // path: globPrefix may end in `-` but is always followed by a required "*", and
+  // globSuffix must end in a name character, so `lane1.*->switch` still lexes the
+  // `->` as an EdgeOp rather than starting a glob with it.
+  Wildcard   { "*" "*"? | "*" globSuffix | globPrefix "*" globSuffix? }
+  globPrefix { $[A-Za-z_] ($[A-Za-z0-9_] | "-")* }
+  globSuffix { ($[A-Za-z0-9_] | "-")* $[A-Za-z0-9_] }
+  Parent     { "../" }
+  Root       { "/" }
+
+  "{" "}" "[" "]" ":" "."
+  @precedence { LineComment, BlockComment, Root }
+  @precedence { Parent, "." }
+  // `cam*` matches both Identifier (as `cam`) and Wildcard (whole). Wildcard wins:
+  // `*` appears nowhere else in the language, so any position where a Wildcard
+  // matches at all is a glob, never an identifier that happens to abut one.
+  @precedence { Wildcard, Identifier }
+}
+
+@detectDelim

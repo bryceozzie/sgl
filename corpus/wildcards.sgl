@@ -1,0 +1,61 @@
+// Wildcard edge endpoints: fan-out, descendants, cross product, ports, labels.
+@title: "Wildcards"
+
+switch: { @label: "Switch" }
+
+lane1: {
+  @label: "Lane 1"
+  a: {}
+  b: {}
+  c: { @hidden: true }        // not matched
+}
+
+lane2: {
+  @label: "Lane 2"
+  x: {}
+  y: {}
+
+  // Parent-relative wildcard, resolved from inside lane2.
+  ../lane1.* -> x
+}
+
+deep: {
+  @label: "Deep"
+  top: {
+    mid: {
+      leaf: {}
+
+      // Root-absolute wildcard, resolved from three levels down.
+      leaf -> /lane2.*
+    }
+  }
+}
+
+empty: { @label: "Empty" }    // SGL3003 on any wildcard against it
+
+ported: {
+  p: { @ports: { out: east } }
+  q: { @ports: { out: east } }
+  r: {}                       // SGL2003 — no `out` port
+}
+
+// Direct children: two edges, because c is hidden.
+lane1.* -> switch
+
+// Reverse direction; the label lands on every expanded edge.
+switch -> lane2.*: "distributes"
+
+// Every descendant at any depth, containers included: top, mid, leaf.
+deep.** -> switch
+
+// Cross product: 2 x 2 = 4 edges, no self-pairs.
+lane1.* -> lane2.*
+
+// Ports ride along; r gets SGL2003 and attaches to its boundary.
+ported.*[out] -> switch
+
+// Chains expand per link.
+lane1.* -> switch -> lane2.*
+
+// Matches nothing: SGL3003, and only this edge is skipped.
+empty.* -> switch

@@ -1,0 +1,16 @@
+{
+  "name": "@sgl/theme",
+  "version": "0.0.0",
+  "description": "Style-property registry, theme resolution, the cascade, and the geometry/paint hash split.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": ["dist"],
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+  },
+  "scripts": {
+    "build": "tsdown"
+  },
+  "dependencies": { "@sgl/core": "workspace:*" }
+}

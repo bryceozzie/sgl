@@ -1,0 +1,4 @@
+// expects: SGL1002 — one star per segment
+switch
+lane1: { a1b2c3: {} }
+lane1.a*b*c -> switch

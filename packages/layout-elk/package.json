@@ -1,0 +1,16 @@
+{
+  "name": "@sgl/layout-elk",
+  "version": "0.0.0",
+  "description": "The default layout engine: an elkjs adapter (ADR-0005).",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": ["dist"],
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+  },
+  "scripts": {
+    "build": "tsdown"
+  },
+  "dependencies": { "@sgl/core": "workspace:*", "@sgl/layout-api": "workspace:*", "elkjs": "^0.11.0" }
+}

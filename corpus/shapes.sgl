@@ -1,0 +1,10 @@
+// Every built-in MVP shape once (DD-07 §4).
+r: { @shape: rect,     @label: "rect" }
+n: { @shape: round,    @label: "round" }
+e: { @shape: ellipse,  @label: "ellipse" }
+d: { @shape: diamond,  @label: "diamond" }
+h: { @shape: hexagon,  @label: "hexagon" }
+c: { @shape: cylinder, @label: "cylinder" }
+p: { @shape: package,  @label: "package" }
+
+r -> n -> e -> d -> h -> c -> p

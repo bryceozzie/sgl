@@ -1,0 +1,3 @@
+// expects: SGL1001
+outer: {
+  inner: {}
