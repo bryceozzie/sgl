@@ -79,10 +79,16 @@ prefixed `wip(...)`, say in the message what is missing, and do **not** merge.
 ### Verification
 
 ```bash
-pnpm check        # lint + typecheck + test — what CI gates on
+pnpm check        # lint + typecheck + build + test — what CI gates on
 pnpm build        # every package, then the app
 pnpm grammar      # regenerate the Lezer parser; the output is committed
 ```
+
+`check` builds before testing because a workspace package's cross-package `import`s resolve
+through its published `exports`, which point at `dist/`. `tsc -b` (the typecheck step) only
+compiles `.ts` files, so a package that re-exports a hand-generated `.js` asset — `@sgl/core`'s
+Lezer parser, once Stage A wires `parse()` to it — needs its real build (`tsdown`, which bundles
+everything into one file) before any other package's tests can import it.
 
 A stage is not done because the code is written. It is done when its gate passes.
 
