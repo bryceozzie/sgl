@@ -2,7 +2,7 @@
 
 A text-first diagramming platform. JSON-esque source in, SVG out, with **layout engines and themes as first-class plugins**, running entirely in the browser.
 
-> **Status: skeleton.** The design is complete to component level; the workspace, package boundaries, contracts and fixtures are in place; the pipeline stages are declared but not yet implemented. See [Current state](#current-state).
+> **Status: building.** The design is complete to component level and the workspace is in place. The theme and measurement stages are implemented; the parser, renderer and layout engine are part-built on branches. See [Current state](#current-state), and [07 — Execution plan](docs/07-execution-plan.md) for the build order and the gates.
 
 ```sgl
 @theme: "neutral-light"
@@ -46,18 +46,18 @@ The pipeline's six functions ([DD-00 §4](docs/detailed-design/00-overview.md)) 
 
 | Package | Built | Declared, not implemented |
 |---|---|---|
-| `@sgl/core` | `fnv1a64` hashing · the full [diagnostic catalogue](packages/core/src/diagnostics.ts) (33 codes) · AST, document-model and IR types · the [Lezer grammar](packages/core/src/grammar/sgl.grammar), which **compiles** | `parse` · `resolve` · `compile` · `toJson` / `fromJson` |
-| `@sgl/theme` | The [style-property registry](packages/theme/src/registry.ts) with every `affects` classification · both built-in themes | `resolveTheme` · `styleGraph` |
-| `@sgl/measure` | `Measurer` interface, run-based from day one | `CanvasMeasurer` · `premeasure` |
+| `@sgl/core` | `fnv1a64` hashing · the [diagnostic catalogue](packages/core/src/diagnostics.ts) (33 codes) · AST, document-model and IR types · the [Lezer grammar](packages/core/src/grammar/sgl.grammar). An AST builder and fixes for both known grammar defects sit unverified on `feat/parser` | `parse` · `resolve` · `compile` · `toJson` / `fromJson` (Stages A–C) |
+| `@sgl/theme` | **Done** — the registry, both themes, `resolveTheme`, `styleGraph`, the geometry/paint hash partition | — |
+| `@sgl/measure` | **Done** — `premeasure`, run keys, and three `Measurer`s (canvas, static-metrics, table) | — |
 | `@sgl/layout-api` | The [`LayoutEngine` contract](packages/layout-api/src/contract.ts) · worker protocol · engine registry | host · result validation · host fallbacks · conformance suite |
 | `@sgl/layout-elk` | Engine descriptor: capabilities, options and hints schemas | the elkjs adapter |
-| `@sgl/layout-std` | `grid` descriptor | `grid` layout |
-| `@sgl/render-svg` | XML escaping · link-scheme allowlist · the `Shape` interface | `render` · the seven shapes |
+| `@sgl/layout-std` | `grid` descriptor | `grid` layout (Stage E) |
+| `@sgl/render-svg` | On `feat/renderer`: seven shapes, style block, markers, text, `render()` | its tests and goldens (Stage F) |
 | `apps/web` | The two-pane shell | everything in [DD-08](docs/detailed-design/08-application.md) |
 
 Also in place: 15 corpus documents plus 23 error and injection fixtures ([`corpus/`](corpus/README.md)), the [import-boundary and determinism lint rules](eslint.config.js) from DD-00 §2–§3, and [CI](.github/workflows/ci.yml).
 
-**Next:** the phase-0 spike — `parse`, `compile`, `grid`, minimal SVG out — which exists to confirm the pipeline shape is right.
+**Next:** Stage A in the [execution plan](docs/07-execution-plan.md) — the parser — then the rest of the front end. Gate 2 closes the pipeline end to end, which is the phase-0 exit.
 
 ## Repository layout
 
@@ -91,6 +91,7 @@ Dependency direction is strictly downward and enforced by lint: `core` knows not
 | [04 — Feature backlog](docs/04-feature-backlog.md) | 136 features from comparable tools, triaged — 51 Must, 38 Should, 40 Could, 7 declined — plus the revised delivery plan |
 | [05 — Design review](docs/05-design-review.md) | Is the concept durable, sustainable and maintainable? Seven findings |
 | [06 — Feasibility and MVP](docs/06-feasibility-and-mvp.md) | Check against the original brief, the corrected MVP, eight pitfalls resolved, and the technology stack |
+| [07 — Execution plan](docs/07-execution-plan.md) | The build order: thirteen stages, five staging gates, the standing rules every contributor works under, and the agent brief template |
 | [Detailed design](docs/detailed-design/00-overview.md) | Component-level design for the MVP: grammar, resolver, IR, theme, measurement, layout host and engines, renderer, application, security/perf/testing, build/deploy |
 
 ### Decision records
