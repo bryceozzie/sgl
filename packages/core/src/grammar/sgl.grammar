@@ -33,7 +33,7 @@ PathStep  { PathSegment | Wildcard }
 PathSegment { Identifier | String }
 
 // ---- values (configuration context only) ------------------------------
-Value  { String | Number | Bool | Null | Word | Array | Object }
+Value  { String | Number | Bool | Null | Word | Variable | Array | Object }
 Word   { Identifier }                       // bareword enum: hexagon, down, dashed
 Array  { "[" Value* "]" }
 Object { "{" Property* "}" }
@@ -53,7 +53,8 @@ Null { @specialize<Identifier, "null"> }
   // A dash is allowed inside an identifier only when followed by an identifier
   // character, so `a->b` lexes as Identifier EdgeOp Identifier, not `a-` `>b`.
   Identifier { $[A-Za-z_] ($[A-Za-z0-9_] | "-" $[A-Za-z0-9_])* }
-  ConfigKey  { "@" Identifier ("." Identifier)* }
+  ConfigKey  { "@" Identifier ("." Identifier)* | '"' "@" (![\\"\n] | "\\" _)* '"' }
+  Variable   { "$" Identifier }
   String     { '"' (![\\"\n] | "\\" _)* '"' }
   Number     { "-"? @digit+ ("." @digit+)? }
   EdgeOp     { "->" | "<-" | "<->" | "--" }
