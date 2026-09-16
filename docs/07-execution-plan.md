@@ -103,7 +103,7 @@ A stage is not done because the code is written. It is done when its gate passes
 | `@sgl/measure` — `premeasure`, three `Measurer`s, run keys | **Done**, tested against hand-built fixtures | `main` |
 | `@sgl/render-svg` — shapes, style block, markers, text, `render()` | **Implementation only, no tests** | `feat/renderer` |
 | `@sgl/core` — `parse()`, `buildAst`, grammar fixes | **Done**, T1+T2 gate green | `main` |
-| `@sgl/core` — `resolve()`, `toJson`/`fromJson`, config-key registry | **Done**, T1+T2 gate green | `feat/resolver` |
+| `@sgl/core` — `resolve()`, `toJson`/`fromJson`, config-key registry | **Done**, T1+T2 gate green | `main` |
 | `@sgl/layout-api` — shape anchors for the routing fallback | **Fragment only** | `feat/grid-engine` |
 | `compile`, `grid`, worker host, `apps/web` | **Not started** | — |
 
