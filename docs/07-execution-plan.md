@@ -111,9 +111,19 @@ A stage is not done because the code is written. It is done when its gate passes
 | `@sgl/render-svg` — shapes, style block, markers, text, `render()` | **Implementation only, no tests** | `feat/renderer` |
 | `@sgl/core` — `parse()`, `buildAst`, grammar fixes | **Done**, T1+T2 gate green | `main` |
 | `@sgl/core` — `resolve()`, `toJson`/`fromJson`, config-key registry | **Done**, T1+T2 gate green | `main` |
-| `@sgl/core` — `compile()`, wildcard expansion, class linearisation | **Done**, T1+T2 gate green, diagnostics coverage gate enabled | `feat/compiler` |
+| `@sgl/core` — `compile()`, wildcard expansion, class linearisation | **Done**, T1+T2 gate green, diagnostics coverage gate enabled | `main` |
 | `@sgl/layout-api` — shape anchors for the routing fallback | **Fragment only** | `feat/grid-engine` |
 | `grid`, worker host, `apps/web` | **Not started** | — |
+
+**Gate 1 is cleared.** `feat/compiler` merged to `main` at `a46c72b`; `pnpm check` green there
+(496 tests). `.sgl` text in, `SemanticGraph` out, for every document in the corpus, with goldens
+committed and the diagnostics coverage table enforced — so **from here no stage hand-builds a
+`SemanticGraph`**, and Stage D exists to delete the two that predate this.
+
+Two branches remain deliberately unmerged, both per §1 rather than by oversight: `feat/renderer`
+(implementation only, no tests — Stage F's gate has not run) and `feat/grid-engine` (a `wip(...)`
+commit whose own message records that the engine was never started). Neither may merge before its
+gate passes; `main` must be green at every commit.
 
 Both grammar defects tracked in the README (quoted `@`-keys, `$name` as a
 `Variable` token) are fixed and Stage A's gate passed on `main`. Stage B found
