@@ -151,6 +151,8 @@ for f in expand(from, C):
 
 A zip was considered and rejected: it depends on declaration order on both sides and silently drops the tail of the longer one, which is a data-loss bug that looks like a layout bug.
 
+**Open (07 §2.1 F4): the exclusion above is written for the both-wildcarded case only**, so a *one-sided* wildcard whose expansion happens to contain the other endpoint keeps the self-pair — `x -> /**` expands `/**` over every node in the document, `x` among them, and emits `x -> x`. `compile()` implements exactly what is written here, on the reasoning that an ordinary endpoint coinciding with a member of the other side's expansion is a legitimate edge rather than a cross-product artefact. Nothing in `corpus/` covers it either way. Stage F is the first stage that can see the rendered result and owns the decision; until then, treat this paragraph as describing behaviour, not as settled intent.
+
 If the product exceeds `MAX_EDGE_EXPANSION` (1 000), the whole statement is skipped with `SGL3005` and every other edge in the document survives. The ceiling is a hard stop rather than a suggestion because the product is quadratic in a node count already allowed to reach 2 000 (DD-09 §2).
 
 **Ports** ride along: `fromPort`/`toPort` are copied onto every expanded edge, and the existing per-node `SGL2003` fires for each matched node that lacks the port — once per *distinct* node, not once per edge it appears in. So `lane1.*[out] -> switch` across four children, one of which has no `out` port, gives four edges and one warning; and with both sides wildcarded, `lane1.*[out] -> lane2.*[in]` over 3 `lane1` children (all with `out`) and 2 `lane2` children (neither with `in`) gives six edges and **two** warnings, one per portless node in `lane2` — not six, which is what falls out if a side is (re-)validated inside the cross-product loop instead of once per target before it.
@@ -191,6 +193,7 @@ EdgeId = 'e-' + fnv1a64( from.node + '\x1f' + (from.port ?? '') + '\x1f'
 - Reordering unrelated edges or nodes: **IDs unchanged**.
 - Changing an endpoint or a label: label change → same ID; endpoint change → new ID (it is a different edge).
 - Inserting a new parallel edge *before* an existing identical one: the existing one's `parallelIndex` shifts → **its ID changes**. Accepted; parallel duplicate edges are rare and the alternative (position-based IDs) is unstable under every edit.
+- **Hiding an edge does not renumber its parallel twins.** `hidden` is not part of the key, so a hidden edge still consumes its `parallelIndex` and every other edge in the group keeps its ID. Hiding and unhiding is therefore ID-neutral, which is what E16/F12 (visual diff, version history) need from it.
 - **Adding a child to a wildcarded container: every existing edge keeps its ID**, and the new one gets its own. This falls out of expanding before allocating — the ID is derived from the concrete endpoints, so it does not know or care that a wildcard produced it. Had the wildcard survived into ID allocation and been numbered by expansion index instead, inserting a child at the top of `lane1` would have renumbered every edge below it, and E16/F12 (visual diff and version history) would report a document-wide change for a one-line edit.
 
 ---
@@ -210,6 +213,8 @@ EdgeId = 'e-' + fnv1a64( from.node + '\x1f' + (from.port ?? '') + '\x1f'
 ## 7. Traversal order
 
 `order` is a pre-order walk: a node, then its children in declaration order. Hidden nodes and their subtrees are omitted. This is the order used for SVG document order (accessibility, DD-07 §7), tab order in the live view, and default label z-order.
+
+**`order` is the only filtered traversal.** `GraphNode.children` and `SemanticGraph.rootChildren` are structural — they list every declared child, hidden ones included — because a consumer that needs the tree (a container packer, a source map, a future view predicate) needs it whole. A consumer that walks `children` instead of `order` must test `node.hidden` itself; the flag is already resolved to *effectively* hidden, so that is one comparison and never an ancestor walk. Key order in `nodes` and `labels` is likewise not a traversal: integer-like node keys sort ahead of the rest (07 §1), so `order` is the only thing that carries document sequence.
 
 ---
 
