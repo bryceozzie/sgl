@@ -50,6 +50,7 @@ export const CATALOGUE = {
   SGL2006: { severity: 'warning', template: '`@{key}` was `{scalar}` and has been replaced by an object to hold `@{key}.{sub}`.' },
   SGL2007: { severity: 'warning', template: 'Class bodies hold configuration only; `{key}` ignored.' },
   SGL2008: { severity: 'warning', template: 'Edge blocks hold configuration only; `{thing}` ignored.' },
+  SGL2009: { severity: 'warning', template: 'Variable `${name}` is not substituted in this version; kept as literal text.' },
   SGL2010: { severity: 'warning', template: 'Unknown configuration key `@{key}`; kept but has no effect in this version.' },
   SGL2011: { severity: 'warning', template: '`@{key}` expects {type}; ignored.' },
   SGL2012: { severity: 'warning', template: '`@{key}` is not valid on {scope}; ignored.' },
