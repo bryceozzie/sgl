@@ -1,0 +1,2 @@
+// expects: SGL2011
+a: { @hidden: "yes" }

@@ -1,0 +1,48 @@
+{
+  "@sgl": "1.0",
+  "order service": {
+    "@label": "Order Service"
+  },
+  "metrics.v2": {
+    "@label": "Metrics v2"
+  },
+  "🚀": {
+    "@label": "Launch 🚀"
+  },
+  "rtl": {
+    "@label": "مرحبا بالعالم"
+  },
+  "mixed": {
+    "@label": "Tokyo 東京 · Café"
+  },
+  "multiline": {
+    "@label": "Line one\nLine two"
+  },
+  "@edges": [
+    {
+      "from": "\"order service\"",
+      "to": "\"metrics.v2\"",
+      "directed": "forward",
+      "ordinal": 0,
+      "@label": "emits"
+    },
+    {
+      "from": "\"🚀\"",
+      "to": "rtl",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "rtl",
+      "to": "mixed",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "mixed",
+      "to": "multiline",
+      "directed": "forward",
+      "ordinal": 1
+    }
+  ]
+}

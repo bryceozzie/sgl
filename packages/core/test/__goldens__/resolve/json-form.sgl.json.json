@@ -1,0 +1,29 @@
+{
+  "@sgl": "1.0",
+  "@title": "JSON subset",
+  "@classes": {
+    "Datastore": {
+      "@shape": "cylinder"
+    }
+  },
+  "gateway": {
+    "@label": "API Gateway"
+  },
+  "cache": {
+    "@type": [
+      "Datastore"
+    ]
+  },
+  "notes": {
+    "@label": "A string under a non-@ key is always a label, never a class."
+  },
+  "@edges": [
+    {
+      "from": "gateway",
+      "to": "cache",
+      "directed": "forward",
+      "ordinal": 0,
+      "@label": "reads"
+    }
+  ]
+}

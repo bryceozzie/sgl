@@ -1,0 +1,69 @@
+{
+  "@sgl": "1.0",
+  "r": {
+    "@label": "rect",
+    "@shape": "rect"
+  },
+  "n": {
+    "@label": "round",
+    "@shape": "round"
+  },
+  "e": {
+    "@label": "ellipse",
+    "@shape": "ellipse"
+  },
+  "d": {
+    "@label": "diamond",
+    "@shape": "diamond"
+  },
+  "h": {
+    "@label": "hexagon",
+    "@shape": "hexagon"
+  },
+  "c": {
+    "@label": "cylinder",
+    "@shape": "cylinder"
+  },
+  "p": {
+    "@label": "package",
+    "@shape": "package"
+  },
+  "@edges": [
+    {
+      "from": "r",
+      "to": "n",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "n",
+      "to": "e",
+      "directed": "forward",
+      "ordinal": 1
+    },
+    {
+      "from": "e",
+      "to": "d",
+      "directed": "forward",
+      "ordinal": 2
+    },
+    {
+      "from": "d",
+      "to": "h",
+      "directed": "forward",
+      "ordinal": 3
+    },
+    {
+      "from": "h",
+      "to": "c",
+      "directed": "forward",
+      "ordinal": 4
+    },
+    {
+      "from": "c",
+      "to": "p",
+      "directed": "forward",
+      "ordinal": 5
+    }
+  ]
+}
