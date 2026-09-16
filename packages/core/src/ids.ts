@@ -21,3 +21,17 @@ export const asNodeId = (s: string): NodeId => s as NodeId;
 export const asEdgeId = (s: string): EdgeId => s as EdgeId;
 export const asLabelId = (s: string): LabelId => s as LabelId;
 export const asPortId = (s: string): PortId => s as PortId;
+
+/**
+ * Path segments joined by `.`, with a literal `\` or `.` inside a segment
+ * escaped as `\\` / `\.` (DD-03 §2.1). The backslash is escaped first so the
+ * dot-escape's own backslash is never mistaken for one that was already
+ * there. Root (`path.length === 0`) is the empty string — DD-03 says root is
+ * never a node, but `resolve()` uses the same joining rule for its span-table
+ * key on the root container, so the empty case is defined here too.
+ *
+ * The one function both `resolve()` (span-table keys) and Stage C (`NodeId`
+ * proper) build a path string from, so the two can never drift apart.
+ */
+export const nodeIdFromPath = (path: readonly string[]): string =>
+  path.map((seg) => seg.replace(/\\/g, '\\\\').replace(/\./g, '\\.')).join('.');

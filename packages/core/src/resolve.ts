@@ -37,6 +37,7 @@ import type {
 } from './ast.js';
 import { configKeyOrder, validateConfigKey } from './config-registry.js';
 import { diagnostic, type Diagnostic } from './diagnostics.js';
+import { nodeIdFromPath } from './ids.js';
 import type {
   ClassModel,
   ConfigBag,
@@ -235,17 +236,28 @@ function buildEdgeConfigBag(value: StringLit | Block | undefined, classNames: Re
 // `"@edges"` arrays — the canonical-JSON form of an edge (DD-02 §6)
 // ---------------------------------------------------------------------------
 
+/** The path returned by re-parsing `text` (see `parsePathText`) carries spans
+ *  measured against that throwaway synthetic source, not the real document —
+ *  offsets that would otherwise anchor a later `SGL2001`/`SGL3003`/`SGL3004`
+ *  (Stage C) or an editor underline (Stage I) at arbitrary, unrelated text.
+ *  Collapse every span in the tree to the real `from`/`to` string literal's
+ *  own span instead: less precise than a per-character remap, but always
+ *  inside the actual source, which is what downstream consumers need. */
+function remapPathSpans(path: PathExpr, span: SourceSpan): PathExpr {
+  return { ...path, span, segments: path.segments.map((step) => ({ ...step, span }) as PathStep) };
+}
+
 /** Re-parse a `from`/`to` string as a tiny synthetic edge statement so path
  *  syntax — quoting, `../`, `/`, wildcards — is interpreted by the one real
  *  `Path` grammar rather than a second, hand-rolled parser. See file header. */
-function parsePathText(text: string, fallback: SourceSpan): PathExpr {
+function parsePathText(text: string, realSpan: SourceSpan): PathExpr {
   const { ast } = parse(`${text} -> __sgl_edges_placeholder__`);
   for (const entry of ast.entries) {
     if (entry.kind === 'EdgeStmt' && entry.endpoints.length > 0) {
-      return (entry.endpoints[0] as { path: PathExpr }).path;
+      return remapPathSpans((entry.endpoints[0] as { path: PathExpr }).path, realSpan);
     }
   }
-  return { kind: 'PathExpr', root: false, parents: 0, segments: [], span: fallback };
+  return { kind: 'PathExpr', root: false, parents: 0, segments: [], span: realSpan };
 }
 
 const DIRECTIONS: ReadonlySet<string> = new Set(['forward', 'both', 'none']);
@@ -514,8 +526,6 @@ function finalizeConfig(bag: Bag, scope: Scope, diags: Diagnostic[]): ConfigBag 
 // Assembly
 // ---------------------------------------------------------------------------
 
-const pathKey = (path: readonly string[]): string => path.map((seg) => seg.replace(/\./g, '\\.')).join('.');
-
 function finalizeContainer(
   key: string,
   path: readonly string[],
@@ -525,7 +535,7 @@ function finalizeContainer(
   spans: Map<string, SourceSpan>,
   diags: Diagnostic[],
 ): ContainerModel {
-  spans.set(`n:${pathKey(path)}`, declSpan);
+  spans.set(`n:${nodeIdFromPath(path)}`, declSpan);
   const config = finalizeConfig(acc, scope, diags);
 
   const children: ContainerModel[] = [];
@@ -534,7 +544,7 @@ function finalizeContainer(
   }
 
   const edges: EdgeModel[] = acc.edges.map((raw, i) => {
-    spans.set(`e:${pathKey(path)}#${i}`, raw.stmtSpan);
+    spans.set(`e:${nodeIdFromPath(path)}#${i}`, raw.stmtSpan);
     return {
       from: raw.from,
       to: raw.to,
@@ -587,7 +597,11 @@ export function resolve(ast: Document): ResolveResult {
 // Canonical JSON (DD-02 §6)
 // ---------------------------------------------------------------------------
 
-const BAREWORD = /^[A-Za-z_][A-Za-z0-9_-]*$/;
+// Mirrors the grammar's `Identifier` token exactly (`sgl.grammar`): a `-` is
+// only part of the identifier when followed by another name character, so
+// `a-` and `a--b` are NOT bare identifiers — printing them unquoted would
+// parse back as a different, shorter name (`a`) on the next `fromJson`.
+const BAREWORD = /^[A-Za-z_](?:[A-Za-z0-9_]|-[A-Za-z0-9_])*$/;
 
 function printPathStep(step: PathStep): string {
   if (step.kind === 'Wildcard') {
