@@ -1,0 +1,2 @@
+// expects: SGL3007
+a: { @ports: { out: banana } }

@@ -61,6 +61,8 @@ export const CATALOGUE = {
   SGL3003: { severity: 'warning', template: '`{path}` matched no nodes; the edge was skipped.' },
   SGL3004: { severity: 'error', template: 'A wildcard may only be the last part of a path; `{path}` was skipped.' },
   SGL3005: { severity: 'error', template: '`{from} {op} {to}` expands to {n} edges, over the limit of {max}; it was skipped.' },
+  SGL3006: { severity: 'info', template: 'Shape `{name}` is not drawn in this version; using `rect`.' },
+  SGL3007: { severity: 'warning', template: '`{node}` port `{port}` has side `{side}`; expected north, south, east or west. Using `east`.' },
 
   // ---- 4xxx layout (DD-06) -----------------------------------------------
   SGL4001: { severity: 'error', template: 'Layout engine `{id}` did not finish within {ms} ms and was stopped. Showing the previous layout.' },

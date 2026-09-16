@@ -143,6 +143,7 @@
         "label": "emits"
       },
       "declaredIn": null,
+      "hidden": false,
       "span": {
         "from": 335,
         "to": 375
@@ -161,6 +162,7 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
         "from": 376,
         "to": 387
@@ -179,6 +181,7 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
         "from": 388,
         "to": 413
@@ -197,6 +200,7 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
         "from": 388,
         "to": 413

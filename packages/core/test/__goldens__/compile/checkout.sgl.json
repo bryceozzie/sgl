@@ -254,6 +254,7 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
         "from": 789,
         "to": 811
@@ -274,6 +275,7 @@
         "label": "POST /charge"
       },
       "declaredIn": null,
+      "hidden": false,
       "span": {
         "from": 812,
         "to": 858
@@ -294,6 +296,7 @@
         "label": "authorise"
       },
       "declaredIn": null,
+      "hidden": false,
       "span": {
         "from": 859,
         "to": 891
@@ -314,6 +317,7 @@
         "label": "GraphQL"
       },
       "declaredIn": "storefront",
+      "hidden": false,
       "span": {
         "from": 488,
         "to": 509
@@ -332,6 +336,7 @@
       "labelId": null,
       "config": {},
       "declaredIn": "payments",
+      "hidden": false,
       "span": {
         "from": 675,
         "to": 688
@@ -353,6 +358,7 @@
         "style": "dashed"
       },
       "declaredIn": "payments",
+      "hidden": false,
       "span": {
         "from": 691,
         "to": 741

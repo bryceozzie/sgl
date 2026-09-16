@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
@@ -11,6 +11,20 @@ import { resolve } from '../src/resolve.js';
 
 const corpusDir = fileURLToPath(new URL('../../../corpus/', import.meta.url));
 const corpus = (name: string): string => readFileSync(`${corpusDir}${name}`, 'utf8');
+
+/** Every `.sgl`/`.sgl.json` file anywhere under `corpus/`, malformed and
+ *  unresolved documents included — the whole-corpus invariant below (DD-09
+ *  §3.3 invariant 7) needs the error-tolerant partial-model path too, since
+ *  that is exactly where B1's bug (a resolved path of length 0 read as a hit
+ *  on the document root) showed up. */
+function listCorpusFiles(dir: string, rel = ''): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory()) out.push(...listCorpusFiles(`${dir}/${entry.name}`, `${rel}${entry.name}/`));
+    else if (entry.name.endsWith('.sgl') || entry.name.endsWith('.sgl.json')) out.push(`${rel}${entry.name}`);
+  }
+  return out;
+}
 
 const compileSrc = (src: string) => {
   const { ast } = parse(src);
@@ -118,6 +132,29 @@ describe('compile() over the corpus', () => {
     // strictly more edges exist afterwards.
     expect(after.edges.length).toBeGreaterThan(before.edges.length);
   });
+
+  it('no edge references a node absent from graph.nodes, over the whole corpus (DD-09 §3.3 invariant 7, B1)', () => {
+    for (const file of listCorpusFiles(corpusDir.slice(0, -1))) {
+      const src = readFileSync(`${corpusDir}${file}`, 'utf8');
+      const { ast } = parse(src);
+      const { model } = resolve(ast);
+      const { graph } = compile(model);
+      for (const edge of graph.edges) {
+        expect(graph.nodes[edge.from.node], `${file}: ${edge.id} from ${edge.from.node}`).toBeDefined();
+        expect(graph.nodes[edge.to.node], `${file}: ${edge.id} to ${edge.to.node}`).toBeDefined();
+      }
+    }
+  });
+
+  it('a resolved path of length 0 (e.g. `inner -> ../` one level down) is SGL2001, not a hit on the document root (B1)', () => {
+    // `../` with nothing after it is a grammar violation (`Path` requires at
+    // least one `PathStep`), so this also carries a parse error — the same
+    // error-tolerant partial-model path a user mid-keystroke produces.
+    const { graph, diagnostics } = compileSrc('outer: {\n  inner: {}\n  inner -> ../\n}\n');
+    expect(diagnostics.map((d) => d.code)).toContain('SGL2001');
+    expect(graph.edges).toHaveLength(0);
+    expect(Object.keys(graph.nodes)).toEqual(['outer', 'outer.inner']);
+  });
 });
 
 describe('corpus/unresolved/*.sgl — compiler-owned diagnostics (DD-02 §8)', () => {
@@ -126,6 +163,8 @@ describe('corpus/unresolved/*.sgl — compiler-owned diagnostics (DD-02 §8)', (
     'unknown-path.sgl',
     'unknown-port.sgl',
     'unknown-shape.sgl',
+    'shape-not-drawn.sgl',
+    'bad-port-side.sgl',
     'wildcard-glob-no-match.sgl',
     'wildcard-midpath.sgl',
     'wildcard-no-match.sgl',
@@ -207,11 +246,57 @@ describe('ports (DD-03 §3)', () => {
     expect(graph.edges[0]?.from.node).toBe('a');
   });
 
-  it('reads ports only from the node’s own inline `@ports`, not from a class', () => {
-    const { graph } = compileSrc('@classes: { Router: { @ports: { out: east } } }\na: Router\nb\na[out] -> b\n');
-    // The port is on the class, not inline on `a` — DD-03's rule is explicitly
-    // "the target node's @ports" (see resolveShape's counterpart, buildPorts).
-    expect(graph.nodes.a?.ports).toEqual([]);
+  it('ports cascade from a class onto the node, inline winning per port id (DD-02 §7)', () => {
+    const { graph, diagnostics } = compileSrc(
+      '@classes: { Router: { @ports: { out: east } } }\na: Router\nb\na[out] -> b\n',
+    );
+    // DD-02 §7 gives `ports` scope `node, class` so a class can supply them;
+    // "the target node's @ports" in DD-03 §3 is about which node an *endpoint*
+    // validates against, not about whether a class contributes to the set.
+    expect(diagnostics).toEqual([]);
+    expect(graph.nodes.a?.ports).toEqual([{ id: 'out', side: 'east' }]);
+    expect(graph.edges[0]?.from.port).toBe('out');
+  });
+
+  it('inline @ports overrides a class port with the same id but keeps the class’s others (classes.sgl)', () => {
+    const { graph } = compileSrc(corpus('classes.sgl'));
+    const sorted = (ports: readonly { id: string; side: string }[] | undefined) =>
+      [...(ports ?? [])].sort((a, b) => a.id.localeCompare(b.id));
+    expect(sorted(graph.nodes.routed?.ports)).toEqual([
+      { id: 'in', side: 'west' },
+      { id: 'out', side: 'east' },
+    ]);
+    expect(sorted(graph.nodes.routedOverride?.ports)).toEqual([
+      { id: 'in', side: 'west' },
+      { id: 'out', side: 'west' },
+    ]);
+  });
+
+  it('an invalid port side is SGL3007 and falls back to east', () => {
+    const { graph, diagnostics } = compileSrc('a: { @ports: { out: banana } }\n');
+    expect(diagnostics.map((d) => d.code)).toEqual(['SGL3007']);
+    expect(graph.nodes.a?.ports).toEqual([{ id: 'out', side: 'east' }]);
+  });
+
+  it('a non-string port side is also SGL3007, not a silent coercion', () => {
+    const { graph, diagnostics } = compileSrc('a: { @ports: { out: 5 } }\n');
+    expect(diagnostics.map((d) => d.code)).toEqual(['SGL3007']);
+    expect(diagnostics[0]?.message).toContain('5');
+    expect(graph.nodes.a?.ports).toEqual([{ id: 'out', side: 'east' }]);
+  });
+
+  it('both sides wildcarded and both sides ported: one SGL2003 per distinct portless node, not per edge (DD-03 §3.1, B2)', () => {
+    const { graph, diagnostics } = compileSrc(
+      'lane1: { a: { @ports: { out: east } } b: { @ports: { out: east } } c: { @ports: { out: east } } }\n' +
+        'lane2: { x: {} y: {} }\n' +
+        'lane1.*[out] -> lane2.*[in]\n',
+    );
+    expect(graph.edges).toHaveLength(6);
+    const portDiags = diagnostics.filter((d) => d.code === 'SGL2003');
+    expect(portDiags).toHaveLength(2);
+    expect(new Set(portDiags.map((d) => d.message))).toEqual(
+      new Set(["`lane2.x` has no port `in`; the edge attaches to the node instead.", "`lane2.y` has no port `in`; the edge attaches to the node instead."]),
+    );
   });
 });
 
@@ -232,6 +317,19 @@ describe('shape resolution (DD-03 §4)', () => {
     const { graph, diagnostics } = compileSrc('a: { @shape: trapezoid }\n');
     expect(diagnostics.map((d) => d.code)).toEqual(['SGL3001']);
     expect(graph.nodes.a?.shape).toBe('rect');
+  });
+
+  it('a language-recognised but not-yet-drawn shape is SGL3006 (info), not SGL3001, and falls back to rect (A1)', () => {
+    const { graph, diagnostics } = compileSrc('a: { @shape: actor }\n');
+    expect(diagnostics.map((d) => d.code)).toEqual(['SGL3006']);
+    expect(diagnostics[0]?.severity).toBe('info');
+    expect(graph.nodes.a?.shape).toBe('rect');
+  });
+
+  it('checkout.sgl’s @shape: cloud (via the External class, on `edge` and `psp`) is SGL3006, not SGL3001', () => {
+    const { diagnostics } = compileSrc(corpus('checkout.sgl'));
+    expect(diagnostics.filter((d) => d.code === 'SGL3006')).toHaveLength(2);
+    expect(diagnostics.filter((d) => d.code === 'SGL3001')).toHaveLength(0);
   });
 
   it('falls back to the highest-precedence class that defines a shape when there is no inline shape', () => {
@@ -317,6 +415,26 @@ describe('hidden nodes (DD-03 §6, §7, §9)', () => {
     expect(graph.nodes.a?.labelId).toBeNull();
     expect(graph.nodes.b?.labelId).toBeNull();
   });
+
+  it('an edge with its own @hidden is hidden between two otherwise-visible nodes, and reports no SGL3002 (A2, hidden.sgl)', () => {
+    const { graph, diagnostics } = compileSrc(corpus('hidden.sgl'));
+    const edge = graph.edges.find((e) => e.from.node === 'visible' && e.to.node === 'another') as GraphEdge;
+    expect(edge.hidden).toBe(true);
+    expect(edge.labelId).toBeNull(); // @label: "silent" is set but ignored — hidden wins
+    expect(graph.nodes.visible?.hidden).toBe(false);
+    expect(graph.nodes.another?.hidden).toBe(false);
+    expect(diagnostics.filter((d) => d.code === 'SGL3002')).toHaveLength(1); // unchanged: only `ghost`
+  });
+
+  it('an edge is effectively hidden when either endpoint node is hidden, even without its own @hidden (A2, hidden.sgl)', () => {
+    const { graph } = compileSrc(corpus('hidden.sgl'));
+    const toGhost = graph.edges.find((e) => e.from.node === 'visible' && e.to.node === 'ghost') as GraphEdge;
+    const fromGhost = graph.edges.find((e) => e.from.node === 'ghost' && e.to.node === 'other') as GraphEdge;
+    expect(toGhost.hidden).toBe(true);
+    expect(fromGhost.hidden).toBe(true);
+    const plain = graph.edges.find((e) => e.from.node === 'visible' && e.to.node === 'other') as GraphEdge;
+    expect(plain.hidden).toBe(false);
+  });
 });
 
 describe('wildcard expansion (DD-03 §3.1, language spec §3)', () => {
@@ -385,11 +503,20 @@ describe('wildcard expansion (DD-03 §3.1, language spec §3)', () => {
   it('ports ride along with expansion: matched nodes without the port get SGL2003, the rest attach', () => {
     const { graph, diagnostics } = compileSrc(corpus('wildcards.sgl'));
     const portDiags = diagnostics.filter((d) => d.code === 'SGL2003');
-    expect(portDiags).toHaveLength(1); // only `ported.r` lacks `out`
+    // `ported.r` (one-sided `ported.*[out] -> switch`), plus `fan2.m` and
+    // `fan2.n` from the both-sided `fan1.*[out] -> fan2.*[in]` — one warning
+    // per distinct portless node (B2), not per edge: fan2's 2 nodes appear in
+    // 3 edges each (6 edges total) but owe only 2 warnings between them.
+    expect(portDiags).toHaveLength(3);
     const edges = graph.edges.filter((e) => e.to.node === 'switch' && e.from.node.startsWith('ported.'));
     expect(edges).toHaveLength(3);
     expect(edges.find((e) => e.from.node === 'ported.r')?.from.port).toBeUndefined();
     expect(edges.find((e) => e.from.node === 'ported.p')?.from.port).toBe('out');
+
+    const fanEdges = graph.edges.filter((e) => e.from.node.startsWith('fan1.'));
+    expect(fanEdges).toHaveLength(6);
+    expect(fanEdges.every((e) => e.from.port === 'out')).toBe(true);
+    expect(fanEdges.every((e) => e.to.port === undefined)).toBe(true);
   });
 
   it('the expansion ceiling emits SGL3005 and skips the whole statement, leaving other edges intact', () => {

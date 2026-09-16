@@ -57,6 +57,27 @@
     },
     "r": {}
   },
+  "fan1": {
+    "x": {
+      "@ports": {
+        "out": "east"
+      }
+    },
+    "y": {
+      "@ports": {
+        "out": "east"
+      }
+    },
+    "z": {
+      "@ports": {
+        "out": "east"
+      }
+    }
+  },
+  "fan2": {
+    "m": {},
+    "n": {}
+  },
   "@edges": [
     {
       "from": "lane1.*",
@@ -87,6 +108,14 @@
       "from": "ported.*",
       "to": "switch",
       "fromPort": "out",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "fan1.*",
+      "to": "fan2.*",
+      "fromPort": "out",
+      "toPort": "in",
       "directed": "forward",
       "ordinal": 0
     },

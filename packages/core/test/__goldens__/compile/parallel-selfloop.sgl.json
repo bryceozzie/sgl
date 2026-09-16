@@ -53,6 +53,7 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
         "from": 67,
         "to": 73
@@ -73,6 +74,7 @@
         "label": "twice"
       },
       "declaredIn": null,
+      "hidden": false,
       "span": {
         "from": 74,
         "to": 89
@@ -91,6 +93,7 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
         "from": 90,
         "to": 96
@@ -109,6 +112,7 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
         "from": 97,
         "to": 103
@@ -129,6 +133,7 @@
         "label": "third"
       },
       "declaredIn": null,
+      "hidden": false,
       "span": {
         "from": 104,
         "to": 119
@@ -147,6 +152,7 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
         "from": 120,
         "to": 127
@@ -165,6 +171,7 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
         "from": 128,
         "to": 134

@@ -383,6 +383,178 @@
         "from": 654,
         "to": 659
       }
+    },
+    "fan1": {
+      "id": "fan1",
+      "path": [
+        "fan1"
+      ],
+      "parent": null,
+      "children": [
+        "fan1.x",
+        "fan1.y",
+        "fan1.z"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:fan1",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1106,
+        "to": 1208
+      }
+    },
+    "fan1.x": {
+      "id": "fan1.x",
+      "path": [
+        "fan1",
+        "x"
+      ],
+      "parent": "fan1",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:fan1.x",
+      "ports": [
+        {
+          "id": "out",
+          "side": "east"
+        }
+      ],
+      "config": {
+        "ports": {
+          "out": "east"
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 1116,
+        "to": 1144
+      }
+    },
+    "fan1.y": {
+      "id": "fan1.y",
+      "path": [
+        "fan1",
+        "y"
+      ],
+      "parent": "fan1",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:fan1.y",
+      "ports": [
+        {
+          "id": "out",
+          "side": "east"
+        }
+      ],
+      "config": {
+        "ports": {
+          "out": "east"
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 1147,
+        "to": 1175
+      }
+    },
+    "fan1.z": {
+      "id": "fan1.z",
+      "path": [
+        "fan1",
+        "z"
+      ],
+      "parent": "fan1",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:fan1.z",
+      "ports": [
+        {
+          "id": "out",
+          "side": "east"
+        }
+      ],
+      "config": {
+        "ports": {
+          "out": "east"
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 1178,
+        "to": 1206
+      }
+    },
+    "fan2": {
+      "id": "fan2",
+      "path": [
+        "fan2"
+      ],
+      "parent": null,
+      "children": [
+        "fan2.m",
+        "fan2.n"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:fan2",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1209,
+        "to": 1234
+      }
+    },
+    "fan2.m": {
+      "id": "fan2.m",
+      "path": [
+        "fan2",
+        "m"
+      ],
+      "parent": "fan2",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:fan2.m",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1219,
+        "to": 1224
+      }
+    },
+    "fan2.n": {
+      "id": "fan2.n",
+      "path": [
+        "fan2",
+        "n"
+      ],
+      "parent": "fan2",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:fan2.n",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1227,
+        "to": 1232
+      }
     }
   },
   "edges": [
@@ -399,9 +571,10 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 764,
-        "to": 781
+        "from": 1288,
+        "to": 1305
       }
     },
     {
@@ -417,9 +590,10 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 764,
-        "to": 781
+        "from": 1288,
+        "to": 1305
       }
     },
     {
@@ -437,9 +611,10 @@
         "label": "distributes"
       },
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 845,
-        "to": 877
+        "from": 1369,
+        "to": 1401
       }
     },
     {
@@ -457,9 +632,10 @@
         "label": "distributes"
       },
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 845,
-        "to": 877
+        "from": 1369,
+        "to": 1401
       }
     },
     {
@@ -475,9 +651,10 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 950,
-        "to": 967
+        "from": 1474,
+        "to": 1491
       }
     },
     {
@@ -493,9 +670,10 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 950,
-        "to": 967
+        "from": 1474,
+        "to": 1491
       }
     },
     {
@@ -511,9 +689,10 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 950,
-        "to": 967
+        "from": 1474,
+        "to": 1491
       }
     },
     {
@@ -529,9 +708,10 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 1019,
-        "to": 1037
+        "from": 1543,
+        "to": 1561
       }
     },
     {
@@ -547,9 +727,10 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 1019,
-        "to": 1037
+        "from": 1543,
+        "to": 1561
       }
     },
     {
@@ -565,9 +746,10 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 1019,
-        "to": 1037
+        "from": 1543,
+        "to": 1561
       }
     },
     {
@@ -583,9 +765,10 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 1019,
-        "to": 1037
+        "from": 1543,
+        "to": 1561
       }
     },
     {
@@ -602,9 +785,10 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 1105,
-        "to": 1128
+        "from": 1629,
+        "to": 1652
       }
     },
     {
@@ -621,9 +805,10 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 1105,
-        "to": 1128
+        "from": 1629,
+        "to": 1652
       }
     },
     {
@@ -639,9 +824,130 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 1105,
-        "to": 1128
+        "from": 1629,
+        "to": 1652
+      }
+    },
+    {
+      "id": "e-ccce3ce86d957f9b",
+      "from": {
+        "node": "fan1.x",
+        "port": "out"
+      },
+      "to": {
+        "node": "fan2.m"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1777,
+        "to": 1802
+      }
+    },
+    {
+      "id": "e-4e3c32f1438e6f4c",
+      "from": {
+        "node": "fan1.x",
+        "port": "out"
+      },
+      "to": {
+        "node": "fan2.n"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1777,
+        "to": 1802
+      }
+    },
+    {
+      "id": "e-433bce2ccc1f582c",
+      "from": {
+        "node": "fan1.y",
+        "port": "out"
+      },
+      "to": {
+        "node": "fan2.m"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1777,
+        "to": 1802
+      }
+    },
+    {
+      "id": "e-c1cd5823f6258efb",
+      "from": {
+        "node": "fan1.y",
+        "port": "out"
+      },
+      "to": {
+        "node": "fan2.n"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1777,
+        "to": 1802
+      }
+    },
+    {
+      "id": "e-bcdf7fa82d2e5eb5",
+      "from": {
+        "node": "fan1.z",
+        "port": "out"
+      },
+      "to": {
+        "node": "fan2.m"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1777,
+        "to": 1802
+      }
+    },
+    {
+      "id": "e-62f33d8ee5415102",
+      "from": {
+        "node": "fan1.z",
+        "port": "out"
+      },
+      "to": {
+        "node": "fan2.n"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1777,
+        "to": 1802
       }
     },
     {
@@ -657,9 +963,10 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 1157,
-        "to": 1185
+        "from": 1831,
+        "to": 1859
       }
     },
     {
@@ -675,9 +982,10 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 1157,
-        "to": 1185
+        "from": 1831,
+        "to": 1859
       }
     },
     {
@@ -693,9 +1001,10 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 1157,
-        "to": 1185
+        "from": 1831,
+        "to": 1859
       }
     },
     {
@@ -711,9 +1020,10 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 1157,
-        "to": 1185
+        "from": 1831,
+        "to": 1859
       }
     },
     {
@@ -729,6 +1039,7 @@
       "labelId": null,
       "config": {},
       "declaredIn": "lane2",
+      "hidden": false,
       "span": {
         "from": 329,
         "to": 344
@@ -747,6 +1058,7 @@
       "labelId": null,
       "config": {},
       "declaredIn": "lane2",
+      "hidden": false,
       "span": {
         "from": 329,
         "to": 344
@@ -765,6 +1077,7 @@
       "labelId": null,
       "config": {},
       "declaredIn": "deep.top.mid",
+      "hidden": false,
       "span": {
         "from": 481,
         "to": 497
@@ -783,6 +1096,7 @@
       "labelId": null,
       "config": {},
       "declaredIn": "deep.top.mid",
+      "hidden": false,
       "span": {
         "from": 481,
         "to": 497
@@ -795,7 +1109,9 @@
     "lane2",
     "deep",
     "empty",
-    "ported"
+    "ported",
+    "fan1",
+    "fan2"
   ],
   "order": [
     "switch",
@@ -813,7 +1129,14 @@
     "ported",
     "ported.p",
     "ported.q",
-    "ported.r"
+    "ported.r",
+    "fan1",
+    "fan1.x",
+    "fan1.y",
+    "fan1.z",
+    "fan2",
+    "fan2.m",
+    "fan2.n"
   ],
   "labels": {
     "l:e-b5efc0f08f87e759": {
@@ -1049,12 +1372,103 @@
           "text": "r"
         }
       ]
+    },
+    "l:fan1": {
+      "id": "l:fan1",
+      "owner": {
+        "kind": "node",
+        "id": "fan1"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "fan1"
+        }
+      ]
+    },
+    "l:fan1.x": {
+      "id": "l:fan1.x",
+      "owner": {
+        "kind": "node",
+        "id": "fan1.x"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "x"
+        }
+      ]
+    },
+    "l:fan1.y": {
+      "id": "l:fan1.y",
+      "owner": {
+        "kind": "node",
+        "id": "fan1.y"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "y"
+        }
+      ]
+    },
+    "l:fan1.z": {
+      "id": "l:fan1.z",
+      "owner": {
+        "kind": "node",
+        "id": "fan1.z"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "z"
+        }
+      ]
+    },
+    "l:fan2": {
+      "id": "l:fan2",
+      "owner": {
+        "kind": "node",
+        "id": "fan2"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "fan2"
+        }
+      ]
+    },
+    "l:fan2.m": {
+      "id": "l:fan2.m",
+      "owner": {
+        "kind": "node",
+        "id": "fan2.m"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "m"
+        }
+      ]
+    },
+    "l:fan2.n": {
+      "id": "l:fan2.n",
+      "owner": {
+        "kind": "node",
+        "id": "fan2.n"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "n"
+        }
+      ]
     }
   },
   "title": "Wildcards",
   "meta": {
-    "nodeCount": 17,
-    "edgeCount": 22,
-    "containerCount": 6
+    "nodeCount": 24,
+    "edgeCount": 28,
+    "containerCount": 8
   }
 }

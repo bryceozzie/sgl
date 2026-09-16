@@ -1,8 +1,13 @@
-// Hidden nodes with edges to them (SGL3002).
+// Hidden nodes with edges to them (SGL3002); an edge-level @hidden (DD-03 §6).
 visible
 ghost: { @hidden: true }
 other
+another
 
 visible -> ghost
 ghost -> other
 visible -> other
+
+// Both endpoints stay visible; only the edge itself is hidden — no SGL3002,
+// since that stays keyed off hidden nodes, and no label.
+visible -> another: { @hidden: true, @label: "silent" }

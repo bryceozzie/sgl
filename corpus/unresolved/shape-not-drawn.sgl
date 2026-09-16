@@ -1,0 +1,2 @@
+// expects: SGL3006
+a: { @shape: actor }

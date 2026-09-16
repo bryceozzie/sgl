@@ -15,8 +15,8 @@
       "config": {},
       "hidden": false,
       "span": {
-        "from": 46,
-        "to": 53
+        "from": 80,
+        "to": 87
       }
     },
     "ghost": {
@@ -36,8 +36,8 @@
       },
       "hidden": true,
       "span": {
-        "from": 54,
-        "to": 78
+        "from": 88,
+        "to": 112
       }
     },
     "other": {
@@ -55,8 +55,27 @@
       "config": {},
       "hidden": false,
       "span": {
-        "from": 79,
-        "to": 84
+        "from": 113,
+        "to": 118
+      }
+    },
+    "another": {
+      "id": "another",
+      "path": [
+        "another"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:another",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 119,
+        "to": 126
       }
     }
   },
@@ -74,9 +93,10 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": true,
       "span": {
-        "from": 86,
-        "to": 102
+        "from": 128,
+        "to": 144
       }
     },
     {
@@ -92,9 +112,10 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": true,
       "span": {
-        "from": 103,
-        "to": 117
+        "from": 145,
+        "to": 159
       }
     },
     {
@@ -110,20 +131,45 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 118,
-        "to": 134
+        "from": 160,
+        "to": 176
+      }
+    },
+    {
+      "id": "e-bcfc3192b0a4a052",
+      "from": {
+        "node": "visible"
+      },
+      "to": {
+        "node": "another"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {
+        "hidden": true,
+        "label": "silent"
+      },
+      "declaredIn": null,
+      "hidden": true,
+      "span": {
+        "from": 313,
+        "to": 368
       }
     }
   ],
   "rootChildren": [
     "visible",
     "ghost",
-    "other"
+    "other",
+    "another"
   ],
   "order": [
     "visible",
-    "other"
+    "other",
+    "another"
   ],
   "labels": {
     "l:visible": {
@@ -151,11 +197,24 @@
           "text": "other"
         }
       ]
+    },
+    "l:another": {
+      "id": "l:another",
+      "owner": {
+        "kind": "node",
+        "id": "another"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "another"
+        }
+      ]
     }
   },
   "meta": {
-    "nodeCount": 3,
-    "edgeCount": 3,
+    "nodeCount": 4,
+    "edgeCount": 4,
     "containerCount": 0
   }
 }

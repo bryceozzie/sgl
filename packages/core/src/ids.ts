@@ -18,11 +18,14 @@ export type ShapeId =
   | (string & {});
 
 /** The same seven names as `ShapeId`'s closed members, as a runtime set Stage C
- *  checks a resolved `@shape` value against (DD-03 §4): known → kept, unknown →
- *  `SGL3001` and fall back to `rect`. `@sgl/render-svg`'s shape modules (DD-07 §4)
- *  are the one-true source this mirrors; kept here rather than imported from a
- *  package `@sgl/core` may not depend on. */
-export const KNOWN_SHAPES: ReadonlySet<string> = new Set<ShapeId>([
+ *  checks a resolved `@shape` value against (DD-03 §4): drawable → kept, a name
+ *  from the language's twelve-shape vocabulary (`LANGUAGE_SHAPES`,
+ *  `config-registry.ts`) that isn't one of these seven → `SGL3006` ("not drawn
+ *  yet"), anything else → `SGL3001` ("unknown"), both falling back to `rect`.
+ *  `@sgl/render-svg`'s shape modules (DD-07 §4) are the one-true source this
+ *  mirrors; kept here rather than imported from a package `@sgl/core` may not
+ *  depend on. */
+export const DRAWABLE_SHAPES: ReadonlySet<string> = new Set<ShapeId>([
   'rect',
   'round',
   'ellipse',

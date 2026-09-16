@@ -34,9 +34,10 @@ import type {
   TextRun,
   ViewSelector,
 } from './graph.js';
+import { LANGUAGE_SHAPES } from './config-registry.js';
 import { fnv1a64 } from './hash.js';
-import { asEdgeId, asLabelId, asNodeId, asPortId, KNOWN_SHAPES, nodeIdFromPath, type NodeId, type ShapeId } from './ids.js';
-import type { ClassModel, ConfigBag, ContainerModel, DocumentModel, EdgeModel } from './model.js';
+import { asEdgeId, asLabelId, asNodeId, asPortId, DRAWABLE_SHAPES, nodeIdFromPath, type NodeId, type ShapeId } from './ids.js';
+import type { ClassModel, ConfigBag, ConfigValue, ContainerModel, DocumentModel, EdgeModel } from './model.js';
 import { NO_SPAN, type SourceSpan } from './span.js';
 
 export interface CompileResult {
@@ -96,9 +97,12 @@ function linearizeClasses(typeNames: readonly string[], classes: Readonly<Record
 // ---------------------------------------------------------------------------
 
 /** Inline `config.shape` wins; otherwise the first class in reverse linearised
- *  order (highest precedence first) that defines one. An unknown name — inline
- *  or from a class, `checkout.sgl`'s `@shape: cloud` among them — is `SGL3001`
- *  and falls back to `rect`; no shape anywhere is `rect` without a warning. */
+ *  order (highest precedence first) that defines one. A name in neither list
+ *  (`SGL3001`, "unknown") or a name the language recognises but this version's
+ *  renderer does not yet draw (`SGL3006`, `checkout.sgl`'s `@shape: cloud`
+ *  among them) both fall back to `rect`; no shape anywhere is `rect` without a
+ *  warning. Whichever code fires, the guarantee downstream stages rely on
+ *  (DD-03 §4) is total: `GraphNode.shape` is always one DD-07 §4 can draw. */
 function resolveShape(
   config: ConfigBag,
   classes: readonly string[],
@@ -117,22 +121,46 @@ function resolveShape(
     }
   }
   if (raw === undefined) return 'rect';
-  if (KNOWN_SHAPES.has(raw)) return raw;
+  if (DRAWABLE_SHAPES.has(raw)) return raw;
+  if (LANGUAGE_SHAPES.has(raw)) {
+    diags.push(diagnostic('SGL3006', span, { name: raw }));
+    return 'rect';
+  }
   diags.push(diagnostic('SGL3001', span, { name: raw }));
   return 'rect';
 }
 
-/** Ports come only from the node's own inline `@ports`; DD-03 §3's port rule
- *  ("must appear in the target node's `@ports`") never mentions a class's, and
- *  nothing downstream describes class ports flowing onto a node — the registry
- *  allowing `@ports` at class scope (DD-02 §7) reads as permitting the key in a
- *  class body without an `SGL2012`, not as specifying cascade behaviour for it. */
-function buildPorts(config: ConfigBag): readonly PortSpec[] {
-  if (!isConfigBag(config.ports)) return [];
-  return Object.entries(config.ports).map(([id, side]) => ({
-    id: asPortId(id),
-    side: (typeof side === 'string' ? side : 'east') as PortSpec['side'],
-  }));
+/** Ports merge across the linearised class chain (low → high precedence, same
+ *  order as `classes`) and then inline, per port id, with inline winning — the
+ *  same precedence `resolveShape` uses, applied per-key instead of to a single
+ *  scalar (DD-02 §7's `ports | node, class`, cascade documented at DD-03 §3). */
+function mergePorts(
+  config: ConfigBag,
+  classes: readonly string[],
+  classTable: Readonly<Record<string, ClassModel>>,
+): ConfigBag | undefined {
+  let merged: Record<string, ConfigValue> | undefined;
+  for (const cls of classes) {
+    const clsPorts = classTable[cls]?.config.ports;
+    if (isConfigBag(clsPorts)) merged = { ...merged, ...clsPorts };
+  }
+  if (isConfigBag(config.ports)) merged = { ...merged, ...config.ports };
+  return merged;
+}
+
+const PORT_SIDES: ReadonlySet<string> = new Set(['north', 'south', 'east', 'west']);
+
+/** A port whose value isn't one of the frozen four sides is `SGL3007` and falls
+ *  back to `east` — the compiler's job, exactly as it owns `shape` (DD-02 §7's
+ *  registry deliberately doesn't validate enum *values*). Covers a non-string
+ *  value too, which used to be coerced to `east` in silence. */
+function buildPorts(nodeId: NodeId, ports: ConfigBag | undefined, span: SourceSpan, diags: Diagnostic[]): readonly PortSpec[] {
+  if (ports === undefined) return [];
+  return Object.entries(ports).map(([id, side]) => {
+    if (typeof side === 'string' && PORT_SIDES.has(side)) return { id: asPortId(id), side: side as PortSpec['side'] };
+    diags.push(diagnostic('SGL3007', span, { node: nodeId, port: id, side: typeof side === 'string' ? side : JSON.stringify(side) }));
+    return { id: asPortId(id), side: 'east' as const };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -167,6 +195,7 @@ function buildNodeMap(model: DocumentModel, diags: Diagnostic[]): NodeMap {
     const hidden = parentHidden || container.config.hidden === true;
     const noLabel = hidden || container.config.label === '';
     const labelId = noLabel ? null : asLabelId(`l:${pathKey}`);
+    const ports = buildPorts(id, mergePorts(container.config, classes, model.classes), span, diags);
 
     nodes[id] = {
       id,
@@ -177,7 +206,7 @@ function buildNodeMap(model: DocumentModel, diags: Diagnostic[]): NodeMap {
       shape,
       classes,
       labelId,
-      ports: buildPorts(container.config),
+      ports,
       config: container.config,
       hidden,
       span,
@@ -252,12 +281,19 @@ function expandEndpoint(
 
   if (wildcardIdx === -1) {
     const base = resolveBase(path, declaringPath);
-    const target = base && [...base, ...(path.segments as NameStep[]).map((s) => s.value)];
-    if (base === undefined || !containerByPath.has(nodeIdFromPath(target as readonly string[]))) {
+    const target = base === undefined ? undefined : [...base, ...(path.segments as NameStep[]).map((s) => s.value)];
+    // A target of length 0 resolves to the document root, which DD-03 §2.1 says
+    // is never a node (`inner -> ../` from a one-level-deep container: `base`
+    // and `segments` are both empty). `containerByPath` still has root registered
+    // under `''`, so this needs its own check — `.has('')` would otherwise read
+    // as a hit. The analogous check does not apply to the wildcard branch below:
+    // there, an empty prefix legitimately means "root", used to enumerate root's
+    // own children, never as an edge target in itself.
+    if (target === undefined || target.length === 0 || !containerByPath.has(nodeIdFromPath(target))) {
       diags.push(diagnostic('SGL2001', stmtSpan, { path: renderPath(path), container: declaringLabel }));
       return [];
     }
-    return [target as readonly string[]];
+    return [target];
   }
 
   if (wildcardIdx !== path.segments.length - 1) {
@@ -299,22 +335,27 @@ interface PendingEdge {
   readonly classes: readonly string[];
   readonly config: ConfigBag;
   readonly declaredIn: NodeId | null;
+  readonly hidden: boolean;
   readonly span: SourceSpan;
 }
 
-/** `fromPort`/`toPort` must appear in the resolved node's own `@ports`; a miss is
- *  `SGL2003` and the port is dropped, once per matched node (DD-03 §3, §3.1). */
+/** `fromPort`/`toPort` must appear in the target node's *merged* `@ports` set
+ *  (class chain then inline, `mergePorts`) — consulting `GraphNode.ports`
+ *  rather than re-reading `container.config.ports` is what makes that cascade
+ *  visible here; the latter would wrongly reject a class-provided port. A miss
+ *  is `SGL2003` and the port is dropped, once per *distinct* matched node
+ *  (DD-03 §3, §3.1) — callers must call this once per unique target, not once
+ *  per edge, or a wildcard fan-out reports the same miss many times over. */
 function validatePort(
   targetPath: readonly string[],
   port: string | undefined,
-  containerByPath: ReadonlyMap<string, ContainerModel>,
+  nodes: Readonly<Record<NodeId, GraphNode>>,
   span: SourceSpan,
   diags: Diagnostic[],
 ): string | undefined {
   if (port === undefined) return undefined;
-  const container = containerByPath.get(nodeIdFromPath(targetPath));
-  const ports = container && isConfigBag(container.config.ports) ? container.config.ports : undefined;
-  if (ports !== undefined && Object.hasOwn(ports, port)) return port;
+  const node = nodes[asNodeId(nodeIdFromPath(targetPath))];
+  if (node?.ports.some((p) => p.id === port)) return port;
   diags.push(diagnostic('SGL2003', span, { node: nodeIdFromPath(targetPath), port }));
   return undefined;
 }
@@ -354,13 +395,36 @@ function compileEdgeModel(
   // expansion is a legitimate edge, not a cross-product artefact.
   const bothWildcard = isWildcardEndpoint(edgeModel.from) && isWildcardEndpoint(edgeModel.to);
   const classes = linearizeClasses(typeNamesOf(edgeModel.config), classTable);
+  const configHidden = edgeModel.config.hidden === true;
+
+  // Resolve each side's port once per *distinct* target, before the cross
+  // product, and reuse the result (DD-03 §3.1) — validating inside the nested
+  // loop below would re-check (and re-warn on) the same node once per edge it
+  // participates in, so `lane1.*[out] -> lane2.*[in]` over 3x2 nodes reported
+  // six SGL2003s for two actually-portless nodes instead of two.
+  const fromPortByTarget = new Map<string, string | undefined>();
+  for (const fromPath of fromTargets) {
+    const key = nodeIdFromPath(fromPath);
+    if (!fromPortByTarget.has(key)) fromPortByTarget.set(key, validatePort(fromPath, edgeModel.fromPort, ctx.nodes, stmtSpan, diags));
+  }
+  const toPortByTarget = new Map<string, string | undefined>();
+  for (const toPath of toTargets) {
+    const key = nodeIdFromPath(toPath);
+    if (!toPortByTarget.has(key)) toPortByTarget.set(key, validatePort(toPath, edgeModel.toPort, ctx.nodes, stmtSpan, diags));
+  }
 
   const out: PendingEdge[] = [];
   for (const fromPath of fromTargets) {
     for (const toPath of toTargets) {
-      if (bothWildcard && nodeIdFromPath(fromPath) === nodeIdFromPath(toPath)) continue;
-      const fromPort = validatePort(fromPath, edgeModel.fromPort, ctx.containerByPath, stmtSpan, diags);
-      const toPort = validatePort(toPath, edgeModel.toPort, ctx.containerByPath, stmtSpan, diags);
+      const fromKey = nodeIdFromPath(fromPath);
+      const toKey = nodeIdFromPath(toPath);
+      if (bothWildcard && fromKey === toKey) continue;
+      const fromPort = fromPortByTarget.get(fromKey);
+      const toPort = toPortByTarget.get(toKey);
+      // Effectively hidden (DD-03 §6): the edge's own `@hidden`, or either
+      // resolved endpoint's node is hidden — mirrors the node rule so a hidden
+      // node's incident edges agree with it without an extra ancestor walk.
+      const hidden = configHidden || ctx.nodes[asNodeId(fromKey)]?.hidden === true || ctx.nodes[asNodeId(toKey)]?.hidden === true;
       out.push({
         fromPath,
         toPath,
@@ -368,6 +432,7 @@ function compileEdgeModel(
         classes,
         config: edgeModel.config,
         declaredIn: declaringId,
+        hidden,
         span: stmtSpan,
         ...(fromPort !== undefined ? { fromPort } : {}),
         ...(toPort !== undefined ? { toPort } : {}),
@@ -422,11 +487,12 @@ function finalizeEdges(pending: readonly PendingEdge[]): { edges: GraphEdge[]; l
     const to: GraphEndpoint = { node: toId, ...(p.toPort !== undefined ? { port: asPortId(p.toPort) } : {}) };
 
     // Edge label: DD-03 §6 gives it no key-derived fallback — only an explicit,
-    // non-empty `@label` earns a `LabelSpec`.
+    // non-empty `@label` earns a `LabelSpec`, and a hidden edge gets none at
+    // all, same as a hidden node.
     const labelText = typeof p.config.label === 'string' ? p.config.label : '';
-    const labelId = labelText === '' ? null : asLabelId(`l:${id}`);
+    const labelId = p.hidden || labelText === '' ? null : asLabelId(`l:${id}`);
 
-    edges.push({ id, from, to, directed: p.directed, classes: p.classes, labelId, config: p.config, declaredIn: p.declaredIn, span: p.span });
+    edges.push({ id, from, to, directed: p.directed, classes: p.classes, labelId, config: p.config, declaredIn: p.declaredIn, hidden: p.hidden, span: p.span });
     if (labelId !== null) labels[labelId] = { id: labelId, owner: { kind: 'edge', id }, role: 'edge', runs: textRuns(labelText) };
   }
 

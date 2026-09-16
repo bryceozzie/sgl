@@ -58,6 +58,7 @@ function edge(id: string, from: string, to: string, over: Partial<GraphEdge> = {
     labelId: asLabelId(`l:${id}`),
     config: {},
     declaredIn: null,
+    hidden: false,
     span: SPAN,
     ...over,
   };

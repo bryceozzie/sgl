@@ -214,6 +214,7 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
         "from": 357,
         "to": 398
@@ -232,6 +233,7 @@
       "labelId": null,
       "config": {},
       "declaredIn": "platform",
+      "hidden": false,
       "span": {
         "from": 327,
         "to": 353
@@ -250,6 +252,7 @@
       "labelId": null,
       "config": {},
       "declaredIn": "platform.ingress",
+      "hidden": false,
       "span": {
         "from": 221,
         "to": 230
@@ -268,6 +271,7 @@
       "labelId": null,
       "config": {},
       "declaredIn": "platform.services",
+      "hidden": false,
       "span": {
         "from": 281,
         "to": 294
@@ -286,6 +290,7 @@
       "labelId": null,
       "config": {},
       "declaredIn": "platform.services",
+      "hidden": false,
       "span": {
         "from": 299,
         "to": 319

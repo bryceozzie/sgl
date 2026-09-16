@@ -100,6 +100,7 @@ function fixtureGraph(): StyledGraph {
         labelId: id<LabelId>('l:e-0001'),
         config: {},
         declaredIn: null,
+        hidden: false,
         span: SPAN,
       },
     ],

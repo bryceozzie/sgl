@@ -44,6 +44,15 @@ export const CONFIG_REGISTRY: readonly ConfigKeySpec[] = [
   { key: 'meta', scope: ALL_SCOPES, type: 'any', order: 17 },
 ] as const;
 
+/** The language's full twelve-shape vocabulary (language spec §4), derived from
+ *  the `shape` row's `enum` so it has exactly one definition in the codebase.
+ *  Stage C (`compile.ts`) checks a resolved `@shape` against this and against
+ *  the narrower `DRAWABLE_SHAPES` (`ids.ts`) to tell "not a real shape name"
+ *  (`SGL3001`) apart from "a real name this version doesn't draw yet" (`SGL3006`). */
+export const LANGUAGE_SHAPES: ReadonlySet<string> = new Set(
+  CONFIG_REGISTRY.find((row) => row.key === 'shape')?.enum ?? [],
+);
+
 /** Every row whose bag-key this registry key matches — `'layout'` and `'layout.*'`
  *  both answer for the top-level bag key `'layout'`. */
 export function rowsForKey(key: string): readonly ConfigKeySpec[] {

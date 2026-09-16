@@ -21,8 +21,8 @@
       },
       "hidden": false,
       "span": {
-        "from": 345,
-        "to": 359
+        "from": 393,
+        "to": 407
       }
     },
     "left": {
@@ -47,8 +47,8 @@
       },
       "hidden": false,
       "span": {
-        "from": 360,
-        "to": 374
+        "from": 408,
+        "to": 422
       }
     },
     "right": {
@@ -73,8 +73,8 @@
       },
       "hidden": false,
       "span": {
-        "from": 375,
-        "to": 390
+        "from": 423,
+        "to": 438
       }
     },
     "diamond": {
@@ -101,8 +101,8 @@
       },
       "hidden": false,
       "span": {
-        "from": 391,
-        "to": 408
+        "from": 439,
+        "to": 456
       }
     },
     "both": {
@@ -131,8 +131,8 @@
       },
       "hidden": false,
       "span": {
-        "from": 409,
-        "to": 449
+        "from": 457,
+        "to": 497
       }
     },
     "override": {
@@ -159,8 +159,79 @@
       },
       "hidden": false,
       "span": {
-        "from": 450,
-        "to": 505
+        "from": 498,
+        "to": 553
+      }
+    },
+    "routed": {
+      "id": "routed",
+      "path": [
+        "routed"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [
+        "Router"
+      ],
+      "labelId": "l:routed",
+      "ports": [
+        {
+          "id": "in",
+          "side": "west"
+        },
+        {
+          "id": "out",
+          "side": "east"
+        }
+      ],
+      "config": {
+        "type": [
+          "Router"
+        ]
+      },
+      "hidden": false,
+      "span": {
+        "from": 772,
+        "to": 794
+      }
+    },
+    "routedOverride": {
+      "id": "routedOverride",
+      "path": [
+        "routedOverride"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [
+        "Router"
+      ],
+      "labelId": "l:routedOverride",
+      "ports": [
+        {
+          "id": "in",
+          "side": "west"
+        },
+        {
+          "id": "out",
+          "side": "west"
+        }
+      ],
+      "config": {
+        "type": [
+          "Router"
+        ],
+        "ports": {
+          "out": "west"
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 795,
+        "to": 851
       }
     }
   },
@@ -178,9 +249,10 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 507,
-        "to": 531
+        "from": 853,
+        "to": 877
       }
     },
     {
@@ -196,9 +268,10 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 507,
-        "to": 531
+        "from": 853,
+        "to": 877
       }
     },
     {
@@ -214,9 +287,10 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 532,
-        "to": 545
+        "from": 878,
+        "to": 891
       }
     },
     {
@@ -232,9 +306,10 @@
       "labelId": null,
       "config": {},
       "declaredIn": null,
+      "hidden": false,
       "span": {
-        "from": 546,
-        "to": 562
+        "from": 892,
+        "to": 908
       }
     }
   ],
@@ -244,7 +319,9 @@
     "right",
     "diamond",
     "both",
-    "override"
+    "override",
+    "routed",
+    "routedOverride"
   ],
   "order": [
     "plain",
@@ -252,7 +329,9 @@
     "right",
     "diamond",
     "both",
-    "override"
+    "override",
+    "routed",
+    "routedOverride"
   ],
   "labels": {
     "l:plain": {
@@ -332,10 +411,36 @@
           "text": "override"
         }
       ]
+    },
+    "l:routed": {
+      "id": "l:routed",
+      "owner": {
+        "kind": "node",
+        "id": "routed"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "routed"
+        }
+      ]
+    },
+    "l:routedOverride": {
+      "id": "l:routedOverride",
+      "owner": {
+        "kind": "node",
+        "id": "routedOverride"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "routedOverride"
+        }
+      ]
     }
   },
   "meta": {
-    "nodeCount": 6,
+    "nodeCount": 8,
     "edgeCount": 4,
     "containerCount": 0
   }

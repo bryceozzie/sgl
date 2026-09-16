@@ -5,6 +5,7 @@
   Right:    { @extends: Base, @style.stroke: "@accent" }
   Diamond:  { @extends: [Left, Right] }
   Critical: { @style: { stroke: "@danger", strokeWidth: 3 } }
+  Router:   { @ports: { in: west, out: east } }
 }
 
 plain:    Base
@@ -13,6 +14,12 @@ right:    Right
 diamond:  Diamond
 both:     { @type: [Diamond, Critical] }
 override: { @type: Critical, @style.stroke: "#123456" }
+
+// Ports cascade from a class (DD-02 §7, DD-03 §4): routed gets both of
+// Router's ports untouched; routedOverride keeps `in` from the class but
+// replaces `out` with its own inline value — inline wins per port id.
+routed:         Router
+routedOverride: { @type: Router, @ports: { out: west } }
 
 plain -> left -> diamond
 right -> both

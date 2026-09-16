@@ -84,6 +84,7 @@
         "label": "reads"
       },
       "declaredIn": null,
+      "hidden": false,
       "span": {
         "from": 267,
         "to": 365

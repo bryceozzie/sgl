@@ -24,8 +24,10 @@ The interfaces from [Architecture §4](../03-architecture.md#4-layout-engine-plu
 
 **`LayoutInput` construction** (`buildLayoutInput(styled, table)`):
 
+Both nodes and edges carry their own `hidden` flag (DD-03 §2, §6) — a node's already excludes it from `graph.order`, and an edge's is already "effectively hidden" (its own `@hidden`, or either endpoint's node, computed once in `compile()`). Filtering either kind of element for `LayoutInput` is therefore a single flag test — `!edge.hidden` for edges alongside the node loop below — not a node filter plus a separate "does this edge touch a hidden node" walk:
+
 ```
-for each node in graph.order (hidden nodes excluded, and edges touching them):
+for each node in graph.order (already excludes hidden):
   g        = styles[node].geometry
   label    = labelId ? table[hashRuns(...)] : { width: 0, height: 0 }
   insets   = g.padding (t r b l) + shape.contentInsets(label.width, label.height)   // DD-07 §4

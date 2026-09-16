@@ -34,6 +34,12 @@
         "stroke": "@danger",
         "strokeWidth": 3
       }
+    },
+    "Router": {
+      "@ports": {
+        "in": "west",
+        "out": "east"
+      }
     }
   },
   "plain": {
@@ -68,6 +74,19 @@
     ],
     "@style": {
       "stroke": "#123456"
+    }
+  },
+  "routed": {
+    "@type": [
+      "Router"
+    ]
+  },
+  "routedOverride": {
+    "@type": [
+      "Router"
+    ],
+    "@ports": {
+      "out": "west"
     }
   },
   "@edges": [

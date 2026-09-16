@@ -127,10 +127,27 @@ that need it — filled per the standing rule for an incomplete document.
 occurrence); this is monotonic for a chain but not guaranteed so for a diamond
 where two siblings share a base — no corpus fixture exercises that edge, and
 the deviation (a full C3 merge would remove it) is documented at the function.
-Two more implementation choices, also undocumented in DD-03 itself: `@hidden`
+Another implementation choice, also undocumented in DD-03 itself: `@hidden`
 propagates down the whole subtree (needed for DD-03 §7's "subtree is omitted"
-and DD-06 §2's per-node filter to agree), and a node's `ports` come only from
-its own inline `@ports`, never a class's, per DD-03 §3's literal wording.
+and DD-06 §2's per-node filter to agree).
+
+A post-review amendment on this branch (not a new stage) corrected a related
+call that *was* wrong: a node's `ports` originally came only from its own
+inline `@ports`, reading DD-03 §3's "the target node's `@ports`" as excluding
+a class's. That phrase is about which node an edge *endpoint* validates
+against, not about cascade — and DD-02 §7 gives `ports` scope `node, class`
+precisely so a class can supply them. Ports now merge across the linearised
+class chain and then inline, per port id, with inline winning, the same
+precedence `shape` already used; `validatePort` consults the merged
+`GraphNode.ports`, not `container.config.ports`, so a class-provided port is
+no longer wrongly rejected with `SGL2003`. The same amendment added port-side
+validation (`SGL3007`, unknown/non-string `side` values fall back to `east`),
+split `SGL3001` ("unknown shape") from the new `SGL3006` ("a real shape name
+this version doesn't draw yet"), added `GraphEdge.hidden`, and fixed two bugs:
+a zero-length resolved path (e.g. `inner -> ../` from one level down) was
+silently treated as a hit on the document root instead of `SGL2001`; and
+`SGL2003` was fired once per edge in a wildcard cross product instead of once
+per distinct portless node.
 
 ---
 
