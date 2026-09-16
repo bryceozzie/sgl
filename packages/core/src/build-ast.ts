@@ -15,6 +15,7 @@ import type {
   Property,
   StringLit,
   Value,
+  Variable,
   WildcardStep,
   Word,
 } from './ast.js';
@@ -355,6 +356,8 @@ function buildValue(ctx: Ctx, node: SyntaxNode): Value | undefined {
       return { kind: 'Null', span: sp };
     case 'Word':
       return { kind: 'Word', value: textOf(ctx, inner), span: sp };
+    case 'Variable':
+      return buildVariable(ctx, inner);
     case 'Array':
       return buildArray(ctx, inner);
     case 'Object':
@@ -362,6 +365,11 @@ function buildValue(ctx: Ctx, node: SyntaxNode): Value | undefined {
     default:
       return undefined;
   }
+}
+
+/** `$name` — the `$` is dropped, matching how `@` is dropped off a config key. */
+function buildVariable(ctx: Ctx, node: SyntaxNode): Variable {
+  return { kind: 'Variable', name: textOf(ctx, node).slice(1), span: at(node) };
 }
 
 function buildArray(ctx: Ctx, node: SyntaxNode): ArrayLit {
