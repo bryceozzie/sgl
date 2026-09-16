@@ -172,10 +172,54 @@ describe('redeclaration merges (DD-02 §3.2)', () => {
     expect(a.edges).toHaveLength(2);
   });
 
-  it('deep object merge for nested config', () => {
+  it('deep object merge for nested config (dotted spelling)', () => {
     const { model } = resolveSrc('a: { @style.fill: red }\na: { @style.stroke: blue }\n');
     const a = model.root.children[0] as ContainerModel;
     expect(a.config.style).toEqual({ fill: 'red', stroke: 'blue' });
+  });
+
+  it('deep object merge for nested config (literal-object spelling, DD-02 §2/§3.2)', () => {
+    const { model } = resolveSrc('a: { @style: { fill: red } }\na: { @style: { stroke: blue } }\n');
+    const a = model.root.children[0] as ContainerModel;
+    expect(a.config.style).toEqual({ fill: 'red', stroke: 'blue' });
+  });
+
+  it('the two spellings are indistinguishable after merging, as DD-02 §2 requires', () => {
+    const dotted = resolveSrc('a: { @style.fill: red }\na: { @style.stroke: blue }\n').model;
+    const literal = resolveSrc('a: { @style: { fill: red } }\na: { @style: { stroke: blue } }\n').model;
+    expect(stripSpans(dotted.root.children[0]?.config)).toEqual(stripSpans(literal.root.children[0]?.config));
+  });
+
+  it('a nested object merges recursively, more than one level deep', () => {
+    const { model } = resolveSrc('a: { @a11y: { label: "x" } }\na: { @a11y: { description: "y" } }\n');
+    const a = model.root.children[0] as ContainerModel;
+    expect(a.config.a11y).toEqual({ label: 'x', description: 'y' });
+  });
+
+  it('arrays replace on redeclaration; they do not concatenate', () => {
+    const { model } = resolveSrc('a: { @meta: [1, 2] }\na: { @meta: [3] }\n');
+    const a = model.root.children[0] as ContainerModel;
+    expect(a.config.meta).toEqual([3]);
+  });
+
+  it('@type replaces on redeclaration (later class list wins outright)', () => {
+    const { model } = resolveSrc(
+      '@classes: { X: {} Y: {} }\na: { @type: X }\na: { @type: Y }\n',
+    );
+    const a = model.root.children[0] as ContainerModel;
+    expect(a.config.type).toEqual(['Y']);
+  });
+
+  it('a whole-value scalar-to-object replacement does not emit SGL2006', () => {
+    const { diagnostics } = resolveSrc('a: { @meta: "flag" }\na: { @meta: { note: "x" } }\n');
+    expect(diagnostics.map((d) => d.code)).not.toContain('SGL2006');
+  });
+
+  it('a redeclared class body deep-merges its config too (DD-02 §4)', () => {
+    const { model } = resolveSrc(
+      '@classes: {\n  Service: { @style.fill: red }\n  Service: { @style.stroke: blue }\n}\na: Service\n',
+    );
+    expect((model.classes.Service as ClassModel).config.style).toEqual({ fill: 'red', stroke: 'blue' });
   });
 
   it('emits SGL2005 once per redeclaration, not per key', () => {
@@ -285,6 +329,13 @@ describe('config-key registry (DD-02 §7)', () => {
     const a = model.root.children[0] as ContainerModel;
     expect((a.config.layout as ConfigBag).direction).toBe('up');
     expect(a.config.direction).toBeUndefined();
+  });
+
+  it('@direction also folds at the document root, not just on a node', () => {
+    const { model, diagnostics } = resolveSrc('@direction: right\n');
+    expect((model.root.config.layout as ConfigBag).direction).toBe('right');
+    expect(model.root.config.direction).toBeUndefined();
+    expect(diagnostics.map((d) => d.code)).not.toContain('SGL2012');
   });
 });
 

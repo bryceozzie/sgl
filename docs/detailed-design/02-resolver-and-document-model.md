@@ -207,7 +207,7 @@ MVP registry (order = row order):
 | `label` | node, edge, class | string |
 | `type` | node, edge | array of string |
 | `shape` | node, class | enum — DD-07 §4 list |
-| `direction` | node (containers) | enum `down up left right` — sugar, folded into `layout.direction` |
+| `direction` | root, node (containers) | enum `down up left right` — sugar, folded into `layout.direction` |
 | `style` | node, edge, class | any — properties from DD-04 registry |
 | `size` | node, class | object `width height minWidth minHeight maxWidth maxHeight aspectRatio` |
 | `ports` | node, class | object name → `north south east west` |
@@ -229,6 +229,26 @@ diagnostics. `style` is typed `any` for the same kind of reason, but for a
 concrete case the corpus exercises: `@style: dashed` (`chains.sgl`,
 `checkout.sgl`) is a bareword shorthand, not the object this table originally
 required, and real validation of a style value is DD-04's job regardless.
+
+`direction`'s scope includes `root`: it is sugar for `@layout.direction`, and
+root carries its own `@layout` block (language spec §4's document-level
+keys), so the sugar has to reach exactly as far as the thing it desugars to.
+An earlier version of this table scoped `direction` to `node` only, which
+made `@direction` at the document root a silent no-op — `SGL2012`, dropped —
+while the equivalent `@layout: { direction }` worked at the same scope. The
+resolver folds the sugar for `root` and `node` alike (before validation runs,
+so the registry row's own scope is really only load-bearing for tooling and
+for a value outside the enum, same as `shape` above).
+
+A key whose language-spec §4 row says `any` means *any element* — node,
+edge, container, class — never the document root; that ambiguity in the spec
+table is now resolved explicitly there. `style`, `hidden` and `a11y` keep
+this table's narrower per-key scopes (`hidden`/`a11y` exclude `class`, for
+instance) rather than widening to match "any element": DD-03 §4 only pulls
+`shape` out of a node's class chain today, so a class-scoped `@hidden` would
+validate and then reach no consumer — a decision for whichever stage adds
+class-derived fallback for other keys, not one to make by relaxing a scope
+list ahead of it.
 
 **⟶ v1.0** adds `vars`, `imports`, `pin`; **⟶ v1.x** adds `icon`, `rules`.
 

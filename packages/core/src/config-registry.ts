@@ -27,7 +27,9 @@ export const CONFIG_REGISTRY: readonly ConfigKeySpec[] = [
     enum: ['rect', 'round', 'circle', 'ellipse', 'diamond', 'hexagon', 'cylinder', 'cloud', 'document', 'actor', 'package', 'note'],
     order: 7,
   },
-  { key: 'direction', scope: ['node'], type: 'enum', enum: ['down', 'up', 'left', 'right'], order: 8 },
+  // Sugar for `@layout.direction`: valid wherever `@layout` itself is (root's
+  // document-level block, language spec §4, as well as a node's own).
+  { key: 'direction', scope: ['root', 'node'], type: 'enum', enum: ['down', 'up', 'left', 'right'], order: 8 },
   // Real validation of a style value is DD-04's job (theme cascade); a
   // bareword like `dashed` is a valid shorthand the corpus actually uses
   // (`checkout.sgl`, `chains.sgl`), so the resolver never rejects `@style`.

@@ -100,11 +100,30 @@ interface NameRef {
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
+/** Recurse only while both sides are plain objects; a scalar or array leaf on
+ *  either side is "later wins" (DD-02 §3.2), not merged. The counterpart to
+ *  the dotted-path walk in `insertConfigValue` below: that walk merges
+ *  `@style.fill` then `@style.stroke` into one object one segment at a time,
+ *  this merges `@style: { fill }` then `@style: { stroke }` the same way in
+ *  one step, so the two spellings — dotted or literal-object — really are
+ *  "indistinguishable" the way DD-02 §2 says they are. */
+function mergeInto(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...target };
+  for (const [key, value] of Object.entries(source)) {
+    const prior = out[key];
+    out[key] = isPlainObject(prior) && isPlainObject(value) ? mergeInto(prior, value) : value;
+  }
+  return out;
+}
+
 /**
  * Insert `value` at `keyParts` inside `bag`, creating intermediate objects as
  * needed. If an intermediate segment already holds a scalar or array, it is
  * replaced by an object and `SGL2006` is emitted — the dotted-key merge rule
- * (DD-02 §3.4).
+ * (DD-02 §3.4). The final segment merges into whatever plain object was
+ * already there (DD-02 §3.2); a scalar or array simply replaces it, and
+ * replacing one is never itself an `SGL2006` — that code is specifically
+ * about a dotted path displacing a scalar, not a whole-value redeclaration.
  */
 function insertConfigValue(
   bag: Bag,
@@ -134,7 +153,9 @@ function insertConfigValue(
     }
     cur = cur[seg] as Record<string, unknown>;
   }
-  cur[keyParts[keyParts.length - 1] as string] = value;
+  const last = keyParts[keyParts.length - 1] as string;
+  const prior = cur[last];
+  cur[last] = isPlainObject(prior) && isPlainObject(value) ? mergeInto(prior, value) : value;
 }
 
 // ---------------------------------------------------------------------------
@@ -492,7 +513,8 @@ function buildClasses(
 // ---------------------------------------------------------------------------
 
 /** `@direction` is sugar for `@layout.direction` (language spec §4); an
- *  explicit `@layout.direction` already present wins. */
+ *  explicit `@layout.direction` already present wins. Valid wherever
+ *  `@layout` itself is — a node's own, or root's document-level block. */
 function foldDirectionSugar(bag: Record<string, unknown>): void {
   if (typeof bag.direction !== 'string') return;
   const dir = bag.direction;
@@ -505,7 +527,7 @@ function foldDirectionSugar(bag: Record<string, unknown>): void {
 /** Unknown key → `SGL2010`, kept. Wrong scope → `SGL2012`, dropped. Wrong
  *  type → `SGL2011`, dropped (DD-02 §7). */
 function finalizeConfig(bag: Bag, scope: Scope, diags: Diagnostic[]): ConfigBag {
-  if (scope === 'node') foldDirectionSugar(bag.config);
+  if (scope === 'root' || scope === 'node') foldDirectionSugar(bag.config);
   for (const key of Object.keys(bag.config)) {
     const span = bag.configSpans.get(key) as SourceSpan;
     const result = validateConfigKey(key, bag.config[key], scope);
