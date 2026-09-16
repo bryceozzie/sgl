@@ -11,6 +11,7 @@ export type Ast =
   | PathStep
   | Block
   | Value
+  | Variable
   | Property;
 
 export interface Document {
@@ -117,7 +118,7 @@ export interface Block {
   readonly span: SourceSpan;
 }
 
-export type Value = StringLit | NumberLit | BoolLit | NullLit | Word | ArrayLit | ObjectLit;
+export type Value = StringLit | NumberLit | BoolLit | NullLit | Word | Variable | ArrayLit | ObjectLit;
 
 /** Escapes are already decoded. */
 export interface StringLit { readonly kind: 'String'; readonly value: string; readonly span: SourceSpan }
@@ -126,6 +127,7 @@ export interface BoolLit { readonly kind: 'Bool'; readonly value: boolean; reado
 export interface NullLit { readonly kind: 'Null'; readonly span: SourceSpan }
 /** A bareword enum value: `hexagon`, `down`, `dashed` — or a class reference. */
 export interface Word { readonly kind: 'Word'; readonly value: string; readonly span: SourceSpan }
+export interface Variable { readonly kind: 'Variable'; readonly name: string; readonly span: SourceSpan }
 export interface ArrayLit { readonly kind: 'Array'; readonly items: readonly Value[]; readonly span: SourceSpan }
 export interface ObjectLit { readonly kind: 'Object'; readonly props: readonly Property[]; readonly span: SourceSpan }
 

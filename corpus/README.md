@@ -55,14 +55,5 @@ is not one of the seven shapes the MVP renderer draws (DD-07 §4). Under the MVP
 falls back to `rect` with an `SGL3001` warning — useful as a fixture, but worth
 deciding deliberately rather than by accident.
 
-## Two fixtures the current grammar cannot parse
-
-Both are correct against the language spec; the grammar is what is wrong. See
-README → *Open questions → Found while scaffolding*.
-
-| Fixture | Fails on | Why |
-|---|---|---|
-| `checkout.sgl` | `@style.stroke: $hot` | no `$variable` token in DD-01 §2 |
-| `json-form.sgl.json` | `"@type": ["Datastore"]` | quoted `@`-keys are not config entries |
-
-The other eleven documents parse with zero error nodes.
+Its `@style.stroke: $hot` parses into a `Variable` AST node but is not substituted
+— that is Stage B (resolver), not the grammar.

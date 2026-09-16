@@ -20,7 +20,7 @@
     "test:watch": "vitest",
     "clean": "rimraf \"packages/*/dist\" \"apps/*/dist\" .tsbuild",
     "changeset": "changeset",
-    "check": "pnpm lint && pnpm typecheck && pnpm test"
+    "check": "pnpm lint && pnpm typecheck && pnpm build && pnpm test"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.7",

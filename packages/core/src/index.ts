@@ -6,6 +6,7 @@
  */
 
 export * from './ast.js';
+export * from './build-ast.js';
 export * from './compile.js';
 export * from './diagnostics.js';
 export * from './geometry.js';

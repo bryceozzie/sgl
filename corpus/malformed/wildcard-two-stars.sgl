@@ -1,4 +1,6 @@
-// expects: SGL1002 — one star per segment
+// expects: SGL1001 — one star per segment. `a*b*c` lexes as two adjacent
+// Wildcard tokens ("a*b", then "*c") with no "." between them, so the parser
+// recovers by reporting the endpoint it expected, not the text it skipped.
 switch
 lane1: { a1b2c3: {} }
 lane1.a*b*c -> switch

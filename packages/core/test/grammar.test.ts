@@ -177,18 +177,14 @@ describe('the grammar at large', () => {
     'hidden.sgl',
     'wildcards.sgl',
     'wildcard-globs.sgl',
+    // Both were tracked as known grammar defects (README → Open questions) until
+    // Stage A: checkout.sgl needed the `$name` Variable token, json-form.sgl.json
+    // needed a quoted spelling of ConfigKey (ConfigString) so strict JSON can
+    // hold a config entry at all.
+    'checkout.sgl',
+    'json-form.sgl.json',
   ])('parses %s with no error nodes', (name) => {
     expect(errorCount(corpus(name))).toBe(0);
-  });
-
-  // Known defects, tracked in README → Open questions. These assertions are
-  // deliberately inverted: they fail the day someone fixes the grammar, which is
-  // the prompt to move the fixture into the list above.
-  it.each([
-    ['checkout.sgl', '$variable has no token'],
-    ['json-form.sgl.json', 'quoted @-keys are not config entries'],
-  ])('still fails to parse %s (%s)', (name) => {
-    expect(errorCount(corpus(name))).toBeGreaterThan(0);
   });
 });
 
