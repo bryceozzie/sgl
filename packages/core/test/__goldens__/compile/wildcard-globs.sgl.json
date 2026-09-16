@@ -1,0 +1,1242 @@
+{
+  "nodes": {
+    "switch": {
+      "id": "switch",
+      "path": [
+        "switch"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:switch",
+      "ports": [],
+      "config": {
+        "label": "Switch"
+      },
+      "hidden": false,
+      "span": {
+        "from": 128,
+        "to": 156
+      }
+    },
+    "lane1": {
+      "id": "lane1",
+      "path": [
+        "lane1"
+      ],
+      "parent": null,
+      "children": [
+        "lane1.cam1",
+        "lane1.cam2",
+        "lane1.cam-hd",
+        "lane1.camera",
+        "lane1.mic1",
+        "lane1.door1",
+        "lane1.cam9"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lane1",
+      "ports": [],
+      "config": {
+        "label": "Lane 1"
+      },
+      "hidden": false,
+      "span": {
+        "from": 158,
+        "to": 429
+      }
+    },
+    "lane1.cam1": {
+      "id": "lane1.cam1",
+      "path": [
+        "lane1",
+        "cam1"
+      ],
+      "parent": "lane1",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lane1.cam1",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 188,
+        "to": 196
+      }
+    },
+    "lane1.cam2": {
+      "id": "lane1.cam2",
+      "path": [
+        "lane1",
+        "cam2"
+      ],
+      "parent": "lane1",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lane1.cam2",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 199,
+        "to": 207
+      }
+    },
+    "lane1.cam-hd": {
+      "id": "lane1.cam-hd",
+      "path": [
+        "lane1",
+        "cam-hd"
+      ],
+      "parent": "lane1",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lane1.cam-hd",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 210,
+        "to": 220
+      }
+    },
+    "lane1.camera": {
+      "id": "lane1.camera",
+      "path": [
+        "lane1",
+        "camera"
+      ],
+      "parent": "lane1",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lane1.camera",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 223,
+        "to": 233
+      }
+    },
+    "lane1.mic1": {
+      "id": "lane1.mic1",
+      "path": [
+        "lane1",
+        "mic1"
+      ],
+      "parent": "lane1",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lane1.mic1",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 236,
+        "to": 244
+      }
+    },
+    "lane1.door1": {
+      "id": "lane1.door1",
+      "path": [
+        "lane1",
+        "door1"
+      ],
+      "parent": "lane1",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lane1.door1",
+      "ports": [],
+      "config": {
+        "label": "Camera"
+      },
+      "hidden": false,
+      "span": {
+        "from": 289,
+        "to": 316
+      }
+    },
+    "lane1.cam9": {
+      "id": "lane1.cam9",
+      "path": [
+        "lane1",
+        "cam9"
+      ],
+      "parent": "lane1",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": null,
+      "ports": [],
+      "config": {
+        "hidden": true
+      },
+      "hidden": true,
+      "span": {
+        "from": 372,
+        "to": 395
+      }
+    },
+    "stores": {
+      "id": "stores",
+      "path": [
+        "stores"
+      ],
+      "parent": null,
+      "children": [
+        "stores.orders-db",
+        "stores.users-db",
+        "stores.cache",
+        "stores.order service"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:stores",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 431,
+        "to": 605
+      }
+    },
+    "stores.orders-db": {
+      "id": "stores.orders-db",
+      "path": [
+        "stores",
+        "orders-db"
+      ],
+      "parent": "stores",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:stores.orders-db",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 443,
+        "to": 456
+      }
+    },
+    "stores.users-db": {
+      "id": "stores.users-db",
+      "path": [
+        "stores",
+        "users-db"
+      ],
+      "parent": "stores",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:stores.users-db",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 459,
+        "to": 471
+      }
+    },
+    "stores.cache": {
+      "id": "stores.cache",
+      "path": [
+        "stores",
+        "cache"
+      ],
+      "parent": "stores",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:stores.cache",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 474,
+        "to": 483
+      }
+    },
+    "stores.order service": {
+      "id": "stores.order service",
+      "path": [
+        "stores",
+        "order service"
+      ],
+      "parent": "stores",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:stores.order service",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 527,
+        "to": 546
+      }
+    },
+    "mixed": {
+      "id": "mixed",
+      "path": [
+        "mixed"
+      ],
+      "parent": null,
+      "children": [
+        "mixed.camAhd",
+        "mixed.camBhd",
+        "mixed.camB",
+        "mixed.cam"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:mixed",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 607,
+        "to": 797
+      }
+    },
+    "mixed.camAhd": {
+      "id": "mixed.camAhd",
+      "path": [
+        "mixed",
+        "camAhd"
+      ],
+      "parent": "mixed",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:mixed.camAhd",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 618,
+        "to": 628
+      }
+    },
+    "mixed.camBhd": {
+      "id": "mixed.camBhd",
+      "path": [
+        "mixed",
+        "camBhd"
+      ],
+      "parent": "mixed",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:mixed.camBhd",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 631,
+        "to": 641
+      }
+    },
+    "mixed.camB": {
+      "id": "mixed.camB",
+      "path": [
+        "mixed",
+        "camB"
+      ],
+      "parent": "mixed",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:mixed.camB",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 644,
+        "to": 652
+      }
+    },
+    "mixed.cam": {
+      "id": "mixed.cam",
+      "path": [
+        "mixed",
+        "cam"
+      ],
+      "parent": "mixed",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:mixed.cam",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 714,
+        "to": 721
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-3c6a77508717ebb0",
+      "from": {
+        "node": "lane1.cam1"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 880,
+        "to": 900
+      }
+    },
+    {
+      "id": "e-93351e61e84b317b",
+      "from": {
+        "node": "lane1.cam2"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 880,
+        "to": 900
+      }
+    },
+    {
+      "id": "e-30a1fbedae6ba760",
+      "from": {
+        "node": "lane1.cam-hd"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 880,
+        "to": 900
+      }
+    },
+    {
+      "id": "e-b1f41b60ecb5c8ab",
+      "from": {
+        "node": "lane1.camera"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 880,
+        "to": 900
+      }
+    },
+    {
+      "id": "e-30a1fcedae6ba913",
+      "from": {
+        "node": "lane1.cam-hd"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-30a1fcedae6ba913",
+      "config": {
+        "label": "hd only"
+      },
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 930,
+        "to": 962
+      }
+    },
+    {
+      "id": "e-c437b3ebcf028583",
+      "from": {
+        "node": "stores.orders-db"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1007,
+        "to": 1028
+      }
+    },
+    {
+      "id": "e-208e4cf54c0092b8",
+      "from": {
+        "node": "stores.users-db"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1007,
+        "to": 1028
+      }
+    },
+    {
+      "id": "e-c437b2ebcf0283d0",
+      "from": {
+        "node": "stores.orders-db"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1073,
+        "to": 1096
+      }
+    },
+    {
+      "id": "e-e45d836b6c2944bc",
+      "from": {
+        "node": "stores.order service"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1073,
+        "to": 1096
+      }
+    },
+    {
+      "id": "e-cf78ddec09373fae",
+      "from": {
+        "node": "mixed.camAhd"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1151,
+        "to": 1173
+      }
+    },
+    {
+      "id": "e-757e9768b56c6d1d",
+      "from": {
+        "node": "mixed.camBhd"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1151,
+        "to": 1173
+      }
+    },
+    {
+      "id": "e-47776fd878c64117",
+      "from": {
+        "node": "lane1.cam1"
+      },
+      "to": {
+        "node": "mixed.camAhd"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1225,
+        "to": 1251
+      }
+    },
+    {
+      "id": "e-e6eccffe8370aab0",
+      "from": {
+        "node": "lane1.cam1"
+      },
+      "to": {
+        "node": "mixed.camBhd"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1225,
+        "to": 1251
+      }
+    },
+    {
+      "id": "e-adda24527e8599b8",
+      "from": {
+        "node": "lane1.cam2"
+      },
+      "to": {
+        "node": "mixed.camAhd"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1225,
+        "to": 1251
+      }
+    },
+    {
+      "id": "e-0d0fa642014a1dff",
+      "from": {
+        "node": "lane1.cam2"
+      },
+      "to": {
+        "node": "mixed.camBhd"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1225,
+        "to": 1251
+      }
+    },
+    {
+      "id": "e-e3f58f56b5404f87",
+      "from": {
+        "node": "lane1.cam-hd"
+      },
+      "to": {
+        "node": "mixed.camAhd"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1225,
+        "to": 1251
+      }
+    },
+    {
+      "id": "e-84bae0b38b3182a0",
+      "from": {
+        "node": "lane1.cam-hd"
+      },
+      "to": {
+        "node": "mixed.camBhd"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1225,
+        "to": 1251
+      }
+    },
+    {
+      "id": "e-2cdffc5b29573468",
+      "from": {
+        "node": "lane1.camera"
+      },
+      "to": {
+        "node": "mixed.camAhd"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1225,
+        "to": 1251
+      }
+    },
+    {
+      "id": "e-8b410afe52ad00af",
+      "from": {
+        "node": "lane1.camera"
+      },
+      "to": {
+        "node": "mixed.camBhd"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1225,
+        "to": 1251
+      }
+    },
+    {
+      "id": "e-3c6a78508717ed63",
+      "from": {
+        "node": "lane1.cam1"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1283,
+        "to": 1308
+      }
+    },
+    {
+      "id": "e-93351d61e84b2fc8",
+      "from": {
+        "node": "lane1.cam2"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1283,
+        "to": 1308
+      }
+    },
+    {
+      "id": "e-30a1fdedae6baac6",
+      "from": {
+        "node": "lane1.cam-hd"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1283,
+        "to": 1308
+      }
+    },
+    {
+      "id": "e-b1f41a60ecb5c6f8",
+      "from": {
+        "node": "lane1.camera"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1283,
+        "to": 1308
+      }
+    },
+    {
+      "id": "e-3c6a79508717ef16",
+      "from": {
+        "node": "lane1.cam1"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1372,
+        "to": 1390
+      }
+    },
+    {
+      "id": "e-93352061e84b34e1",
+      "from": {
+        "node": "lane1.cam2"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1372,
+        "to": 1390
+      }
+    },
+    {
+      "id": "e-30a1feedae6bac79",
+      "from": {
+        "node": "lane1.cam-hd"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1372,
+        "to": 1390
+      }
+    },
+    {
+      "id": "e-b1f41d60ecb5cc11",
+      "from": {
+        "node": "lane1.camera"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1372,
+        "to": 1390
+      }
+    },
+    {
+      "id": "e-c437b5ebcf0288e9",
+      "from": {
+        "node": "stores.orders-db"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1391,
+        "to": 1410
+      }
+    },
+    {
+      "id": "e-208e4df54c00946b",
+      "from": {
+        "node": "stores.users-db"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1391,
+        "to": 1410
+      }
+    }
+  ],
+  "rootChildren": [
+    "switch",
+    "lane1",
+    "stores",
+    "mixed"
+  ],
+  "order": [
+    "switch",
+    "lane1",
+    "lane1.cam1",
+    "lane1.cam2",
+    "lane1.cam-hd",
+    "lane1.camera",
+    "lane1.mic1",
+    "lane1.door1",
+    "stores",
+    "stores.orders-db",
+    "stores.users-db",
+    "stores.cache",
+    "stores.order service",
+    "mixed",
+    "mixed.camAhd",
+    "mixed.camBhd",
+    "mixed.camB",
+    "mixed.cam"
+  ],
+  "labels": {
+    "l:e-30a1fcedae6ba913": {
+      "id": "l:e-30a1fcedae6ba913",
+      "owner": {
+        "kind": "edge",
+        "id": "e-30a1fcedae6ba913"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "hd only"
+        }
+      ]
+    },
+    "l:switch": {
+      "id": "l:switch",
+      "owner": {
+        "kind": "node",
+        "id": "switch"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Switch"
+        }
+      ]
+    },
+    "l:lane1": {
+      "id": "l:lane1",
+      "owner": {
+        "kind": "node",
+        "id": "lane1"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Lane 1"
+        }
+      ]
+    },
+    "l:lane1.cam1": {
+      "id": "l:lane1.cam1",
+      "owner": {
+        "kind": "node",
+        "id": "lane1.cam1"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "cam1"
+        }
+      ]
+    },
+    "l:lane1.cam2": {
+      "id": "l:lane1.cam2",
+      "owner": {
+        "kind": "node",
+        "id": "lane1.cam2"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "cam2"
+        }
+      ]
+    },
+    "l:lane1.cam-hd": {
+      "id": "l:lane1.cam-hd",
+      "owner": {
+        "kind": "node",
+        "id": "lane1.cam-hd"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "cam-hd"
+        }
+      ]
+    },
+    "l:lane1.camera": {
+      "id": "l:lane1.camera",
+      "owner": {
+        "kind": "node",
+        "id": "lane1.camera"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "camera"
+        }
+      ]
+    },
+    "l:lane1.mic1": {
+      "id": "l:lane1.mic1",
+      "owner": {
+        "kind": "node",
+        "id": "lane1.mic1"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "mic1"
+        }
+      ]
+    },
+    "l:lane1.door1": {
+      "id": "l:lane1.door1",
+      "owner": {
+        "kind": "node",
+        "id": "lane1.door1"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Camera"
+        }
+      ]
+    },
+    "l:stores": {
+      "id": "l:stores",
+      "owner": {
+        "kind": "node",
+        "id": "stores"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "stores"
+        }
+      ]
+    },
+    "l:stores.orders-db": {
+      "id": "l:stores.orders-db",
+      "owner": {
+        "kind": "node",
+        "id": "stores.orders-db"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "orders-db"
+        }
+      ]
+    },
+    "l:stores.users-db": {
+      "id": "l:stores.users-db",
+      "owner": {
+        "kind": "node",
+        "id": "stores.users-db"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "users-db"
+        }
+      ]
+    },
+    "l:stores.cache": {
+      "id": "l:stores.cache",
+      "owner": {
+        "kind": "node",
+        "id": "stores.cache"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "cache"
+        }
+      ]
+    },
+    "l:stores.order service": {
+      "id": "l:stores.order service",
+      "owner": {
+        "kind": "node",
+        "id": "stores.order service"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "order service"
+        }
+      ]
+    },
+    "l:mixed": {
+      "id": "l:mixed",
+      "owner": {
+        "kind": "node",
+        "id": "mixed"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "mixed"
+        }
+      ]
+    },
+    "l:mixed.camAhd": {
+      "id": "l:mixed.camAhd",
+      "owner": {
+        "kind": "node",
+        "id": "mixed.camAhd"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "camAhd"
+        }
+      ]
+    },
+    "l:mixed.camBhd": {
+      "id": "l:mixed.camBhd",
+      "owner": {
+        "kind": "node",
+        "id": "mixed.camBhd"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "camBhd"
+        }
+      ]
+    },
+    "l:mixed.camB": {
+      "id": "l:mixed.camB",
+      "owner": {
+        "kind": "node",
+        "id": "mixed.camB"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "camB"
+        }
+      ]
+    },
+    "l:mixed.cam": {
+      "id": "l:mixed.cam",
+      "owner": {
+        "kind": "node",
+        "id": "mixed.cam"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "cam"
+        }
+      ]
+    }
+  },
+  "title": "Wildcard globs",
+  "meta": {
+    "nodeCount": 19,
+    "edgeCount": 29,
+    "containerCount": 3
+  }
+}

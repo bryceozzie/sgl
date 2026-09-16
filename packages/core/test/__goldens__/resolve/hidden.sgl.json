@@ -5,6 +5,7 @@
     "@hidden": true
   },
   "other": {},
+  "another": {},
   "@edges": [
     {
       "from": "visible",
@@ -23,6 +24,14 @@
       "to": "other",
       "directed": "forward",
       "ordinal": 0
+    },
+    {
+      "from": "visible",
+      "to": "another",
+      "directed": "forward",
+      "ordinal": 0,
+      "@label": "silent",
+      "@hidden": true
     }
   ]
 }

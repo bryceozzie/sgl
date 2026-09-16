@@ -48,6 +48,13 @@ No `Math.random`, no `Date.now`, no iteration over object keys without sorting, 
 order dependence, anywhere below `apps/web`. Lint bans the first two. **Every stage that produces
 output adds a double-run test**: run twice, assert byte-identical `JSON.stringify` or string output.
 
+A corollary that has already surprised one review: a record keyed by author-supplied strings —
+`SemanticGraph.nodes`, `labels`, DD-04's `styles`, a node's `@ports` bag — puts **integer-like keys
+first**, in numeric order, ahead of every other key in insertion order. A document declaring `"1": {}`
+after `zebra: {}` yields `Object.keys(graph.nodes) === ['1', 'zebra']` while `graph.order` correctly
+says `['zebra', '1']`. This is ES-specified, so a double-run test passes and will never catch it.
+**`graph.order` is the only safe traversal**; treat key order in any of those records as undefined.
+
 ### Errors are values
 
 A stage **never throws** on bad input. It returns `{ value, diagnostics }` with the best partial
@@ -104,8 +111,9 @@ A stage is not done because the code is written. It is done when its gate passes
 | `@sgl/render-svg` — shapes, style block, markers, text, `render()` | **Implementation only, no tests** | `feat/renderer` |
 | `@sgl/core` — `parse()`, `buildAst`, grammar fixes | **Done**, T1+T2 gate green | `main` |
 | `@sgl/core` — `resolve()`, `toJson`/`fromJson`, config-key registry | **Done**, T1+T2 gate green | `main` |
+| `@sgl/core` — `compile()`, wildcard expansion, class linearisation | **Done**, T1+T2 gate green, diagnostics coverage gate enabled | `feat/compiler` |
 | `@sgl/layout-api` — shape anchors for the routing fallback | **Fragment only** | `feat/grid-engine` |
-| `compile`, `grid`, worker host, `apps/web` | **Not started** | — |
+| `grid`, worker host, `apps/web` | **Not started** | — |
 
 Both grammar defects tracked in the README (quoted `@`-keys, `$name` as a
 `Variable` token) are fixed and Stage A's gate passed on `main`. Stage B found
@@ -116,6 +124,52 @@ value-builder switch with no `'Variable'` case, so `$name` lexed as a
 a diagnostic. Fixed on `feat/resolver` (`buildValue`/`buildVariable` in
 `build-ast.ts`) since Stage B's own gate needs it; `feat/parser`'s original
 gate still passes unchanged, as it never asserted on this path.
+
+Stage C's task list in §5 does not mention class linearisation as a task, but
+DD-02 §4 is explicit that "DD-03 computes `classes: string[]` in linearised
+order per node" and `GraphNode.classes`/`GraphEdge.classes` are frozen types
+that need it — filled per the standing rule for an incomplete document.
+`compile()`'s `linearizeClasses` implements DD-02 §4's literal recipe
+(depth-first over `@extends`, left to right, de-duplicated keeping the last
+occurrence); this is monotonic for a chain but not guaranteed so for a diamond
+where two siblings share a base — no corpus fixture exercises that edge, and
+the deviation (a full C3 merge would remove it) is documented at the function.
+Another implementation choice, also undocumented in DD-03 itself: `@hidden`
+propagates down the whole subtree (needed for DD-03 §7's "subtree is omitted"
+and DD-06 §2's per-node filter to agree).
+
+A post-review amendment on this branch (not a new stage) corrected a related
+call that *was* wrong: a node's `ports` originally came only from its own
+inline `@ports`, reading DD-03 §3's "the target node's `@ports`" as excluding
+a class's. That phrase is about which node an edge *endpoint* validates
+against, not about cascade — and DD-02 §7 gives `ports` scope `node, class`
+precisely so a class can supply them. Ports now merge across the linearised
+class chain and then inline, per port id, with inline winning, the same
+precedence `shape` already used; `validatePort` consults the merged
+`GraphNode.ports`, not `container.config.ports`, so a class-provided port is
+no longer wrongly rejected with `SGL2003`. The same amendment added port-side
+validation (`SGL3007`, unknown/non-string `side` values fall back to `east`),
+split `SGL3001` ("unknown shape") from the new `SGL3006` ("a real shape name
+this version doesn't draw yet"), added `GraphEdge.hidden`, and fixed two bugs:
+a zero-length resolved path (e.g. `inner -> ../` from one level down) was
+silently treated as a hit on the document root instead of `SGL2001`; and
+`SGL2003` was fired once per edge in a wildcard cross product instead of once
+per distinct portless node.
+
+### 2.1 Open findings
+
+Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
+each because the stage that can act on it has not been built. Every row names its owner; the owning
+stage's entry in §5 repeats the detail. **Clear a row by fixing it and deleting it**, not by letting
+it rot: a register that outlives its findings is the same failure as a stale §2.
+
+| # | Finding | Owner |
+|---|---|---|
+| **F1** | `GraphNode.children` and `SemanticGraph.rootChildren` list hidden nodes; only `order` filters them. A consumer that recurses over `children` picks up hidden subtrees. | Stage E |
+| **F2** | One bad value in a class body yields one diagnostic **per node using the class** — three nodes extending a class with `@shape: trapezoid` give three `SGL3001`s, each spanned to a node, none to the class. Same for `SGL3007`. Correct but noisy; wants a `related` span on the class declaration. | Stage I |
+| **F3** | `linearizeClasses` recurses `@extends` with no visited-set guard. Safe **only** because `resolve()` splices every cycle's back-edge first, so no `DocumentModel` reaching `compile()` can contain one. A second producer of class tables would turn bad input into a stack overflow — which §1 reserves for invariant violations. | Stage L (A9) |
+| **F4** | A **one-sided** wildcard whose expansion contains the other endpoint emits a self-loop: `x -> /**` gives `x -> x`. DD-03 §3.1 excludes self-pairs only when *both* sides are wildcarded, so code and document agree — but nothing in the corpus covers it and it may not be what an author means. Open question, not a defect. | Stage F |
+| **F5** | `SGL3005` still has no corpus fixture and sits on the coverage gate's allowlist; the unit test hand-builds a `DocumentModel` to reach it. | Stage G |
 
 ---
 
@@ -336,6 +390,11 @@ something in it is unworkable, **report it loudly** rather than working around i
 4. `quantize` per the engine's declared determinism class (ADR-0004).
 5. Host fallbacks (DD-06 §2): `placeLabels` and `routeStraight`, the latter clipping at node boundaries
    using the salvaged anchors, with a real arc for a self-loop.
+6. **F1 (§2.1).** `GraphNode.children` and `rootChildren` are **unfiltered** — they list hidden nodes,
+   and only `order` leaves them out. Task 1 packs containers recursively over `children`, so it must
+   test `node.hidden` itself. Both `GraphNode` and `GraphEdge` carry the flag, already resolved to
+   *effectively* hidden (own `@hidden`, or an ancestor's, or for an edge either endpoint's), so this
+   is one comparison and never an ancestor walk. Clear F1 when the filter is in and asserted.
 
 **Gate — T1 + T2.**
 - **Bitwise determinism** — `grid` declares `'bitwise'`, the strictest class in ADR-0004. Lay out every
@@ -366,11 +425,21 @@ something in it is unworkable, **report it loudly** rather than working around i
    returns the centre; an ellipse anchor actually lies on the ellipse. **Check the formulas against
    DD-07 §4 rather than assuming the code transcribed them correctly.**
 4. Accessibility: `role`, `<title>`, `<desc>`, per-element `aria-label`, document order equal to
-   `graph.order`.
-5. Reconcile two known discrepancies with DD-07 §8 and update the document: the implementation collapses
+   `graph.order` — which is the *only* filtered traversal; `children`/`rootChildren` include hidden
+   nodes (F1, §2.1).
+5. **F4 (§2.1) — decide the one-sided wildcard self-loop.** `x -> /**` expands to include `x`, so it
+   emits `x -> x`. DD-03 §3.1 excludes self-pairs only when both sides are wildcarded; you are the
+   first stage that can *see* the result. Either confirm it (and add the corpus fixture that is
+   missing either way) or change DD-03 §3.1 and `compile()` together. Self-loop routing is already
+   the host fallback's job (DD-06 §4.5), so this is about authoring intent, not renderability.
+6. Reconcile two known discrepancies with DD-07 §8 and update the document: the implementation collapses
    `escText`/`escAttr` into one function, and allows only `https:`/`mailto:` where §8 also lists `http:`
    and in-document `#n-…`. Decide which is right; the language spec §4 currently agrees with the code.
-6. Double-run identical.
+7. Double-run identical.
+
+**You may assume** `GraphNode.shape` is always one of the seven DD-07 §4 draws — Stage C guarantees
+it, falling back to `rect` with `SGL3001` or `SGL3006` (DD-03 §4). The shape table needs no fallback
+branch of its own.
 
 **Gate — T1 + T2.**
 
@@ -450,6 +519,13 @@ grammar via `@sgl/core/editor` (§4); inline diagnostics at exact spans (§5); t
 `innerHTML` swap, pan/zoom and the interaction overlay as a **sibling** of the exported tree (§6);
 **last-good-render** — a document with errors never blanks the canvas (FR-E4).
 
+**F2 (§2.1) while wiring §5's inline diagnostics.** One bad value in a class body produces one
+diagnostic *per node using that class*, each spanned to the node and none to the class — so a single
+typo in `@classes` lights up every node that extends it and points at none of the causes. `Diagnostic`
+already carries `related`, and `resolve()` already keeps `classSpans`; this is where the gutter makes
+the cost visible, so it is where the fix pays for itself. Clear F2 when a class-sourced `SGL3001`,
+`SGL3006` or `SGL3007` carries a `related` span pointing at the class declaration.
+
 **Gate — T1 + T4 (partial).** Playwright: MVP acceptance criteria **1, 2 and 3**. Criterion 2 is the
 visible half of what Stage G already proved — assert the SVG tree is untouched and only the `<style>`
 block changes.
@@ -516,7 +592,7 @@ excluded from the core bundle budget.
 
 | Item | Notes |
 |---|---|
-| A8 variables, A9 imports | Pure resolver work. Replaces the Stage B placeholder diagnostic. Cycle detection for imports. |
+| A8 variables, A9 imports | Pure resolver work. Replaces the Stage B placeholder diagnostic. Cycle detection for imports. **F3 (§2.1):** `compile()`'s `linearizeClasses` has no visited-set guard and relies entirely on `resolve()` having spliced every `@extends` back-edge first. Imports introduce a second way class tables get built — add the guard before, not after. |
 | **A18 markdown labels + `@sgl/text`** | The largest non-engine subsystem. The `Measurer` is run-based already, so this is an addition, not a rewrite. |
 | B5 `fixed`, `tree`, `radial`, `force` | `fixed` first — about a day, and the escape hatch people ask for. `force` last, and it is the first thing to cut. |
 | C5 `high-contrast`, `print` themes | Tokens only. |

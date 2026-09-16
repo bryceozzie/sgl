@@ -1,0 +1,440 @@
+{
+  "nodes": {
+    "external": {
+      "id": "external",
+      "path": [
+        "external"
+      ],
+      "parent": null,
+      "children": [
+        "external.cdn"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:external",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 75,
+        "to": 98
+      }
+    },
+    "external.cdn": {
+      "id": "external.cdn",
+      "path": [
+        "external",
+        "cdn"
+      ],
+      "parent": "external",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:external.cdn",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 89,
+        "to": 96
+      }
+    },
+    "platform": {
+      "id": "platform",
+      "path": [
+        "platform"
+      ],
+      "parent": null,
+      "children": [
+        "platform.ingress",
+        "platform.services"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform",
+      "ports": [],
+      "config": {
+        "label": "Platform"
+      },
+      "hidden": false,
+      "span": {
+        "from": 100,
+        "to": 355
+      }
+    },
+    "platform.ingress": {
+      "id": "platform.ingress",
+      "path": [
+        "platform",
+        "ingress"
+      ],
+      "parent": "platform",
+      "children": [
+        "platform.ingress.lb",
+        "platform.ingress.waf"
+      ],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform.ingress",
+      "ports": [],
+      "config": {
+        "label": "Ingress"
+      },
+      "hidden": false,
+      "span": {
+        "from": 136,
+        "to": 234
+      }
+    },
+    "platform.ingress.lb": {
+      "id": "platform.ingress.lb",
+      "path": [
+        "platform",
+        "ingress",
+        "lb"
+      ],
+      "parent": "platform.ingress",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform.ingress.lb",
+      "ports": [],
+      "config": {
+        "label": "Load balancer"
+      },
+      "hidden": false,
+      "span": {
+        "from": 173,
+        "to": 204
+      }
+    },
+    "platform.ingress.waf": {
+      "id": "platform.ingress.waf",
+      "path": [
+        "platform",
+        "ingress",
+        "waf"
+      ],
+      "parent": "platform.ingress",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform.ingress.waf",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 209,
+        "to": 216
+      }
+    },
+    "platform.services": {
+      "id": "platform.services",
+      "path": [
+        "platform",
+        "services"
+      ],
+      "parent": "platform",
+      "children": [
+        "platform.services.api",
+        "platform.services.worker"
+      ],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform.services",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 238,
+        "to": 323
+      }
+    },
+    "platform.services.api": {
+      "id": "platform.services.api",
+      "path": [
+        "platform",
+        "services",
+        "api"
+      ],
+      "parent": "platform.services",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform.services.api",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 254,
+        "to": 261
+      }
+    },
+    "platform.services.worker": {
+      "id": "platform.services.worker",
+      "path": [
+        "platform",
+        "services",
+        "worker"
+      ],
+      "parent": "platform.services",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform.services.worker",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 266,
+        "to": 276
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-aa8a579440c55bf8",
+      "from": {
+        "node": "platform.services.worker"
+      },
+      "to": {
+        "node": "external.cdn"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 357,
+        "to": 398
+      }
+    },
+    {
+      "id": "e-8053b7646e964a44",
+      "from": {
+        "node": "platform.ingress.lb"
+      },
+      "to": {
+        "node": "platform.services.api"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": "platform",
+      "hidden": false,
+      "span": {
+        "from": 327,
+        "to": 353
+      }
+    },
+    {
+      "id": "e-8312902bb75b3f5b",
+      "from": {
+        "node": "platform.ingress.waf"
+      },
+      "to": {
+        "node": "platform.ingress.lb"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": "platform.ingress",
+      "hidden": false,
+      "span": {
+        "from": 221,
+        "to": 230
+      }
+    },
+    {
+      "id": "e-838a69e88cc4c5f7",
+      "from": {
+        "node": "platform.services.api"
+      },
+      "to": {
+        "node": "platform.services.worker"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": "platform.services",
+      "hidden": false,
+      "span": {
+        "from": 281,
+        "to": 294
+      }
+    },
+    {
+      "id": "e-727e23be260ac34e",
+      "from": {
+        "node": "platform.services.api"
+      },
+      "to": {
+        "node": "platform.ingress.lb"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": "platform.services",
+      "hidden": false,
+      "span": {
+        "from": 299,
+        "to": 319
+      }
+    }
+  ],
+  "rootChildren": [
+    "external",
+    "platform"
+  ],
+  "order": [
+    "external",
+    "external.cdn",
+    "platform",
+    "platform.ingress",
+    "platform.ingress.lb",
+    "platform.ingress.waf",
+    "platform.services",
+    "platform.services.api",
+    "platform.services.worker"
+  ],
+  "labels": {
+    "l:external": {
+      "id": "l:external",
+      "owner": {
+        "kind": "node",
+        "id": "external"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "external"
+        }
+      ]
+    },
+    "l:external.cdn": {
+      "id": "l:external.cdn",
+      "owner": {
+        "kind": "node",
+        "id": "external.cdn"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "cdn"
+        }
+      ]
+    },
+    "l:platform": {
+      "id": "l:platform",
+      "owner": {
+        "kind": "node",
+        "id": "platform"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Platform"
+        }
+      ]
+    },
+    "l:platform.ingress": {
+      "id": "l:platform.ingress",
+      "owner": {
+        "kind": "node",
+        "id": "platform.ingress"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Ingress"
+        }
+      ]
+    },
+    "l:platform.ingress.lb": {
+      "id": "l:platform.ingress.lb",
+      "owner": {
+        "kind": "node",
+        "id": "platform.ingress.lb"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Load balancer"
+        }
+      ]
+    },
+    "l:platform.ingress.waf": {
+      "id": "l:platform.ingress.waf",
+      "owner": {
+        "kind": "node",
+        "id": "platform.ingress.waf"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "waf"
+        }
+      ]
+    },
+    "l:platform.services": {
+      "id": "l:platform.services",
+      "owner": {
+        "kind": "node",
+        "id": "platform.services"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "services"
+        }
+      ]
+    },
+    "l:platform.services.api": {
+      "id": "l:platform.services.api",
+      "owner": {
+        "kind": "node",
+        "id": "platform.services.api"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "api"
+        }
+      ]
+    },
+    "l:platform.services.worker": {
+      "id": "l:platform.services.worker",
+      "owner": {
+        "kind": "node",
+        "id": "platform.services.worker"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "worker"
+        }
+      ]
+    }
+  },
+  "title": "Nesting",
+  "meta": {
+    "nodeCount": 9,
+    "edgeCount": 5,
+    "containerCount": 4
+  }
+}

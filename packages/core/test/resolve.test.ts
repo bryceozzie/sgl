@@ -44,6 +44,8 @@ const COMPILER_OWNED_CODES: ReadonlySet<DiagnosticCode> = new Set([
   'SGL3003',
   'SGL3004',
   'SGL3005',
+  'SGL3006',
+  'SGL3007',
 ]);
 
 function stripSpans<T>(value: T): T {

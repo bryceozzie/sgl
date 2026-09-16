@@ -1,0 +1,220 @@
+{
+  "nodes": {
+    "visible": {
+      "id": "visible",
+      "path": [
+        "visible"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:visible",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 80,
+        "to": 87
+      }
+    },
+    "ghost": {
+      "id": "ghost",
+      "path": [
+        "ghost"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": null,
+      "ports": [],
+      "config": {
+        "hidden": true
+      },
+      "hidden": true,
+      "span": {
+        "from": 88,
+        "to": 112
+      }
+    },
+    "other": {
+      "id": "other",
+      "path": [
+        "other"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:other",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 113,
+        "to": 118
+      }
+    },
+    "another": {
+      "id": "another",
+      "path": [
+        "another"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:another",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 119,
+        "to": 126
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-972db065124e858e",
+      "from": {
+        "node": "visible"
+      },
+      "to": {
+        "node": "ghost"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": true,
+      "span": {
+        "from": 128,
+        "to": 144
+      }
+    },
+    {
+      "id": "e-ecedae5bafbceb4c",
+      "from": {
+        "node": "ghost"
+      },
+      "to": {
+        "node": "other"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": true,
+      "span": {
+        "from": 145,
+        "to": 159
+      }
+    },
+    {
+      "id": "e-5353c6cb522d2c65",
+      "from": {
+        "node": "visible"
+      },
+      "to": {
+        "node": "other"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 160,
+        "to": 176
+      }
+    },
+    {
+      "id": "e-bcfc3192b0a4a052",
+      "from": {
+        "node": "visible"
+      },
+      "to": {
+        "node": "another"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {
+        "hidden": true,
+        "label": "silent"
+      },
+      "declaredIn": null,
+      "hidden": true,
+      "span": {
+        "from": 313,
+        "to": 368
+      }
+    }
+  ],
+  "rootChildren": [
+    "visible",
+    "ghost",
+    "other",
+    "another"
+  ],
+  "order": [
+    "visible",
+    "other",
+    "another"
+  ],
+  "labels": {
+    "l:visible": {
+      "id": "l:visible",
+      "owner": {
+        "kind": "node",
+        "id": "visible"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "visible"
+        }
+      ]
+    },
+    "l:other": {
+      "id": "l:other",
+      "owner": {
+        "kind": "node",
+        "id": "other"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "other"
+        }
+      ]
+    },
+    "l:another": {
+      "id": "l:another",
+      "owner": {
+        "kind": "node",
+        "id": "another"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "another"
+        }
+      ]
+    }
+  },
+  "meta": {
+    "nodeCount": 4,
+    "edgeCount": 4,
+    "containerCount": 0
+  }
+}

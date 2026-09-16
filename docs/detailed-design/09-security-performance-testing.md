@@ -121,6 +121,7 @@ Benchmarks (`bench/`) run in CI on the 50/500/2 000-node corpus documents under 
 4. For any `bitwise`/`quantized` engine: two runs on the same input produce byte-identical `LayoutResult`.
 5. For any layout: every non-hidden node and edge has geometry; every number is finite (the validator, tested in reverse).
 6. For any rendered SVG: parsing it as XML yields no `script` element, no `on*` attribute, and every `href` matches the allowlist.
+7. For any compiled document: every `GraphEdge.from.node` and `.to.node` is a key of `graph.nodes` — the general form of "a resolved endpoint of length zero (the document root) must not silently pass as a hit" (DD-03 §2.1, §3).
 
 ### 3.4 Coverage policy
 

@@ -1,0 +1,447 @@
+{
+  "nodes": {
+    "plain": {
+      "id": "plain",
+      "path": [
+        "plain"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "round",
+      "classes": [
+        "Base"
+      ],
+      "labelId": "l:plain",
+      "ports": [],
+      "config": {
+        "type": [
+          "Base"
+        ]
+      },
+      "hidden": false,
+      "span": {
+        "from": 393,
+        "to": 407
+      }
+    },
+    "left": {
+      "id": "left",
+      "path": [
+        "left"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "round",
+      "classes": [
+        "Base",
+        "Left"
+      ],
+      "labelId": "l:left",
+      "ports": [],
+      "config": {
+        "type": [
+          "Left"
+        ]
+      },
+      "hidden": false,
+      "span": {
+        "from": 408,
+        "to": 422
+      }
+    },
+    "right": {
+      "id": "right",
+      "path": [
+        "right"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "round",
+      "classes": [
+        "Base",
+        "Right"
+      ],
+      "labelId": "l:right",
+      "ports": [],
+      "config": {
+        "type": [
+          "Right"
+        ]
+      },
+      "hidden": false,
+      "span": {
+        "from": 423,
+        "to": 438
+      }
+    },
+    "diamond": {
+      "id": "diamond",
+      "path": [
+        "diamond"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "round",
+      "classes": [
+        "Left",
+        "Base",
+        "Right",
+        "Diamond"
+      ],
+      "labelId": "l:diamond",
+      "ports": [],
+      "config": {
+        "type": [
+          "Diamond"
+        ]
+      },
+      "hidden": false,
+      "span": {
+        "from": 439,
+        "to": 456
+      }
+    },
+    "both": {
+      "id": "both",
+      "path": [
+        "both"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "round",
+      "classes": [
+        "Left",
+        "Base",
+        "Right",
+        "Diamond",
+        "Critical"
+      ],
+      "labelId": "l:both",
+      "ports": [],
+      "config": {
+        "type": [
+          "Diamond",
+          "Critical"
+        ]
+      },
+      "hidden": false,
+      "span": {
+        "from": 457,
+        "to": 497
+      }
+    },
+    "override": {
+      "id": "override",
+      "path": [
+        "override"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [
+        "Critical"
+      ],
+      "labelId": "l:override",
+      "ports": [],
+      "config": {
+        "type": [
+          "Critical"
+        ],
+        "style": {
+          "stroke": "#123456"
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 498,
+        "to": 553
+      }
+    },
+    "routed": {
+      "id": "routed",
+      "path": [
+        "routed"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [
+        "Router"
+      ],
+      "labelId": "l:routed",
+      "ports": [
+        {
+          "id": "in",
+          "side": "west"
+        },
+        {
+          "id": "out",
+          "side": "east"
+        }
+      ],
+      "config": {
+        "type": [
+          "Router"
+        ]
+      },
+      "hidden": false,
+      "span": {
+        "from": 772,
+        "to": 794
+      }
+    },
+    "routedOverride": {
+      "id": "routedOverride",
+      "path": [
+        "routedOverride"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [
+        "Router"
+      ],
+      "labelId": "l:routedOverride",
+      "ports": [
+        {
+          "id": "in",
+          "side": "west"
+        },
+        {
+          "id": "out",
+          "side": "west"
+        }
+      ],
+      "config": {
+        "type": [
+          "Router"
+        ],
+        "ports": {
+          "out": "west"
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 795,
+        "to": 851
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-fe297c3f0d279af4",
+      "from": {
+        "node": "plain"
+      },
+      "to": {
+        "node": "left"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 853,
+        "to": 877
+      }
+    },
+    {
+      "id": "e-2847a08bfb69307a",
+      "from": {
+        "node": "left"
+      },
+      "to": {
+        "node": "diamond"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 853,
+        "to": 877
+      }
+    },
+    {
+      "id": "e-4de4a934f2ea2378",
+      "from": {
+        "node": "right"
+      },
+      "to": {
+        "node": "both"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 878,
+        "to": 891
+      }
+    },
+    {
+      "id": "e-a3ae2354924ebedc",
+      "from": {
+        "node": "both"
+      },
+      "to": {
+        "node": "override"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 892,
+        "to": 908
+      }
+    }
+  ],
+  "rootChildren": [
+    "plain",
+    "left",
+    "right",
+    "diamond",
+    "both",
+    "override",
+    "routed",
+    "routedOverride"
+  ],
+  "order": [
+    "plain",
+    "left",
+    "right",
+    "diamond",
+    "both",
+    "override",
+    "routed",
+    "routedOverride"
+  ],
+  "labels": {
+    "l:plain": {
+      "id": "l:plain",
+      "owner": {
+        "kind": "node",
+        "id": "plain"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "plain"
+        }
+      ]
+    },
+    "l:left": {
+      "id": "l:left",
+      "owner": {
+        "kind": "node",
+        "id": "left"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "left"
+        }
+      ]
+    },
+    "l:right": {
+      "id": "l:right",
+      "owner": {
+        "kind": "node",
+        "id": "right"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "right"
+        }
+      ]
+    },
+    "l:diamond": {
+      "id": "l:diamond",
+      "owner": {
+        "kind": "node",
+        "id": "diamond"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "diamond"
+        }
+      ]
+    },
+    "l:both": {
+      "id": "l:both",
+      "owner": {
+        "kind": "node",
+        "id": "both"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "both"
+        }
+      ]
+    },
+    "l:override": {
+      "id": "l:override",
+      "owner": {
+        "kind": "node",
+        "id": "override"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "override"
+        }
+      ]
+    },
+    "l:routed": {
+      "id": "l:routed",
+      "owner": {
+        "kind": "node",
+        "id": "routed"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "routed"
+        }
+      ]
+    },
+    "l:routedOverride": {
+      "id": "l:routedOverride",
+      "owner": {
+        "kind": "node",
+        "id": "routedOverride"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "routedOverride"
+        }
+      ]
+    }
+  },
+  "meta": {
+    "nodeCount": 8,
+    "edgeCount": 4,
+    "containerCount": 0
+  }
+}

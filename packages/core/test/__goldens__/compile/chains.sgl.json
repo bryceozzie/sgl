@@ -1,0 +1,457 @@
+{
+  "nodes": {
+    "a": {
+      "id": "a",
+      "path": [
+        "a"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:a",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 51,
+        "to": 52
+      }
+    },
+    "b": {
+      "id": "b",
+      "path": [
+        "b"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:b",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 53,
+        "to": 54
+      }
+    },
+    "c": {
+      "id": "c",
+      "path": [
+        "c"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:c",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 55,
+        "to": 56
+      }
+    },
+    "d": {
+      "id": "d",
+      "path": [
+        "d"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:d",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 57,
+        "to": 58
+      }
+    },
+    "e": {
+      "id": "e",
+      "path": [
+        "e"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:e",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 59,
+        "to": 60
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-43cd40b7c998acd4",
+      "from": {
+        "node": "a"
+      },
+      "to": {
+        "node": "b"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 62,
+        "to": 68
+      }
+    },
+    {
+      "id": "e-5babc3245cac61be",
+      "from": {
+        "node": "c"
+      },
+      "to": {
+        "node": "b"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 69,
+        "to": 75
+      }
+    },
+    {
+      "id": "e-178f3baf91a9954e",
+      "from": {
+        "node": "c"
+      },
+      "to": {
+        "node": "d"
+      },
+      "directed": "both",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 76,
+        "to": 83
+      }
+    },
+    {
+      "id": "e-f1e608d08147627f",
+      "from": {
+        "node": "d"
+      },
+      "to": {
+        "node": "e"
+      },
+      "directed": "none",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 84,
+        "to": 90
+      }
+    },
+    {
+      "id": "e-43cd41b7c998ae87",
+      "from": {
+        "node": "a"
+      },
+      "to": {
+        "node": "b"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 92,
+        "to": 108
+      }
+    },
+    {
+      "id": "e-688a810bd2bae628",
+      "from": {
+        "node": "b"
+      },
+      "to": {
+        "node": "c"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 92,
+        "to": 108
+      }
+    },
+    {
+      "id": "e-58cf3712b0b9727c",
+      "from": {
+        "node": "c"
+      },
+      "to": {
+        "node": "d"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 92,
+        "to": 108
+      }
+    },
+    {
+      "id": "e-43cd42b7c998b03a",
+      "from": {
+        "node": "a"
+      },
+      "to": {
+        "node": "b"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-43cd42b7c998b03a",
+      "config": {
+        "label": "labelled"
+      },
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 109,
+        "to": 127
+      }
+    },
+    {
+      "id": "e-178f3caf91a99701",
+      "from": {
+        "node": "c"
+      },
+      "to": {
+        "node": "d"
+      },
+      "directed": "both",
+      "classes": [],
+      "labelId": "l:e-178f3caf91a99701",
+      "config": {
+        "label": "both ways",
+        "style": "dashed"
+      },
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 128,
+        "to": 176
+      }
+    },
+    {
+      "id": "e-9adcf6bf6592cb45",
+      "from": {
+        "node": "a"
+      },
+      "to": {
+        "node": "c"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-9adcf6bf6592cb45",
+      "config": {
+        "label": "chain label"
+      },
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 177,
+        "to": 203
+      }
+    },
+    {
+      "id": "e-da3dcd1b86b3720d",
+      "from": {
+        "node": "c"
+      },
+      "to": {
+        "node": "e"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-da3dcd1b86b3720d",
+      "config": {
+        "label": "chain label"
+      },
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 177,
+        "to": 203
+      }
+    }
+  ],
+  "rootChildren": [
+    "a",
+    "b",
+    "c",
+    "d",
+    "e"
+  ],
+  "order": [
+    "a",
+    "b",
+    "c",
+    "d",
+    "e"
+  ],
+  "labels": {
+    "l:e-43cd42b7c998b03a": {
+      "id": "l:e-43cd42b7c998b03a",
+      "owner": {
+        "kind": "edge",
+        "id": "e-43cd42b7c998b03a"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "labelled"
+        }
+      ]
+    },
+    "l:e-178f3caf91a99701": {
+      "id": "l:e-178f3caf91a99701",
+      "owner": {
+        "kind": "edge",
+        "id": "e-178f3caf91a99701"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "both ways"
+        }
+      ]
+    },
+    "l:e-9adcf6bf6592cb45": {
+      "id": "l:e-9adcf6bf6592cb45",
+      "owner": {
+        "kind": "edge",
+        "id": "e-9adcf6bf6592cb45"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "chain label"
+        }
+      ]
+    },
+    "l:e-da3dcd1b86b3720d": {
+      "id": "l:e-da3dcd1b86b3720d",
+      "owner": {
+        "kind": "edge",
+        "id": "e-da3dcd1b86b3720d"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "chain label"
+        }
+      ]
+    },
+    "l:a": {
+      "id": "l:a",
+      "owner": {
+        "kind": "node",
+        "id": "a"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "a"
+        }
+      ]
+    },
+    "l:b": {
+      "id": "l:b",
+      "owner": {
+        "kind": "node",
+        "id": "b"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "b"
+        }
+      ]
+    },
+    "l:c": {
+      "id": "l:c",
+      "owner": {
+        "kind": "node",
+        "id": "c"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "c"
+        }
+      ]
+    },
+    "l:d": {
+      "id": "l:d",
+      "owner": {
+        "kind": "node",
+        "id": "d"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "d"
+        }
+      ]
+    },
+    "l:e": {
+      "id": "l:e",
+      "owner": {
+        "kind": "node",
+        "id": "e"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "e"
+        }
+      ]
+    }
+  },
+  "meta": {
+    "nodeCount": 5,
+    "edgeCount": 11,
+    "containerCount": 0
+  }
+}

@@ -1,0 +1,326 @@
+{
+  "nodes": {
+    "router": {
+      "id": "router",
+      "path": [
+        "router"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:router",
+      "ports": [
+        {
+          "id": "in",
+          "side": "west"
+        },
+        {
+          "id": "out",
+          "side": "east"
+        },
+        {
+          "id": "mgmt",
+          "side": "north"
+        },
+        {
+          "id": "drain",
+          "side": "south"
+        }
+      ],
+      "config": {
+        "ports": {
+          "in": "west",
+          "out": "east",
+          "mgmt": "north",
+          "drain": "south"
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 39,
+        "to": 111
+      }
+    },
+    "switch": {
+      "id": "switch",
+      "path": [
+        "switch"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:switch",
+      "ports": [
+        {
+          "id": "uplink",
+          "side": "west"
+        },
+        {
+          "id": "down",
+          "side": "east"
+        }
+      ],
+      "config": {
+        "ports": {
+          "uplink": "west",
+          "down": "east"
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 113,
+        "to": 163
+      }
+    },
+    "client": {
+      "id": "client",
+      "path": [
+        "client"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:client",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 165,
+        "to": 171
+      }
+    },
+    "server": {
+      "id": "server",
+      "path": [
+        "server"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:server",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 172,
+        "to": 178
+      }
+    },
+    "console": {
+      "id": "console",
+      "path": [
+        "console"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:console",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 179,
+        "to": 186
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-fe56bf3c070deb64",
+      "from": {
+        "node": "client"
+      },
+      "to": {
+        "node": "router",
+        "port": "in"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 188,
+        "to": 208
+      }
+    },
+    {
+      "id": "e-2add81bdced6c5bd",
+      "from": {
+        "node": "router",
+        "port": "out"
+      },
+      "to": {
+        "node": "switch",
+        "port": "uplink"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 209,
+        "to": 238
+      }
+    },
+    {
+      "id": "e-7da7ff22733c2d24",
+      "from": {
+        "node": "switch",
+        "port": "down"
+      },
+      "to": {
+        "node": "server"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 239,
+        "to": 261
+      }
+    },
+    {
+      "id": "e-dcc0effb40c10f5e",
+      "from": {
+        "node": "console"
+      },
+      "to": {
+        "node": "router",
+        "port": "mgmt"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 262,
+        "to": 285
+      }
+    },
+    {
+      "id": "e-75caf3b8ae7e05d7",
+      "from": {
+        "node": "router",
+        "port": "drain"
+      },
+      "to": {
+        "node": "server"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 286,
+        "to": 309
+      }
+    }
+  ],
+  "rootChildren": [
+    "router",
+    "switch",
+    "client",
+    "server",
+    "console"
+  ],
+  "order": [
+    "router",
+    "switch",
+    "client",
+    "server",
+    "console"
+  ],
+  "labels": {
+    "l:router": {
+      "id": "l:router",
+      "owner": {
+        "kind": "node",
+        "id": "router"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "router"
+        }
+      ]
+    },
+    "l:switch": {
+      "id": "l:switch",
+      "owner": {
+        "kind": "node",
+        "id": "switch"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "switch"
+        }
+      ]
+    },
+    "l:client": {
+      "id": "l:client",
+      "owner": {
+        "kind": "node",
+        "id": "client"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "client"
+        }
+      ]
+    },
+    "l:server": {
+      "id": "l:server",
+      "owner": {
+        "kind": "node",
+        "id": "server"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "server"
+        }
+      ]
+    },
+    "l:console": {
+      "id": "l:console",
+      "owner": {
+        "kind": "node",
+        "id": "console"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "console"
+        }
+      ]
+    }
+  },
+  "meta": {
+    "nodeCount": 5,
+    "edgeCount": 5,
+    "containerCount": 0
+  }
+}

@@ -1,0 +1,248 @@
+{
+  "nodes": {
+    "a": {
+      "id": "a",
+      "path": [
+        "a"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:a",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 62,
+        "to": 63
+      }
+    },
+    "b": {
+      "id": "b",
+      "path": [
+        "b"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:b",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 64,
+        "to": 65
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-c338aaaef4585103",
+      "from": {
+        "node": "a"
+      },
+      "to": {
+        "node": "a"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 67,
+        "to": 73
+      }
+    },
+    {
+      "id": "e-c338a9aef4584f50",
+      "from": {
+        "node": "a"
+      },
+      "to": {
+        "node": "a"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-c338a9aef4584f50",
+      "config": {
+        "label": "twice"
+      },
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 74,
+        "to": 89
+      }
+    },
+    {
+      "id": "e-43cd40b7c998acd4",
+      "from": {
+        "node": "a"
+      },
+      "to": {
+        "node": "b"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 90,
+        "to": 96
+      }
+    },
+    {
+      "id": "e-43cd41b7c998ae87",
+      "from": {
+        "node": "a"
+      },
+      "to": {
+        "node": "b"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 97,
+        "to": 103
+      }
+    },
+    {
+      "id": "e-43cd42b7c998b03a",
+      "from": {
+        "node": "a"
+      },
+      "to": {
+        "node": "b"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-43cd42b7c998b03a",
+      "config": {
+        "label": "third"
+      },
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 104,
+        "to": 119
+      }
+    },
+    {
+      "id": "e-363a0deebc7e54e2",
+      "from": {
+        "node": "a"
+      },
+      "to": {
+        "node": "b"
+      },
+      "directed": "both",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 120,
+        "to": 127
+      }
+    },
+    {
+      "id": "e-a5d657184404e66e",
+      "from": {
+        "node": "b"
+      },
+      "to": {
+        "node": "b"
+      },
+      "directed": "none",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 128,
+        "to": 134
+      }
+    }
+  ],
+  "rootChildren": [
+    "a",
+    "b"
+  ],
+  "order": [
+    "a",
+    "b"
+  ],
+  "labels": {
+    "l:e-c338a9aef4584f50": {
+      "id": "l:e-c338a9aef4584f50",
+      "owner": {
+        "kind": "edge",
+        "id": "e-c338a9aef4584f50"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "twice"
+        }
+      ]
+    },
+    "l:e-43cd42b7c998b03a": {
+      "id": "l:e-43cd42b7c998b03a",
+      "owner": {
+        "kind": "edge",
+        "id": "e-43cd42b7c998b03a"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "third"
+        }
+      ]
+    },
+    "l:a": {
+      "id": "l:a",
+      "owner": {
+        "kind": "node",
+        "id": "a"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "a"
+        }
+      ]
+    },
+    "l:b": {
+      "id": "l:b",
+      "owner": {
+        "kind": "node",
+        "id": "b"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "b"
+        }
+      ]
+    }
+  },
+  "meta": {
+    "nodeCount": 2,
+    "edgeCount": 7,
+    "containerCount": 0
+  }
+}
