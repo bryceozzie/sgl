@@ -60,6 +60,8 @@ type ConfigValue = string | number | boolean | null | readonly ConfigValue[] | C
 type SpanTable = ReadonlyMap<string, SourceSpan>;   // key: 'n:payments.api' | 'e:payments.api#3' | 'c:Service'
 ```
 
+A span-table path is joined and escaped by `nodeIdFromPath` (`packages/core/src/ids.ts`) — the same function DD-03 §2.1's `NodeId` is built from, so a key written `a\b.c` produces the identical string on both sides (`\` escaped before `.`, so the dot introduced by escaping the backslash is never mistaken for a real one). `resolve()` has no reason to reimplement this, and didn't always: an earlier version escaped only `.`, which is a silent lookup miss the moment a key contains a literal backslash.
+
 `ConfigBag` is plain JSON. Nested objects come from either dotted keys (`@style.stroke`) or literal objects (`@style: { stroke }`); after merging they are indistinguishable, which is the point.
 
 ---
@@ -156,12 +158,16 @@ fromJson(text: string): ResolveResult      // = resolve(parse(text)) — the gra
 
 **Two corrections made while implementing this, both because they would otherwise break the round-trip invariant below:**
 
-- A path segment that needs quoting (a space, a literal `.`, anything outside
-  `[A-Za-z_][A-Za-z0-9_-]*`) is printed as a **quoted JSON string** segment
-  (`outer."metrics.v2"`), not "escaped as `\.`" as this rule originally said.
-  `Identifier` cannot contain a backslash (`sgl.grammar`), so a backslash-dot
-  form would not re-parse; a quoted segment is already legal in `Path`
-  (`PathSegment { Identifier | String }`) and does.
+- A path segment that needs quoting is printed as a **quoted JSON string**
+  segment (`outer."metrics.v2"`), not "escaped as `\.`" as this rule
+  originally said. `Identifier` cannot contain a backslash (`sgl.grammar`),
+  so a backslash-dot form would not re-parse; a quoted segment is already
+  legal in `Path` (`PathSegment { Identifier | String }`) and does. "Needs
+  quoting" means *not* matching `Identifier` exactly —
+  `^[A-Za-z_](?:[A-Za-z0-9_]|-[A-Za-z0-9_])*$` — not the looser
+  `[A-Za-z_][A-Za-z0-9_-]*` a first pass used, which let a trailing or
+  doubled `-` (`a-`, `a--b`) print unquoted and re-parse one character short:
+  a silent edge retarget with no diagnostic.
 - `"ordinal"` is now part of the edge object (rule 5), always emitted. Without
   it, every edge in `"@edges"` is independently declared — there is no way to
   reconstruct "index within the declaring chain" for the second and later
@@ -175,7 +181,13 @@ never produces one; only infix `a -> b` does). `resolve()` treats a
 `"@edges": [...]` config entry as structural rather than generic data: each
 array item's `from`/`to` strings are re-parsed through the ordinary `Path`
 grammar (as a tiny synthetic `text -> placeholder` edge statement) rather than
-a second, hand-rolled path parser that could drift from the real one.
+a second, hand-rolled path parser that could drift from the real one. That
+re-parse's own spans are offsets into the throwaway synthetic string, not the
+real document, so `resolve()` immediately collapses every span in the
+returned `PathExpr` to the real `from`/`to` string literal's own span
+(`remapPathSpans`) — otherwise a later `SGL2001`/`SGL3003`/`SGL3004` (Stage C)
+or an editor underline (Stage I) would anchor on arbitrary, unrelated text in
+the real source.
 
 Because the grammar reads JSON directly, `fromJson` is not a separate parser and cannot drift from the surface syntax. The round-trip invariant tested in DD-09: `resolve(parse(toJson(m))).model ≡ m` (ignoring `spans`).
 
