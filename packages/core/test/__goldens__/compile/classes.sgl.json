@@ -1,0 +1,342 @@
+{
+  "nodes": {
+    "plain": {
+      "id": "plain",
+      "path": [
+        "plain"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "round",
+      "classes": [
+        "Base"
+      ],
+      "labelId": "l:plain",
+      "ports": [],
+      "config": {
+        "type": [
+          "Base"
+        ]
+      },
+      "hidden": false,
+      "span": {
+        "from": 345,
+        "to": 359
+      }
+    },
+    "left": {
+      "id": "left",
+      "path": [
+        "left"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "round",
+      "classes": [
+        "Base",
+        "Left"
+      ],
+      "labelId": "l:left",
+      "ports": [],
+      "config": {
+        "type": [
+          "Left"
+        ]
+      },
+      "hidden": false,
+      "span": {
+        "from": 360,
+        "to": 374
+      }
+    },
+    "right": {
+      "id": "right",
+      "path": [
+        "right"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "round",
+      "classes": [
+        "Base",
+        "Right"
+      ],
+      "labelId": "l:right",
+      "ports": [],
+      "config": {
+        "type": [
+          "Right"
+        ]
+      },
+      "hidden": false,
+      "span": {
+        "from": 375,
+        "to": 390
+      }
+    },
+    "diamond": {
+      "id": "diamond",
+      "path": [
+        "diamond"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "round",
+      "classes": [
+        "Left",
+        "Base",
+        "Right",
+        "Diamond"
+      ],
+      "labelId": "l:diamond",
+      "ports": [],
+      "config": {
+        "type": [
+          "Diamond"
+        ]
+      },
+      "hidden": false,
+      "span": {
+        "from": 391,
+        "to": 408
+      }
+    },
+    "both": {
+      "id": "both",
+      "path": [
+        "both"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "round",
+      "classes": [
+        "Left",
+        "Base",
+        "Right",
+        "Diamond",
+        "Critical"
+      ],
+      "labelId": "l:both",
+      "ports": [],
+      "config": {
+        "type": [
+          "Diamond",
+          "Critical"
+        ]
+      },
+      "hidden": false,
+      "span": {
+        "from": 409,
+        "to": 449
+      }
+    },
+    "override": {
+      "id": "override",
+      "path": [
+        "override"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [
+        "Critical"
+      ],
+      "labelId": "l:override",
+      "ports": [],
+      "config": {
+        "type": [
+          "Critical"
+        ],
+        "style": {
+          "stroke": "#123456"
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 450,
+        "to": 505
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-fe297c3f0d279af4",
+      "from": {
+        "node": "plain"
+      },
+      "to": {
+        "node": "left"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 507,
+        "to": 531
+      }
+    },
+    {
+      "id": "e-2847a08bfb69307a",
+      "from": {
+        "node": "left"
+      },
+      "to": {
+        "node": "diamond"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 507,
+        "to": 531
+      }
+    },
+    {
+      "id": "e-4de4a934f2ea2378",
+      "from": {
+        "node": "right"
+      },
+      "to": {
+        "node": "both"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 532,
+        "to": 545
+      }
+    },
+    {
+      "id": "e-a3ae2354924ebedc",
+      "from": {
+        "node": "both"
+      },
+      "to": {
+        "node": "override"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 546,
+        "to": 562
+      }
+    }
+  ],
+  "rootChildren": [
+    "plain",
+    "left",
+    "right",
+    "diamond",
+    "both",
+    "override"
+  ],
+  "order": [
+    "plain",
+    "left",
+    "right",
+    "diamond",
+    "both",
+    "override"
+  ],
+  "labels": {
+    "l:plain": {
+      "id": "l:plain",
+      "owner": {
+        "kind": "node",
+        "id": "plain"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "plain"
+        }
+      ]
+    },
+    "l:left": {
+      "id": "l:left",
+      "owner": {
+        "kind": "node",
+        "id": "left"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "left"
+        }
+      ]
+    },
+    "l:right": {
+      "id": "l:right",
+      "owner": {
+        "kind": "node",
+        "id": "right"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "right"
+        }
+      ]
+    },
+    "l:diamond": {
+      "id": "l:diamond",
+      "owner": {
+        "kind": "node",
+        "id": "diamond"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "diamond"
+        }
+      ]
+    },
+    "l:both": {
+      "id": "l:both",
+      "owner": {
+        "kind": "node",
+        "id": "both"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "both"
+        }
+      ]
+    },
+    "l:override": {
+      "id": "l:override",
+      "owner": {
+        "kind": "node",
+        "id": "override"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "override"
+        }
+      ]
+    }
+  },
+  "meta": {
+    "nodeCount": 6,
+    "edgeCount": 4,
+    "containerCount": 0
+  }
+}

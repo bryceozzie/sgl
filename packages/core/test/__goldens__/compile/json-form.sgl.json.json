@@ -1,0 +1,163 @@
+{
+  "nodes": {
+    "gateway": {
+      "id": "gateway",
+      "path": [
+        "gateway"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:gateway",
+      "ports": [],
+      "config": {
+        "label": "API Gateway"
+      },
+      "hidden": false,
+      "span": {
+        "from": 48,
+        "to": 86
+      }
+    },
+    "cache": {
+      "id": "cache",
+      "path": [
+        "cache"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "cylinder",
+      "classes": [
+        "Datastore"
+      ],
+      "labelId": "l:cache",
+      "ports": [],
+      "config": {
+        "type": [
+          "Datastore"
+        ]
+      },
+      "hidden": false,
+      "span": {
+        "from": 90,
+        "to": 125
+      }
+    },
+    "notes": {
+      "id": "notes",
+      "path": [
+        "notes"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:notes",
+      "ports": [],
+      "config": {
+        "label": "A string under a non-@ key is always a label, never a class."
+      },
+      "hidden": false,
+      "span": {
+        "from": 129,
+        "to": 200
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-1a68a89c6143642d",
+      "from": {
+        "node": "gateway"
+      },
+      "to": {
+        "node": "cache"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-1a68a89c6143642d",
+      "config": {
+        "label": "reads"
+      },
+      "declaredIn": null,
+      "span": {
+        "from": 267,
+        "to": 365
+      }
+    }
+  ],
+  "rootChildren": [
+    "gateway",
+    "cache",
+    "notes"
+  ],
+  "order": [
+    "gateway",
+    "cache",
+    "notes"
+  ],
+  "labels": {
+    "l:e-1a68a89c6143642d": {
+      "id": "l:e-1a68a89c6143642d",
+      "owner": {
+        "kind": "edge",
+        "id": "e-1a68a89c6143642d"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "reads"
+        }
+      ]
+    },
+    "l:gateway": {
+      "id": "l:gateway",
+      "owner": {
+        "kind": "node",
+        "id": "gateway"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "API Gateway"
+        }
+      ]
+    },
+    "l:cache": {
+      "id": "l:cache",
+      "owner": {
+        "kind": "node",
+        "id": "cache"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "cache"
+        }
+      ]
+    },
+    "l:notes": {
+      "id": "l:notes",
+      "owner": {
+        "kind": "node",
+        "id": "notes"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "A string under a non-@ key is always a label, never a class."
+        }
+      ]
+    }
+  },
+  "title": "JSON subset",
+  "meta": {
+    "nodeCount": 3,
+    "edgeCount": 1,
+    "containerCount": 0
+  }
+}

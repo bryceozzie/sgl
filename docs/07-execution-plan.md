@@ -104,8 +104,9 @@ A stage is not done because the code is written. It is done when its gate passes
 | `@sgl/render-svg` — shapes, style block, markers, text, `render()` | **Implementation only, no tests** | `feat/renderer` |
 | `@sgl/core` — `parse()`, `buildAst`, grammar fixes | **Done**, T1+T2 gate green | `main` |
 | `@sgl/core` — `resolve()`, `toJson`/`fromJson`, config-key registry | **Done**, T1+T2 gate green | `main` |
+| `@sgl/core` — `compile()`, wildcard expansion, class linearisation | **Done**, T1+T2 gate green, diagnostics coverage gate enabled | `feat/compiler` |
 | `@sgl/layout-api` — shape anchors for the routing fallback | **Fragment only** | `feat/grid-engine` |
-| `compile`, `grid`, worker host, `apps/web` | **Not started** | — |
+| `grid`, worker host, `apps/web` | **Not started** | — |
 
 Both grammar defects tracked in the README (quoted `@`-keys, `$name` as a
 `Variable` token) are fixed and Stage A's gate passed on `main`. Stage B found
@@ -116,6 +117,20 @@ value-builder switch with no `'Variable'` case, so `$name` lexed as a
 a diagnostic. Fixed on `feat/resolver` (`buildValue`/`buildVariable` in
 `build-ast.ts`) since Stage B's own gate needs it; `feat/parser`'s original
 gate still passes unchanged, as it never asserted on this path.
+
+Stage C's task list in §5 does not mention class linearisation as a task, but
+DD-02 §4 is explicit that "DD-03 computes `classes: string[]` in linearised
+order per node" and `GraphNode.classes`/`GraphEdge.classes` are frozen types
+that need it — filled per the standing rule for an incomplete document.
+`compile()`'s `linearizeClasses` implements DD-02 §4's literal recipe
+(depth-first over `@extends`, left to right, de-duplicated keeping the last
+occurrence); this is monotonic for a chain but not guaranteed so for a diamond
+where two siblings share a base — no corpus fixture exercises that edge, and
+the deviation (a full C3 merge would remove it) is documented at the function.
+Two more implementation choices, also undocumented in DD-03 itself: `@hidden`
+propagates down the whole subtree (needed for DD-03 §7's "subtree is omitted"
+and DD-06 §2's per-node filter to agree), and a node's `ports` come only from
+its own inline `@ports`, never a class's, per DD-03 §3's literal wording.
 
 ---
 

@@ -1,0 +1,323 @@
+{
+  "nodes": {
+    "order service": {
+      "id": "order service",
+      "path": [
+        "order service"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:order service",
+      "ports": [],
+      "config": {
+        "label": "Order Service"
+      },
+      "hidden": false,
+      "span": {
+        "from": 64,
+        "to": 108
+      }
+    },
+    "metrics\\.v2": {
+      "id": "metrics\\.v2",
+      "path": [
+        "metrics.v2"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:metrics\\.v2",
+      "ports": [],
+      "config": {
+        "label": "Metrics v2"
+      },
+      "hidden": false,
+      "span": {
+        "from": 109,
+        "to": 150
+      }
+    },
+    "🚀": {
+      "id": "🚀",
+      "path": [
+        "🚀"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:🚀",
+      "ports": [],
+      "config": {
+        "label": "Launch 🚀"
+      },
+      "hidden": false,
+      "span": {
+        "from": 151,
+        "to": 191
+      }
+    },
+    "rtl": {
+      "id": "rtl",
+      "path": [
+        "rtl"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:rtl",
+      "ports": [],
+      "config": {
+        "label": "مرحبا بالعالم"
+      },
+      "hidden": false,
+      "span": {
+        "from": 192,
+        "to": 236
+      }
+    },
+    "mixed": {
+      "id": "mixed",
+      "path": [
+        "mixed"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:mixed",
+      "ports": [],
+      "config": {
+        "label": "Tokyo 東京 · Café"
+      },
+      "hidden": false,
+      "span": {
+        "from": 237,
+        "to": 283
+      }
+    },
+    "multiline": {
+      "id": "multiline",
+      "path": [
+        "multiline"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:multiline",
+      "ports": [],
+      "config": {
+        "label": "Line one\nLine two"
+      },
+      "hidden": false,
+      "span": {
+        "from": 284,
+        "to": 333
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-6a7b252557e4c923",
+      "from": {
+        "node": "order service"
+      },
+      "to": {
+        "node": "metrics\\.v2"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-6a7b252557e4c923",
+      "config": {
+        "label": "emits"
+      },
+      "declaredIn": null,
+      "span": {
+        "from": 335,
+        "to": 375
+      }
+    },
+    {
+      "id": "e-d33bd50921525076",
+      "from": {
+        "node": "🚀"
+      },
+      "to": {
+        "node": "rtl"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 376,
+        "to": 387
+      }
+    },
+    {
+      "id": "e-436805ac67632802",
+      "from": {
+        "node": "rtl"
+      },
+      "to": {
+        "node": "mixed"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 388,
+        "to": 413
+      }
+    },
+    {
+      "id": "e-b06622fe03dabe8b",
+      "from": {
+        "node": "mixed"
+      },
+      "to": {
+        "node": "multiline"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 388,
+        "to": 413
+      }
+    }
+  ],
+  "rootChildren": [
+    "order service",
+    "metrics\\.v2",
+    "🚀",
+    "rtl",
+    "mixed",
+    "multiline"
+  ],
+  "order": [
+    "order service",
+    "metrics\\.v2",
+    "🚀",
+    "rtl",
+    "mixed",
+    "multiline"
+  ],
+  "labels": {
+    "l:e-6a7b252557e4c923": {
+      "id": "l:e-6a7b252557e4c923",
+      "owner": {
+        "kind": "edge",
+        "id": "e-6a7b252557e4c923"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "emits"
+        }
+      ]
+    },
+    "l:order service": {
+      "id": "l:order service",
+      "owner": {
+        "kind": "node",
+        "id": "order service"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Order Service"
+        }
+      ]
+    },
+    "l:metrics\\.v2": {
+      "id": "l:metrics\\.v2",
+      "owner": {
+        "kind": "node",
+        "id": "metrics\\.v2"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Metrics v2"
+        }
+      ]
+    },
+    "l:🚀": {
+      "id": "l:🚀",
+      "owner": {
+        "kind": "node",
+        "id": "🚀"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Launch 🚀"
+        }
+      ]
+    },
+    "l:rtl": {
+      "id": "l:rtl",
+      "owner": {
+        "kind": "node",
+        "id": "rtl"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "مرحبا بالعالم"
+        }
+      ]
+    },
+    "l:mixed": {
+      "id": "l:mixed",
+      "owner": {
+        "kind": "node",
+        "id": "mixed"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Tokyo 東京 · Café"
+        }
+      ]
+    },
+    "l:multiline": {
+      "id": "l:multiline",
+      "owner": {
+        "kind": "node",
+        "id": "multiline"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Line one"
+        },
+        {
+          "text": "Line two"
+        }
+      ]
+    }
+  },
+  "meta": {
+    "nodeCount": 6,
+    "edgeCount": 4,
+    "containerCount": 0
+  }
+}

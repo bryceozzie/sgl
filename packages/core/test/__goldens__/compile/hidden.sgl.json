@@ -1,0 +1,161 @@
+{
+  "nodes": {
+    "visible": {
+      "id": "visible",
+      "path": [
+        "visible"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:visible",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 46,
+        "to": 53
+      }
+    },
+    "ghost": {
+      "id": "ghost",
+      "path": [
+        "ghost"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": null,
+      "ports": [],
+      "config": {
+        "hidden": true
+      },
+      "hidden": true,
+      "span": {
+        "from": 54,
+        "to": 78
+      }
+    },
+    "other": {
+      "id": "other",
+      "path": [
+        "other"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:other",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 79,
+        "to": 84
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-972db065124e858e",
+      "from": {
+        "node": "visible"
+      },
+      "to": {
+        "node": "ghost"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 86,
+        "to": 102
+      }
+    },
+    {
+      "id": "e-ecedae5bafbceb4c",
+      "from": {
+        "node": "ghost"
+      },
+      "to": {
+        "node": "other"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 103,
+        "to": 117
+      }
+    },
+    {
+      "id": "e-5353c6cb522d2c65",
+      "from": {
+        "node": "visible"
+      },
+      "to": {
+        "node": "other"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 118,
+        "to": 134
+      }
+    }
+  ],
+  "rootChildren": [
+    "visible",
+    "ghost",
+    "other"
+  ],
+  "order": [
+    "visible",
+    "other"
+  ],
+  "labels": {
+    "l:visible": {
+      "id": "l:visible",
+      "owner": {
+        "kind": "node",
+        "id": "visible"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "visible"
+        }
+      ]
+    },
+    "l:other": {
+      "id": "l:other",
+      "owner": {
+        "kind": "node",
+        "id": "other"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "other"
+        }
+      ]
+    }
+  },
+  "meta": {
+    "nodeCount": 3,
+    "edgeCount": 3,
+    "containerCount": 0
+  }
+}

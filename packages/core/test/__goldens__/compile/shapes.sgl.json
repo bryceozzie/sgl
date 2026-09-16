@@ -1,0 +1,384 @@
+{
+  "nodes": {
+    "r": {
+      "id": "r",
+      "path": [
+        "r"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:r",
+      "ports": [],
+      "config": {
+        "shape": "rect",
+        "label": "rect"
+      },
+      "hidden": false,
+      "span": {
+        "from": 45,
+        "to": 84
+      }
+    },
+    "n": {
+      "id": "n",
+      "path": [
+        "n"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "round",
+      "classes": [],
+      "labelId": "l:n",
+      "ports": [],
+      "config": {
+        "shape": "round",
+        "label": "round"
+      },
+      "hidden": false,
+      "span": {
+        "from": 85,
+        "to": 125
+      }
+    },
+    "e": {
+      "id": "e",
+      "path": [
+        "e"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "ellipse",
+      "classes": [],
+      "labelId": "l:e",
+      "ports": [],
+      "config": {
+        "shape": "ellipse",
+        "label": "ellipse"
+      },
+      "hidden": false,
+      "span": {
+        "from": 126,
+        "to": 168
+      }
+    },
+    "d": {
+      "id": "d",
+      "path": [
+        "d"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "diamond",
+      "classes": [],
+      "labelId": "l:d",
+      "ports": [],
+      "config": {
+        "shape": "diamond",
+        "label": "diamond"
+      },
+      "hidden": false,
+      "span": {
+        "from": 169,
+        "to": 211
+      }
+    },
+    "h": {
+      "id": "h",
+      "path": [
+        "h"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "hexagon",
+      "classes": [],
+      "labelId": "l:h",
+      "ports": [],
+      "config": {
+        "shape": "hexagon",
+        "label": "hexagon"
+      },
+      "hidden": false,
+      "span": {
+        "from": 212,
+        "to": 254
+      }
+    },
+    "c": {
+      "id": "c",
+      "path": [
+        "c"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "cylinder",
+      "classes": [],
+      "labelId": "l:c",
+      "ports": [],
+      "config": {
+        "shape": "cylinder",
+        "label": "cylinder"
+      },
+      "hidden": false,
+      "span": {
+        "from": 255,
+        "to": 298
+      }
+    },
+    "p": {
+      "id": "p",
+      "path": [
+        "p"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "package",
+      "classes": [],
+      "labelId": "l:p",
+      "ports": [],
+      "config": {
+        "shape": "package",
+        "label": "package"
+      },
+      "hidden": false,
+      "span": {
+        "from": 299,
+        "to": 341
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-f91c1eaffada002d",
+      "from": {
+        "node": "r"
+      },
+      "to": {
+        "node": "n"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 343,
+        "to": 374
+      }
+    },
+    {
+      "id": "e-c42f1463e6ce666e",
+      "from": {
+        "node": "n"
+      },
+      "to": {
+        "node": "e"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 343,
+        "to": 374
+      }
+    },
+    {
+      "id": "e-089b59e4c2559d5a",
+      "from": {
+        "node": "e"
+      },
+      "to": {
+        "node": "d"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 343,
+        "to": 374
+      }
+    },
+    {
+      "id": "e-b8b94d9c87b423ed",
+      "from": {
+        "node": "d"
+      },
+      "to": {
+        "node": "h"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 343,
+        "to": 374
+      }
+    },
+    {
+      "id": "e-27869b874f0eb5ce",
+      "from": {
+        "node": "h"
+      },
+      "to": {
+        "node": "c"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 343,
+        "to": 374
+      }
+    },
+    {
+      "id": "e-1d5f2fb993e74410",
+      "from": {
+        "node": "c"
+      },
+      "to": {
+        "node": "p"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 343,
+        "to": 374
+      }
+    }
+  ],
+  "rootChildren": [
+    "r",
+    "n",
+    "e",
+    "d",
+    "h",
+    "c",
+    "p"
+  ],
+  "order": [
+    "r",
+    "n",
+    "e",
+    "d",
+    "h",
+    "c",
+    "p"
+  ],
+  "labels": {
+    "l:r": {
+      "id": "l:r",
+      "owner": {
+        "kind": "node",
+        "id": "r"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "rect"
+        }
+      ]
+    },
+    "l:n": {
+      "id": "l:n",
+      "owner": {
+        "kind": "node",
+        "id": "n"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "round"
+        }
+      ]
+    },
+    "l:e": {
+      "id": "l:e",
+      "owner": {
+        "kind": "node",
+        "id": "e"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "ellipse"
+        }
+      ]
+    },
+    "l:d": {
+      "id": "l:d",
+      "owner": {
+        "kind": "node",
+        "id": "d"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "diamond"
+        }
+      ]
+    },
+    "l:h": {
+      "id": "l:h",
+      "owner": {
+        "kind": "node",
+        "id": "h"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "hexagon"
+        }
+      ]
+    },
+    "l:c": {
+      "id": "l:c",
+      "owner": {
+        "kind": "node",
+        "id": "c"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "cylinder"
+        }
+      ]
+    },
+    "l:p": {
+      "id": "l:p",
+      "owner": {
+        "kind": "node",
+        "id": "p"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "package"
+        }
+      ]
+    }
+  },
+  "meta": {
+    "nodeCount": 7,
+    "edgeCount": 6,
+    "containerCount": 0
+  }
+}

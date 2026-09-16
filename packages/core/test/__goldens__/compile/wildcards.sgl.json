@@ -1,0 +1,1060 @@
+{
+  "nodes": {
+    "switch": {
+      "id": "switch",
+      "path": [
+        "switch"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:switch",
+      "ports": [],
+      "config": {
+        "label": "Switch"
+      },
+      "hidden": false,
+      "span": {
+        "from": 101,
+        "to": 129
+      }
+    },
+    "lane1": {
+      "id": "lane1",
+      "path": [
+        "lane1"
+      ],
+      "parent": null,
+      "children": [
+        "lane1.a",
+        "lane1.b",
+        "lane1.c"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lane1",
+      "ports": [],
+      "config": {
+        "label": "Lane 1"
+      },
+      "hidden": false,
+      "span": {
+        "from": 131,
+        "to": 221
+      }
+    },
+    "lane1.a": {
+      "id": "lane1.a",
+      "path": [
+        "lane1",
+        "a"
+      ],
+      "parent": "lane1",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lane1.a",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 161,
+        "to": 166
+      }
+    },
+    "lane1.b": {
+      "id": "lane1.b",
+      "path": [
+        "lane1",
+        "b"
+      ],
+      "parent": "lane1",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lane1.b",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 169,
+        "to": 174
+      }
+    },
+    "lane1.c": {
+      "id": "lane1.c",
+      "path": [
+        "lane1",
+        "c"
+      ],
+      "parent": "lane1",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": null,
+      "ports": [],
+      "config": {
+        "hidden": true
+      },
+      "hidden": true,
+      "span": {
+        "from": 177,
+        "to": 197
+      }
+    },
+    "lane2": {
+      "id": "lane2",
+      "path": [
+        "lane2"
+      ],
+      "parent": null,
+      "children": [
+        "lane2.x",
+        "lane2.y"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lane2",
+      "ports": [],
+      "config": {
+        "label": "Lane 2"
+      },
+      "hidden": false,
+      "span": {
+        "from": 223,
+        "to": 346
+      }
+    },
+    "lane2.x": {
+      "id": "lane2.x",
+      "path": [
+        "lane2",
+        "x"
+      ],
+      "parent": "lane2",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lane2.x",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 253,
+        "to": 258
+      }
+    },
+    "lane2.y": {
+      "id": "lane2.y",
+      "path": [
+        "lane2",
+        "y"
+      ],
+      "parent": "lane2",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lane2.y",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 261,
+        "to": 266
+      }
+    },
+    "deep": {
+      "id": "deep",
+      "path": [
+        "deep"
+      ],
+      "parent": null,
+      "children": [
+        "deep.top"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:deep",
+      "ports": [],
+      "config": {
+        "label": "Deep"
+      },
+      "hidden": false,
+      "span": {
+        "from": 348,
+        "to": 509
+      }
+    },
+    "deep.top": {
+      "id": "deep.top",
+      "path": [
+        "deep",
+        "top"
+      ],
+      "parent": "deep",
+      "children": [
+        "deep.top.mid"
+      ],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:deep.top",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 375,
+        "to": 507
+      }
+    },
+    "deep.top.mid": {
+      "id": "deep.top.mid",
+      "path": [
+        "deep",
+        "top",
+        "mid"
+      ],
+      "parent": "deep.top",
+      "children": [
+        "deep.top.mid.leaf"
+      ],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:deep.top.mid",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 386,
+        "to": 503
+      }
+    },
+    "deep.top.mid.leaf": {
+      "id": "deep.top.mid.leaf",
+      "path": [
+        "deep",
+        "top",
+        "mid",
+        "leaf"
+      ],
+      "parent": "deep.top.mid",
+      "children": [],
+      "depth": 3,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:deep.top.mid.leaf",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 399,
+        "to": 407
+      }
+    },
+    "empty": {
+      "id": "empty",
+      "path": [
+        "empty"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:empty",
+      "ports": [],
+      "config": {
+        "label": "Empty"
+      },
+      "hidden": false,
+      "span": {
+        "from": 511,
+        "to": 537
+      }
+    },
+    "ported": {
+      "id": "ported",
+      "path": [
+        "ported"
+      ],
+      "parent": null,
+      "children": [
+        "ported.p",
+        "ported.q",
+        "ported.r"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:ported",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 580,
+        "to": 710
+      }
+    },
+    "ported.p": {
+      "id": "ported.p",
+      "path": [
+        "ported",
+        "p"
+      ],
+      "parent": "ported",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:ported.p",
+      "ports": [
+        {
+          "id": "out",
+          "side": "east"
+        }
+      ],
+      "config": {
+        "ports": {
+          "out": "east"
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 592,
+        "to": 620
+      }
+    },
+    "ported.q": {
+      "id": "ported.q",
+      "path": [
+        "ported",
+        "q"
+      ],
+      "parent": "ported",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:ported.q",
+      "ports": [
+        {
+          "id": "out",
+          "side": "east"
+        }
+      ],
+      "config": {
+        "ports": {
+          "out": "east"
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 623,
+        "to": 651
+      }
+    },
+    "ported.r": {
+      "id": "ported.r",
+      "path": [
+        "ported",
+        "r"
+      ],
+      "parent": "ported",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:ported.r",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 654,
+        "to": 659
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-ff900463d968ca37",
+      "from": {
+        "node": "lane1.a"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 764,
+        "to": 781
+      }
+    },
+    {
+      "id": "e-d3358a2d16b3995c",
+      "from": {
+        "node": "lane1.b"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 764,
+        "to": 781
+      }
+    },
+    {
+      "id": "e-b5efc0f08f87e759",
+      "from": {
+        "node": "switch"
+      },
+      "to": {
+        "node": "lane2.x"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-b5efc0f08f87e759",
+      "config": {
+        "label": "distributes"
+      },
+      "declaredIn": null,
+      "span": {
+        "from": 845,
+        "to": 877
+      }
+    },
+    {
+      "id": "e-5fba0ae8f4476ca8",
+      "from": {
+        "node": "switch"
+      },
+      "to": {
+        "node": "lane2.y"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-5fba0ae8f4476ca8",
+      "config": {
+        "label": "distributes"
+      },
+      "declaredIn": null,
+      "span": {
+        "from": 845,
+        "to": 877
+      }
+    },
+    {
+      "id": "e-d7b74e4b5cf0aaec",
+      "from": {
+        "node": "deep.top"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 950,
+        "to": 967
+      }
+    },
+    {
+      "id": "e-2b9f2c1f6112c220",
+      "from": {
+        "node": "deep.top.mid"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 950,
+        "to": 967
+      }
+    },
+    {
+      "id": "e-765c54cc60f40bda",
+      "from": {
+        "node": "deep.top.mid.leaf"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 950,
+        "to": 967
+      }
+    },
+    {
+      "id": "e-a9604a5f6c3e982b",
+      "from": {
+        "node": "lane1.a"
+      },
+      "to": {
+        "node": "lane2.x"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 1019,
+        "to": 1037
+      }
+    },
+    {
+      "id": "e-28cb545696fd993a",
+      "from": {
+        "node": "lane1.a"
+      },
+      "to": {
+        "node": "lane2.y"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 1019,
+        "to": 1037
+      }
+    },
+    {
+      "id": "e-4f6516d10b3c496e",
+      "from": {
+        "node": "lane1.b"
+      },
+      "to": {
+        "node": "lane2.x"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 1019,
+        "to": 1037
+      }
+    },
+    {
+      "id": "e-d0d38cd9e136129f",
+      "from": {
+        "node": "lane1.b"
+      },
+      "to": {
+        "node": "lane2.y"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 1019,
+        "to": 1037
+      }
+    },
+    {
+      "id": "e-6269016d693faabd",
+      "from": {
+        "node": "ported.p",
+        "port": "out"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 1105,
+        "to": 1128
+      }
+    },
+    {
+      "id": "e-5eed803bce1204d2",
+      "from": {
+        "node": "ported.q",
+        "port": "out"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 1105,
+        "to": 1128
+      }
+    },
+    {
+      "id": "e-43a5a8c7b1979b1b",
+      "from": {
+        "node": "ported.r"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 1105,
+        "to": 1128
+      }
+    },
+    {
+      "id": "e-ff900363d968c884",
+      "from": {
+        "node": "lane1.a"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 1157,
+        "to": 1185
+      }
+    },
+    {
+      "id": "e-d3358b2d16b39b0f",
+      "from": {
+        "node": "lane1.b"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 1157,
+        "to": 1185
+      }
+    },
+    {
+      "id": "e-b5efbff08f87e5a6",
+      "from": {
+        "node": "switch"
+      },
+      "to": {
+        "node": "lane2.x"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 1157,
+        "to": 1185
+      }
+    },
+    {
+      "id": "e-5fba0be8f4476e5b",
+      "from": {
+        "node": "switch"
+      },
+      "to": {
+        "node": "lane2.y"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 1157,
+        "to": 1185
+      }
+    },
+    {
+      "id": "e-a960495f6c3e9678",
+      "from": {
+        "node": "lane1.a"
+      },
+      "to": {
+        "node": "lane2.x"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": "lane2",
+      "span": {
+        "from": 329,
+        "to": 344
+      }
+    },
+    {
+      "id": "e-4f6517d10b3c4b21",
+      "from": {
+        "node": "lane1.b"
+      },
+      "to": {
+        "node": "lane2.x"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": "lane2",
+      "span": {
+        "from": 329,
+        "to": 344
+      }
+    },
+    {
+      "id": "e-fe0cf32b38145d20",
+      "from": {
+        "node": "deep.top.mid.leaf"
+      },
+      "to": {
+        "node": "lane2.x"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": "deep.top.mid",
+      "span": {
+        "from": 481,
+        "to": 497
+      }
+    },
+    {
+      "id": "e-551c4932d40dd871",
+      "from": {
+        "node": "deep.top.mid.leaf"
+      },
+      "to": {
+        "node": "lane2.y"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": "deep.top.mid",
+      "span": {
+        "from": 481,
+        "to": 497
+      }
+    }
+  ],
+  "rootChildren": [
+    "switch",
+    "lane1",
+    "lane2",
+    "deep",
+    "empty",
+    "ported"
+  ],
+  "order": [
+    "switch",
+    "lane1",
+    "lane1.a",
+    "lane1.b",
+    "lane2",
+    "lane2.x",
+    "lane2.y",
+    "deep",
+    "deep.top",
+    "deep.top.mid",
+    "deep.top.mid.leaf",
+    "empty",
+    "ported",
+    "ported.p",
+    "ported.q",
+    "ported.r"
+  ],
+  "labels": {
+    "l:e-b5efc0f08f87e759": {
+      "id": "l:e-b5efc0f08f87e759",
+      "owner": {
+        "kind": "edge",
+        "id": "e-b5efc0f08f87e759"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "distributes"
+        }
+      ]
+    },
+    "l:e-5fba0ae8f4476ca8": {
+      "id": "l:e-5fba0ae8f4476ca8",
+      "owner": {
+        "kind": "edge",
+        "id": "e-5fba0ae8f4476ca8"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "distributes"
+        }
+      ]
+    },
+    "l:switch": {
+      "id": "l:switch",
+      "owner": {
+        "kind": "node",
+        "id": "switch"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Switch"
+        }
+      ]
+    },
+    "l:lane1": {
+      "id": "l:lane1",
+      "owner": {
+        "kind": "node",
+        "id": "lane1"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Lane 1"
+        }
+      ]
+    },
+    "l:lane1.a": {
+      "id": "l:lane1.a",
+      "owner": {
+        "kind": "node",
+        "id": "lane1.a"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "a"
+        }
+      ]
+    },
+    "l:lane1.b": {
+      "id": "l:lane1.b",
+      "owner": {
+        "kind": "node",
+        "id": "lane1.b"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "b"
+        }
+      ]
+    },
+    "l:lane2": {
+      "id": "l:lane2",
+      "owner": {
+        "kind": "node",
+        "id": "lane2"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Lane 2"
+        }
+      ]
+    },
+    "l:lane2.x": {
+      "id": "l:lane2.x",
+      "owner": {
+        "kind": "node",
+        "id": "lane2.x"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "x"
+        }
+      ]
+    },
+    "l:lane2.y": {
+      "id": "l:lane2.y",
+      "owner": {
+        "kind": "node",
+        "id": "lane2.y"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "y"
+        }
+      ]
+    },
+    "l:deep": {
+      "id": "l:deep",
+      "owner": {
+        "kind": "node",
+        "id": "deep"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Deep"
+        }
+      ]
+    },
+    "l:deep.top": {
+      "id": "l:deep.top",
+      "owner": {
+        "kind": "node",
+        "id": "deep.top"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "top"
+        }
+      ]
+    },
+    "l:deep.top.mid": {
+      "id": "l:deep.top.mid",
+      "owner": {
+        "kind": "node",
+        "id": "deep.top.mid"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "mid"
+        }
+      ]
+    },
+    "l:deep.top.mid.leaf": {
+      "id": "l:deep.top.mid.leaf",
+      "owner": {
+        "kind": "node",
+        "id": "deep.top.mid.leaf"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "leaf"
+        }
+      ]
+    },
+    "l:empty": {
+      "id": "l:empty",
+      "owner": {
+        "kind": "node",
+        "id": "empty"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Empty"
+        }
+      ]
+    },
+    "l:ported": {
+      "id": "l:ported",
+      "owner": {
+        "kind": "node",
+        "id": "ported"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "ported"
+        }
+      ]
+    },
+    "l:ported.p": {
+      "id": "l:ported.p",
+      "owner": {
+        "kind": "node",
+        "id": "ported.p"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "p"
+        }
+      ]
+    },
+    "l:ported.q": {
+      "id": "l:ported.q",
+      "owner": {
+        "kind": "node",
+        "id": "ported.q"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "q"
+        }
+      ]
+    },
+    "l:ported.r": {
+      "id": "l:ported.r",
+      "owner": {
+        "kind": "node",
+        "id": "ported.r"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "r"
+        }
+      ]
+    }
+  },
+  "title": "Wildcards",
+  "meta": {
+    "nodeCount": 17,
+    "edgeCount": 22,
+    "containerCount": 6
+  }
+}

@@ -42,14 +42,22 @@ not on the tree shape.
 
 ## Not yet covered
 
-Fixtures still to add as the stages that emit their codes land: `SGL1005`,
-`SGL3002` (has a fixture, needs expectations), `SGL3005` (needs a generated
-document past the 1 000-edge expansion ceiling — it belongs with the `n*`
-fixtures in `bench/generate.js`), `SGL4001`–`SGL4011`, `SGL5001`–`SGL5006`.
+Fixtures still to add as the stages that emit their codes land: `SGL3005`
+(needs a generated document past the 1 000-edge expansion ceiling — it belongs
+with the `n*` fixtures in `bench/generate.js`), `SGL4001`–`SGL4011`,
+`SGL5001`–`SGL5006`, `SGL6001`.
 
 Stage B (resolver) added fixtures for `SGL2005`–`SGL2009`, `SGL2011` and
 `SGL2012`. `SGL2009` (a `$variable` used before Stage K substitutes it) also
 has a positive fixture in `checkout.sgl` itself — see the note below.
+
+Stage C (compiler) picked up the eight `unresolved/*.sgl` fixtures DD-02 §8
+reserved for it (`SGL2001`, `SGL2003`, every `SGL3xxx`) — `resolve()` never
+touches path resolution or wildcard expansion, so these were inert until now.
+It also emits `SGL1005` and `SGL3002` for the first time from a real document:
+`SGL1005` was already reachable through `malformed/unterminated-comment.sgl`
+(Stage A wired it, this note had simply gone stale), and `hidden.sgl` — listed
+above as "needs expectations" — now gets a real one via `SGL3002`.
 
 ## A note on `checkout.sgl`
 

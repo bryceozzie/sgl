@@ -1,0 +1,50 @@
+{
+  "nodes": {
+    "db": {
+      "id": "db",
+      "path": [
+        "db"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:db",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 67,
+        "to": 69
+      }
+    }
+  },
+  "edges": [],
+  "rootChildren": [
+    "db"
+  ],
+  "order": [
+    "db"
+  ],
+  "labels": {
+    "l:db": {
+      "id": "l:db",
+      "owner": {
+        "kind": "node",
+        "id": "db"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "db"
+        }
+      ]
+    }
+  },
+  "meta": {
+    "nodeCount": 1,
+    "edgeCount": 0,
+    "containerCount": 0
+  }
+}

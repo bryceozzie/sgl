@@ -1,0 +1,556 @@
+{
+  "nodes": {
+    "edge": {
+      "id": "edge",
+      "path": [
+        "edge"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [
+        "External"
+      ],
+      "labelId": "l:edge",
+      "ports": [],
+      "config": {
+        "label": "CDN",
+        "type": [
+          "External"
+        ]
+      },
+      "hidden": false,
+      "span": {
+        "from": 347,
+        "to": 387
+      }
+    },
+    "storefront": {
+      "id": "storefront",
+      "path": [
+        "storefront"
+      ],
+      "parent": null,
+      "children": [
+        "storefront.web",
+        "storefront.bff"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:storefront",
+      "ports": [],
+      "config": {
+        "label": "Storefront"
+      },
+      "hidden": false,
+      "span": {
+        "from": 389,
+        "to": 511
+      }
+    },
+    "storefront.web": {
+      "id": "storefront.web",
+      "path": [
+        "storefront",
+        "web"
+      ],
+      "parent": "storefront",
+      "children": [],
+      "depth": 1,
+      "shape": "round",
+      "classes": [
+        "Service"
+      ],
+      "labelId": "l:storefront.web",
+      "ports": [],
+      "config": {
+        "type": [
+          "Service"
+        ]
+      },
+      "hidden": false,
+      "span": {
+        "from": 429,
+        "to": 442
+      }
+    },
+    "storefront.bff": {
+      "id": "storefront.bff",
+      "path": [
+        "storefront",
+        "bff"
+      ],
+      "parent": "storefront",
+      "children": [],
+      "depth": 1,
+      "shape": "round",
+      "classes": [
+        "Service"
+      ],
+      "labelId": "l:storefront.bff",
+      "ports": [],
+      "config": {
+        "type": [
+          "Service"
+        ],
+        "label": "BFF"
+      },
+      "hidden": false,
+      "span": {
+        "from": 445,
+        "to": 484
+      }
+    },
+    "payments": {
+      "id": "payments",
+      "path": [
+        "payments"
+      ],
+      "parent": null,
+      "children": [
+        "payments.api",
+        "payments.ledger",
+        "payments.outbox"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:payments",
+      "ports": [],
+      "config": {
+        "label": "Payments",
+        "layout": {
+          "engine": "grid",
+          "columns": 2
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 513,
+        "to": 743
+      }
+    },
+    "payments.api": {
+      "id": "payments.api",
+      "path": [
+        "payments",
+        "api"
+      ],
+      "parent": "payments",
+      "children": [],
+      "depth": 1,
+      "shape": "round",
+      "classes": [
+        "Service"
+      ],
+      "labelId": "l:payments.api",
+      "ports": [],
+      "config": {
+        "type": [
+          "Service"
+        ],
+        "style": {
+          "stroke": "$hot"
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 589,
+        "to": 637
+      }
+    },
+    "payments.ledger": {
+      "id": "payments.ledger",
+      "path": [
+        "payments",
+        "ledger"
+      ],
+      "parent": "payments",
+      "children": [],
+      "depth": 1,
+      "shape": "cylinder",
+      "classes": [
+        "Store"
+      ],
+      "labelId": "l:payments.ledger",
+      "ports": [],
+      "config": {
+        "type": [
+          "Store"
+        ]
+      },
+      "hidden": false,
+      "span": {
+        "from": 640,
+        "to": 654
+      }
+    },
+    "payments.outbox": {
+      "id": "payments.outbox",
+      "path": [
+        "payments",
+        "outbox"
+      ],
+      "parent": "payments",
+      "children": [],
+      "depth": 1,
+      "shape": "cylinder",
+      "classes": [
+        "Store"
+      ],
+      "labelId": "l:payments.outbox",
+      "ports": [],
+      "config": {
+        "type": [
+          "Store"
+        ]
+      },
+      "hidden": false,
+      "span": {
+        "from": 657,
+        "to": 671
+      }
+    },
+    "psp": {
+      "id": "psp",
+      "path": [
+        "psp"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [
+        "External"
+      ],
+      "labelId": "l:psp",
+      "ports": [],
+      "config": {
+        "label": "Stripe",
+        "type": [
+          "External"
+        ]
+      },
+      "hidden": false,
+      "span": {
+        "from": 745,
+        "to": 787
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-87441157bd4f5902",
+      "from": {
+        "node": "edge"
+      },
+      "to": {
+        "node": "storefront.web"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "span": {
+        "from": 789,
+        "to": 811
+      }
+    },
+    {
+      "id": "e-9b7b78b27b104012",
+      "from": {
+        "node": "storefront.bff"
+      },
+      "to": {
+        "node": "payments.api"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-9b7b78b27b104012",
+      "config": {
+        "label": "POST /charge"
+      },
+      "declaredIn": null,
+      "span": {
+        "from": 812,
+        "to": 858
+      }
+    },
+    {
+      "id": "e-b226b1373bf1da7f",
+      "from": {
+        "node": "payments.api"
+      },
+      "to": {
+        "node": "psp"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-b226b1373bf1da7f",
+      "config": {
+        "label": "authorise"
+      },
+      "declaredIn": null,
+      "span": {
+        "from": 859,
+        "to": 891
+      }
+    },
+    {
+      "id": "e-d20dab6abc46ae7d",
+      "from": {
+        "node": "storefront.web"
+      },
+      "to": {
+        "node": "storefront.bff"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-d20dab6abc46ae7d",
+      "config": {
+        "label": "GraphQL"
+      },
+      "declaredIn": "storefront",
+      "span": {
+        "from": 488,
+        "to": 509
+      }
+    },
+    {
+      "id": "e-fee3fa2995887984",
+      "from": {
+        "node": "payments.api"
+      },
+      "to": {
+        "node": "payments.ledger"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": "payments",
+      "span": {
+        "from": 675,
+        "to": 688
+      }
+    },
+    {
+      "id": "e-7cfa36e0eac91b9c",
+      "from": {
+        "node": "payments.api"
+      },
+      "to": {
+        "node": "payments.outbox"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-7cfa36e0eac91b9c",
+      "config": {
+        "label": "async",
+        "style": "dashed"
+      },
+      "declaredIn": "payments",
+      "span": {
+        "from": 691,
+        "to": 741
+      }
+    }
+  ],
+  "rootChildren": [
+    "edge",
+    "storefront",
+    "payments",
+    "psp"
+  ],
+  "order": [
+    "edge",
+    "storefront",
+    "storefront.web",
+    "storefront.bff",
+    "payments",
+    "payments.api",
+    "payments.ledger",
+    "payments.outbox",
+    "psp"
+  ],
+  "labels": {
+    "l:e-9b7b78b27b104012": {
+      "id": "l:e-9b7b78b27b104012",
+      "owner": {
+        "kind": "edge",
+        "id": "e-9b7b78b27b104012"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "POST /charge"
+        }
+      ]
+    },
+    "l:e-b226b1373bf1da7f": {
+      "id": "l:e-b226b1373bf1da7f",
+      "owner": {
+        "kind": "edge",
+        "id": "e-b226b1373bf1da7f"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "authorise"
+        }
+      ]
+    },
+    "l:e-d20dab6abc46ae7d": {
+      "id": "l:e-d20dab6abc46ae7d",
+      "owner": {
+        "kind": "edge",
+        "id": "e-d20dab6abc46ae7d"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "GraphQL"
+        }
+      ]
+    },
+    "l:e-7cfa36e0eac91b9c": {
+      "id": "l:e-7cfa36e0eac91b9c",
+      "owner": {
+        "kind": "edge",
+        "id": "e-7cfa36e0eac91b9c"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "async"
+        }
+      ]
+    },
+    "l:edge": {
+      "id": "l:edge",
+      "owner": {
+        "kind": "node",
+        "id": "edge"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "CDN"
+        }
+      ]
+    },
+    "l:storefront": {
+      "id": "l:storefront",
+      "owner": {
+        "kind": "node",
+        "id": "storefront"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Storefront"
+        }
+      ]
+    },
+    "l:storefront.web": {
+      "id": "l:storefront.web",
+      "owner": {
+        "kind": "node",
+        "id": "storefront.web"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "web"
+        }
+      ]
+    },
+    "l:storefront.bff": {
+      "id": "l:storefront.bff",
+      "owner": {
+        "kind": "node",
+        "id": "storefront.bff"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "BFF"
+        }
+      ]
+    },
+    "l:payments": {
+      "id": "l:payments",
+      "owner": {
+        "kind": "node",
+        "id": "payments"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Payments"
+        }
+      ]
+    },
+    "l:payments.api": {
+      "id": "l:payments.api",
+      "owner": {
+        "kind": "node",
+        "id": "payments.api"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "api"
+        }
+      ]
+    },
+    "l:payments.ledger": {
+      "id": "l:payments.ledger",
+      "owner": {
+        "kind": "node",
+        "id": "payments.ledger"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "ledger"
+        }
+      ]
+    },
+    "l:payments.outbox": {
+      "id": "l:payments.outbox",
+      "owner": {
+        "kind": "node",
+        "id": "payments.outbox"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "outbox"
+        }
+      ]
+    },
+    "l:psp": {
+      "id": "l:psp",
+      "owner": {
+        "kind": "node",
+        "id": "psp"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Stripe"
+        }
+      ]
+    }
+  },
+  "title": "Checkout Flow",
+  "meta": {
+    "nodeCount": 9,
+    "edgeCount": 6,
+    "containerCount": 2
+  }
+}
