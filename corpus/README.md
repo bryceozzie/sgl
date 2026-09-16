@@ -43,10 +43,13 @@ not on the tree shape.
 ## Not yet covered
 
 Fixtures still to add as the stages that emit their codes land: `SGL1005`,
-`SGL2005`–`SGL2008`, `SGL2011`, `SGL2012`, `SGL3002` (has a fixture, needs
-expectations), `SGL3005` (needs a generated document past the 1 000-edge expansion
-ceiling — it belongs with the `n*` fixtures in `bench/generate.js`),
-`SGL4001`–`SGL4011`, `SGL5001`–`SGL5006`.
+`SGL3002` (has a fixture, needs expectations), `SGL3005` (needs a generated
+document past the 1 000-edge expansion ceiling — it belongs with the `n*`
+fixtures in `bench/generate.js`), `SGL4001`–`SGL4011`, `SGL5001`–`SGL5006`.
+
+Stage B (resolver) added fixtures for `SGL2005`–`SGL2009`, `SGL2011` and
+`SGL2012`. `SGL2009` (a `$variable` used before Stage K substitutes it) also
+has a positive fixture in `checkout.sgl` itself — see the note below.
 
 ## A note on `checkout.sgl`
 

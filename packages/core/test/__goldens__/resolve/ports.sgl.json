@@ -1,0 +1,58 @@
+{
+  "@sgl": "1.0",
+  "router": {
+    "@ports": {
+      "in": "west",
+      "out": "east",
+      "mgmt": "north",
+      "drain": "south"
+    }
+  },
+  "switch": {
+    "@ports": {
+      "uplink": "west",
+      "down": "east"
+    }
+  },
+  "client": {},
+  "server": {},
+  "console": {},
+  "@edges": [
+    {
+      "from": "client",
+      "to": "router",
+      "toPort": "in",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "router",
+      "to": "switch",
+      "fromPort": "out",
+      "toPort": "uplink",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "switch",
+      "to": "server",
+      "fromPort": "down",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "console",
+      "to": "router",
+      "toPort": "mgmt",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "router",
+      "to": "server",
+      "fromPort": "drain",
+      "directed": "forward",
+      "ordinal": 0
+    }
+  ]
+}

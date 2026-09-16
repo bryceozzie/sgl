@@ -1,0 +1,81 @@
+{
+  "@sgl": "1.0",
+  "a": {},
+  "b": {},
+  "c": {},
+  "d": {},
+  "e": {},
+  "@edges": [
+    {
+      "from": "a",
+      "to": "b",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "c",
+      "to": "b",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "c",
+      "to": "d",
+      "directed": "both",
+      "ordinal": 0
+    },
+    {
+      "from": "d",
+      "to": "e",
+      "directed": "none",
+      "ordinal": 0
+    },
+    {
+      "from": "a",
+      "to": "b",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "b",
+      "to": "c",
+      "directed": "forward",
+      "ordinal": 1
+    },
+    {
+      "from": "c",
+      "to": "d",
+      "directed": "forward",
+      "ordinal": 2
+    },
+    {
+      "from": "a",
+      "to": "b",
+      "directed": "forward",
+      "ordinal": 0,
+      "@label": "labelled"
+    },
+    {
+      "from": "c",
+      "to": "d",
+      "directed": "both",
+      "ordinal": 0,
+      "@label": "both ways",
+      "@style": "dashed"
+    },
+    {
+      "from": "a",
+      "to": "c",
+      "directed": "forward",
+      "ordinal": 0,
+      "@label": "chain label"
+    },
+    {
+      "from": "c",
+      "to": "e",
+      "directed": "forward",
+      "ordinal": 1,
+      "@label": "chain label"
+    }
+  ]
+}

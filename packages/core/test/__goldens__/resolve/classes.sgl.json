@@ -1,0 +1,99 @@
+{
+  "@sgl": "1.0",
+  "@classes": {
+    "Base": {
+      "@shape": "round",
+      "@style": {
+        "strokeWidth": 1
+      }
+    },
+    "Left": {
+      "@extends": [
+        "Base"
+      ],
+      "@style": {
+        "fill": "@surface.sunken"
+      }
+    },
+    "Right": {
+      "@extends": [
+        "Base"
+      ],
+      "@style": {
+        "stroke": "@accent"
+      }
+    },
+    "Diamond": {
+      "@extends": [
+        "Left",
+        "Right"
+      ]
+    },
+    "Critical": {
+      "@style": {
+        "stroke": "@danger",
+        "strokeWidth": 3
+      }
+    }
+  },
+  "plain": {
+    "@type": [
+      "Base"
+    ]
+  },
+  "left": {
+    "@type": [
+      "Left"
+    ]
+  },
+  "right": {
+    "@type": [
+      "Right"
+    ]
+  },
+  "diamond": {
+    "@type": [
+      "Diamond"
+    ]
+  },
+  "both": {
+    "@type": [
+      "Diamond",
+      "Critical"
+    ]
+  },
+  "override": {
+    "@type": [
+      "Critical"
+    ],
+    "@style": {
+      "stroke": "#123456"
+    }
+  },
+  "@edges": [
+    {
+      "from": "plain",
+      "to": "left",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "left",
+      "to": "diamond",
+      "directed": "forward",
+      "ordinal": 1
+    },
+    {
+      "from": "right",
+      "to": "both",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "both",
+      "to": "override",
+      "directed": "forward",
+      "ordinal": 0
+    }
+  ]
+}

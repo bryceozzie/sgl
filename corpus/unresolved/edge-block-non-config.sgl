@@ -1,0 +1,4 @@
+// expects: SGL2008
+a
+b
+a -> b: { @label: "ok", nested: {} }

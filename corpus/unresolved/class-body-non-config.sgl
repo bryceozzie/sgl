@@ -1,0 +1,5 @@
+// expects: SGL2007
+@classes: {
+  Service: { @shape: round, extra: 1 }
+}
+a: Service

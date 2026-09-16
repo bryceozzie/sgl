@@ -1,0 +1,124 @@
+{
+  "@sgl": "1.0",
+  "@title": "Checkout Flow",
+  "@theme": "neutral-light",
+  "@layout": {
+    "engine": "layered",
+    "direction": "right"
+  },
+  "@vars": {
+    "hot": "#DC2626"
+  },
+  "@classes": {
+    "Service": {
+      "@shape": "round"
+    },
+    "Store": {
+      "@shape": "cylinder"
+    },
+    "External": {
+      "@shape": "cloud",
+      "@style": {
+        "strokeDash": "3 3"
+      }
+    }
+  },
+  "edge": {
+    "@label": "CDN",
+    "@type": [
+      "External"
+    ]
+  },
+  "storefront": {
+    "@label": "Storefront",
+    "web": {
+      "@type": [
+        "Service"
+      ]
+    },
+    "bff": {
+      "@label": "BFF",
+      "@type": [
+        "Service"
+      ]
+    },
+    "@edges": [
+      {
+        "from": "web",
+        "to": "bff",
+        "directed": "forward",
+        "ordinal": 0,
+        "@label": "GraphQL"
+      }
+    ]
+  },
+  "payments": {
+    "@layout": {
+      "engine": "grid",
+      "columns": 2
+    },
+    "@label": "Payments",
+    "api": {
+      "@type": [
+        "Service"
+      ],
+      "@style": {
+        "stroke": "$hot"
+      }
+    },
+    "ledger": {
+      "@type": [
+        "Store"
+      ]
+    },
+    "outbox": {
+      "@type": [
+        "Store"
+      ]
+    },
+    "@edges": [
+      {
+        "from": "api",
+        "to": "ledger",
+        "directed": "forward",
+        "ordinal": 0
+      },
+      {
+        "from": "api",
+        "to": "outbox",
+        "directed": "forward",
+        "ordinal": 0,
+        "@label": "async",
+        "@style": "dashed"
+      }
+    ]
+  },
+  "psp": {
+    "@label": "Stripe",
+    "@type": [
+      "External"
+    ]
+  },
+  "@edges": [
+    {
+      "from": "edge",
+      "to": "storefront.web",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "storefront.bff",
+      "to": "payments.api",
+      "directed": "forward",
+      "ordinal": 0,
+      "@label": "POST /charge"
+    },
+    {
+      "from": "payments.api",
+      "to": "psp",
+      "directed": "forward",
+      "ordinal": 0,
+      "@label": "authorise"
+    }
+  ]
+}

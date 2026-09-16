@@ -76,6 +76,8 @@ interface TextRun { readonly text: string; readonly style?: 'code' | 'strong' | 
 
 `NodeId` is the path segments joined by `.`, with any `.` or `\` inside a segment escaped as `\.` / `\\`. Root is never a node. IDs are the authoritative identity for edges, layout results, SVG element IDs (DD-07 §6) and source mapping. Reordering unrelated declarations does not change an ID; renaming a container changes the IDs of everything under it, which is correct.
 
+Build it with `nodeIdFromPath` (`packages/core/src/ids.ts`), not a new implementation of this rule: the resolver's own span-table keys (DD-02 §2) already use it, and the two independently escaping the same rule is exactly how they drifted once — `resolve()` originally escaped only `.`.
+
 ---
 
 ## 3. Algorithm: endpoint resolution
