@@ -89,7 +89,7 @@ This is deliberate and load-bearing: it lets a document declare structure first 
 
 **3.4 Dotted keys.** `ConfigEntry.key = ['style','stroke']` is inserted at `config.style.stroke`. If an intermediate is a non-object scalar, `SGL2006` and the scalar is replaced.
 
-**3.5 Config value coercion.** Values arrive as AST literals; `Word` becomes its string; `ObjectLit` becomes a `ConfigBag` (its `@`-prefixed property keys drop the `@`; unprefixed keys are kept — both appear inside class bodies and `@layout` objects); `ArrayLit` maps elementwise.
+**3.5 Config value coercion.** Values arrive as AST literals; `Word` becomes its string; `ObjectLit` becomes a `ConfigBag` (its `@`-prefixed property keys drop the `@`; unprefixed keys are kept — both appear inside class bodies and `@layout` objects); `ArrayLit` maps elementwise. A `Variable` is not substituted in this version (Stage K, A8): its literal `$name` text is kept as the value, exactly as canonical JSON already shows it (§9's worked example: `"stroke": "$hot"`), and `SGL2009` is emitted once per use so the deferral is visible rather than silent.
 
 **3.6 The JSON label rule** (06 §4 pitfall 3). A `NodeDecl` with a `StringLit` value is *always* a label. There is no way to write a bare class reference in JSON; a class must be `"@type": [...]`. The rule falls out of the grammar naturally — JSON strings are `StringLit`, never `Word` — and is stated here so nobody "fixes" it.
 
@@ -151,8 +151,31 @@ fromJson(text: string): ResolveResult      // = resolve(parse(text)) — the gra
 2. Each child: config keys in registry order, then children, then `"@edges"`.
 3. Config keys are emitted **nested** (`"@style": { "stroke": … }`), never dotted.
 4. `@type` is always an array. Labels are always `"@label"`, never the string shorthand.
-5. Edges: `{ "from": "payments.api", "to": "../psp", "fromPort"?, "toPort"?, "directed": "forward", …config }` — paths printed with the surface syntax (`/`, `../`, `.`, `*`, `**`), keys escaped as `\.`. A wildcard endpoint round-trips as itself: `{ "from": "lane1.*", "to": "switch", … }`.
+5. Edges: `{ "from": "payments.api", "to": "../psp", "fromPort"?, "toPort"?, "directed": "forward", "ordinal": 0, …config }` — paths printed with the surface syntax (`/`, `../`, `.`, `*`, `**`). A wildcard endpoint round-trips as itself: `{ "from": "lane1.*", "to": "switch", … }`.
 6. Two-space indent, `\n` line endings, UTF-8, trailing newline. Numbers via `JSON.stringify`.
+
+**Two corrections made while implementing this, both because they would otherwise break the round-trip invariant below:**
+
+- A path segment that needs quoting (a space, a literal `.`, anything outside
+  `[A-Za-z_][A-Za-z0-9_-]*`) is printed as a **quoted JSON string** segment
+  (`outer."metrics.v2"`), not "escaped as `\.`" as this rule originally said.
+  `Identifier` cannot contain a backslash (`sgl.grammar`), so a backslash-dot
+  form would not re-parse; a quoted segment is already legal in `Path`
+  (`PathSegment { Identifier | String }`) and does.
+- `"ordinal"` is now part of the edge object (rule 5), always emitted. Without
+  it, every edge in `"@edges"` is independently declared — there is no way to
+  reconstruct "index within the declaring chain" for the second and later
+  edges of a hand-written multi-op chain, so `fromJson(toJson(m))` silently
+  renumbered them to `0`. A hand-written `.sgl.json` may omit it; it then
+  defaults to `0`.
+
+`"@edges"` is also how `resolve()` reads an edge back out of strict JSON — the
+grammar has no dedicated production for it (a container's own `Entry*` grammar
+never produces one; only infix `a -> b` does). `resolve()` treats a
+`"@edges": [...]` config entry as structural rather than generic data: each
+array item's `from`/`to` strings are re-parsed through the ordinary `Path`
+grammar (as a tiny synthetic `text -> placeholder` edge statement) rather than
+a second, hand-rolled path parser that could drift from the real one.
 
 Because the grammar reads JSON directly, `fromJson` is not a separate parser and cannot drift from the surface syntax. The round-trip invariant tested in DD-09: `resolve(parse(toJson(m))).model ≡ m` (ignoring `spans`).
 
@@ -185,7 +208,7 @@ MVP registry (order = row order):
 | `type` | node, edge | array of string |
 | `shape` | node, class | enum — DD-07 §4 list |
 | `direction` | node (containers) | enum `down up left right` — sugar, folded into `layout.direction` |
-| `style` | node, edge, class | object — properties from DD-04 registry |
+| `style` | node, edge, class | any — properties from DD-04 registry |
 | `size` | node, class | object `width height minWidth minHeight maxWidth maxHeight aspectRatio` |
 | `ports` | node, class | object name → `north south east west` |
 | `order` | node, edge | number |
@@ -197,6 +220,15 @@ MVP registry (order = row order):
 | `layout.*` | node, edge | any — passed through to the engine (DD-06 `hintsSchema`) |
 
 Validation outcomes: unknown top-level `@key` → `SGL2010` warning, key kept (forward compatibility); wrong type → `SGL2011` warning, key dropped; wrong scope → `SGL2012` warning, key dropped.
+
+`shape` and `direction` are typed `enum` for documentation only — the resolver
+never rejects a value against the list. Whether a shape name is one of the
+seven the MVP renderer draws is `SGL3001` (DD-03/DD-07), a rendering fallback,
+not a resolution error, and enforcing it twice would just race the two
+diagnostics. `style` is typed `any` for the same kind of reason, but for a
+concrete case the corpus exercises: `@style: dashed` (`chains.sgl`,
+`checkout.sgl`) is a bareword shorthand, not the object this table originally
+required, and real validation of a style value is DD-04's job regardless.
 
 **⟶ v1.0** adds `vars`, `imports`, `pin`; **⟶ v1.x** adds `icon`, `rules`.
 
@@ -212,6 +244,7 @@ Validation outcomes: unknown top-level `@key` → `SGL2010` warning, key kept (f
 | `SGL2006` | warning | `@{key}` was `{scalar}` and has been replaced by an object to hold `@{key}.{sub}`. |
 | `SGL2007` | warning | Class bodies hold configuration only; `{key}` ignored. |
 | `SGL2008` | warning | Edge blocks hold configuration only; `{thing}` ignored. |
+| `SGL2009` | warning | Variable `${name}` is not substituted in this version; kept as literal text. |
 | `SGL2010` | warning | Unknown configuration key `@{key}`; kept but has no effect in this version. |
 | `SGL2011` | warning | `@{key}` expects {type}; ignored. |
 | `SGL2012` | warning | `@{key}` is not valid on {scope}; ignored. |

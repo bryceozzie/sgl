@@ -102,11 +102,20 @@ A stage is not done because the code is written. It is done when its gate passes
 | `@sgl/theme` — `resolveTheme`, `styleGraph`, geometry/paint hashes | **Done**, tested against hand-built fixtures | `main` |
 | `@sgl/measure` — `premeasure`, three `Measurer`s, run keys | **Done**, tested against hand-built fixtures | `main` |
 | `@sgl/render-svg` — shapes, style block, markers, text, `render()` | **Implementation only, no tests** | `feat/renderer` |
-| `@sgl/core` — `buildAst`, quoted-`@`-key and `$var` grammar fixes | **Partial, `parse()` unwired, no tests** | `feat/parser` |
+| `@sgl/core` — `parse()`, `buildAst`, grammar fixes | **Done**, T1+T2 gate green | `main` |
+| `@sgl/core` — `resolve()`, `toJson`/`fromJson`, config-key registry | **Done**, T1+T2 gate green | `feat/resolver` |
 | `@sgl/layout-api` — shape anchors for the routing fallback | **Fragment only** | `feat/grid-engine` |
-| `parse`, `resolve`, `compile`, `grid`, worker host, `apps/web` | **Not started** | — |
+| `compile`, `grid`, worker host, `apps/web` | **Not started** | — |
 
-Two known grammar defects were tracked in the README; `feat/parser` carries a fix for both, unverified.
+Both grammar defects tracked in the README (quoted `@`-keys, `$name` as a
+`Variable` token) are fixed and Stage A's gate passed on `main`. Stage B found
+one more, upstream of the resolver: `build-ast.ts` had a `ConfigEntry`/`Property`
+value-builder switch with no `'Variable'` case, so `$name` lexed as a
+`Variable` token but was silently **dropped** rather than reaching the AST —
+`@style.stroke: $hot` resolved to no `style` key at all, not to a value worth
+a diagnostic. Fixed on `feat/resolver` (`buildValue`/`buildVariable` in
+`build-ast.ts`) since Stage B's own gate needs it; `feat/parser`'s original
+gate still passes unchanged, as it never asserted on this path.
 
 ---
 
@@ -217,7 +226,11 @@ round-trip it.
 - **The round-trip property:** `resolve(parse(toJson(m))).model ≡ m` (ignoring spans) for the whole
   corpus. Use `fast-check` to shuffle top-level declaration order and assert the model is unchanged
   (DD-09 §3.3 invariants 1 and 2).
-- Each `corpus/unresolved/*.sgl` emits exactly the code named in its `// expects:` header.
+- Each `corpus/unresolved/*.sgl` **whose expected code `resolve()` can actually emit** does so exactly.
+  Eight of the existing fixtures name `SGL2001`, `SGL2003` or an `SGL3xxx` code — DD-02 §8 is explicit
+  that the first two, despite the `2xxx` range, are DD-03's (they need the whole tree), and the rest are
+  `3xxx` by definition. `resolve()` never touches path resolution or wildcard expansion, so it cannot
+  emit any of the eight; they stay in the corpus for Stage C to pick up unchanged.
 - Double-run identical.
 
 **Out of scope.** Path resolution (Stage C). Imports. Variable substitution.
