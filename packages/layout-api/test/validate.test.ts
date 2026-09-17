@@ -37,6 +37,17 @@ function twoNodeGraph(edges: readonly GraphEdge[] = [], hidden = false): Semanti
   };
 }
 
+/** `twoNodeGraph`, plus a real `l:a` label on node `a` — needed to reach the
+ *  align/baseline/occlusion checks, which only run once a `LabelPlacement`
+ *  resolves against a known label (an unknown `labelId` short-circuits first). */
+function graphWithLabel(): SemanticGraph {
+  const graph = twoNodeGraph();
+  return {
+    ...graph,
+    labels: { [asLabelId('l:a')]: { id: asLabelId('l:a'), owner: { kind: 'node', id: A }, role: 'title', runs: [] } },
+  };
+}
+
 const OK_RESULT = (): LayoutResult => ({
   bounds: { x: 0, y: 0, w: 100, h: 50 },
   nodes: {
@@ -126,6 +137,47 @@ describe('validateResult (DD-06 §5)', () => {
     const result = { ...OK_RESULT(), labels: [{ labelId: asLabelId('l:ghost'), frame: { x: 0, y: 0, w: 1, h: 1 }, align: 'middle' as const, baseline: 'middle' as const }] };
     const diags = validateResult(result, twoNodeGraph(), 'sgl.grid');
     expect(diags.some((d) => d.code === 'SGL4002')).toBe(true);
+  });
+
+  it('SGL4002: a LabelPlacement with an out-of-range align', () => {
+    const result = {
+      ...OK_RESULT(),
+      labels: [{ labelId: asLabelId('l:a'), frame: { x: 0, y: 0, w: 1, h: 1 }, align: 'middle"><script>alert(1)</script><text a="' as never, baseline: 'top' as const }],
+    };
+    const diags = validateResult(result, graphWithLabel(), 'sgl.grid');
+    expect(diags.some((d) => d.code === 'SGL4002')).toBe(true);
+  });
+
+  it('SGL4002: a LabelPlacement with an out-of-range baseline', () => {
+    const result = {
+      ...OK_RESULT(),
+      labels: [{ labelId: asLabelId('l:a'), frame: { x: 0, y: 0, w: 1, h: 1 }, align: 'middle' as const, baseline: 'onload=alert(1)' as never }],
+    };
+    const diags = validateResult(result, graphWithLabel(), 'sgl.grid');
+    expect(diags.some((d) => d.code === 'SGL4002')).toBe(true);
+  });
+
+  it('SGL4002: a LabelPlacement with an out-of-range occlusion', () => {
+    const result = {
+      ...OK_RESULT(),
+      labels: [{ labelId: asLabelId('l:a'), frame: { x: 0, y: 0, w: 1, h: 1 }, align: 'middle' as const, baseline: 'top' as const, occlusion: 'javascript:alert(1)' as never }],
+    };
+    const diags = validateResult(result, graphWithLabel(), 'sgl.grid');
+    expect(diags.some((d) => d.code === 'SGL4002')).toBe(true);
+  });
+
+  it('a well-formed label with every valid align/baseline/occlusion combination produces no diagnostics', () => {
+    const aligns = ['start', 'middle', 'end'] as const;
+    const baselines = ['top', 'middle', 'bottom'] as const;
+    for (const align of aligns) {
+      for (const baseline of baselines) {
+        const result = {
+          ...OK_RESULT(),
+          labels: [{ labelId: asLabelId('l:a'), frame: { x: 0, y: 0, w: 1, h: 1 }, align, baseline, occlusion: 'plate' as const }],
+        };
+        expect(validateResult(result, graphWithLabel(), 'sgl.grid')).toEqual([]);
+      }
+    }
   });
 
   it('SGL4003: a container contentFrame outside its own frame', () => {

@@ -61,12 +61,43 @@ export function textBlock(
   };
 }
 
+/**
+ * `placement.align` is typed as `'start' | 'middle' | 'end'`, but that union is a
+ * compile-time promise only: a third-party engine's output crosses a runtime
+ * boundary (today, a hand-built `LayoutView`; from Stage H onward, JSON over a
+ * worker, which erases the union entirely) with no guarantee the value is one of
+ * the three. `'middle'` is the fallback for anything else, not `'start'`, because
+ * it keeps the text inside the frame the engine gave — `'start'` can overflow the
+ * frame to the right, `'middle'` only ever centres within it.
+ */
+function safeAlign(align: string): 'start' | 'middle' | 'end' {
+  return align === 'start' || align === 'middle' || align === 'end' ? align : 'middle';
+}
+
 /** The x the `<text>` and every `<tspan>` share, from the frame and the alignment. */
 function anchorX(placement: LabelPlacementView): number {
-  const { frame, align } = placement;
+  const { frame } = placement;
+  const align = safeAlign(placement.align);
   if (align === 'middle') return frame.x + frame.w / 2;
   if (align === 'end') return frame.x + frame.w;
   return frame.x;
+}
+
+/**
+ * `placement.baseline` (DD-06 §2), honoured for the first time: `'top'` is the
+ * behaviour every render already had (`frame.y + block.ascent`); `'middle'` and
+ * `'bottom'` centre or bottom-align the measured block within `frame.h` instead.
+ * Latent until now because the host fallbacks (`placeNodeLabel`/`placeEdgeLabel`
+ * in `layout-api/fallbacks.ts`) always emit a frame sized exactly to the label,
+ * where `top` and `middle` coincide — a third-party engine returning a taller
+ * frame with `baseline: 'middle'` was silently top-aligned. An unrecognised value
+ * falls back to `'top'`, matching what every existing render already does.
+ */
+function baselineY(placement: LabelPlacementView, block: TextLayoutView): number {
+  const { frame, baseline } = placement;
+  if (baseline === 'middle') return frame.y + (frame.h - block.height) / 2 + block.ascent;
+  if (baseline === 'bottom') return frame.y + frame.h - block.height + block.ascent;
+  return frame.y + block.ascent;
 }
 
 /**
@@ -86,14 +117,14 @@ export function renderText(
   if (block.lines.length === 0) return '';
 
   const x = anchorX(placement);
-  const y = placement.frame.y + block.ascent;
+  const y = baselineY(placement, block);
   const classes = [extraClass, className].filter((c) => c !== '').join(' ');
 
   const attrs = [
     `class="${escapeXml(classes)}"`,
     `x="${num(x)}"`,
     `y="${num(y)}"`,
-    `text-anchor="${placement.align}"`,
+    `text-anchor="${safeAlign(placement.align)}"`,
     // Leading spaces in a line have to survive the round trip.
     'xml:space="preserve"',
   ];

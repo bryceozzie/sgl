@@ -137,7 +137,7 @@ no corpus document contains an invalid `@style`/`@size` value, an inline `@style
 single-`Critical`-class node without its own inline override — each noted in place.
 
 One branch remains deliberately unmerged, per §1 rather than by oversight: `feat/renderer`, where
-Stage F's own gate now passes (`pnpm check` green, 1438 tests) but the branch has not been merged
+Stage F's own gate now passes (`pnpm check` green, 1453 tests) but the branch has not been merged
 pending review of the deviations recorded below — the same pattern `feat/grid-engine` went through
 before it merged. `feat/grid-engine` itself cleared that review and merged to `main` at `fdff204`;
 `pnpm check` is green there (757 tests, unchanged from the branch). `main` must be green at every
@@ -249,6 +249,39 @@ anticipating exactly this ("every field here is structurally satisfied by the re
 no cast at the call site"), rather than silently skip it. No stage's task list names a port-layout host
 fallback; it belongs with whichever stage eventually reconsiders `ports: false` for `grid` or ships an
 engine that lays them out.
+
+**A second review round found four real defects and a set of smaller ones, all fixed on the same
+branch (1453 tests, up from 1438).** (1) `text.ts` interpolated `placement.align` straight into
+`text-anchor="..."` with no escaping and no allowlist — the one string in the package that skipped
+`escapeXml`, because every producer in the real pipeline (`layout-api/fallbacks.ts`) only ever emits
+a literal `'start'|'middle'|'end'`, so the injection corpus (driven entirely through that pipeline)
+structurally could not exercise a hostile value. A hand-built `LayoutView` with
+`align: 'middle"><script>alert(1)</script>'` produced a real `<script>` element in otherwise
+well-formed XML. Fixed by mapping `align` to one of the three literals before it reaches markup
+(`'middle'` fallback, chosen over `'start'` because it cannot overflow the frame), and by adding the
+same enum check — plus `baseline` and `occlusion` — to `validateResult` (DD-06 §5) so a buggy engine
+is rejected before the renderer ever sees the value; both layers are tested. (2) `LabelPlacement
+.baseline` was declared but never read: `renderText` always top-aligned, latent only because the host
+fallbacks always emit a frame sized exactly to the label. Now honoured (`top`/`middle`/`bottom`, DD-07
+§5). Regenerating the goldens surfaced a second, unrelated bug the size of the resulting shift made
+visible: `index.ts`'s `labelLines()` joined a label's already-one-run-per-line `LabelSpec.runs` with
+`''` and then split on `'\n'` — a no-op search for a character `compile()`'s `textRuns` had already
+consumed — silently collapsing every multi-line label onto one line (`corpus/unicode.sgl`'s
+`multiline` node rendered as `"Line oneLine two"`). Fixed to the one-line function the comment already
+claimed it was (`runs.map((r) => r.text)`); the largest resulting golden delta, measured directly
+rather than assumed, dropped from 8.4 px (the multi-line bug) to 0.003 px (quantization noise) across
+all 248 labels in the clean corpus. (3) `corpus/a11y-links.sgl` had render goldens under both themes
+and nothing else — no `resolve`/`compile`/`grid` golden, and it was absent from three of the four
+independently hand-maintained `CLEAN_DOCS` arrays (`core/test/resolve.test.ts`, `compile.test.ts`,
+`layout-std/test/grid.test.ts`), because the guard meant to catch exactly this only asserted the list
+*contained* two unrelated entries. Consolidated into one `CLEAN_DOCS` in `packages/core/test/corpus-docs.ts`
+(core is the dependency graph's floor, DD-00 §2), all four suites re-pointed at it, the missing
+goldens committed, and the guard replaced with a real assertion that `CLEAN_DOCS` plus the known-dirty
+corpus subdirectories exactly partition `listCorpusDocs()`. (4) `render-svg/src/security.ts` and its
+test carried one literal control character apiece (inside `safeUrl`'s scheme-stripping class and a
+control-character test string), which made git treat both files as binary — unable to diff, merge or
+blame the package's two most security-sensitive files. Replaced with `\x00`-style escapes; both are
+ordinary diffable text now.
 
 **Deliberately left out.** DD-07 §11's "paint-only swap: render A, render B differing only in paint →
 trees identical when `<style>` is stripped" is not implemented as a test. `neutral-light`/

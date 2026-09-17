@@ -78,9 +78,20 @@ function segment(seg: PathSeg): string {
   }
 }
 
-/** The label's lines, from its runs. MVP labels are one plain run per line. */
+/**
+ * The label's lines, from its runs.
+ *
+ * `LabelSpec.runs` is already one plain run per line — `compile()`'s `textRuns`
+ * splits on `\n` before a `TextRun` is ever created (DD-03), and no run's text
+ * contains an embedded newline. `.map((r) => r.text)` is therefore the whole
+ * function: the previous `.join('').split('\n')` concatenated every run's text
+ * with no separator and then searched the result for a `\n` that could no longer
+ * be there, silently collapsing every multi-line label — title and edge label
+ * alike — onto one line (found via the golden churn Fix 2's baseline change
+ * exposed: a label frame sized for two lines rendered as one).
+ */
 function labelLines(runs: readonly { readonly text: string }[]): readonly string[] {
-  return runs.map((r) => r.text).join('').split('\n');
+  return runs.map((r) => r.text);
 }
 
 interface Ctx {

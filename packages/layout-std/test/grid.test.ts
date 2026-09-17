@@ -14,6 +14,7 @@ import {
 import { labelRunKey, premeasure, StaticMetricsMeasurer } from '@sgl/measure';
 import type { StyledGraph } from '@sgl/theme';
 import { describe, expect, it } from 'vitest';
+import { CLEAN_DOCS } from '../../core/test/corpus-docs.js';
 import { corpusStyledGraph, listCorpusDocs } from '../../theme/test/corpus.js';
 import { gridEngine } from '../src/grid.js';
 
@@ -63,29 +64,6 @@ async function runPipeline(input: LayoutInput): Promise<LayoutResult> {
   const labelled = placeLabels(input, routed, METRICS);
   return quantize(labelled, 64);
 }
-
-/** Every corpus document `compile()` handles cleanly — no error diagnostics — kept
- *  in step with `packages/core/test/compile.test.ts`'s own `CLEAN_DOCS` (not
- *  exported from there, so duplicated; a drift between the two just means this
- *  suite golden-tests a document compile() no longer considers clean, which
- *  `corpusStyledGraph`'s own diagnostics would already have surfaced elsewhere). */
-const CLEAN_DOCS = [
-  'empty.sgl',
-  'single.sgl',
-  'json-form.sgl.json',
-  'checkout.sgl',
-  'nesting-3.sgl',
-  'chains.sgl',
-  'parallel-selfloop.sgl',
-  'ports.sgl',
-  'classes.sgl',
-  'containers-edges.sgl',
-  'wildcards.sgl',
-  'wildcard-globs.sgl',
-  'shapes.sgl',
-  'unicode.sgl',
-  'hidden.sgl',
-];
 
 const DOCS = listCorpusDocs();
 

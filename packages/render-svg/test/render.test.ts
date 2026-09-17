@@ -1,43 +1,36 @@
-import type { GraphNode, NodeId, PortId, SemanticGraph } from '@sgl/core';
-import { neutralDark, neutralLight, resolveTheme, type ResolvedTheme, type StyledGraph, type ThemeDoc } from '@sgl/theme';
+import type { GraphNode, LabelId, NodeId, PortId, SemanticGraph } from '@sgl/core';
+import { neutralDark, neutralLight, resolveTheme, type ComputedStyle, type ResolvedTheme, type StyledGraph, type ThemeDoc } from '@sgl/theme';
+import { XMLValidator } from 'fast-xml-parser';
 import { describe, expect, it } from 'vitest';
 import { render } from '../src/index.js';
 import type { LayoutView } from '../src/layout-view.js';
 import { nodeElementId } from '../src/security.js';
+import { CLEAN_DOCS } from '../../core/test/corpus-docs.js';
 import { listCorpusDocs, renderCorpusDoc } from './pipeline.js';
 
-/** Every document `compile()` handles cleanly — no error diagnostics — kept in
- *  step with `packages/core/test/compile.test.ts`'s own `CLEAN_DOCS`. Goldens
- *  and structural assertions only make sense against a clean document; the
- *  full corpus (`malformed/`, `unresolved/`, `injection/`) is still exercised
+/** Everything `listCorpusDocs()` can return that is not in `CLEAN_DOCS` — every
+ *  known-dirty corpus subdirectory, plus the generated benchmark documents
+ *  Stage G's `bench/generate.js` will add. Goldens and structural assertions
+ *  only make sense against a clean document; the full corpus is still exercised
  *  below by the "never throws" and double-run sweeps, which is the property
  *  that matters for those. */
-const CLEAN_DOCS = [
-  'empty.sgl',
-  'single.sgl',
-  'json-form.sgl.json',
-  'checkout.sgl',
-  'nesting-3.sgl',
-  'chains.sgl',
-  'parallel-selfloop.sgl',
-  'ports.sgl',
-  'classes.sgl',
-  'containers-edges.sgl',
-  'wildcards.sgl',
-  'wildcard-globs.sgl',
-  'shapes.sgl',
-  'unicode.sgl',
-  'hidden.sgl',
-  'a11y-links.sgl',
-];
+const KNOWN_DIRTY = /^(?:malformed|unresolved|injection)\//;
+const GENERATED_BENCH = /^n(?:50|500|2000)\.sgl$/;
 
 const THEMES: readonly ThemeDoc[] = [neutralLight, neutralDark];
 const DOCS = listCorpusDocs();
 
 describe('render(): corpus goldens (grid engine x both built-in themes, DD-07 §11)', () => {
-  it('has at least the documents this suite assumes', () => {
-    expect(CLEAN_DOCS).toContain('nesting-3.sgl');
-    expect(CLEAN_DOCS).toContain('hidden.sgl');
+  it('CLEAN_DOCS plus the known-dirty sets exactly partition listCorpusDocs() (Fix 3)', () => {
+    for (const doc of CLEAN_DOCS) {
+      expect(DOCS, `${doc} is in CLEAN_DOCS but not in the corpus`).toContain(doc);
+    }
+    for (const doc of DOCS) {
+      const isClean = CLEAN_DOCS.includes(doc);
+      const isDirty = KNOWN_DIRTY.test(doc) || GENERATED_BENCH.test(doc);
+      expect(isClean || isDirty, `${doc} is in neither CLEAN_DOCS nor a known-dirty set`).toBe(true);
+      expect(isClean && isDirty, `${doc} is in both CLEAN_DOCS and a known-dirty set`).toBe(false);
+    }
   });
 
   for (const theme of THEMES) {
@@ -204,6 +197,21 @@ describe('render(): accessibility (DD-07 §7)', () => {
   });
 });
 
+describe('render(): a hostile engine cannot inject markup through LabelPlacement (Fix 1, DD-07 §8)', () => {
+  it('malicious align/baseline/occlusion values produce no script element and no on* attribute', () => {
+    const { styled, layout, theme } = hostileLabelFixture();
+    const { svg } = render(styled, layout, theme);
+    // Well-formed despite the hostile input — pre-fix, `align` broke out of the
+    // `text-anchor` attribute and opened a real <script> element inside otherwise
+    // valid XML, which XMLValidator.validate happily accepted.
+    expect(XMLValidator.validate(svg)).toBe(true);
+    expect(svg).not.toMatch(/<script/i);
+    expect(svg).not.toMatch(/\son\w+\s*=/i);
+    // `align` is mapped to one of the three literals, never emitted verbatim.
+    expect(svg).toMatch(/text-anchor="(start|middle|end)"/);
+  });
+});
+
 function between(svg: string, startMarker: string, endMarker: string): string {
   const start = svg.indexOf(startMarker) + startMarker.length;
   const end = svg.indexOf(endMarker, start);
@@ -256,6 +264,69 @@ function portedFixture(): { readonly styled: StyledGraph; readonly layout: Layou
     nodes: { [id]: { frame: { x: 0, y: 0, w: 80, h: 40 }, ports: { out: { point: { x: 80, y: 20 }, normal: { x: 1, y: 0 } } } } },
     edges: {},
     labels: [],
+  };
+  return { styled, layout, theme };
+}
+
+/**
+ * A single labelled leaf node with a hostile `LabelPlacementView` (Fix 1).
+ * `align`/`baseline`/`occlusion` are enumerated fields on the frozen contract,
+ * but that is a compile-time guarantee only — the corpus injection suite drives
+ * everything through `grid`, whose host fallbacks (`layout-api/fallbacks.ts`)
+ * only ever emit a literal union, so it structurally cannot produce a value
+ * outside it. This hand-built `LayoutView` stands in for a third-party engine
+ * (or, from Stage H, JSON over a worker boundary, which erases the union
+ * entirely) that returns one anyway.
+ */
+function hostileLabelFixture(): { readonly styled: StyledGraph; readonly layout: LayoutView; readonly theme: ResolvedTheme } {
+  const id = 'h' as NodeId;
+  const labelId = 'l:h' as LabelId;
+  const node: GraphNode = {
+    id,
+    path: ['h'],
+    parent: null,
+    children: [],
+    depth: 0,
+    shape: 'rect',
+    classes: [],
+    labelId,
+    ports: [],
+    config: {},
+    hidden: false,
+    span: { from: 0, to: 0 },
+  };
+  const graph: SemanticGraph = {
+    nodes: { [id]: node },
+    edges: [],
+    rootChildren: [id],
+    order: [id],
+    labels: { [labelId]: { id: labelId, owner: { kind: 'node', id }, role: 'title', runs: [{ text: 'Widget' }] } },
+    meta: { nodeCount: 1, edgeCount: 0, containerCount: 0 },
+  };
+  const labelStyle: ComputedStyle = { geometry: {}, paint: {}, geometryHash: 'g', paintHash: 'p' };
+  const styled: StyledGraph = {
+    graph,
+    styles: {},
+    labelStyles: { [labelId]: labelStyle },
+    canvas: { background: '#ffffff' },
+    themeId: 'neutral-light',
+    geometryHash: 'g',
+    paintHash: 'p',
+  };
+  const { value: theme } = resolveTheme(neutralLight, (tid) => (tid === neutralLight.id ? neutralLight : undefined));
+  const layout: LayoutView = {
+    bounds: { x: 0, y: 0, w: 100, h: 100 },
+    nodes: { [id]: { frame: { x: 0, y: 0, w: 80, h: 40 } } },
+    edges: {},
+    labels: [
+      {
+        labelId,
+        frame: { x: 0, y: 0, w: 80, h: 40 },
+        align: 'middle"><script>alert(1)</script><text a="' as never,
+        baseline: 'top" onmouseover="alert(1)' as never,
+        occlusion: 'plate"><script>alert(2)</script>' as never,
+      },
+    ],
   };
   return { styled, layout, theme };
 }
