@@ -106,8 +106,8 @@ A stage is not done because the code is written. It is done when its gate passes
 | Component | State | Where |
 |---|---|---|
 | Workspace, types, diagnostics catalogue, style registry, built-in themes, Lezer grammar | **Done** | `main` |
-| `@sgl/theme` — `resolveTheme`, `styleGraph`, geometry/paint hashes | **Done**, tested against hand-built fixtures | `main` |
-| `@sgl/measure` — `premeasure`, three `Measurer`s, run keys | **Done**, tested against hand-built fixtures | `main` |
+| `@sgl/theme` — `resolveTheme`, `styleGraph`, geometry/paint hashes | **Done**, T1+T2 gate green, tested against hand-built fixtures | `main` |
+| `@sgl/measure` — `premeasure`, three `Measurer`s, run keys | **Done**, T1+T2 gate green, tested against hand-built fixtures | `main` |
 | `@sgl/render-svg` — shapes, style block, markers, text, `render()` | **Implementation only, no tests** | `feat/renderer` |
 | `@sgl/core` — `parse()`, `buildAst`, grammar fixes | **Done**, T1+T2 gate green | `main` |
 | `@sgl/core` — `resolve()`, `toJson`/`fromJson`, config-key registry | **Done**, T1+T2 gate green | `main` |
@@ -119,6 +119,21 @@ A stage is not done because the code is written. It is done when its gate passes
 (496 tests). `.sgl` text in, `SemanticGraph` out, for every document in the corpus, with goldens
 committed and the diagnostics coverage table enforced — so **from here no stage hand-builds a
 `SemanticGraph`**, and Stage D exists to delete the two that predate this.
+
+**Stage D's implementation is done on `feat/corpus-fixtures`; `pnpm check` green (504 tests).** A
+shared `corpusStyledGraph`/`corpusGraph` helper (`packages/theme/test/corpus.ts` — a dev-only fixture
+module, not a package export) runs the real `parse → resolve → compile → resolveTheme → styleGraph`
+pipeline over a named `corpus/` document; `cascade.test.ts` and `measure.test.ts` now draw the
+cascade-precedence, container-vs-node-role, byShape and premeasure-coverage tests from it instead of
+hand-built `SemanticGraph`/`StyledGraph` literals. Contrary to what this stage's write-up in §5
+expected, re-basing did **not** turn up a shape mismatch: node/edge field names, the `'l:<id>'` label
+ID convention, and the container-vs-leaf geometry rule all matched what the hand-built fixtures had
+guessed. `classes.sgl`'s diamond (`Diamond extends [Left, Right]`) now exercises real
+`linearizeClasses` output end to end, confirming the precedence the F3-adjacent §2 note describes.
+`premeasure` covers 100% of labels across all 47 documents in `corpus/` (DD-00 §6's measurement exit
+criterion), asserted directly rather than inferred. A handful of tests keep hand-built literals because
+no corpus document contains an invalid `@style`/`@size` value, an inline `@style.fontSize`, or a
+single-`Critical`-class node without its own inline override — each noted in place.
 
 Two branches remain deliberately unmerged, both per §1 rather than by oversight: `feat/renderer`
 (implementation only, no tests — Stage F's gate has not run) and `feat/grid-engine` (a `wip(...)`

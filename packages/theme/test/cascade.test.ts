@@ -15,13 +15,19 @@ import { DASH_PATTERNS, resolveTheme, styleGraph } from '../src/cascade.js';
 import { COLOR_FALLBACK } from '../src/registry.js';
 import { BUILT_IN, neutralDark, neutralLight } from '../src/themes/index.js';
 import type { ResolvedTheme, StyleSet, ThemeDoc } from '../src/types.js';
+import { corpusGraph } from './corpus.js';
 
 // ---------------------------------------------------------------------------
 // Fixtures
 //
-// The graph is built by hand rather than through parse/resolve/compile: DD-04 is
-// the only stage under test here, and depending on three unbuilt stages to reach
-// it would make every one of their bugs look like a cascade bug.
+// `fixture()` below still builds its graph by hand — Stage D (07 §5) re-points
+// what it reasonably can at real `corpus/` documents (see "over the corpus" blocks
+// throughout this file), but a handful of tests need a shape the corpus does not
+// contain: an invalid `@style`/`@size` value (the corpus has none — that is a
+// resolver/theme diagnostics concern with no fixture yet, per corpus/README.md
+// "Not yet covered"), or a node carrying exactly one class with no inline override
+// (every real document's `Critical`-classed node also sets its own `@style`).
+// Those keep `fixture()`; everything else now runs through the real compiler.
 // ---------------------------------------------------------------------------
 
 const SPAN: SourceSpan = { from: 0, to: 0 };
@@ -336,27 +342,36 @@ describe('resolveTheme: validation (DD-04 §3, §6)', () => {
 describe('styleGraph: the cascade (DD-04 §4)', () => {
   const light = resolved(neutralLight);
 
-  it('styles every node in `order`, every edge, and every label', () => {
-    const { value, diagnostics } = styleGraph(fixture(), light);
+  it('styles every node in `order`, every edge, and every label (containers-edges.sgl)', () => {
+    const { graph } = corpusGraph('containers-edges.sgl');
+    const { value, diagnostics } = styleGraph(graph, light);
     expect(diagnostics).toEqual([]);
-    expect(Object.keys(value.styles).sort()).toEqual(['db', 'e-1', 'group', 'group.api']);
-    expect(Object.keys(value.labelStyles).sort()).toEqual(['l:db', 'l:e-1', 'l:group', 'l:group.api']);
+    // Every node and every edge lands in the one `styles` record (DD-04 §5).
+    expect(Object.keys(value.styles).sort()).toEqual(
+      [...graph.order, ...graph.edges.map((e) => e.id)].sort(),
+    );
+    // Every node here gets an implicit title (no `@label: ""`); the edges carry
+    // no `@label`, so `labelStyles` covers nodes only.
+    const nodeLabels = graph.order.map((id) => graph.nodes[id]?.labelId).filter((l) => l !== null && l !== undefined);
+    expect(Object.keys(value.labelStyles).sort()).toEqual([...nodeLabels].sort());
     expect(value.themeId).toBe('neutral-light');
     expect(value.canvas.background).toBe('#F7F8FA');
   });
 
-  it('gives a node with children the container rule (step 1)', () => {
-    const { value } = styleGraph(fixture(), light);
-    expect(value.styles['group']?.geometry['radius']).toBe(10); // rules.container
-    expect(value.styles['group.api']?.geometry['radius']).toBe(6); // rules.node
-    expect(value.styles['group']?.geometry['titleGap']).toBe(6); // container-only property
-    expect(value.styles['group.api']?.geometry['titleGap']).toBeUndefined();
+  it('gives a node with children the container rule (step 1) (containers-edges.sgl)', () => {
+    const { graph } = corpusGraph('containers-edges.sgl');
+    const { value } = styleGraph(graph, light);
+    expect(value.styles['alpha']?.geometry['radius']).toBe(10); // rules.container — alpha has children
+    expect(value.styles['outside']?.geometry['radius']).toBe(6); // rules.node — a leaf
+    expect(value.styles['alpha']?.geometry['titleGap']).toBe(6); // container-only property
+    expect(value.styles['outside']?.geometry['titleGap']).toBeUndefined();
   });
 
-  it('lets byShape beat the role default (step 2 over step 1)', () => {
-    const { value } = styleGraph(fixture(), light);
-    expect(value.styles['group.api']?.paint['fill']).toBe('#FFFFFF'); // @surface
-    expect(value.styles['db']?.paint['fill']).toBe('#EEF1F5'); // byShape.cylinder
+  it('lets byShape beat the role default (step 2 over step 1) (shapes.sgl)', () => {
+    const { graph } = corpusGraph('shapes.sgl');
+    const { value } = styleGraph(graph, light);
+    expect(value.styles['r']?.paint['fill']).toBe('#FFFFFF'); // rect: role default
+    expect(value.styles['c']?.paint['fill']).toBe('#EEF1F5'); // cylinder: byShape.cylinder
   });
 
   it('lets a later class beat an earlier one (step 4)', () => {
@@ -428,20 +443,68 @@ describe('styleGraph: the cascade (DD-04 §4)', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// styleGraph — class cascade over the corpus (Stage D, 07 §5)
+//
+// classes.sgl (corpus/README.md: "inheritance diamond, override order, theme
+// byClass") is a real document built for exactly this — steps 4 and 5 of the same
+// cascade the block above tests with hand-built `ClassModel`s, run here through
+// the real `resolve()`/`compile()` output instead.
+// ---------------------------------------------------------------------------
+
+describe('styleGraph: class cascade over the corpus (classes.sgl)', () => {
+  const light = resolved(neutralLight);
+  const { graph, classes } = corpusGraph('classes.sgl');
+  const { value, diagnostics } = styleGraph(graph, light, classes);
+
+  it('resolves the whole document with no diagnostics', () => {
+    expect(diagnostics).toEqual([]);
+  });
+
+  it('gives a single-class node its class style plus the inherited base (plain: Base)', () => {
+    expect(value.styles['plain']?.paint['stroke']).toBe('#8A96A8'); // theme default — Base sets none
+    expect(value.styles['plain']?.geometry['strokeWidth']).toBe(1); // Base's own @style.strokeWidth
+  });
+
+  it('merges both branches of a diamond (diamond: Diamond extends [Left, Right])', () => {
+    // linearizeClasses (DD-02 §4) puts both Left and Right ahead of Diamond itself,
+    // so a property either branch sets survives even though neither branch is last.
+    expect(value.styles['diamond']?.paint['fill']).toBe('#EEF1F5'); // Left: @surface.sunken
+    expect(value.styles['diamond']?.paint['stroke']).toBe('#1F5F80'); // Right: @accent
+    expect(value.styles['diamond']?.geometry['strokeWidth']).toBe(1); // Base, via either branch
+  });
+
+  it('lets a later class in `@type` beat an earlier one (both: [Diamond, Critical])', () => {
+    expect(value.styles['both']?.paint['fill']).toBe('#EEF1F5'); // Diamond -> Left; Critical sets no fill
+    expect(value.styles['both']?.paint['stroke']).toBe('#A8323F'); // Critical: @danger beats Diamond -> Right's @accent
+    expect(value.styles['both']?.geometry['strokeWidth']).toBe(3); // Critical beats Base
+  });
+
+  it('lets inline `@style` beat every class (override: Critical + inline stroke)', () => {
+    expect(value.styles['override']?.paint['stroke']).toBe('#123456'); // inline beats Critical's @danger
+    expect(value.styles['override']?.geometry['strokeWidth']).toBe(3); // inline never touches strokeWidth
+  });
+});
+
 describe('styleGraph: label text styles (DD-04 §4)', () => {
   const light = resolved(neutralLight);
 
-  it('starts a label from rules.<role>.title / rules.edge.label', () => {
-    const { value } = styleGraph(fixture(), light);
-    expect(value.labelStyles['l:group.api']?.geometry['fontSize']).toBe(13); // node.title
-    expect(value.labelStyles['l:group']?.geometry['fontSize']).toBe(12); // container.title
-    expect(value.labelStyles['l:e-1']?.geometry['fontSize']).toBe(11); // edge.label
-    expect(value.labelStyles['l:group.api']?.paint['color']).toBe('#1B2330'); // @ink
-    expect(value.labelStyles['l:e-1']?.paint['color']).toBe('#5B6675'); // @ink.muted
+  it('starts a label from rules.<role>.title / rules.edge.label (containers-edges.sgl, chains.sgl)', () => {
+    const containers = styleGraph(corpusGraph('containers-edges.sgl').graph, light).value;
+    expect(containers.labelStyles['l:outside']?.geometry['fontSize']).toBe(13); // node.title
+    expect(containers.labelStyles['l:alpha']?.geometry['fontSize']).toBe(12); // container.title
+    expect(containers.labelStyles['l:outside']?.paint['color']).toBe('#1B2330'); // @ink
+
+    const { graph: chainsGraph } = corpusGraph('chains.sgl');
+    const edgeLabelId = chainsGraph.labels[Object.keys(chainsGraph.labels)[0] as string]?.id;
+    const chains = styleGraph(chainsGraph, light).value;
+    expect(chains.labelStyles[edgeLabelId as string]?.geometry['fontSize']).toBe(11); // edge.label
+    expect(chains.labelStyles[edgeLabelId as string]?.paint['color']).toBe('#5B6675'); // @ink.muted
   });
 
   it('routes inline text properties to the label and box properties to the box', () => {
-    // DD-04 §4: `@style.fontSize: 16` on a node applies to its title; `@style.fill` does not.
+    // No corpus document sets an inline `@style.fontSize` — a shape the corpus
+    // does not contain.
     const config: ConfigBag = { style: { fontSize: 16, fill: '#ABCDEF' } };
     const graph = fixture({ nodes: [node('n', { config })] });
     const { value, diagnostics } = styleGraph(graph, light);
@@ -464,14 +527,14 @@ describe('styleGraph: label text styles (DD-04 §4)', () => {
 // ---------------------------------------------------------------------------
 
 describe('styleGraph: the geometry/paint hash partition (DD-04 §8)', () => {
-  const graph = fixture();
+  const graph = corpusGraph('containers-edges.sgl').graph;
   const base = styleGraph(graph, resolved(neutralLight)).value;
 
   it('moves the paint hash only when a paint property changes', () => {
     const painted = styleGraph(graph, resolved(patchedLight('node', { fill: '#010203' }))).value;
 
-    expect(painted.styles['group.api']?.geometryHash).toBe(base.styles['group.api']?.geometryHash);
-    expect(painted.styles['group.api']?.paintHash).not.toBe(base.styles['group.api']?.paintHash);
+    expect(painted.styles['outside']?.geometryHash).toBe(base.styles['outside']?.geometryHash);
+    expect(painted.styles['outside']?.paintHash).not.toBe(base.styles['outside']?.paintHash);
     expect(painted.geometryHash).toBe(base.geometryHash);
     expect(painted.paintHash).not.toBe(base.paintHash);
   });
@@ -479,8 +542,8 @@ describe('styleGraph: the geometry/paint hash partition (DD-04 §8)', () => {
   it('moves both hashes when a geometry property changes', () => {
     const moved = styleGraph(graph, resolved(patchedLight('node', { strokeWidth: 4 }))).value;
 
-    expect(moved.styles['group.api']?.geometryHash).not.toBe(base.styles['group.api']?.geometryHash);
-    expect(moved.styles['group.api']?.paintHash).not.toBe(base.styles['group.api']?.paintHash);
+    expect(moved.styles['outside']?.geometryHash).not.toBe(base.styles['outside']?.geometryHash);
+    expect(moved.styles['outside']?.paintHash).not.toBe(base.styles['outside']?.paintHash);
     expect(moved.geometryHash).not.toBe(base.geometryHash);
     expect(moved.paintHash).not.toBe(base.paintHash);
   });
@@ -489,8 +552,8 @@ describe('styleGraph: the geometry/paint hash partition (DD-04 §8)', () => {
     // fontSize lives on the label, so a graph hash that only folded in element
     // hashes would silently skip the re-layout this needs.
     const bigger = styleGraph(graph, resolved(patchedLight('node.title', { fontSize: 24 }))).value;
-    expect(bigger.labelStyles['l:group.api']?.geometryHash)
-      .not.toBe(base.labelStyles['l:group.api']?.geometryHash);
+    expect(bigger.labelStyles['l:outside']?.geometryHash)
+      .not.toBe(base.labelStyles['l:outside']?.geometryHash);
     expect(bigger.geometryHash).not.toBe(base.geometryHash);
   });
 
@@ -502,7 +565,7 @@ describe('styleGraph: the geometry/paint hash partition (DD-04 §8)', () => {
   });
 
   it('is deterministic across runs', () => {
-    const again = styleGraph(fixture(), resolved(neutralLight)).value;
+    const again = styleGraph(corpusGraph('containers-edges.sgl').graph, resolved(neutralLight)).value;
     expect(again.geometryHash).toBe(base.geometryHash);
     expect(again.paintHash).toBe(base.paintHash);
     expect(JSON.stringify(again.styles)).toBe(JSON.stringify(base.styles));
@@ -510,7 +573,7 @@ describe('styleGraph: the geometry/paint hash partition (DD-04 §8)', () => {
 });
 
 describe('a light/dark toggle re-runs paint only (MVP acceptance criterion 2)', () => {
-  const graph = fixture();
+  const graph = corpusGraph('containers-edges.sgl').graph;
   const light = styleGraph(graph, resolved(neutralLight)).value;
   const dark = styleGraph(graph, resolved(neutralDark)).value;
 
