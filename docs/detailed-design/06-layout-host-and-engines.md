@@ -22,27 +22,52 @@
 
 The interfaces from [Architecture §4](../03-architecture.md#4-layout-engine-plugin-api) are normative and are not repeated. This section fixes what was left open.
 
-**`LayoutInput` construction** (`buildLayoutInput(styled, table)`):
+> **Amended by Stage E (07 §5).** Architecture §4.2's sketch — and this section's
+> original text — put `sizing`/`min`/`max`/`fixed`/`aspectRatio`/`hints` directly on
+> `GraphNode`. The `GraphNode` Stage C actually shipped (`packages/core/src/graph.ts`)
+> carries none of that: no geometry, no per-node `hints` bag, only the raw `config:
+> ConfigBag` the document declared. `LayoutInput.graph` is that real `SemanticGraph`
+> (`contract.ts`'s `LayoutInput.graph` is frozen to it), so there is nowhere on a
+> node to hang derived sizing. Two changes, both additive to `contract.ts`'s
+> `LayoutInput`, not to `GraphNode`:
+> - `sizing: Readonly<Record<NodeId, NodeSizing>>` — everything below, per node,
+>   keyed alongside `graph` instead of living on it. See `NodeSizing` in
+>   `contract.ts` and `buildLayoutInput()` in `sizing.ts`.
+> - `labelSizes: Readonly<Record<LabelId, Size>>` — every label's measured size,
+>   needed by the host's label-placement and edge-routing fallbacks (§4.1) as much
+>   as by an engine, and by the same argument has nowhere else to live.
+>
+> `hints` never became a field: `GraphNode.config`/`GraphEdge.config` already carry
+> the node/edge's own `@`-bag (`config.layout`, etc.), so an engine (or `grid`) just
+> reads `node.config['layout']` directly — one fewer thing to keep in sync. The
+> `SGL4010`-on-unknown-hint-key validation this section describes is **not
+> implemented**: it needs the JSON-Schema validator `hintsSchema`/`optionsSchema`
+> imply, which no stage has pulled in yet. `grid`'s own `columns` hint is read and
+> used; an unrecognised key is silently ignored rather than warned about.
+
+**`LayoutInput` construction** (`buildLayoutInput(styled, labelSizes, scope?)`, `sizing.ts`):
 
 Both nodes and edges carry their own `hidden` flag (DD-03 §2, §6) — a node's already excludes it from `graph.order`, and an edge's is already "effectively hidden" (its own `@hidden`, or either endpoint's node, computed once in `compile()`). Filtering either kind of element for `LayoutInput` is therefore a single flag test — `!edge.hidden` for edges alongside the node loop below — not a node filter plus a separate "does this edge touch a hidden node" walk:
 
 ```
 for each node in graph.order (already excludes hidden):
   g        = styles[node].geometry
-  label    = labelId ? table[hashRuns(...)] : { width: 0, height: 0 }
-  insets   = g.padding (t r b l) + shape.contentInsets(label.width, label.height)   // DD-07 §4
-  intrinsic = { w: label.width + insets.l + insets.r,  h: label.height + insets.t + insets.b }
+  label    = labelId ? labelSizes[labelId] : { w: 0, h: 0 }
+  contentInset = g.padding (t r b l) + shape.contentInsets(label.w, label.h)   // DD-07 §4, duplicated in layout-api/content-insets.ts
+  intrinsic = { w: label.w + contentInset.l + contentInset.r,  h: label.h + contentInset.t + contentInset.b }
   min      = { w: g.minWidth, h: g.minHeight }; max = { w: g.maxWidth, h: g.maxHeight }
   fixed    = { w: g.width, h: g.height }
-  if container: titleHeight = label.height + g.titleGap; contentInsets.top += titleHeight
-  sizing   = { intrinsic, min, max, fixed, aspectRatio: g.aspectRatio, padding: contentInsets }
+  padding  = contentInset; if container: titleHeight = label.h + g.titleGap; padding.top += titleHeight
+  sizing   = { intrinsic, min, max, fixed, aspectRatio: g.aspectRatio, contentInset, padding }
 ```
+
+`contentInset` and `padding` are both kept on `NodeSizing`, not just the post-title-band one: §4.1 needs the *pre*-band inset to place a container's own title (which sits *in* the band), while `grid` (§7) needs the *post*-band one to know where a container's children start. They are equal for a leaf.
+
+**DEVIATION** from `buildLayoutInput(styled, table)`'s original signature: `table` was meant to be the runKey-keyed `MeasureTable`, with this function computing `hashRuns(...)` itself to look a label up. `hashRuns` and the `StyledRun`/`TextStyle` types it needs live in `@sgl/measure` (`run-key.ts`), and `layout-api` may not depend on `@sgl/measure` any more than on `@sgl/theme` (`eslint.config.js` enforces this on `src/**`, not just `test/**`). `buildLayoutInput` therefore takes the already-resolved `LabelId -> Size` table; the runKey lookup is the caller's job (Stage G's pipeline harness, eventually — Stage E's own tests do it inline).
 
 Circles and other `aspectRatio`-locked shapes get `max(w,h)` applied by the engine or the host post-pass (§4.4), not here — engines that lay out containers need the *unconstrained* intrinsic to pack children.
 
 `ResolvedThemeMetrics` passed in `ctx.metrics`: `{ spacing: { node: 40, rank: 70, edgeLabel: 4 }, stroke: {…}, arrowSize }` — the small set of theme-derived numbers an engine may want for defaults. Engines must not read `StyledGraph`; they get `LayoutInput` only.
-
-**`hints`** = the node/edge `config.layout` bag with `engine` and `direction` removed (those are host concerns). Validated against the engine's `hintsSchema` when present; unknown keys → `SGL4010` warning.
 
 ---
 
@@ -87,17 +112,17 @@ A single in-flight request at a time; a new request aborts the previous one. The
 
 ---
 
-## 4. Host fallbacks
+## 4. Host fallbacks (`layout-api/fallbacks.ts`)
 
-Applied after the engine returns, based on its `capabilities`.
+Applied after the engine returns, based on its `capabilities`. Implemented: `placeLabels` (§4.1) and `routeStraight`, which folds together §4.2 (straight routing), §4.3 (shape clipping) and §4.5 (self-loops) into one pass over each un-routed edge, plus §4.4 (arrow reserve) — see that section's own deviation note. **Not implemented: §4.6 (aspect lock)** — Stage E's brief did not name it as a task and no corpus document exercises `aspectRatio`; a node with `@size.aspectRatio` set will not come out square/circular from `grid` alone until a later stage adds it.
 
 ### 4.1 Label placement (`labelPlacement: false`)
 
 | Label | Placement |
 |---|---|
-| Node title | Centred in the node's content box (frame inset by shape content insets) |
-| Container title | Top-left of `frame` inset by `padding.left`, `padding.top`; align `start`, baseline `top` |
-| Edge label | At the route's arc-length midpoint, offset perpendicular by `labelGap + height/2` on the side away from the route's centroid; `occlusion: 'plate'` |
+| Node title | Centred in the node's content box — `frame` inset by `NodeSizing.contentInset` (theme padding + shape content insets; **not** `padding`, which for a container also carries the title band — see §2's amendment) |
+| Container title | Top-left of `frame` inset by `contentInset.left`, `contentInset.top`; align `start`, baseline `top` |
+| Edge label | At the route's arc-length midpoint, offset perpendicular by `labelGap + height/2` on the side away from the route's centroid; `occlusion: 'plate'`. For a single-segment straight route the centroid coincides with the midpoint — genuinely degenerate, since there is no bend to be away from — so the implementation falls back to a fixed, deterministic side (90° counter-clockwise from the direction of travel) in that case. |
 
 ### 4.2 Straight routing (`edgeRouting: 'straight'`)
 
@@ -111,6 +136,8 @@ Intersect the first segment with the `from` shape's boundary and the last with t
 
 For `directed: forward|both`, shorten the head end by `geometry.arrowSize` along the final segment so the marker tip lands on the boundary rather than the line poking through it. Likewise the tail for `both`.
 
+Stage E's brief (07 §5) named only clipping and self-loops for `routeStraight`, not this subsection — folded in anyway, because without it every directed edge (the large majority of the corpus) would render with its arrowhead straddling the node boundary, and no later stage's task list claims it either. Uses `ctx.metrics.arrowSize`, the one theme-wide constant `ResolvedThemeMetricsView` exposes — not a per-edge `geometry.arrowSize`, despite the registry allowing `arrowSize` to vary by class; `routeStraight`'s signature was extended with a `metrics` parameter to reach it (the DD-06-inherited stub took only `input`/`result`).
+
 ### 4.5 Self-loops
 
 If an engine returns a self-loop route of fewer than two segments (or none), replace it with a loop: exit the node's top-right at 45°, three `C` segments forming a teardrop of radius `max(24, node.h/2)`, re-enter at the right. Label at the loop's apex.
@@ -123,7 +150,7 @@ For nodes with `aspectRatio`, after layout: `w = h = max(w, h)` (ratio 1) or the
 
 ## 5. Validation and quantization
 
-`validateResult(result, input)`, run before anything trusts the engine's output:
+`validateResult(result, graph, engineId)`, run before anything trusts the engine's output:
 
 | Check | On failure |
 |---|---|
@@ -131,8 +158,10 @@ For nodes with `aspectRatio`, after layout: `w = h = max(w, h)` (ratio 1) or the
 | Every edge has an `EdgeLayout`; no unknown ids | `SGL4002` |
 | All numbers finite; all frame sizes ≥ 0 | `SGL4002` |
 | Every `LabelPlacement.labelId` exists in `graph.labels` | `SGL4002` |
-| Container `contentFrame` inside its `frame` | `SGL4003` warning; contentFrame reset to frame inset by padding |
+| Container `contentFrame` inside its `frame` | `SGL4003` warning |
 | Child frames inside parent contentFrame (± 0.5 px) | `SGL4003` warning; not corrected — some engines overflow deliberately |
+
+**DEVIATION:** the "contentFrame reset to frame inset by padding" correction this table originally specified for the first `SGL4003` row is **not implemented**. `validateResult`'s signature — inherited unchanged from the stub Stage E started from — returns `readonly Diagnostic[]` only; it has no way to hand back a corrected `LayoutResult`. Both `SGL4003` rows are therefore warnings with no correction, which is what the table's own second row already said for the sibling case. A future stage wiring this into a real pipeline, with a code path that can return a new `LayoutResult`, can add the correction then. `engineId` is a third parameter Stage E added, needed only to fill in `SGL4002`'s `{id}` placeholder in the message text — it plays no part in what is checked.
 
 `SGL4002` rejects the whole result; the application keeps the previous `LayoutResult` (FR-E4 at the layout stage).
 
@@ -250,6 +279,10 @@ root: same, with padding = 0
 ```
 
 All arithmetic is integer/rational → `bitwise`. Edges and labels are left to the host fallbacks (§4). This engine is the reference for "a 60-line engine still gives a complete diagram" (ADR-0002).
+
+`hints.columns` is read from `node.config['layout']` directly (§2's amendment); the root has no such lookup, because `compile()` keeps only `model.root.config.title` from the root's config bag (`packages/core/src/compile.ts`) — a root-level `@layout.columns` never reaches `SemanticGraph` at all, so `grid` cannot honour one no matter how it reads hints. This is `compile()` (DD-03), frozen since Gate 1; out of Stage E's scope to fix, flagged here for whichever stage next touches root-level config plumbing.
+
+F1 (07 §2.1) is cleared here: `pack()`'s `childrenOf()` filters `.hidden` on every level, not just the top, since `children`/`rootChildren` list hidden nodes and only `graph.order` does not.
 
 ---
 

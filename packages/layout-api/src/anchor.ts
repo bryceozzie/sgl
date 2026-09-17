@@ -70,11 +70,15 @@ function ellipseAnchor(frame: Rect, c: Point, dx: number, dy: number): Point {
   return { x: c.x + dx * t, y: c.y + dy * t };
 }
 
-/** Vertices in a fixed order, so the nearest-hit scan is order-stable. */
-function vertices(shape: 'diamond' | 'hexagon', f: Rect): readonly Point[] {
+/** Vertices in a fixed order, so the nearest-hit scan is order-stable.
+ *  `shape` is typed as the full `ShapeId` rather than the `'diamond' | 'hexagon'`
+ *  the caller has already switched on: `ShapeId`'s open `(string & {})` branch
+ *  defeats `case`-based narrowing at the call site (it is not excluded by a
+ *  literal match), so the branch below re-checks at runtime instead. */
+function vertices(shape: ShapeId, f: Rect): readonly Point[] {
   const cx = f.x + f.w / 2;
   const cy = f.y + f.h / 2;
-  if (shape === 'diamond') {
+  if (shape !== 'hexagon') {
     return [
       { x: cx, y: f.y },
       { x: f.x + f.w, y: cy },

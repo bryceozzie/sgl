@@ -112,8 +112,9 @@ A stage is not done because the code is written. It is done when its gate passes
 | `@sgl/core` — `parse()`, `buildAst`, grammar fixes | **Done**, T1+T2 gate green | `main` |
 | `@sgl/core` — `resolve()`, `toJson`/`fromJson`, config-key registry | **Done**, T1+T2 gate green | `main` |
 | `@sgl/core` — `compile()`, wildcard expansion, class linearisation | **Done**, T1+T2 gate green, diagnostics coverage gate enabled | `main` |
-| `@sgl/layout-api` — shape anchors for the routing fallback | **Fragment only** | `feat/grid-engine` |
-| `grid`, worker host, `apps/web` | **Not started** | — |
+| `@sgl/layout-api` — `buildLayoutInput`, shape content insets + anchors, host fallbacks, `validateResult`/`quantize` | **Done**, T1+T2 gate green (Stage E) | `feat/grid-engine` |
+| `@sgl/layout-std` — `grid` | **Done**, T1+T2 gate green, bitwise double-run over the whole corpus (Stage E) | `feat/grid-engine` |
+| Worker host, `apps/web` | **Not started** | — |
 
 **Gate 1 is cleared.** `feat/compiler` merged to `main` at `a46c72b`; `pnpm check` green there
 (496 tests). `.sgl` text in, `SemanticGraph` out, for every document in the corpus, with goldens
@@ -136,9 +137,37 @@ no corpus document contains an invalid `@style`/`@size` value, an inline `@style
 single-`Critical`-class node without its own inline override — each noted in place.
 
 Two branches remain deliberately unmerged, both per §1 rather than by oversight: `feat/renderer`
-(implementation only, no tests — Stage F's gate has not run) and `feat/grid-engine` (a `wip(...)`
-commit whose own message records that the engine was never started). Neither may merge before its
-gate passes; `main` must be green at every commit.
+(implementation only, no tests — Stage F's gate has not run) and `feat/grid-engine`, where Stage E's
+own gate now passes (`pnpm check` green, 646 tests) but the branch has not been merged pending
+review of the deviations recorded in its commit message and in DD-06. Neither may merge before its
+gate passes, and `feat/grid-engine`'s passing is not itself authorization to merge without that
+review; `main` must be green at every commit.
+
+**Stage E is done** on `feat/grid-engine`, rebased onto `main` at Stage D. `buildLayoutInput`
+(`packages/layout-api/src/sizing.ts`) turns a `StyledGraph` and a `LabelId -> Size` table into a
+`LayoutInput`, closing a real gap in `LayoutInput`'s frozen contract: neither Architecture §4.2's
+sketch nor DD-06 §2's original recipe had anywhere to put per-node sizing once `GraphNode` turned
+out (Stage C) to carry no geometry at all. `sizing`/`labelSizes` were added to `LayoutInput` as
+parallel maps rather than as fields on `GraphNode` — additive, not a change to any existing frozen
+field — and the deviation is written up in DD-06 §2. `grid` (`packages/layout-std/src/grid.ts`)
+implements DD-06 §7's row/column packing in two passes — bottom-up sizing, top-down absolute framing
+from a single shared memo — and clears **F1** by filtering `.hidden` out of `children`/`rootChildren`
+at every level, not just the top. The host fallbacks (`placeLabels`, `routeStraight`) and
+`validateResult`/`quantize` are implemented per DD-06 §4/§5, with `routeStraight` additionally doing
+§4.4's arrow reserve (not named in this document's own Stage E task list, but skipping it would leave
+every directed edge — the majority of the corpus — with its arrowhead straddling the node boundary).
+§4.6 (aspect lock) is **not** implemented; no corpus document exercises `aspectRatio` and no stage's
+task list names it. `validateResult`'s `SGL4003` "corrected" behaviour for an overflowing
+`contentFrame` is downgraded to warn-only, since its inherited signature returns diagnostics, not a
+new `LayoutResult`, and has nowhere to put a correction. Bitwise double-run determinism and
+zero-`SGL4002`-errors validation both hold over every document in `corpus/`, including
+`malformed/`, `unresolved/` and `injection/` (646 tests total, up from 504 before this stage). One
+finding surfaced and fixed during implementation, not by design: an early version double-counted a
+container's own padding when placing its children (content-origin offset applied on top of an
+already-padding-inclusive relative position) — caught by the `nesting-3.sgl` containment test, not
+by the flatter fixtures. A gap outside this stage's reach: a root-level `@layout.columns` hint can
+never reach `grid`, because `compile()` (DD-03, frozen) keeps only `model.root.config.title` from the
+root's config and drops the rest.
 
 Both grammar defects tracked in the README (quoted `@`-keys, `$name` as a
 `Variable` token) are fixed and Stage A's gate passed on `main`. Stage B found
@@ -190,7 +219,6 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 
 | # | Finding | Owner |
 |---|---|---|
-| **F1** | `GraphNode.children` and `SemanticGraph.rootChildren` list hidden nodes; only `order` filters them. A consumer that recurses over `children` picks up hidden subtrees. | Stage E |
 | **F2** | One bad value in a class body yields one diagnostic **per node using the class** — three nodes extending a class with `@shape: trapezoid` give three `SGL3001`s, each spanned to a node, none to the class. Same for `SGL3007`. Correct but noisy; wants a `related` span on the class declaration. | Stage I |
 | **F3** | `linearizeClasses` recurses `@extends` with no visited-set guard. Safe **only** because `resolve()` splices every cycle's back-edge first, so no `DocumentModel` reaching `compile()` can contain one. A second producer of class tables would turn bad input into a stack overflow — which §1 reserves for invariant violations. | Stage L (A9) |
 | **F4** | A **one-sided** wildcard whose expansion contains the other endpoint emits a self-loop: `x -> /**` gives `x -> x`. DD-03 §3.1 excludes self-pairs only when *both* sides are wildcarded, so code and document agree — but nothing in the corpus covers it and it may not be what an author means. Open question, not a defect. | Stage F |

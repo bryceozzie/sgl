@@ -115,6 +115,13 @@ importers:
       '@sgl/layout-api':
         specifier: workspace:*
         version: link:../layout-api
+    devDependencies:
+      '@sgl/measure':
+        specifier: workspace:*
+        version: link:../measure
+      '@sgl/theme':
+        specifier: workspace:*
+        version: link:../theme
 
   packages/measure:
     dependencies:

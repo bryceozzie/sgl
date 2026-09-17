@@ -1,12 +1,14 @@
 import type {
   Diagnostic,
   EdgeId,
+  Insets,
   LabelId,
   NodeId,
   PathSeg,
   Point,
   Rect,
   SemanticGraph,
+  Size,
   Vec2,
 } from '@sgl/core';
 
@@ -67,6 +69,45 @@ export interface LayoutInput {
   readonly graph: SemanticGraph;
   /** `null` = the whole document. */
   readonly scope: NodeId | null;
+  /**
+   * Per-node sizing (DD-06 §2), keyed by `NodeId`.
+   *
+   * DEVIATION from the Architecture §4.2 sketch and DD-06 §2's prose, both of which
+   * put `sizing` directly on `GraphNode`: `@sgl/core`'s actual `GraphNode` (frozen
+   * by Stage C) carries no geometry at all, so there is nowhere on the node itself
+   * to hang it. It travels alongside `graph` instead. See `NodeSizing` and
+   * `buildLayoutInput()` (`sizing.ts`).
+   */
+  readonly sizing: Readonly<Record<NodeId, NodeSizing>>;
+  /** Measured size of every label in `graph.labels`, keyed by `LabelId`. Needed by
+   *  engines that do their own label-aware packing and by the host's label-placement
+   *  and edge-routing fallbacks alike — neither gets a `StyledGraph`, so this is the
+   *  only place a label's pixel size is available (DD-06 §2, §4.1). */
+  readonly labelSizes: Readonly<Record<LabelId, Size>>;
+}
+
+/**
+ * `intrinsic`/`min`/`max`/`fixed`/`aspectRatio` are exactly DD-06 §2's recipe.
+ *
+ * Two insets, not one, because DD-06 §4.1 and §2 use "padding"/"content insets" for
+ * two different boxes:
+ * - `contentInset` — theme padding plus the shape's own content inset (DD-07 §4),
+ *   with **no** title band. This is a leaf's own title box, and it is where a
+ *   container's *own* title sits (DD-06 §4.1: "top-left of frame inset by
+ *   padding.left, padding.top").
+ * - `padding` — `contentInset`, plus for a container the title band on top. This is
+ *   where a container's *children* start, so `grid` (DD-06 §7) packs against it.
+ *
+ * They are equal for a leaf (no title band to add).
+ */
+export interface NodeSizing {
+  readonly intrinsic: Size;
+  readonly min?: Partial<Size>;
+  readonly max?: Partial<Size>;
+  readonly fixed?: Partial<Size>;
+  readonly aspectRatio?: number;
+  readonly contentInset: Insets;
+  readonly padding: Insets;
 }
 
 export interface LayoutContext {
