@@ -112,8 +112,8 @@ A stage is not done because the code is written. It is done when its gate passes
 | `@sgl/core` — `parse()`, `buildAst`, grammar fixes | **Done**, T1+T2 gate green | `main` |
 | `@sgl/core` — `resolve()`, `toJson`/`fromJson`, config-key registry | **Done**, T1+T2 gate green | `main` |
 | `@sgl/core` — `compile()`, wildcard expansion, class linearisation | **Done**, T1+T2 gate green, diagnostics coverage gate enabled | `main` |
-| `@sgl/layout-api` — `buildLayoutInput`, shape content insets + anchors, host fallbacks, `validateResult`/`quantize` | **Done**, T1+T2 gate green (Stage E) | `feat/grid-engine` |
-| `@sgl/layout-std` — `grid` | **Done**, T1+T2 gate green, bitwise double-run over the whole corpus (Stage E) | `feat/grid-engine` |
+| `@sgl/layout-api` — `buildLayoutInput`, shape content insets + anchors, host fallbacks, `validateResult`/`quantize` | **Done**, T1+T2 gate green (Stage E) | `main` |
+| `@sgl/layout-std` — `grid` | **Done**, T1+T2 gate green, bitwise double-run over the whole corpus (Stage E) | `main` |
 | Worker host, `apps/web` | **Not started** | — |
 
 **Gate 1 is cleared.** `feat/compiler` merged to `main` at `a46c72b`; `pnpm check` green there
@@ -136,14 +136,14 @@ criterion), asserted directly rather than inferred. A handful of tests keep hand
 no corpus document contains an invalid `@style`/`@size` value, an inline `@style.fontSize`, or a
 single-`Critical`-class node without its own inline override — each noted in place.
 
-Two branches remain deliberately unmerged, both per §1 rather than by oversight: `feat/renderer`
-(implementation only, no tests — Stage F's gate has not run) and `feat/grid-engine`, where Stage E's
-own gate now passes (`pnpm check` green, 757 tests) but the branch has not been merged pending
-review of the deviations recorded in its commit message and in DD-06. Neither may merge before its
-gate passes, and `feat/grid-engine`'s passing is not itself authorization to merge without that
-review; `main` must be green at every commit.
+One branch remains deliberately unmerged, per §1 rather than by oversight: `feat/renderer`
+(implementation only, no tests — Stage F's gate has not run). `feat/grid-engine` cleared the review
+of the deviations recorded in its commit message and in DD-06 and merged to `main` at `fdff204`;
+`pnpm check` is green there (757 tests, unchanged from the branch). `main` must be green at every
+commit.
 
-**Stage E is done** on `feat/grid-engine`, rebased onto `main` at Stage D. `buildLayoutInput`
+**Stage E is done**, merged to `main` from `feat/grid-engine`, rebased onto `main` at Stage D.
+`buildLayoutInput`
 (`packages/layout-api/src/sizing.ts`) turns a `StyledGraph` and a `LabelId -> Size` table into a
 `LayoutInput`, closing a real gap in `LayoutInput`'s frozen contract: neither Architecture §4.2's
 sketch nor DD-06 §2's original recipe had anywhere to put per-node sizing once `GraphNode` turned
