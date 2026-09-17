@@ -172,11 +172,10 @@ Every string from the document passes through exactly one of:
 
 | Context | Function | Rule |
 |---|---|---|
-| Text content | `escText` | `& < >` → entities |
-| Attribute value | `escAttr` | `& < > " '` → entities |
+| Text content and attribute value | `escapeXml` | `& < > " '` → entities. One function covering both contexts, not the `escText`/`escAttr` split an earlier draft of this section assumed: the attribute set (`& < > " '`) is a strict superset of the text set (`& < >`), the extra `&quot;`/`&apos;` in text content is legal XML and renders identically, and one function is one thing to audit. |
 | ID / class | `sanitizeId` | §6 |
-| `href` | `safeUrl` | allow `https:`, `http:`, `mailto:`, and in-document `#n-…`; anything else (including `javascript:`, `data:`, protocol-relative) → link omitted, `SGL6001` warning |
-| CSS values | `escCss` | colours must match `#hex` or a `rgb()/hsl()` grammar; font families quoted; anything else rejected → `SGL5004` upstream |
+| `href` | `safeUrl` | allow `https:`, `mailto:` only; anything else (including `http:`, `javascript:`, `data:`, protocol-relative, and in-document `#…`) → link omitted, `SGL6001` warning. Narrower than an earlier draft of this row, which also listed `http:` and in-document fragments — neither is implemented, and the language spec's own `@link` row (§4) already agrees with the two-scheme allowlist. In-document fragment links remain a documented gap, not a supported feature; the language spec's `#path` mention there needs the same correction. |
+| CSS values | `cssColor` / `cssFontFamily` / `cssKeyword` / `cssCustomProperty` | colours must match `#hex`, an `rgb()/hsla()` grammar, or a keyword (`none`, `transparent`, `currentColor`); font families quoted; anything else rejected → the registry's loud fallback (`#FF00FF`, `sans-serif`), not a diagnostic, because `SGL5004` upstream (the theme resolver) already rejects a bad value before it reaches here |
 
 There is no path by which document text becomes markup. The injection corpus in DD-09 asserts this against every context.
 
