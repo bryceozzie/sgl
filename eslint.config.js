@@ -68,8 +68,14 @@ export default tseslint.config(
     languageOptions: { globals: { window: 'readonly', document: 'readonly', navigator: 'readonly' } },
   },
 
+  // Test-only code is exempt from the import-boundary and determinism rules:
+  // `**/test/**/*.ts` covers not just `*.test.ts` files themselves but the
+  // dev-only fixture/harness modules beside them (e.g. `theme/test/corpus.ts`,
+  // `render-svg/test/pipeline.ts`) that legitimately need to reach across
+  // packages a shipped src/ file may not, to compose a pipeline no single
+  // package owns.
   {
-    files: ['**/*.test.ts', 'bench/**/*.js', 'eslint.config.js', '**/*.config.ts'],
+    files: ['**/test/**/*.ts', 'bench/**/*.js', 'eslint.config.js', '**/*.config.ts'],
     rules: { 'no-restricted-properties': 'off', 'no-restricted-globals': 'off', 'no-restricted-imports': 'off' },
   },
 );

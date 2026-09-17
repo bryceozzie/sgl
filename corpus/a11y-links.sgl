@@ -1,0 +1,13 @@
+// @a11y.label/@a11y.description overrides, and a valid allow-listed @link
+// (DD-07 §7, §8). No other corpus document exercises either.
+@title: "Accessibility and links"
+
+a: {
+  @label: "Widget"
+  @a11y: { label: "Custom label", description: "Extra detail for screen readers" }
+  @link: "https://example.com/a"
+}
+
+b: {}
+
+a -> b: { @a11y: { description: "An edge description" } }

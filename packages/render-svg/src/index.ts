@@ -117,6 +117,17 @@ function a11yLabel(config: Readonly<Record<string, unknown>>, fallback: string):
   return fallback;
 }
 
+/** `@a11y.description` adds `aria-description` alongside `aria-label`; absent when
+ *  not given (DD-07 §7). Found missing entirely during Stage F verification. */
+function a11yDescription(config: Readonly<Record<string, unknown>>): string | null {
+  const a11y = config['a11y'];
+  if (typeof a11y === 'object' && a11y !== null) {
+    const d = (a11y as Record<string, unknown>)['description'];
+    if (typeof d === 'string' && d !== '') return d;
+  }
+  return null;
+}
+
 /** A node or container. Containers go in the first layer, leaves in the third. */
 function renderNode(id: NodeId, isContainer: boolean, ctx: Ctx): string {
   const node = ctx.styled.graph.nodes[id];
@@ -163,10 +174,13 @@ function renderNode(id: NodeId, isContainer: boolean, ctx: Ctx): string {
   }
 
   const label = a11yLabel(node.config, title === null || title === undefined ? node.path[node.path.length - 1] ?? String(id) : labelLines(title.runs).join(' '));
+  const description = a11yDescription(node.config);
   const classAttr = escapeXml([kind, isContainer ? '' : `sh-${node.shape}`, ...node.classes].filter(Boolean).join(' '));
   const g =
     `<g id="${escapeXml(nodeElementId(id as string))}" class="${classAttr}"` +
-    ` role="group" aria-label="${escapeXml(label)}">${parts.join('')}</g>`;
+    ` role="group" aria-label="${escapeXml(label)}"` +
+    (description === null ? '' : ` aria-description="${escapeXml(description)}"`) +
+    `>${parts.join('')}</g>`;
 
   return withLink(g, node.config, String(id), ctx);
 }
@@ -204,11 +218,14 @@ function renderEdge(edgeIndex: number, ctx: Ctx): string {
   const labelSpec = edge.labelId === null ? undefined : ctx.styled.graph.labels[edge.labelId];
   const labelText = labelSpec === undefined ? '' : `: ${labelLines(labelSpec.runs).join(' ')}`;
 
+  const edgeDescription = a11yDescription(edge.config);
   const g =
     `<g id="${escapeXml(edgeElementId(edge.id as string))}"` +
     ` class="${escapeXml(['e', ...edge.classes].filter(Boolean).join(' '))}"` +
     ` role="graphics-symbol"` +
-    ` aria-label="${escapeXml(a11yLabel(edge.config, `${from} ${joiner} ${to}${labelText}`))}">` +
+    ` aria-label="${escapeXml(a11yLabel(edge.config, `${from} ${joiner} ${to}${labelText}`))}"` +
+    (edgeDescription === null ? '' : ` aria-description="${escapeXml(edgeDescription)}"`) +
+    `>` +
     `<path ${attrs.join(' ')}/></g>`;
 
   return withLink(g, edge.config, String(edge.id), ctx);

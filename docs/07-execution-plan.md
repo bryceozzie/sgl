@@ -108,7 +108,7 @@ A stage is not done because the code is written. It is done when its gate passes
 | Workspace, types, diagnostics catalogue, style registry, built-in themes, Lezer grammar | **Done** | `main` |
 | `@sgl/theme` — `resolveTheme`, `styleGraph`, geometry/paint hashes | **Done**, T1+T2 gate green, tested against `corpus/`-derived graphs (Stage D) | `main` |
 | `@sgl/measure` — `premeasure`, three `Measurer`s, run keys | **Done**, T1+T2 gate green, tested against `corpus/`-derived graphs (Stage D) | `main` |
-| `@sgl/render-svg` — shapes, style block, markers, text, `render()` | **Implementation only, no tests** | `feat/renderer` |
+| `@sgl/render-svg` — shapes, style block, markers, text, `render()` | **Done**, T1+T2 gate green (Stage F) | `feat/renderer` |
 | `@sgl/core` — `parse()`, `buildAst`, grammar fixes | **Done**, T1+T2 gate green | `main` |
 | `@sgl/core` — `resolve()`, `toJson`/`fromJson`, config-key registry | **Done**, T1+T2 gate green | `main` |
 | `@sgl/core` — `compile()`, wildcard expansion, class linearisation | **Done**, T1+T2 gate green, diagnostics coverage gate enabled | `main` |
@@ -136,9 +136,10 @@ criterion), asserted directly rather than inferred. A handful of tests keep hand
 no corpus document contains an invalid `@style`/`@size` value, an inline `@style.fontSize`, or a
 single-`Critical`-class node without its own inline override — each noted in place.
 
-One branch remains deliberately unmerged, per §1 rather than by oversight: `feat/renderer`
-(implementation only, no tests — Stage F's gate has not run). `feat/grid-engine` cleared the review
-of the deviations recorded in its commit message and in DD-06 and merged to `main` at `fdff204`;
+One branch remains deliberately unmerged, per §1 rather than by oversight: `feat/renderer`, where
+Stage F's own gate now passes (`pnpm check` green, 1438 tests) but the branch has not been merged
+pending review of the deviations recorded below — the same pattern `feat/grid-engine` went through
+before it merged. `feat/grid-engine` itself cleared that review and merged to `main` at `fdff204`;
 `pnpm check` is green there (757 tests, unchanged from the branch). `main` must be green at every
 commit.
 
@@ -178,11 +179,18 @@ cylinder) came out too small — a diamond roughly half the size it needed to ho
 the solved-for-the-label forms (`packages/render-svg/src/shapes.ts` on `feat/renderer`, commit
 f1c476c5, already had the correct derivation; DD-07 §4 is amended to say explicitly which `w`/`h` the
 table means). The test suite now asserts the containment property the formulas exist to satisfy, not
-just pinned numbers, across a spread of label sizes — the drift guard the duplication needs until
-Stage F merges and the two copies become one. `anchor.ts` was checked line-for-line against the same
+just pinned numbers, across a spread of label sizes — the drift guard the duplication needs, since
+`layout-api` may not import `render-svg` even after both are on `main` (DD-00 §2 rule 2 is permanent,
+not a merge-order artefact; the "until Stage F merges and the two copies become one" framing here was
+wrong and is corrected by this note). `anchor.ts` was checked line-for-line against the same
 `feat/renderer` commit's anchor functions and found to already agree (no fix needed there); its tests
-were strengthened with diagonal-ray boundary checks to pin the defining geometric property, since a
-cross-package equality test isn't possible before `render-svg` merges. Separately, in
+were strengthened with diagonal-ray boundary checks to pin the defining geometric property. Stage F
+then added the automated cross-package equality test this paragraph said wasn't possible yet — a
+`render-svg` *test* file is exempt from the import-boundary lint rule, so
+`packages/render-svg/test/shapes.test.ts` now calls both `@sgl/layout-api`'s `anchorPoint`/
+`contentInsets` and `render-svg`'s own `SHAPES[id].anchor`/`.contentInsets` and asserts exact equality
+across all seven shapes, a spread of ray angles, and a spread of label sizes — confirming the two
+independently-written copies do agree, not just by manual line-for-line comparison. Separately, in
 `fallbacks.ts`: `routeOne`'s port-terminated `endNormal` used a port's own *outward* boundary normal
 directly instead of negating it, inverting §4.4's arrow reserve at a port-terminated head (latent
 today — `grid` declares `ports: false`); and `selfLoopLayout` returned before §4.4's arrow reserve
@@ -190,6 +198,69 @@ ran at all, so a directed self-loop's arrowhead would have straddled the boundar
 edges the reserve was added to fix. Both corrected, with tests. DD-06 §7 also gained a line noting
 that `pack()` — per the algorithm exactly as designed, not a bug — honours a container's `min` but
 silently ignores its `fixed`/`max`.
+
+**Stage F is done** on `feat/renderer`, merged forward onto `main` at Stage E (`fdff204`) before this
+stage's own work started. It proves the renderer implementation that was already on the branch:
+1438 tests, up from 757, all new. Golden SVGs are committed for the clean-document corpus set under
+both built-in themes — **`grid` only**, not "both engines" per DD-07 §11's aspirational list, because
+the `elk` adapter is still `NotImplemented` (Stage K). The injection suite
+(`packages/render-svg/test/injection.test.ts`) parses every rendered `corpus/injection/*.sgl` output
+with `fast-xml-parser` and asserts no `script` element, no `on*` attribute, and every `href` on the
+allowlist — plus a same-shape check for `checkout.sgl`, so the suite also proves a normal document
+parses cleanly, not only that hostile ones are neutralised. Shape maths (`shapes.test.ts`) pins path
+strings, the degenerate centre case, and — for every ray angle tested — the exact boundary property
+each anchor family must satisfy (on a frame edge for box shapes, on the ellipse equation, on a polygon
+edge for diamond/hexagon), plus the cross-package equality test against `@sgl/layout-api` described
+above. Document order (DD-07 §7) is asserted directly: the `L-containers`/`L-nodes` layers each follow
+`graph.order` filtered to their own kind, and `L-edges` follows declaration order with hidden edges
+skipped — not inferred from the goldens.
+
+**F4 (§2.1) is resolved, not just decided.** A one-sided wildcard whose expansion contains its own
+literal other endpoint (`x -> /**` type self-pairing) is confirmed as intended behaviour, not an
+artefact to suppress: `compile()` needed no code change. DD-03 §3.1's "open" framing is corrected to
+"resolved," and `corpus/wildcards.sgl` gained `loop.p -> loop.*` (one self-loop, one ordinary edge)
+so the case has real coverage — regenerating the `resolve`/`compile`/`grid` goldens for that one
+document, additively, with every other node and edge in it untouched.
+
+**Two documented discrepancies with the implementation, both in DD-07 §8, are fixed — in the
+documents, not the code**, which had it right in both cases. The doc described an `escText`/`escAttr`
+split; the code correctly collapsed both into one `escapeXml` (the attribute character set is a strict
+superset of the text set). The doc's `href` row also listed `http:` and in-document `#n-…` fragment
+links as allowed; `safeUrl` only ever implemented `https:`/`mailto:`, and the language spec's own
+`@link` row already agreed with the code on schemes — only its incidental mention of `#path` needed
+the same correction `security.test.ts` now pins directly (`safeUrl('#n-target').href` is `null`).
+In-document fragment linking remains an unimplemented, now-honestly-undocumented gap, not a silently
+dropped feature.
+
+**One real gap surfaced during accessibility verification and was fixed, not just noted**: DD-07 §7
+specifies `@a11y.description` adding `aria-description` alongside `aria-label`'s `@a11y.label`
+override, and the code had no such branch at all — not a latent bug, a feature that was simply never
+written. `a11yDescription()` in `index.ts` fills it, wired into both `renderNode` and `renderEdge`, and
+`corpus/a11y-links.sgl` (new — no existing fixture exercised `@a11y` or a valid `@link` at all) covers
+both the node and edge cases plus the `@link` happy path, which was equally uncovered.
+
+**A second gap was found and left as a documented finding, not fixed, because fixing it is out of this
+stage's reach**: `renderNode`'s port-circle loop (DD-07 §3's `<circle class="n-port">` template) is
+live code, but nothing in the pipeline ever populates `LayoutResult.nodes[id].ports` for it to read —
+`grid` declares `capabilities.ports: false`, and DD-06 §4's host fallbacks cover label placement and
+edge routing but not port placement. `render.test.ts` pins the property directly (a port circle carries
+`aria-hidden="true"`) against a hand-built `LayoutView`, per DD-07's own `LayoutView` doc comment
+anticipating exactly this ("every field here is structurally satisfied by the real `LayoutResult` ...
+no cast at the call site"), rather than silently skip it. No stage's task list names a port-layout host
+fallback; it belongs with whichever stage eventually reconsiders `ports: false` for `grid` or ships an
+engine that lays them out.
+
+**Deliberately left out.** DD-07 §11's "paint-only swap: render A, render B differing only in paint →
+trees identical when `<style>` is stripped" is not implemented as a test. `neutral-light`/
+`neutral-dark` differ only in theme tokens (`neutral-dark`'s own file says so), so the *layout* is
+provably unaffected by a theme switch — but the rendered *tree* is not byte-identical after stripping
+just the `<style>` block, because `s-{paintHash}`/`t-{paintHash}` class names embed the hash directly
+in every element's `class` attribute, so a paint change changes those attribute strings throughout the
+tree, not only inside `<style>`. DD-08 §3's "swaps `lastGood.styleBlock` in place instead of replacing
+the tree" describes an application-level DOM-patching strategy for Stage I to build, not a property
+`render()` itself — a pure function that regenerates its whole output string every call — can satisfy
+in isolation. The real version of this property (switching theme leaves `geometryHash` and layout
+untouched) is Stage G's stated exit test, at the pipeline level where it is actually true.
 
 Both grammar defects tracked in the README (quoted `@`-keys, `$name` as a
 `Variable` token) are fixed and Stage A's gate passed on `main`. Stage B found
@@ -243,8 +314,8 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 |---|---|---|
 | **F2** | One bad value in a class body yields one diagnostic **per node using the class** — three nodes extending a class with `@shape: trapezoid` give three `SGL3001`s, each spanned to a node, none to the class. Same for `SGL3007`. Correct but noisy; wants a `related` span on the class declaration. | Stage I |
 | **F3** | `linearizeClasses` recurses `@extends` with no visited-set guard. Safe **only** because `resolve()` splices every cycle's back-edge first, so no `DocumentModel` reaching `compile()` can contain one. A second producer of class tables would turn bad input into a stack overflow — which §1 reserves for invariant violations. | Stage L (A9) |
-| **F4** | A **one-sided** wildcard whose expansion contains the other endpoint emits a self-loop: `x -> /**` gives `x -> x`. DD-03 §3.1 excludes self-pairs only when *both* sides are wildcarded, so code and document agree — but nothing in the corpus covers it and it may not be what an author means. Open question, not a defect. | Stage F |
 | **F5** | `SGL3005` still has no corpus fixture and sits on the coverage gate's allowlist; the unit test hand-builds a `DocumentModel` to reach it. | Stage G |
+| **F6** | `renderNode`'s port-circle template (DD-07 §3) is live, correctly `aria-hidden`, and unit-tested directly — but unreachable through the real pipeline: `grid` declares `capabilities.ports: false` and no host fallback places ports (DD-06 §4 covers labels and routing, not ports), so `LayoutResult.nodes[id].ports` is never populated end to end. Found during Stage F's accessibility pass. | unassigned — whichever stage next reconsiders `ports: false` for `grid`, or ships a port-aware engine |
 
 ---
 
