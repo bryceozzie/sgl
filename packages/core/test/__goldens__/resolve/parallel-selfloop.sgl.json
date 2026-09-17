@@ -1,0 +1,51 @@
+{
+  "@sgl": "1.0",
+  "a": {},
+  "b": {},
+  "@edges": [
+    {
+      "from": "a",
+      "to": "a",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "a",
+      "to": "a",
+      "directed": "forward",
+      "ordinal": 0,
+      "@label": "twice"
+    },
+    {
+      "from": "a",
+      "to": "b",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "a",
+      "to": "b",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "a",
+      "to": "b",
+      "directed": "forward",
+      "ordinal": 0,
+      "@label": "third"
+    },
+    {
+      "from": "a",
+      "to": "b",
+      "directed": "both",
+      "ordinal": 0
+    },
+    {
+      "from": "b",
+      "to": "b",
+      "directed": "none",
+      "ordinal": 0
+    }
+  ]
+}

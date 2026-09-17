@@ -1,4 +1,7 @@
-// expects: SGL1002 — ** takes no glob; a glob never crosses a level
+// expects: SGL1001 — ** takes no glob; a glob never crosses a level. `cam**`
+// lexes as two adjacent Wildcard tokens ("cam*", then "*") with no "." between
+// them, so the parser recovers by reporting the endpoint it expected, not the
+// text it skipped.
 switch
 lane1: { cam1: {} }
 lane1.cam** -> switch

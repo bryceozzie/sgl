@@ -50,6 +50,7 @@ export const CATALOGUE = {
   SGL2006: { severity: 'warning', template: '`@{key}` was `{scalar}` and has been replaced by an object to hold `@{key}.{sub}`.' },
   SGL2007: { severity: 'warning', template: 'Class bodies hold configuration only; `{key}` ignored.' },
   SGL2008: { severity: 'warning', template: 'Edge blocks hold configuration only; `{thing}` ignored.' },
+  SGL2009: { severity: 'warning', template: 'Variable `${name}` is not substituted in this version; kept as literal text.' },
   SGL2010: { severity: 'warning', template: 'Unknown configuration key `@{key}`; kept but has no effect in this version.' },
   SGL2011: { severity: 'warning', template: '`@{key}` expects {type}; ignored.' },
   SGL2012: { severity: 'warning', template: '`@{key}` is not valid on {scope}; ignored.' },
@@ -60,6 +61,8 @@ export const CATALOGUE = {
   SGL3003: { severity: 'warning', template: '`{path}` matched no nodes; the edge was skipped.' },
   SGL3004: { severity: 'error', template: 'A wildcard may only be the last part of a path; `{path}` was skipped.' },
   SGL3005: { severity: 'error', template: '`{from} {op} {to}` expands to {n} edges, over the limit of {max}; it was skipped.' },
+  SGL3006: { severity: 'info', template: 'Shape `{name}` is not drawn in this version; using `rect`.' },
+  SGL3007: { severity: 'warning', template: '`{node}` port `{port}` has side `{side}`; expected north, south, east or west. Using `east`.' },
 
   // ---- 4xxx layout (DD-06) -----------------------------------------------
   SGL4001: { severity: 'error', template: 'Layout engine `{id}` did not finish within {ms} ms and was stopped. Showing the previous layout.' },

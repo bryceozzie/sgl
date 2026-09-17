@@ -1,0 +1,3 @@
+// expects: SGL2005
+a: { @label: "First" }
+a: { @label: "Second" }

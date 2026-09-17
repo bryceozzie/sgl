@@ -39,11 +39,15 @@ jobs:
           pnpm grammar
           git diff --exit-code -- packages/core/src/grammar
 
+      - name: Build
+        # Must precede tests: a workspace package's cross-package imports resolve
+        # through its `exports`, which point at `dist/`, and `tsc -b` above does not
+        # copy a package's hand-generated JS assets (e.g. @sgl/core's Lezer parser)
+        # the way `tsdown` does.
+        run: pnpm build
+
       - name: Unit and golden tests
         run: pnpm test
-
-      - name: Build
-        run: pnpm build
 
       - name: Audit
         run: pnpm audit --prod --audit-level high

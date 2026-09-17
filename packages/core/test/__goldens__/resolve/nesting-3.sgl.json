@@ -1,0 +1,59 @@
+{
+  "@sgl": "1.0",
+  "@title": "Nesting",
+  "external": {
+    "cdn": {}
+  },
+  "platform": {
+    "@label": "Platform",
+    "ingress": {
+      "@label": "Ingress",
+      "lb": {
+        "@label": "Load balancer"
+      },
+      "waf": {},
+      "@edges": [
+        {
+          "from": "waf",
+          "to": "lb",
+          "directed": "forward",
+          "ordinal": 0
+        }
+      ]
+    },
+    "services": {
+      "api": {},
+      "worker": {},
+      "@edges": [
+        {
+          "from": "api",
+          "to": "worker",
+          "directed": "forward",
+          "ordinal": 0
+        },
+        {
+          "from": "api",
+          "to": "../ingress.lb",
+          "directed": "forward",
+          "ordinal": 0
+        }
+      ]
+    },
+    "@edges": [
+      {
+        "from": "ingress.lb",
+        "to": "services.api",
+        "directed": "forward",
+        "ordinal": 0
+      }
+    ]
+  },
+  "@edges": [
+    {
+      "from": "platform.services.worker",
+      "to": "/external.cdn",
+      "directed": "forward",
+      "ordinal": 0
+    }
+  ]
+}

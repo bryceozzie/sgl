@@ -1,0 +1,54 @@
+{
+  "@sgl": "1.0",
+  "outside": {},
+  "alpha": {
+    "@label": "Alpha",
+    "one": {},
+    "two": {},
+    "@edges": [
+      {
+        "from": "one",
+        "to": "two",
+        "directed": "forward",
+        "ordinal": 0
+      }
+    ]
+  },
+  "beta": {
+    "@label": "Beta",
+    "three": {},
+    "four": {}
+  },
+  "@edges": [
+    {
+      "from": "outside",
+      "to": "alpha",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "alpha",
+      "to": "beta",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "alpha.two",
+      "to": "beta.three",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "beta.four",
+      "to": "alpha.one",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "outside",
+      "to": "beta.three",
+      "directed": "forward",
+      "ordinal": 0
+    }
+  ]
+}

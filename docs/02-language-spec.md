@@ -203,6 +203,14 @@ gives every expanded edge that label and that style. There is no way to tell, do
 | `@a11y.*` | any | `label`, `description`, `role` for the accessibility tree |
 | `@meta.*` | any | Arbitrary user data; never rendered, always round-tripped |
 
+"Applies to" names *element* scopes: node, edge, container, class. `any` means
+all four — it does not include the document root. Document-level keys are
+listed separately below; a key is valid at the document root only if it
+appears there. `@direction`'s "container" already covers root under §2's
+definition (root is a container: a node with children) — root's own
+`@layout` block, shown below, is exactly where the sugar it desugars to
+applies.
+
 ### Document-level keys (root only)
 
 ```sgl

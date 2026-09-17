@@ -1,0 +1,91 @@
+{
+  "@sgl": "1.0",
+  "@title": "Wildcard globs",
+  "switch": {
+    "@label": "Switch"
+  },
+  "lane1": {
+    "@label": "Lane 1",
+    "cam1": {},
+    "cam2": {},
+    "cam-hd": {},
+    "camera": {},
+    "mic1": {},
+    "door1": {
+      "@label": "Camera"
+    },
+    "cam9": {
+      "@hidden": true
+    }
+  },
+  "stores": {
+    "orders-db": {},
+    "users-db": {},
+    "cache": {},
+    "order service": {}
+  },
+  "mixed": {
+    "camAhd": {},
+    "camBhd": {},
+    "camB": {},
+    "cam": {}
+  },
+  "@edges": [
+    {
+      "from": "lane1.cam*",
+      "to": "switch",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "lane1.cam-*",
+      "to": "switch",
+      "directed": "forward",
+      "ordinal": 0,
+      "@label": "hd only"
+    },
+    {
+      "from": "stores.*-db",
+      "to": "switch",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "stores.order*",
+      "to": "switch",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "mixed.cam*hd",
+      "to": "switch",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "lane1.cam*",
+      "to": "mixed.cam*hd",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "lane1.cam*",
+      "to": "switch",
+      "fromPort": "out",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "lane1.cam*",
+      "to": "switch",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "stores.*-db",
+      "to": "switch",
+      "directed": "forward",
+      "ordinal": 0
+    }
+  ]
+}

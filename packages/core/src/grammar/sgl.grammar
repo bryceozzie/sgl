@@ -14,18 +14,18 @@
 Entry { ConfigEntry | EdgeStmt | NodeDecl }
 
 // ---- configuration ----------------------------------------------------
-ConfigEntry { ConfigKey ":" Value }
+ConfigEntry { (ConfigKey | ConfigString) ":" Value }
 
 // ---- nodes ------------------------------------------------------------
 NodeDecl  { NodeKey (":" NodeValue)? }
 NodeKey   { Identifier | String }
-NodeValue { Block | String | ClassRef }
+NodeValue { Block | String | ConfigString | ClassRef }
 ClassRef  { Identifier }
 Block     { "{" Entry* "}" }
 
 // ---- edges ------------------------------------------------------------
 EdgeStmt  { Endpoint (EdgeOp Endpoint)+ (":" EdgeValue)? }
-EdgeValue { String | Block }
+EdgeValue { String | ConfigString | Block }
 Endpoint  { Path Port? }
 Port      { "[" Identifier "]" }
 Path      { Root? Parent* PathStep ("." PathStep)* }
@@ -33,12 +33,12 @@ PathStep  { PathSegment | Wildcard }
 PathSegment { Identifier | String }
 
 // ---- values (configuration context only) ------------------------------
-Value  { String | Number | Bool | Null | Word | Array | Object }
+Value  { String | ConfigString | Number | Bool | Null | Word | Variable | Array | Object }
 Word   { Identifier }                       // bareword enum: hexagon, down, dashed
 Array  { "[" Value* "]" }
 Object { "{" Property* "}" }
 Property { PropKey ":" Value }
-PropKey  { Identifier | String | ConfigKey }  // @-keys allowed inside class bodies
+PropKey  { Identifier | String | ConfigKey | ConfigString }  // @-keys allowed inside class bodies
 
 Bool { @specialize<Identifier, "true" | "false"> }
 Null { @specialize<Identifier, "null"> }
@@ -52,9 +52,15 @@ Null { @specialize<Identifier, "null"> }
 
   // A dash is allowed inside an identifier only when followed by an identifier
   // character, so `a->b` lexes as Identifier EdgeOp Identifier, not `a-` `>b`.
-  Identifier { $[A-Za-z_] ($[A-Za-z0-9_] | "-" $[A-Za-z0-9_])* }
-  ConfigKey  { "@" Identifier ("." Identifier)* }
-  String     { '"' (![\\"\n] | "\\" _)* '"' }
+  Identifier   { $[A-Za-z_] ($[A-Za-z0-9_] | "-" $[A-Za-z0-9_])* }
+  ConfigKey    { "@" Identifier ("." Identifier)* }
+  // The quoted spelling of a ConfigKey — `"@style.stroke"` — is what makes strict
+  // JSON able to hold a config entry at all (DD-01 §2, §8). Lexically it is just a
+  // String that happens to start with `@`, so it overlaps with String on every
+  // such input and needs @precedence below to resolve in its favour.
+  ConfigString { '"' "@" (![\\"\n] | "\\" _)* '"' }
+  Variable     { "$" Identifier }
+  String       { '"' (![\\"\n] | "\\" _)* '"' }
   Number     { "-"? @digit+ ("." @digit+)? }
   EdgeOp     { "->" | "<-" | "<->" | "--" }
   // Fan-out over children (*) or descendants (**), optionally narrowed by a name
@@ -81,6 +87,13 @@ Null { @specialize<Identifier, "null"> }
   // `*` appears nowhere else in the language, so any position where a Wildcard
   // matches at all is a glob, never an identifier that happens to abut one.
   @precedence { Wildcard, Identifier }
+  // Lezer tokenises without lookahead into the parser, so a quoted string that
+  // starts with `@` — `"@style.stroke"` as a key, `"@accent"` as a theme-token
+  // value — always lexes as ConfigString, never String; ConfigString must win
+  // this overlap outright. That is why every production that can hold an
+  // ordinary string (Value, NodeValue, EdgeValue, PropKey) also accepts
+  // ConfigString: buildAst treats one used as a value exactly like a String.
+  @precedence { ConfigString, String }
 }
 
 @detectDelim

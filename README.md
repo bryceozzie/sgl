@@ -2,7 +2,7 @@
 
 A text-first diagramming platform. JSON-esque source in, SVG out, with **layout engines and themes as first-class plugins**, running entirely in the browser.
 
-> **Status: skeleton.** The design is complete to component level; the workspace, package boundaries, contracts and fixtures are in place; the pipeline stages are declared but not yet implemented. See [Current state](#current-state).
+> **Status: building.** The design is complete to component level and the workspace is in place. The theme and measurement stages are implemented; the parser, renderer and layout engine are part-built on branches. See [Current state](#current-state), and [07 — Execution plan](docs/07-execution-plan.md) for the build order and the gates.
 
 ```sgl
 @theme: "neutral-light"
@@ -46,18 +46,18 @@ The pipeline's six functions ([DD-00 §4](docs/detailed-design/00-overview.md)) 
 
 | Package | Built | Declared, not implemented |
 |---|---|---|
-| `@sgl/core` | `fnv1a64` hashing · the full [diagnostic catalogue](packages/core/src/diagnostics.ts) (33 codes) · AST, document-model and IR types · the [Lezer grammar](packages/core/src/grammar/sgl.grammar), which **compiles** | `parse` · `resolve` · `compile` · `toJson` / `fromJson` |
-| `@sgl/theme` | The [style-property registry](packages/theme/src/registry.ts) with every `affects` classification · both built-in themes | `resolveTheme` · `styleGraph` |
-| `@sgl/measure` | `Measurer` interface, run-based from day one | `CanvasMeasurer` · `premeasure` |
+| `@sgl/core` | `fnv1a64` hashing · the [diagnostic catalogue](packages/core/src/diagnostics.ts) (33 codes) · AST, document-model and IR types · the [Lezer grammar](packages/core/src/grammar/sgl.grammar). An AST builder and fixes for both known grammar defects sit unverified on `feat/parser` | `parse` · `resolve` · `compile` · `toJson` / `fromJson` (Stages A–C) |
+| `@sgl/theme` | **Done** — the registry, both themes, `resolveTheme`, `styleGraph`, the geometry/paint hash partition | — |
+| `@sgl/measure` | **Done** — `premeasure`, run keys, and three `Measurer`s (canvas, static-metrics, table) | — |
 | `@sgl/layout-api` | The [`LayoutEngine` contract](packages/layout-api/src/contract.ts) · worker protocol · engine registry | host · result validation · host fallbacks · conformance suite |
 | `@sgl/layout-elk` | Engine descriptor: capabilities, options and hints schemas | the elkjs adapter |
-| `@sgl/layout-std` | `grid` descriptor | `grid` layout |
-| `@sgl/render-svg` | XML escaping · link-scheme allowlist · the `Shape` interface | `render` · the seven shapes |
+| `@sgl/layout-std` | `grid` descriptor | `grid` layout (Stage E) |
+| `@sgl/render-svg` | On `feat/renderer`: seven shapes, style block, markers, text, `render()` | its tests and goldens (Stage F) |
 | `apps/web` | The two-pane shell | everything in [DD-08](docs/detailed-design/08-application.md) |
 
 Also in place: 15 corpus documents plus 23 error and injection fixtures ([`corpus/`](corpus/README.md)), the [import-boundary and determinism lint rules](eslint.config.js) from DD-00 §2–§3, and [CI](.github/workflows/ci.yml).
 
-**Next:** the phase-0 spike — `parse`, `compile`, `grid`, minimal SVG out — which exists to confirm the pipeline shape is right.
+**Next:** Stage A in the [execution plan](docs/07-execution-plan.md) — the parser — then the rest of the front end. Gate 2 closes the pipeline end to end, which is the phase-0 exit.
 
 ## Repository layout
 
@@ -91,6 +91,7 @@ Dependency direction is strictly downward and enforced by lint: `core` knows not
 | [04 — Feature backlog](docs/04-feature-backlog.md) | 136 features from comparable tools, triaged — 51 Must, 38 Should, 40 Could, 7 declined — plus the revised delivery plan |
 | [05 — Design review](docs/05-design-review.md) | Is the concept durable, sustainable and maintainable? Seven findings |
 | [06 — Feasibility and MVP](docs/06-feasibility-and-mvp.md) | Check against the original brief, the corrected MVP, eight pitfalls resolved, and the technology stack |
+| [07 — Execution plan](docs/07-execution-plan.md) | The build order: thirteen stages, five staging gates, the standing rules every contributor works under, and the agent brief template |
 | [Detailed design](docs/detailed-design/00-overview.md) | Component-level design for the MVP: grammar, resolver, IR, theme, measurement, layout host and engines, renderer, application, security/perf/testing, build/deploy |
 
 ### Decision records
@@ -113,17 +114,15 @@ Dependency direction is strictly downward and enforced by lint: `core` knows not
 
 ### Found while scaffolding
 
-Three defects and one correction, all in normative documents. None blocks the phase-0 spike; the first two block the claim that any JSON object is a valid SGL document.
+Two remaining defects/corrections, all in normative documents. Neither blocks the phase-0 spike.
 
-1. **Quoted `@`-keys do not parse as configuration.** `ConfigEntry { ConfigKey ":" Value }` ([DD-01 §2](docs/detailed-design/01-grammar-and-parser.md)) matches only the bareword `@type` form. In canonical JSON every key is quoted, so `"@type": ["Datastore"]` falls through to `NodeDecl`, whose value may not be an array — a parse error. Scalar cases are worse: `"@title": "x"` parses silently as a *node named `@title`*. This breaks FR-L1 (JSON superset) and FR-L6 (canonical round-trip), and the canonical document in [language spec §9](docs/02-language-spec.md) does not parse. `corpus/json-form.sgl.json` reproduces it. The fix is a quoted-config-key token with precedence over `String`.
+1. **DD-00 §2 rule 2 contradicts DD-05 and DD-07.** Rule 2 says `measure` and `render-svg` import only `core`, but `premeasure` takes a `StyledGraph` and `render` takes a `StyledGraph` plus a `ResolvedTheme` — both from `@sgl/theme`. Either the rule needs amending to "core, plus theme for types", or `StyledGraph` belongs in `core` alongside the other cross-package data. The lint config currently permits `@sgl/theme` in both, and says so.
 
-2. **`$variable` has no token.** [Language spec §5](docs/02-language-spec.md) defines `$name` and `${name}`; the grammar has neither. `${name}` is unaffected because it lives inside a string, but `@style.stroke: $hot` does not parse — and that appears in the worked example, which [DD-09 §3.2](docs/detailed-design/09-security-performance-testing.md) makes the app's default document. Variables are A8, deferred to v1.0, but the grammar is the *single* parser for both runtime and editor, so the token is cheaper to add now than to re-cut later. `corpus/checkout.sgl` reproduces it.
+2. **`lezer-generator` has no `--strict` flag** ([DD-10 §3](docs/detailed-design/10-build-and-deploy.md)). It fails on grammar conflicts by default, so the intent holds; the flag is dropped from the script.
 
-3. **DD-00 §2 rule 2 contradicts DD-05 and DD-07.** Rule 2 says `measure` and `render-svg` import only `core`, but `premeasure` takes a `StyledGraph` and `render` takes a `StyledGraph` plus a `ResolvedTheme` — both from `@sgl/theme`. Either the rule needs amending to "core, plus theme for types", or `StyledGraph` belongs in `core` alongside the other cross-package data. The lint config currently permits `@sgl/theme` in both, and says so.
+**Resolved (Stage A):** quoted `@`-keys now parse as configuration, and `$variable` has a token. `ConfigEntry` accepted only the bareword `@type` form; canonical JSON quotes every key, so `"@type": ["Datastore"]` fell through to `NodeDecl` with an array value (a parse error), and `"@title": "x"` parsed silently as a *node named `@title`*. The fix is a `ConfigString` token — the quoted spelling of `ConfigKey` — with `@precedence { ConfigString, String }` over the plain `String` token it would otherwise tie with on any `"@…"` text; every production that can hold a string (`Value`, `NodeValue`, `EdgeValue`, `PropKey`) accepts it too, since Lezer tokenises without parser lookahead and `"@accent"` used as a theme-token *value* lexes the same way as one used as a *key*. `$name` is a new `Variable` token in `Value`; it parses into a `Variable` AST node but is not yet substituted (deferred to A8/v1.0 — [DD-01 §2](docs/detailed-design/01-grammar-and-parser.md)). Both `corpus/json-form.sgl.json` and `corpus/checkout.sgl` now parse clean.
 
-4. **`lezer-generator` has no `--strict` flag** ([DD-10 §3](docs/detailed-design/10-build-and-deploy.md)). It fails on grammar conflicts by default, so the intent holds; the flag is dropped from the script.
-
-Good news from the same pass: **the grammar compiles without conflicts, and parses 13 of the 15 corpus documents clean** — including three-level nesting, every edge operator, ports, parallel edges, self-loops, unicode keys, and wildcard endpoints with name globs. The two failures are exactly the defects above.
+Good news from the same pass: **the grammar compiles without conflicts, and now parses all 15 corpus documents clean** — including three-level nesting, every edge operator, ports, parallel edges, self-loops, unicode keys, and wildcard endpoints with name globs.
 
 ### From the design
 

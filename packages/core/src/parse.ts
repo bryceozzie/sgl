@@ -1,11 +1,12 @@
+import type { Tree } from '@lezer/common';
 import type { Document } from './ast.js';
+import { buildAst } from './build-ast.js';
 import type { Diagnostic } from './diagnostics.js';
-import { NotImplemented } from './not-implemented.js';
+import { parser } from './grammar/sgl.parser.js';
 
 export interface ParseResult {
-  /** The Lezer CST. Typed as `unknown` until the generated parser is wired in —
-   *  it becomes `import('@lezer/common').Tree`. */
-  readonly tree: unknown;
+  /** The Lezer CST, for the editor's incremental path (DD-01 §5). */
+  readonly tree: Tree;
   readonly ast: Document;
   readonly diagnostics: readonly Diagnostic[];
 }
@@ -15,9 +16,14 @@ export interface ParseResult {
  * AST with spans. Synchronous, pure, error-tolerant: malformed input yields a
  * partial tree plus `SGL1xxx` diagnostics rather than an exception.
  *
+ * The editor calls `buildAst` directly on its already-parsed `syntaxTree(state)`
+ * to avoid paying for a second parse per keystroke (DD-01 §5); `parse()` is the
+ * non-incremental entry point the pipeline, CLI and tests call.
+ *
  * Design: DD-01.
  */
 export function parse(source: string): ParseResult {
-  void source;
-  throw new NotImplemented('parse()', 'DD-01');
+  const tree = parser.parse(source);
+  const { value: ast, diagnostics } = buildAst(tree, source);
+  return { tree, ast, diagnostics };
 }

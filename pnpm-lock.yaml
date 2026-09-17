@@ -85,6 +85,9 @@ importers:
       '@lezer/generator':
         specifier: ^1.8.0
         version: 1.8.0
+      fast-check:
+        specifier: ^4.3.0
+        version: 4.10.0
 
   packages/layout-api:
     dependencies:
@@ -112,6 +115,13 @@ importers:
       '@sgl/layout-api':
         specifier: workspace:*
         version: link:../layout-api
+    devDependencies:
+      '@sgl/measure':
+        specifier: workspace:*
+        version: link:../measure
+      '@sgl/theme':
+        specifier: workspace:*
+        version: link:../theme
 
   packages/measure:
     dependencies:

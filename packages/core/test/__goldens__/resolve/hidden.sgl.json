@@ -1,0 +1,37 @@
+{
+  "@sgl": "1.0",
+  "visible": {},
+  "ghost": {
+    "@hidden": true
+  },
+  "other": {},
+  "another": {},
+  "@edges": [
+    {
+      "from": "visible",
+      "to": "ghost",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "ghost",
+      "to": "other",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "visible",
+      "to": "other",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "visible",
+      "to": "another",
+      "directed": "forward",
+      "ordinal": 0,
+      "@label": "silent",
+      "@hidden": true
+    }
+  ]
+}

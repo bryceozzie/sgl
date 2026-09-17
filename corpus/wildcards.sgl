@@ -39,6 +39,21 @@ ported: {
   r: {}                       // SGL2003 — no `out` port
 }
 
+// Both-sided wildcard + ports (DD-03 §3.1): every `fan1` child has `out`, so the
+// cross product's 6 edges owe SGL2003 to the `fan2` side alone — once per
+// distinct portless node (m, n), not once per edge each appears in (which would
+// be 3 apiece, 6 total). The one-sided `ported.*` statement below can't tell
+// these two counting strategies apart because it only has one portless node.
+fan1: {
+  x: { @ports: { out: east } }
+  y: { @ports: { out: east } }
+  z: { @ports: { out: east } }
+}
+fan2: {
+  m: {}
+  n: {}
+}
+
 // Direct children: two edges, because c is hidden.
 lane1.* -> switch
 
@@ -53,6 +68,10 @@ lane1.* -> lane2.*
 
 // Ports ride along; r gets SGL2003 and attaches to its boundary.
 ported.*[out] -> switch
+
+// Both sides wildcarded, both sides ported: 3x2 = 6 edges, 2 warnings (m, n),
+// not 6 — see the fan1/fan2 comment above.
+fan1.*[out] -> fan2.*[in]
 
 // Chains expand per link.
 lane1.* -> switch -> lane2.*

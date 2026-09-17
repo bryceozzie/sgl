@@ -1,0 +1,141 @@
+{
+  "@sgl": "1.0",
+  "@title": "Wildcards",
+  "switch": {
+    "@label": "Switch"
+  },
+  "lane1": {
+    "@label": "Lane 1",
+    "a": {},
+    "b": {},
+    "c": {
+      "@hidden": true
+    }
+  },
+  "lane2": {
+    "@label": "Lane 2",
+    "x": {},
+    "y": {},
+    "@edges": [
+      {
+        "from": "../lane1.*",
+        "to": "x",
+        "directed": "forward",
+        "ordinal": 0
+      }
+    ]
+  },
+  "deep": {
+    "@label": "Deep",
+    "top": {
+      "mid": {
+        "leaf": {},
+        "@edges": [
+          {
+            "from": "leaf",
+            "to": "/lane2.*",
+            "directed": "forward",
+            "ordinal": 0
+          }
+        ]
+      }
+    }
+  },
+  "empty": {
+    "@label": "Empty"
+  },
+  "ported": {
+    "p": {
+      "@ports": {
+        "out": "east"
+      }
+    },
+    "q": {
+      "@ports": {
+        "out": "east"
+      }
+    },
+    "r": {}
+  },
+  "fan1": {
+    "x": {
+      "@ports": {
+        "out": "east"
+      }
+    },
+    "y": {
+      "@ports": {
+        "out": "east"
+      }
+    },
+    "z": {
+      "@ports": {
+        "out": "east"
+      }
+    }
+  },
+  "fan2": {
+    "m": {},
+    "n": {}
+  },
+  "@edges": [
+    {
+      "from": "lane1.*",
+      "to": "switch",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "switch",
+      "to": "lane2.*",
+      "directed": "forward",
+      "ordinal": 0,
+      "@label": "distributes"
+    },
+    {
+      "from": "deep.**",
+      "to": "switch",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "lane1.*",
+      "to": "lane2.*",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "ported.*",
+      "to": "switch",
+      "fromPort": "out",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "fan1.*",
+      "to": "fan2.*",
+      "fromPort": "out",
+      "toPort": "in",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "lane1.*",
+      "to": "switch",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "switch",
+      "to": "lane2.*",
+      "directed": "forward",
+      "ordinal": 1
+    },
+    {
+      "from": "empty.*",
+      "to": "switch",
+      "directed": "forward",
+      "ordinal": 0
+    }
+  ]
+}

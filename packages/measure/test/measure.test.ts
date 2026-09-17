@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { EdgeId, LabelId, NodeId, SemanticGraph } from '@sgl/core';
 import type { ComputedStyle, StyledGraph } from '@sgl/theme';
+import { corpusStyledGraph, listCorpusDocs } from '../../theme/test/corpus.js';
 import { CanvasMeasurer, canvasIsAvailable } from '../src/canvas-measurer.js';
 import { createDefaultMeasurer } from '../src/default-measurer.js';
 import { glyphCount, layoutLines, type MeasureRun } from '../src/line-model.js';
@@ -18,10 +19,13 @@ import { MeasureMiss, type StyledRun, type TextStyle } from '../src/types.js';
 // ---------------------------------------------------------------------------
 // Fixtures
 //
-// Built by hand as plain object literals. `parse`/`resolve`/`compile`/`styleGraph`
-// are being implemented in parallel; depending on them here would couple this
-// package's tests to four stages that do not exist yet, and would stop these tests
-// telling us anything about measurement specifically.
+// `fixtureGraph` below is still built by hand: it exists to engineer three specific
+// edge cases the corpus does not contain (Stage D, 07 §5) — a label with zero runs
+// (impossible from real `.sgl` source: `compile()` gives an empty `@label` no
+// `labelId` at all, never an empty `runs` array), and precise control over which
+// two labels share text and style. Everything that only needs *some* real,
+// compiler-shaped `StyledGraph` now draws on `corpus/` via `corpusStyledGraph`
+// (`packages/theme/test/corpus.ts`) — see "premeasure: over the corpus" below.
 // ---------------------------------------------------------------------------
 
 const BASE_STYLE: TextStyle = {
@@ -100,6 +104,7 @@ function fixtureGraph(): StyledGraph {
         labelId: id<LabelId>('l:e-0001'),
         config: {},
         declaredIn: null,
+        hidden: false,
         span: SPAN,
       },
     ],
@@ -452,6 +457,56 @@ describe('premeasure', () => {
     const first = JSON.stringify(premeasure(fixtureGraph(), new StaticMetricsMeasurer()));
     const second = JSON.stringify(premeasure(fixtureGraph(), new StaticMetricsMeasurer()));
     expect(second).toBe(first);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// premeasure — over the corpus (Stage D, 07 §5)
+//
+// `fixtureGraph` above asserts the mechanics with a hand-picked, adversarial set of
+// labels. This block asserts the DD-00 §6 measurement exit criterion literally,
+// against every document the real front end actually compiles.
+// ---------------------------------------------------------------------------
+
+describe('premeasure: over the corpus (DD-00 §6)', () => {
+  it('covers 100% of labels in the corpus — zero worker RPC misses', () => {
+    for (const doc of listCorpusDocs()) {
+      const { styled } = corpusStyledGraph(doc);
+      const table = premeasure(styled, new StaticMetricsMeasurer());
+      const worker = new TableMeasurer(table);
+      for (const id of Object.keys(styled.graph.labels)) {
+        const labelId = id as LabelId;
+        expect(table[labelRunKey(styled, labelId)], `${doc}: ${labelId}`).toBeDefined();
+        expect(worker.has(labelRuns(styled, labelId), UNCONSTRAINED), `${doc}: ${labelId}`).toBe(true);
+      }
+    }
+  });
+
+  it('folds two real labels that share text and style onto one table entry (wildcards.sgl)', () => {
+    // `lane2.x` and `fan1.x` are unrelated leaves with no `@label`, so both default
+    // to the title "x" with no class or `@style` to tell their look apart — the
+    // same fold `fixtureGraph`'s `platform.api`/`platform.worker` engineers by hand,
+    // produced here by two nodes the compiler actually built.
+    const { styled } = corpusStyledGraph('wildcards.sgl');
+    expect(labelRunKey(styled, 'l:lane2.x' as LabelId)).toBe(labelRunKey(styled, 'l:fan1.x' as LabelId));
+    const table = premeasure(styled, new StaticMetricsMeasurer());
+    expect(Object.keys(table).length).toBeLessThan(Object.keys(styled.graph.labels).length);
+  });
+
+  it('measures a real multiline, unicode and RTL title (unicode.sgl)', () => {
+    const { styled } = corpusStyledGraph('unicode.sgl');
+    const table = premeasure(styled, new StaticMetricsMeasurer());
+
+    const multiline = table[labelRunKey(styled, 'l:multiline' as LabelId)];
+    expect(multiline?.lines).toHaveLength(2);
+    expect(multiline?.lines.map((l) => l.runs[0]?.text)).toEqual(['Line one', 'Line two']);
+
+    const emoji = table[labelRunKey(styled, 'l:🚀' as LabelId)];
+    expect(emoji?.width).toBeGreaterThan(0);
+
+    // A quoted key with a dot escapes to `metrics\.v2` (DD-03 id escaping) —
+    // asserted here because a wrong escape would silently miss the table.
+    expect(table[labelRunKey(styled, 'l:metrics\\.v2' as LabelId)]).toBeDefined();
   });
 });
 

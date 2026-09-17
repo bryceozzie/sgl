@@ -52,6 +52,10 @@ export interface GraphEdge {
   readonly config: ConfigBag;
   /** The container whose block declared it; `null` = root. */
   readonly declaredIn: NodeId | null;
+  /** Effectively hidden: its own `@hidden`, or either endpoint's node is hidden
+   *  (DD-03 §6) — mirrors the node rule, not keyed off `SGL3002` (that stays
+   *  keyed off hidden *nodes* only). */
+  readonly hidden: boolean;
   readonly span: SourceSpan;
 }
 

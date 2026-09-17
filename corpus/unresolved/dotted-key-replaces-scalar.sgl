@@ -1,0 +1,2 @@
+// expects: SGL2006
+a: { @meta: "flag", @meta.author: "bob" }

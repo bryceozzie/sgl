@@ -1,0 +1,2 @@
+// expects: SGL2012
+a: { @classes: { X: {} } }
