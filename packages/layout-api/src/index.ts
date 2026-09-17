@@ -6,9 +6,12 @@
  * appearance, or an SVG element.
  */
 
+export * from './anchor.js';
+export * from './content-insets.js';
 export * from './contract.js';
 export * from './fallbacks.js';
 export * from './host.js';
 export * from './protocol.js';
 export * from './registry.js';
+export * from './sizing.js';
 export * from './validate.js';

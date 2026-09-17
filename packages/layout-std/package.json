@@ -12,5 +12,6 @@
   "scripts": {
     "build": "tsdown"
   },
-  "dependencies": { "@sgl/core": "workspace:*", "@sgl/layout-api": "workspace:*" }
+  "dependencies": { "@sgl/core": "workspace:*", "@sgl/layout-api": "workspace:*" },
+  "devDependencies": { "@sgl/measure": "workspace:*", "@sgl/theme": "workspace:*" }
 }
