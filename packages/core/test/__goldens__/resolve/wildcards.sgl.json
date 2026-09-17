@@ -78,6 +78,11 @@
     "m": {},
     "n": {}
   },
+  "loop": {
+    "@label": "Loop",
+    "p": {},
+    "q": {}
+  },
   "@edges": [
     {
       "from": "lane1.*",
@@ -134,6 +139,12 @@
     {
       "from": "empty.*",
       "to": "switch",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "loop.p",
+      "to": "loop.*",
       "directed": "forward",
       "ordinal": 0
     }

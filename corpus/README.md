@@ -15,7 +15,7 @@ single purpose, so a failure names what broke.
 | `ports.sgl` | all four sides, port-to-port edges |
 | `classes.sgl` | inheritance diamond, override order, theme `byClass`, ports cascading from a class with inline override |
 | `containers-edges.sgl` | edges to containers, boundary-crossing edges (the ELK case) |
-| `wildcards.sgl` | `*` and `**` endpoints: fan-out, descendants, cross product, ports (one- and both-sided), hidden children, relative and root-absolute wildcards |
+| `wildcards.sgl` | `*` and `**` endpoints: fan-out, descendants, cross product, ports (one- and both-sided), hidden children, relative and root-absolute wildcards, a one-sided wildcard whose expansion contains its own literal other endpoint (F4) |
 | `wildcard-globs.sgl` | name globs: prefix, suffix, both ends, a dash before the star, quoted keys, and the near-misses that must **not** match |
 | `shapes.sgl` | every built-in shape once |
 | `unicode.sgl` | quoted keys with spaces, dots and emoji; RTL text in labels |
