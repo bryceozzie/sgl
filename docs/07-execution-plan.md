@@ -106,8 +106,8 @@ A stage is not done because the code is written. It is done when its gate passes
 | Component | State | Where |
 |---|---|---|
 | Workspace, types, diagnostics catalogue, style registry, built-in themes, Lezer grammar | **Done** | `main` |
-| `@sgl/theme` — `resolveTheme`, `styleGraph`, geometry/paint hashes | **Done**, T1+T2 gate green, tested against hand-built fixtures | `main` |
-| `@sgl/measure` — `premeasure`, three `Measurer`s, run keys | **Done**, T1+T2 gate green, tested against hand-built fixtures | `main` |
+| `@sgl/theme` — `resolveTheme`, `styleGraph`, geometry/paint hashes | **Done**, T1+T2 gate green, tested against `corpus/`-derived graphs (Stage D) | `main` |
+| `@sgl/measure` — `premeasure`, three `Measurer`s, run keys | **Done**, T1+T2 gate green, tested against `corpus/`-derived graphs (Stage D) | `main` |
 | `@sgl/render-svg` — shapes, style block, markers, text, `render()` | **Implementation only, no tests** | `feat/renderer` |
 | `@sgl/core` — `parse()`, `buildAst`, grammar fixes | **Done**, T1+T2 gate green | `main` |
 | `@sgl/core` — `resolve()`, `toJson`/`fromJson`, config-key registry | **Done**, T1+T2 gate green | `main` |
@@ -120,7 +120,7 @@ A stage is not done because the code is written. It is done when its gate passes
 committed and the diagnostics coverage table enforced — so **from here no stage hand-builds a
 `SemanticGraph`**, and Stage D exists to delete the two that predate this.
 
-**Stage D's implementation is done on `feat/corpus-fixtures`; `pnpm check` green (504 tests).** A
+**Stage D is done.** `feat/corpus-fixtures` merged to `main`; `pnpm check` green (504 tests). A
 shared `corpusStyledGraph`/`corpusGraph` helper (`packages/theme/test/corpus.ts` — a dev-only fixture
 module, not a package export) runs the real `parse → resolve → compile → resolveTheme → styleGraph`
 pipeline over a named `corpus/` document; `cascade.test.ts` and `measure.test.ts` now draw the
