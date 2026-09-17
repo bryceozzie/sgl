@@ -284,6 +284,8 @@ All arithmetic is integer/rational → `bitwise`. Edges and labels are left to t
 
 F1 (07 §2.1) is cleared here: `pack()`'s `childrenOf()` filters `.hidden` on every level, not just the top, since `children`/`rootChildren` list hidden nodes and only `graph.order` does not.
 
+**`pack()` honours a container's `min` but not its `fixed`/`max`.** This is the algorithm above exactly as written — `c.size` clamps only against `minWidth`/`minHeight` — and it is not a Stage E deviation, but it is easy to misread as a bug: `@size.width`/`@size.height` on a container is silently ignored by `grid`, which always sizes a container from its packed children regardless of what the document asked for. (A leaf does honour all three, via the ordinary `fixed ?? clamp(intrinsic, min, max)` path.) Whether a container should be allowed a fixed/max size at all — and if so, how packing degrades when the children do not fit inside it — is an open question for whichever stage next revisits `grid`, not a defect to route around silently here.
+
 ---
 
 ## 8. Conformance suite (`@sgl/layout-api/conformance`)

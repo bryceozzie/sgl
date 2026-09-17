@@ -1,8 +1,57 @@
-import type { Rect } from '@sgl/core';
+import type { Point, Rect } from '@sgl/core';
 import { describe, expect, it } from 'vitest';
 import { anchorPoint, centreOf, unit } from '../src/anchor.js';
 
 const FRAME: Rect = { x: 0, y: 0, w: 100, h: 50 };
+const EPS = 1e-6;
+
+/** True if `p` lies on the boundary of `frame`, within tolerance. */
+function onBoxBoundary(p: Point, frame: Rect): boolean {
+  const onVerticalEdge = (p.x === frame.x || Math.abs(p.x - (frame.x + frame.w)) < EPS) && p.y >= frame.y - EPS && p.y <= frame.y + frame.h + EPS;
+  const onHorizontalEdge = (p.y === frame.y || Math.abs(p.y - (frame.y + frame.h)) < EPS) && p.x >= frame.x - EPS && p.x <= frame.x + frame.w + EPS;
+  return onVerticalEdge || onHorizontalEdge;
+}
+
+/** True if `p` lies on one of `vertices`' edges, within tolerance — a
+ *  point-to-segment distance check, not just a bounding-box check. */
+function onPolygonBoundary(p: Point, vertices: readonly Point[]): boolean {
+  for (let i = 0; i < vertices.length; i += 1) {
+    const a = vertices[i]!;
+    const b = vertices[(i + 1) % vertices.length]!;
+    const ex = b.x - a.x;
+    const ey = b.y - a.y;
+    const len2 = ex * ex + ey * ey;
+    const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * ex + (p.y - a.y) * ey) / len2));
+    const cx = a.x + t * ex;
+    const cy = a.y + t * ey;
+    if (Math.hypot(p.x - cx, p.y - cy) < EPS) return true;
+  }
+  return false;
+}
+
+function diamondVertices(f: Rect): readonly Point[] {
+  const cx = f.x + f.w / 2;
+  const cy = f.y + f.h / 2;
+  return [
+    { x: cx, y: f.y },
+    { x: f.x + f.w, y: cy },
+    { x: cx, y: f.y + f.h },
+    { x: f.x, y: cy },
+  ];
+}
+
+function hexagonVertices(f: Rect): readonly Point[] {
+  const i = Math.min(f.h / 2, f.w / 4);
+  const cy = f.y + f.h / 2;
+  return [
+    { x: f.x + i, y: f.y },
+    { x: f.x + f.w - i, y: f.y },
+    { x: f.x + f.w, y: cy },
+    { x: f.x + f.w - i, y: f.y + f.h },
+    { x: f.x + i, y: f.y + f.h },
+    { x: f.x, y: cy },
+  ];
+}
 
 describe('anchorPoint (DD-07 §4)', () => {
   it('returns the centre for a degenerate ray (toward === centre)', () => {
@@ -25,6 +74,11 @@ describe('anchorPoint (DD-07 §4)', () => {
 
     it('an unknown shape id uses the box anchor', () => {
       expect(anchorPoint('some-future-shape', FRAME, { x: 1000, y: 25 })).toEqual({ x: 100, y: 25 });
+    });
+
+    it('a diagonal ray still lands exactly on an edge, not a rounded-off interior point', () => {
+      const p = anchorPoint('rect', FRAME, { x: 1000, y: 1000 });
+      expect(onBoxBoundary(p, FRAME)).toBe(true);
     });
   });
 
@@ -59,6 +113,16 @@ describe('anchorPoint (DD-07 §4)', () => {
 
     it('hexagon: straight right hits the right vertex', () => {
       expect(anchorPoint('hexagon', FRAME, { x: 1000, y: 25 })).toEqual({ x: 100, y: 25 });
+    });
+
+    it('diamond: a diagonal ray lands exactly on one of the four edges', () => {
+      const p = anchorPoint('diamond', FRAME, { x: 90, y: 40 });
+      expect(onPolygonBoundary(p, diamondVertices(FRAME))).toBe(true);
+    });
+
+    it('hexagon: a diagonal ray lands exactly on one of the six edges', () => {
+      const p = anchorPoint('hexagon', FRAME, { x: 90, y: 5 });
+      expect(onPolygonBoundary(p, hexagonVertices(FRAME))).toBe(true);
     });
   });
 });

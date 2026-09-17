@@ -2,6 +2,7 @@ import {
   asEdgeId,
   asLabelId,
   asNodeId,
+  asPortId,
   NO_SPAN,
   type GraphEdge,
   type GraphNode,
@@ -192,6 +193,45 @@ describe('routeStraight (DD-06 §4.2, §4.3, §4.5)', () => {
     expect(layout.clip).toBe('none');
   });
 
+  it('a port normal is the boundary\'s outward normal, so the head end negates it (not the tail)', () => {
+    const edge: GraphEdge = {
+      id: asEdgeId('e-ab'),
+      from: { node: A },
+      to: { node: B, port: asPortId('west') },
+      directed: 'forward',
+      classes: [],
+      labelId: null,
+      config: {},
+      declaredIn: null,
+      hidden: false,
+      span: NO_SPAN,
+    };
+    const graph = twoNodeGraph({}, [edge]);
+    const input = baseInput(graph);
+    // B's west port sits on its left edge; its own normal points outward (west,
+    // away from B, i.e. -x) exactly like `NodeLayout.ports[p].normal` is documented.
+    const result: LayoutResult = {
+      bounds: { x: 0, y: 0, w: 100, h: 100 },
+      nodes: {
+        [A]: { frame: { x: 0, y: 0, w: 20, h: 20 } },
+        [B]: { frame: { x: 80, y: 0, w: 20, h: 20 }, ports: { west: { point: { x: 80, y: 10 }, normal: { x: -1, y: 0 } } } },
+      },
+      edges: {},
+      labels: [],
+    };
+
+    const layout = routeStraight(input, result, METRICS).edges[edge.id]!;
+    // Direction of travel arriving at B is +x (rightward, into B) — the negation
+    // of the port's own outward (-x) normal. (`-0 !== 0` under `toEqual`, hence
+    // `toBeCloseTo` rather than a literal object match.)
+    expect(layout.endNormal!.x).toBeCloseTo(1, 10);
+    expect(layout.endNormal!.y).toBeCloseTo(0, 10);
+    // Arrow reserve must therefore pull `end` back toward A (smaller x), not push
+    // it further out past the port point (larger x).
+    expect(layout.end.x).toBeLessThan(80);
+    expect(layout.end.x).toBeCloseTo(80 - 8, 6);
+  });
+
   it('never overwrites a route an engine already returned', () => {
     const edge: GraphEdge = {
       id: asEdgeId('e-ab'),
@@ -246,6 +286,41 @@ describe('routeStraight (DD-06 §4.2, §4.3, §4.5)', () => {
       expect(Number.isFinite(seg.to.x)).toBe(true);
       expect(Number.isFinite(seg.to.y)).toBe(true);
     }
+  });
+
+  it('a directed self-loop gets the same arrow reserve as a straight edge (DD-06 §4.4)', () => {
+    const directedEdge: GraphEdge = {
+      id: asEdgeId('e-aa-forward'),
+      from: { node: A },
+      to: { node: A },
+      directed: 'forward',
+      classes: [],
+      labelId: null,
+      config: {},
+      declaredIn: null,
+      hidden: false,
+      span: NO_SPAN,
+    };
+    const undirectedEdge: GraphEdge = { ...directedEdge, id: asEdgeId('e-aa-none'), directed: 'none' };
+    const graph = twoNodeGraph({}, [directedEdge, undirectedEdge]);
+    const input = baseInput(graph);
+    const result: LayoutResult = {
+      bounds: { x: 0, y: 0, w: 100, h: 100 },
+      nodes: { [A]: { frame: { x: 0, y: 0, w: 40, h: 40 } }, [B]: { frame: { x: 80, y: 0, w: 20, h: 20 } } },
+      edges: {},
+      labels: [],
+    };
+
+    const out = routeStraight(input, result, METRICS).edges;
+    const directed = out[directedEdge.id]!;
+    const none = out[undirectedEdge.id]!;
+    // Both loops start from the same geometry, so the *undirected* one's `end` is
+    // exactly the un-reserved boundary point — the reference to measure against.
+    const pullBack = Math.hypot(directed.end.x - none.end.x, directed.end.y - none.end.y);
+    expect(pullBack).toBeCloseTo(METRICS.arrowSize, 6);
+    // The route's own last segment always ends where `end` does — the assertion
+    // above is the one that would have failed before self-loops got a reserve.
+    expect(directed.route[directed.route.length - 1]!.to).toEqual(directed.end);
   });
 
   it('skips a hidden edge', () => {

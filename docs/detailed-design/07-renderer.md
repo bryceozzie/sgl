@@ -95,7 +95,7 @@ interface Shape {
 }
 ```
 
-| id | path | content insets | anchor |
+| id | path | content insets (in terms of the shape's own `w`/`h`, per this column) | anchor |
 |---|---|---|---|
 | `rect` | `M x y h w v h h -w Z` | 0 | box |
 | `round` | rect with `a r r 0 0 1` corners, `r = min(radius, w/2, h/2)` | 0 | box (corner error ≤ r(1−1/√2), accepted) |
@@ -105,7 +105,9 @@ interface Shape {
 | `cylinder` | body rect + top ellipse (`ry = min(8, h/6)`) + visible bottom arc | top `2·ry`, bottom `ry` | box |
 | `package` | tab (`w·0.35 × 14`) over a rect | top 14 | box |
 
-**Anchor functions.** `box`: clip the ray to the rectangle (Liang–Barsky, 4 comparisons). `ellipse`: `t = 1/√((dx/a)² + (dy/b)²)`. `polygon`: test the ray against each edge segment, take the nearest hit. All three return the centre if `from` equals the centre (degenerate self-loop — DD-06 §4.5 handles routing before this is reached).
+**The content-insets column above is written in terms of the shape's own `w`/`h`** — the same `w`/`h` its `path` column draws with, and the frame `Shape.path`/`Shape.anchor` receive. `Shape.contentInsets(labelW: number, labelH: number): Insets`, by contrast, is handed the *label's* width and height and must return the inset for a shape *sized to exactly hold that label* — i.e. the solution of the column's equation for the shape whose content box (frame minus insets) equals `labelW × labelH`. The two are equal only at that fixed point, and reading the column's `w`/`h` as the label's, uncorrected, gives the wrong inset for every non-box shape (ellipse, diamond, hexagon, cylinder): a diamond sized by `w/4` in *label* terms comes out roughly half the size it needs to be. `packages/render-svg/src/shapes.ts` documents each shape's solved form inline; `@sgl/layout-api`'s duplicate (`content-insets.ts`, DD-06 §2) must match it, and both are tested against the underlying containment property, not just against each other, so a future change to one has somewhere to be checked against.
+
+**Anchor functions.** `box`: clip the ray to the rectangle (Liang–Barsky, 4 comparisons). `ellipse`: `t = 1/√((dx/a)² + (dy/b)²)`. `polygon`: test the ray against each edge segment, take the nearest hit. All three return the centre if `from` equals the centre (degenerate self-loop — DD-06 §4.5 handles routing before this is reached). Unlike `contentInsets`, the anchor functions take the frame directly — no label-vs-shape distinction applies to them.
 
 **⟶ C7:** user shapes are parameterised path templates; `contentInsets` and `anchor` come from the template's declared `anchor: box|ellipse|polygon`. The `Shape` interface does not change.
 

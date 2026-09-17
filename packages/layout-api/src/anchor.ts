@@ -5,8 +5,24 @@ import type { Point, Rect, ShapeId } from '@sgl/core';
  *
  * DD-07 §4 makes the renderer the owner of `Shape.anchor`, but `layout-api` may not
  * import `@sgl/render-svg` (DD-00 §2 rule 2), so the three anchor families — box,
- * ellipse and polygon — are implemented here over the same shape table. They agree
- * with DD-07 §4 by construction: same vertex sets, same parametric solve.
+ * ellipse and polygon — are implemented here over the same shape table.
+ *
+ * Unlike `content-insets.ts`'s table, an anchor takes the frame directly with no
+ * label-vs-shape unit mismatch to solve, so there is no derivation step where this
+ * copy could disagree with `feat/renderer`'s in the way `content-insets.ts` did:
+ * `boxAnchor`/`ellipseAnchor`/`polygonAnchor` and the `diamond`/`hexagon` vertex
+ * formulas here are, line for line, the same algorithm as
+ * `packages/render-svg/src/shapes.ts`'s `boxAnchor`/`ellipseAnchor`/`polygonAnchor`/
+ * `diamondVertices`/`hexagonVertices` (verified against commit f1c476c5,
+ * 2026-09-15). That comparison cannot be turned into an automated cross-package
+ * test yet — `render-svg` isn't merged, and even once it is, `layout-api` still may
+ * not import it — so `anchor.test.ts` instead pins the properties that uniquely
+ * define each anchor function (a box anchor lands exactly on one of the four
+ * edges; an ellipse anchor satisfies the ellipse equation to floating-point
+ * precision; a polygon anchor lands exactly on one of the polygon's edges,
+ * including on a diagonal ray, not just the cardinal directions a coincidental
+ * match could satisfy). Passing those is equivalent to matching the vertex sets
+ * and parametric solves above, which is what "agree by construction" means here.
  *
  * Arithmetic is `+ - * /` and `sqrt` only, all of which ECMAScript specifies exactly
  * (ADR-0004), so a clipped route is reproducible bit for bit.

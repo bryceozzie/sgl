@@ -138,7 +138,7 @@ single-`Critical`-class node without its own inline override — each noted in p
 
 Two branches remain deliberately unmerged, both per §1 rather than by oversight: `feat/renderer`
 (implementation only, no tests — Stage F's gate has not run) and `feat/grid-engine`, where Stage E's
-own gate now passes (`pnpm check` green, 646 tests) but the branch has not been merged pending
+own gate now passes (`pnpm check` green, 757 tests) but the branch has not been merged pending
 review of the deviations recorded in its commit message and in DD-06. Neither may merge before its
 gate passes, and `feat/grid-engine`'s passing is not itself authorization to merge without that
 review; `main` must be green at every commit.
@@ -160,14 +160,36 @@ every directed edge — the majority of the corpus — with its arrowhead stradd
 task list names it. `validateResult`'s `SGL4003` "corrected" behaviour for an overflowing
 `contentFrame` is downgraded to warn-only, since its inherited signature returns diagnostics, not a
 new `LayoutResult`, and has nowhere to put a correction. Bitwise double-run determinism and
-zero-`SGL4002`-errors validation both hold over every document in `corpus/`, including
-`malformed/`, `unresolved/` and `injection/` (646 tests total, up from 504 before this stage). One
-finding surfaced and fixed during implementation, not by design: an early version double-counted a
-container's own padding when placing its children (content-origin offset applied on top of an
+zero-diagnostics validation (both `SGL4002` and `SGL4003`, and DD-06 §8's conformance item 3 — no two
+sibling leaf frames overlap) hold over every document in `corpus/`, including `malformed/`,
+`unresolved/` and `injection/`; layout goldens are committed for the same clean-document set
+`compile()`'s own gate uses (757 tests total, up from 504 before this stage). One finding surfaced
+and fixed during implementation, not by design: an early version double-counted a container's own
+padding when placing its children (content-origin offset applied on top of an
 already-padding-inclusive relative position) — caught by the `nesting-3.sgl` containment test, not
 by the flatter fixtures. A gap outside this stage's reach: a root-level `@layout.columns` hint can
 never reach `grid`, because `compile()` (DD-03, frozen) keeps only `model.root.config.title` from the
 root's config and drops the rest.
+
+**A review round found one real defect and two latent inconsistencies, all now fixed.** `content-insets.ts`
+read DD-07 §4's inset table as if its `w`/`h` were the *label's*; they are the *shape's own*, the
+same `w`/`h` the table's `path` column draws with, so every non-box shape (ellipse, diamond, hexagon,
+cylinder) came out too small — a diamond roughly half the size it needed to hold its label. Fixed to
+the solved-for-the-label forms (`packages/render-svg/src/shapes.ts` on `feat/renderer`, commit
+f1c476c5, already had the correct derivation; DD-07 §4 is amended to say explicitly which `w`/`h` the
+table means). The test suite now asserts the containment property the formulas exist to satisfy, not
+just pinned numbers, across a spread of label sizes — the drift guard the duplication needs until
+Stage F merges and the two copies become one. `anchor.ts` was checked line-for-line against the same
+`feat/renderer` commit's anchor functions and found to already agree (no fix needed there); its tests
+were strengthened with diagonal-ray boundary checks to pin the defining geometric property, since a
+cross-package equality test isn't possible before `render-svg` merges. Separately, in
+`fallbacks.ts`: `routeOne`'s port-terminated `endNormal` used a port's own *outward* boundary normal
+directly instead of negating it, inverting §4.4's arrow reserve at a port-terminated head (latent
+today — `grid` declares `ports: false`); and `selfLoopLayout` returned before §4.4's arrow reserve
+ran at all, so a directed self-loop's arrowhead would have straddled the boundary exactly like the
+edges the reserve was added to fix. Both corrected, with tests. DD-06 §7 also gained a line noting
+that `pack()` — per the algorithm exactly as designed, not a bug — honours a container's `min` but
+silently ignores its `fixed`/`max`.
 
 Both grammar defects tracked in the README (quoted `@`-keys, `$name` as a
 `Variable` token) are fixed and Stage A's gate passed on `main`. Stage B found

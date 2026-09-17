@@ -124,44 +124,84 @@ function routeOne(
     return null;
   }
 
-  if (edge.from.node === edge.to.node) return selfLoopLayout(fromNode, fromFrame);
+  if (edge.from.node === edge.to.node) return selfLoopLayout(fromNode, fromFrame, edge, metrics);
 
   const fromPort = edge.from.port !== undefined ? result.nodes[edge.from.node]?.ports?.[edge.from.port] : undefined;
   const toPort = edge.to.port !== undefined ? result.nodes[edge.to.node]?.ports?.[edge.to.port] : undefined;
 
   const fromCentre = centreOf(fromFrame);
   const toCentre = centreOf(toFrame);
-  let start = fromPort?.point ?? anchorPoint(fromNode.shape, fromFrame, toPort?.point ?? toCentre);
-  let end = toPort?.point ?? anchorPoint(toNode.shape, toFrame, fromPort?.point ?? fromCentre);
+  const rawStart = fromPort?.point ?? anchorPoint(fromNode.shape, fromFrame, toPort?.point ?? toCentre);
+  const rawEnd = toPort?.point ?? anchorPoint(toNode.shape, toFrame, fromPort?.point ?? fromCentre);
 
-  const startNormal = fromPort?.normal ?? unit(start.x - end.x, start.y - end.y) ?? { x: -1, y: 0 };
-  const endNormal = toPort?.normal ?? unit(end.x - start.x, end.y - start.y) ?? { x: 1, y: 0 };
+  // `startNormal`/`endNormal` both mean "the direction of travel at that end" —
+  // `endNormal` is where the arrowhead points continuing into the target, and
+  // `startNormal` (only drawn for `directed: 'both'`) points the opposite way,
+  // back out past the source. A port's own `normal` is its *outward* boundary
+  // normal (pointing away from its node); at the head that is the reverse of
+  // "direction of travel arriving", so it needs negating — at the tail it already
+  // matches "pointing away from the source", so it does not.
+  const startNormal = fromPort?.normal ?? unit(rawStart.x - rawEnd.x, rawStart.y - rawEnd.y) ?? { x: -1, y: 0 };
+  const endNormal = toPort !== undefined ? negate(toPort.normal) : (unit(rawEnd.x - rawStart.x, rawEnd.y - rawStart.y) ?? { x: 1, y: 0 });
 
-  // §4.4 — reserve room for the arrowhead so the marker tip lands on the boundary.
-  if (edge.directed === 'forward' || edge.directed === 'both') {
-    end = { x: end.x - endNormal.x * metrics.arrowSize, y: end.y - endNormal.y * metrics.arrowSize };
-  }
-  if (edge.directed === 'both') {
-    start = { x: start.x - startNormal.x * metrics.arrowSize, y: start.y - startNormal.y * metrics.arrowSize };
-  }
+  const { start, end } = applyArrowReserve(rawStart, rawEnd, startNormal, endNormal, edge.directed, metrics.arrowSize);
 
   const route: PathSeg[] = [{ t: 'L', to: end }];
   return { start, end, route, startNormal, endNormal, clip: 'none' };
+}
+
+/** §4.4 — reserve room for the arrowhead so the marker tip lands on the boundary
+ *  rather than the line poking through it: shorten the head end for `forward` and
+ *  `both`, and the tail end too for `both`. Shared by the straight-edge path and
+ *  the self-loop teardrop, which needs the same correction (see `selfLoopLayout`)
+ *  and previously skipped it entirely. */
+function applyArrowReserve(
+  start: Point,
+  end: Point,
+  startNormal: Point,
+  endNormal: Point,
+  directed: GraphEdge['directed'],
+  arrowSize: number,
+): { readonly start: Point; readonly end: Point } {
+  let s = start;
+  let e = end;
+  if (directed === 'forward' || directed === 'both') {
+    e = { x: e.x - endNormal.x * arrowSize, y: e.y - endNormal.y * arrowSize };
+  }
+  if (directed === 'both') {
+    s = { x: s.x - startNormal.x * arrowSize, y: s.y - startNormal.y * arrowSize };
+  }
+  return { start: s, end: e };
+}
+
+function negate(v: { readonly x: number; readonly y: number }): { readonly x: number; readonly y: number } {
+  return { x: -v.x, y: -v.y };
 }
 
 /** §4.5 — an engine's self-loop of fewer than two segments (grid never routes at
  *  all, so every self-loop reaches here) is replaced with a teardrop: exit the
  *  node's top-right at 45°, three `C` segments, re-enter at the right. The exact
  *  control-point placement below is this fallback's own choice — DD-06 §4.5 fixes
- *  the entry/exit points and the radius, not the curve's interior shape. */
-function selfLoopLayout(node: GraphNode, frame: Rect): EdgeLayout {
+ *  the entry/exit points and the radius, not the curve's interior shape.
+ *
+ * §4.4's arrow reserve applies here too — a directed self-loop needs its
+ * arrowhead pulled back from the boundary exactly as a straight edge does. Moving
+ * `start`/`end` without recomputing the curve's own control points is a small,
+ * accepted approximation (the same one every other engine's routing makes no
+ * attempt to avoid): at `arrowSize` (a few px) against a loop radius of at least
+ * 24, the resulting kink is not visible. */
+function selfLoopLayout(node: GraphNode, frame: Rect, edge: GraphEdge, metrics: ResolvedThemeMetricsView): EdgeLayout {
   const r = Math.max(24, frame.h / 2);
   const c = centreOf(frame);
-  const start = anchorPoint(node.shape, frame, { x: c.x + 1, y: c.y - 1 });
-  const end = anchorPoint(node.shape, frame, { x: c.x + 1, y: c.y });
+  const rawStart = anchorPoint(node.shape, frame, { x: c.x + 1, y: c.y - 1 });
+  const rawEnd = anchorPoint(node.shape, frame, { x: c.x + 1, y: c.y });
 
   const p1: Point = { x: c.x + r * 1.6, y: c.y - r * 1.2 };
   const p2: Point = { x: c.x + r * 1.8, y: c.y + r * 0.2 };
+
+  const endNormal = unit(rawEnd.x - p2.x, rawEnd.y - p2.y) ?? { x: 1, y: 0 };
+  const startNormal = unit(rawStart.x - p1.x, rawStart.y - p1.y) ?? { x: -1, y: 0 };
+  const { start, end } = applyArrowReserve(rawStart, rawEnd, startNormal, endNormal, edge.directed, metrics.arrowSize);
 
   const route: PathSeg[] = [
     { t: 'C', c1: { x: start.x + r * 0.8, y: start.y - r * 0.4 }, c2: { x: p1.x - r * 0.2, y: p1.y - r * 0.6 }, to: p1 },
@@ -169,8 +209,6 @@ function selfLoopLayout(node: GraphNode, frame: Rect): EdgeLayout {
     { t: 'C', c1: { x: p2.x - r * 0.1, y: p2.y + r * 0.6 }, c2: { x: end.x + r * 0.6, y: end.y + r * 0.4 }, to: end },
   ];
 
-  const endNormal = unit(end.x - p2.x, end.y - p2.y) ?? { x: 1, y: 0 };
-  const startNormal = unit(start.x - p1.x, start.y - p1.y) ?? { x: -1, y: 0 };
   return { start, end, route, startNormal, endNormal, clip: 'none' };
 }
 

@@ -1,4 +1,4 @@
-import type { LabelId, Size } from '@sgl/core';
+import type { LabelId, NodeId, Rect, SemanticGraph, Size } from '@sgl/core';
 import {
   buildLayoutInput,
   placeLabels,
@@ -64,7 +64,63 @@ async function runPipeline(input: LayoutInput): Promise<LayoutResult> {
   return quantize(labelled, 64);
 }
 
+/** Every corpus document `compile()` handles cleanly — no error diagnostics — kept
+ *  in step with `packages/core/test/compile.test.ts`'s own `CLEAN_DOCS` (not
+ *  exported from there, so duplicated; a drift between the two just means this
+ *  suite golden-tests a document compile() no longer considers clean, which
+ *  `corpusStyledGraph`'s own diagnostics would already have surfaced elsewhere). */
+const CLEAN_DOCS = [
+  'empty.sgl',
+  'single.sgl',
+  'json-form.sgl.json',
+  'checkout.sgl',
+  'nesting-3.sgl',
+  'chains.sgl',
+  'parallel-selfloop.sgl',
+  'ports.sgl',
+  'classes.sgl',
+  'containers-edges.sgl',
+  'wildcards.sgl',
+  'wildcard-globs.sgl',
+  'shapes.sgl',
+  'unicode.sgl',
+  'hidden.sgl',
+];
+
 const DOCS = listCorpusDocs();
+
+/** DD-06 §8 conformance item 3: no two *sibling leaf* frames overlap (a container
+ *  enclosing its own descendants is not an overlap in this sense). Checked at
+ *  every level, including root, whose "siblings" are `graph.rootChildren`. */
+function siblingLeafOverlaps(graph: SemanticGraph, result: LayoutResult): readonly (readonly [NodeId, NodeId])[] {
+  const violations: (readonly [NodeId, NodeId])[] = [];
+  const EPS = 1e-6;
+  const overlaps = (a: Rect, b: Rect): boolean =>
+    a.x + EPS < b.x + b.w && b.x + EPS < a.x + a.w && a.y + EPS < b.y + b.h && b.y + EPS < a.y + a.h;
+
+  const checkSiblings = (childIds: readonly NodeId[]): void => {
+    const leaves = childIds.filter((id) => {
+      const node = graph.nodes[id];
+      return node !== undefined && !node.hidden && node.children.length === 0;
+    });
+    for (let i = 0; i < leaves.length; i += 1) {
+      for (let j = i + 1; j < leaves.length; j += 1) {
+        const a = result.nodes[leaves[i]!];
+        const b = result.nodes[leaves[j]!];
+        if (a !== undefined && b !== undefined && overlaps(a.frame, b.frame)) {
+          violations.push([leaves[i]!, leaves[j]!]);
+        }
+      }
+    }
+  };
+
+  checkSiblings(graph.rootChildren);
+  for (const id of graph.order) {
+    const node = graph.nodes[id];
+    if (node !== undefined && !node.hidden && node.children.length > 0) checkSiblings(node.children);
+  }
+  return violations;
+}
 
 describe('grid engine over the corpus (DD-06 §7, T2 gate)', () => {
   it('has at least the documents this suite assumes', () => {
@@ -75,12 +131,11 @@ describe('grid engine over the corpus (DD-06 §7, T2 gate)', () => {
   });
 
   for (const doc of DOCS) {
-    it(`${doc}: lays out with no SGL4002 errors`, async () => {
+    it(`${doc}: lays out with no layout diagnostics at all (errors or warnings)`, async () => {
       const { input } = layoutInputFor(doc);
       const result = await runPipeline(input);
       const diagnostics = validateResult(result, input.graph, gridEngine.id);
-      const errors = diagnostics.filter((d) => d.severity === 'error');
-      expect(errors).toEqual([]);
+      expect(diagnostics).toEqual([]);
     });
 
     it(`${doc}: bitwise-identical across two runs (ADR-0004, DD-00 §6 exit criterion)`, async () => {
@@ -88,6 +143,20 @@ describe('grid engine over the corpus (DD-06 §7, T2 gate)', () => {
       const a = await runPipeline(input);
       const b = await runPipeline(input);
       expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    });
+
+    it(`${doc}: no two sibling leaf frames overlap (DD-06 §8, conformance item 3)`, async () => {
+      const { input } = layoutInputFor(doc);
+      const result = await runPipeline(input);
+      expect(siblingLeafOverlaps(input.graph, result)).toEqual([]);
+    });
+  }
+
+  for (const doc of CLEAN_DOCS) {
+    it(`${doc}: layout golden`, async () => {
+      const { input } = layoutInputFor(doc);
+      const result = await runPipeline(input);
+      await expect(`${JSON.stringify(result, null, 2)}\n`).toMatchFileSnapshot(`./__goldens__/grid/${doc}.json`);
     });
   }
 

@@ -1,0 +1,349 @@
+{
+  "bounds": {
+    "x": 0,
+    "y": 0,
+    "w": 618.375,
+    "h": 143.203125
+  },
+  "nodes": {
+    "external": {
+      "frame": {
+        "x": 0,
+        "y": 26.796875,
+        "w": 104,
+        "h": 89.59375
+      },
+      "contentFrame": {
+        "x": 16,
+        "y": 64.40625,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "external.cdn": {
+      "frame": {
+        "x": 16,
+        "y": 64.40625,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform": {
+      "frame": {
+        "x": 128,
+        "y": 0,
+        "w": 490.375,
+        "h": 143.203125
+      },
+      "contentFrame": {
+        "x": 144,
+        "y": 37.59375,
+        "w": 458.375,
+        "h": 89.59375
+      }
+    },
+    "platform.ingress": {
+      "frame": {
+        "x": 144,
+        "y": 37.59375,
+        "w": 234.375,
+        "h": 89.59375
+      },
+      "contentFrame": {
+        "x": 160,
+        "y": 75.203125,
+        "w": 202.375,
+        "h": 36
+      }
+    },
+    "platform.ingress.lb": {
+      "frame": {
+        "x": 160,
+        "y": 75.203125,
+        "w": 106.375,
+        "h": 36
+      }
+    },
+    "platform.ingress.waf": {
+      "frame": {
+        "x": 290.375,
+        "y": 75.203125,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform.services": {
+      "frame": {
+        "x": 402.375,
+        "y": 37.59375,
+        "w": 200,
+        "h": 89.59375
+      },
+      "contentFrame": {
+        "x": 418.375,
+        "y": 75.203125,
+        "w": 168,
+        "h": 36
+      }
+    },
+    "platform.services.api": {
+      "frame": {
+        "x": 418.375,
+        "y": 75.203125,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform.services.worker": {
+      "frame": {
+        "x": 514.375,
+        "y": 75.203125,
+        "w": 72,
+        "h": 36
+      }
+    }
+  },
+  "edges": {
+    "e-aa8a579440c55bf8": {
+      "start": {
+        "x": 514.375,
+        "y": 92.421875
+      },
+      "end": {
+        "x": 96,
+        "y": 83.359375
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 96,
+            "y": 83.359375
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0.9997652845722065,
+        "y": 0.02166508168124354
+      },
+      "endNormal": {
+        "x": -0.9997652845722065,
+        "y": -0.02166508168124354
+      },
+      "clip": "none"
+    },
+    "e-8053b7646e964a44": {
+      "start": {
+        "x": 266.375,
+        "y": 93.203125
+      },
+      "end": {
+        "x": 410.375,
+        "y": 93.203125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 410.375,
+            "y": 93.203125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "clip": "none"
+    },
+    "e-8312902bb75b3f5b": {
+      "start": {
+        "x": 290.375,
+        "y": 93.203125
+      },
+      "end": {
+        "x": 274.375,
+        "y": 93.203125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 274.375,
+            "y": 93.203125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "clip": "none"
+    },
+    "e-838a69e88cc4c5f7": {
+      "start": {
+        "x": 490.375,
+        "y": 93.203125
+      },
+      "end": {
+        "x": 506.375,
+        "y": 93.203125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 506.375,
+            "y": 93.203125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "clip": "none"
+    },
+    "e-727e23be260ac34e": {
+      "start": {
+        "x": 418.375,
+        "y": 93.203125
+      },
+      "end": {
+        "x": 274.375,
+        "y": 93.203125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 274.375,
+            "y": 93.203125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "clip": "none"
+    }
+  },
+  "labels": [
+    {
+      "labelId": "l:external",
+      "frame": {
+        "x": 16,
+        "y": 42.796875,
+        "w": 46.09375,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:external.cdn",
+      "frame": {
+        "x": 41.515625,
+        "y": 73.953125,
+        "w": 20.953125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform",
+      "frame": {
+        "x": 144,
+        "y": 16,
+        "w": 48.25,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:platform.ingress",
+      "frame": {
+        "x": 160,
+        "y": 53.59375,
+        "w": 42.5,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:platform.ingress.lb",
+      "frame": {
+        "x": 172,
+        "y": 84.75,
+        "w": 82.375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform.ingress.waf",
+      "frame": {
+        "x": 316.265625,
+        "y": 84.75,
+        "w": 20.234375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform.services",
+      "frame": {
+        "x": 418.375,
+        "y": 53.59375,
+        "w": 47.53125,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:platform.services.api",
+      "frame": {
+        "x": 445.703125,
+        "y": 84.75,
+        "w": 17.34375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform.services.worker",
+      "frame": {
+        "x": 530.875,
+        "y": 84.75,
+        "w": 39,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    }
+  ]
+}
