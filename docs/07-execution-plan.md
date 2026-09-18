@@ -284,14 +284,26 @@ blame the package's two most security-sensitive files. Replaced with `\x00`-styl
 ordinary diffable text now.
 
 **Fix 5 (this change) corrects a claim the review round's write-up made but never actually fixed:**
-the paint-only `<style>`-block-swap property asserted in five places (`index.ts`'s `RenderResult.styleBlock`
-doc comment, DD-07 §1/§2/§5/§11, DD-08 §3) does not hold — see **F7** above for the two independent
-reasons, both verified against the committed goldens. All five are corrected in the documents; nothing
-in `src/` changed beyond the `index.ts` comment text, because the code was already right — it never
-claimed the property internally, only the surrounding prose did. **F8** (above) is a second, unrelated
-finding surfaced while grepping for survivors of the same claim: whether `<style>`'s XML-escaped content
-still decodes correctly once it reaches DD-08 §6's `innerHTML` path is spec reading, not a verified
-result, because no browser target exists yet.
+the paint-only `<style>`-block-swap property asserted in **nine** places does not hold — see **F7**
+above for the two independent reasons, both verified against the committed goldens. Seven were fixed
+in the Fix 5 change itself (`index.ts`'s `RenderResult.styleBlock` doc comment, DD-07 §1/§2/§5/§11,
+DD-08 §3 and its Theme ▾ row, DD-09 §2's budget row); a follow-up review found the last two, which
+had escaped because neither uses the phrase the sweep grepped for. **They were the two that mattered
+most**, both being instructions rather than prose: Stage I's own gate in §5 told a future agent to
+"assert the SVG tree is untouched and only the `<style>` block changes" — a Playwright assertion that
+cannot pass, now restated to assert *geometry* is untouched, which is what MVP criterion 2 actually
+says; and `text.ts`'s `renderText` doc comment still mirrored the DD-07 §5 claim that was corrected
+in the document but not in the code beside it. Nothing in `src/` changed beyond those two comments,
+because the code was always right — it never claimed the property internally, only the surrounding
+prose did. **The lesson for the next sweep:** grep for the *assertion*, not the vocabulary. Both
+survivors named the property without using the words `paint-only`, `styleBlock` or `style block`.
+
+**F8** (above) is a second, unrelated finding surfaced while grepping for survivors of the same claim:
+whether `<style>`'s XML-escaped content still decodes correctly once it reaches DD-08 §6's `innerHTML`
+path is spec reading, not a verified result, because no browser target exists yet. **F9** is a
+consequence of F7 rather than a separate discovery: DD-09 §2's `< 16 ms` paint-only-theme-switch
+budget was justified *by* the style-swap, so removing the swap left the figure with nothing behind it
+and nothing able to measure it until Stage G builds the bench.
 
 **The smaller findings from the second review round are mostly still open — cosmetic or cleanup, no
 behaviour impact, none blocked on a future stage, so none of them belong in §2.1 (which is only for
@@ -385,6 +397,7 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F6** | `renderNode`'s port-circle template (DD-07 §3) is live, correctly `aria-hidden`, and unit-tested directly — but unreachable through the real pipeline: `grid` declares `capabilities.ports: false` and no host fallback places ports (DD-06 §4 covers labels and routing, not ports), so `LayoutResult.nodes[id].ports` is never populated end to end. Found during Stage F's accessibility pass. | unassigned — whichever stage next reconsiders `ports: false` for `grid`, or ships a port-aware engine |
 | **F7** | The paint-only `<style>`-swap property (DD-07 §11, DD-08 §3) does not hold, for two independent reasons verified against the committed goldens. (a) `s-`/`t-`/`p-{paintHash}` class names (`style.ts`) embed the paint hash, so a paint change changes every referencing element's `class` attribute, not just the `<style>` block — fixable by keying the class name on something theme-invariant instead, which is a DD-07 §6 class-naming-scheme change (would churn every golden), not pulled here. (b) independently, a directed edge's arrowhead marker bakes its stroke colour into a `<defs>` `fill` and into the marker's own `id` (`markers.ts`), so `marker-end`/`marker-start` references change too — this needs a different marker strategy or a `context-stroke` rewrite (both currently rejected: resvg lacks `context-stroke`, Safari support arrived late), not just a class rename. DD-08 §3 is corrected to describe a full re-render instead of a `<style>`-only swap; the code is unchanged. | Stage I |
 | **F8** | `<style>` content is XML-escaped by `render()` (every golden carries `&apos;Segoe UI&apos;` in the font stack). For a standalone `.svg` this is verified correct — XML parses style content as character data and decodes entities, confirmed by the injection suite. For DD-08 §6's `innerHTML` path it should *also* be correct — `style` is not in HTML's foreign-content breakout list, so inside `<svg>` the parser treats it as a foreign element and never enters the RAWTEXT state, meaning entities decode there too — but that is spec reading, not a live-browser result, and no browser target exists yet (`apps/web` is not started) to prove it. If the reading is wrong, every multi-word font family silently degrades in the live view only, not in exports. | Stage I, to verify once `apps/web` runs |
+| **F9** | DD-09 §2's **`< 16 ms` paint-only theme switch** budget has lost its justification. It was underwritten by "`<style>` text swap, no tree replacement" — which **F7** shows is not implementable, so a theme toggle is a full `render()` plus an `innerHTML` replacement. Nobody has measured that: `render()` has no benchmark, because `bench/generate.js` and the generated `corpus/n50.sgl`, `n500.sgl`, `n2000.sgl` are Stage G task 3 and do not exist yet. The budget is therefore a number with nothing behind it, and MVP acceptance criterion 2 rests on it. **Clear it by measuring** `render()` alone at 50/500/2 000 nodes once the bench exists, then either confirm `< 16 ms` or renegotiate it in DD-09 §2 and [01 §4.1](01-requirements.md) together — do not let the figure stand unmeasured. | Stage G (it builds the bench); renegotiation with Stage I |
 
 ---
 
@@ -742,8 +755,12 @@ the cost visible, so it is where the fix pays for itself. Clear F2 when a class-
 `SGL3006` or `SGL3007` carries a `related` span pointing at the class declaration.
 
 **Gate — T1 + T4 (partial).** Playwright: MVP acceptance criteria **1, 2 and 3**. Criterion 2 is the
-visible half of what Stage G already proved — assert the SVG tree is untouched and only the `<style>`
-block changes.
+visible half of what Stage G already proved — assert that switching theme leaves *geometry* untouched:
+same node frames, same edge route `d` attributes, same `viewBox`, while paint changes. **Do not assert
+"the tree is untouched and only the `<style>` block changes"** — that is what this gate said before
+**F7** (§2.1), and the property does not hold: paint class names embed `paintHash` and a directed
+edge's marker id embeds its stroke colour, so a theme switch is a full re-render. Assert the geometry,
+not the bytes.
 
 ---
 

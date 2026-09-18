@@ -104,8 +104,11 @@ function baselineY(placement: LabelPlacementView, block: TextLayoutView): number
  * Emit one `<text>` element.
  *
  * `className` carries the font, which lives in the generated class and never
- * inline (DD-07 §5) — so a paint-only colour change needs no tree rewrite, while a
- * font *size* change is geometry and re-renders anyway.
+ * inline (DD-07 §5), so font declarations are not repeated on every element that
+ * shares them. That is de-duplication, not a paint-only-swap key: the `hash` in
+ * `t-{hash}` is `paintHash`, so a colour change produces a new *class name* too,
+ * not just a new declaration inside the same class (F7; DD-07 §11). Font *size*
+ * is geometry and lives in its own `g-{hash}`, which a paint change never touches.
  */
 export function renderText(
   placement: LabelPlacementView,
