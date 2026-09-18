@@ -108,7 +108,7 @@ A stage is not done because the code is written. It is done when its gate passes
 | Workspace, types, diagnostics catalogue, style registry, built-in themes, Lezer grammar | **Done** | `main` |
 | `@sgl/theme` — `resolveTheme`, `styleGraph`, geometry/paint hashes | **Done**, T1+T2 gate green, tested against `corpus/`-derived graphs (Stage D) | `main` |
 | `@sgl/measure` — `premeasure`, three `Measurer`s, run keys | **Done**, T1+T2 gate green, tested against `corpus/`-derived graphs (Stage D) | `main` |
-| `@sgl/render-svg` — shapes, style block, markers, text, `render()` | **Done**, T1+T2 gate green (Stage F) | `feat/renderer` |
+| `@sgl/render-svg` — shapes, style block, markers, text, `render()` | **Done**, T1+T2 gate green (Stage F) | `main` |
 | `@sgl/core` — `parse()`, `buildAst`, grammar fixes | **Done**, T1+T2 gate green | `main` |
 | `@sgl/core` — `resolve()`, `toJson`/`fromJson`, config-key registry | **Done**, T1+T2 gate green | `main` |
 | `@sgl/core` — `compile()`, wildcard expansion, class linearisation | **Done**, T1+T2 gate green, diagnostics coverage gate enabled | `main` |
@@ -136,12 +136,14 @@ criterion), asserted directly rather than inferred. A handful of tests keep hand
 no corpus document contains an invalid `@style`/`@size` value, an inline `@style.fontSize`, or a
 single-`Critical`-class node without its own inline override — each noted in place.
 
-One branch remains deliberately unmerged, per §1 rather than by oversight: `feat/renderer`, where
-Stage F's own gate now passes (`pnpm check` green, 1453 tests) but the branch has not been merged
-pending review of the deviations recorded below — the same pattern `feat/grid-engine` went through
-before it merged. `feat/grid-engine` itself cleared that review and merged to `main` at `fdff204`;
-`pnpm check` is green there (757 tests, unchanged from the branch). `main` must be green at every
-commit.
+**No branch is now unmerged.** `feat/renderer` cleared its review and merged to `main` at `6d76e2c`;
+`pnpm check` is green there (1453 tests, unchanged from the branch), so **Stages A–F are all on
+`main` and Stage G's stated dependency is satisfied**. `feat/grid-engine` merged at `fdff204` before
+it (757 tests). Both stages sat unmerged on their branch through review first, which is the documented
+pattern, not the merge-gap failure mode — but it is worth noting for the next stage that this has now
+happened three times in a row (Stages C, E, F), so **check `git branch -vv` before briefing stage
+N+1** rather than trusting a §5 entry that says "Depends on. Stage X merged." `main` must be green at
+every commit.
 
 **Stage E is done**, merged to `main` from `feat/grid-engine`, rebased onto `main` at Stage D.
 `buildLayoutInput`
@@ -199,9 +201,10 @@ edges the reserve was added to fix. Both corrected, with tests. DD-06 §7 also g
 that `pack()` — per the algorithm exactly as designed, not a bug — honours a container's `min` but
 silently ignores its `fixed`/`max`.
 
-**Stage F is done** on `feat/renderer`, merged forward onto `main` at Stage E (`fdff204`) before this
-stage's own work started. It proves the renderer implementation that was already on the branch:
-1438 tests, up from 757, all new. Golden SVGs are committed for the clean-document corpus set under
+**Stage F is done**, merged to `main` at `6d76e2c` from `feat/renderer`, which had itself been merged
+forward onto `main` at Stage E (`fdff204`) before this stage's own work started. It proves the renderer
+implementation that was already on the branch: 1438 tests at the first gate, 1453 after four review
+rounds, up from 757, all new. Golden SVGs are committed for the clean-document corpus set under
 both built-in themes — **`grid` only**, not "both engines" per DD-07 §11's aspirational list, because
 the `elk` adapter is still `NotImplemented` (Stage K). The injection suite
 (`packages/render-svg/test/injection.test.ts`) parses every rendered `corpus/injection/*.sgl` output
