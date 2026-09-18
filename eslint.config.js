@@ -78,4 +78,11 @@ export default tseslint.config(
     files: ['**/test/**/*.ts', 'bench/**/*.js', 'eslint.config.js', '**/*.config.ts'],
     rules: { 'no-restricted-properties': 'off', 'no-restricted-globals': 'off', 'no-restricted-imports': 'off' },
   },
+
+  // bench/generate.js runs as a plain Node script (not bundled, not type-checked
+  // by tsc -b), so it needs Node's ambient globals declared explicitly.
+  {
+    files: ['bench/**/*.js'],
+    languageOptions: { globals: { console: 'readonly', process: 'readonly', URL: 'readonly' } },
+  },
 );

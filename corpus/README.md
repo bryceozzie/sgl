@@ -22,9 +22,15 @@ single purpose, so a failure names what broke.
 | `hidden.sgl` | hidden nodes with edges to them, and an edge hidden by its own `@hidden` between two visible nodes |
 | `a11y-links.sgl` | `@a11y.label`/`@a11y.description` overrides on a node and an edge, and a valid `https:` `@link` |
 | `n50.sgl` `n500.sgl` `n2000.sgl` | **generated** by `bench/generate.js`; perf and scale |
+| `unresolved/edge-expansion-limit.sgl` | **generated** by `bench/generate.js`; a 32 x 32 wildcard cross product, over the 1 000-edge expansion ceiling — the only way to reach `SGL3005` |
 | `malformed/*.sgl` | one syntax error each, with the expected diagnostic and a partial AST |
 | `injection/*.sgl` | one hostile string per context |
 | `unresolved/*.sgl` | one resolution error each |
+
+Everything under "generated" is **not committed** — `bench/generate.js` writes
+it deterministically, and `pnpm test`/`pnpm check` regenerate it before Vitest
+collects `corpus/` (root `package.json`'s `generate:corpus` script). Run
+`pnpm generate:corpus` by hand to inspect the files directly.
 
 ## The coverage gate
 
@@ -41,12 +47,26 @@ A document in `malformed/` carries a syntax *diagnostic*, which is not always an
 earns its `SGL1004` in the AST builder's string decoder. Assert on the diagnostic,
 not on the tree shape.
 
+The check itself is split across two files, because `@sgl/core` imports nothing
+from the workspace (DD-00 §2 rule 1) and so cannot itself run a document through
+`@sgl/theme` or `@sgl/render-svg` to check whether a code they own is reachable:
+`packages/core/test/diagnostics-coverage.test.ts` covers every `1xxx`/`2xxx`/`3xxx`
+code via `parse -> resolve -> compile`, and
+`packages/render-svg/test/diagnostics-coverage.test.ts` (Stage G) covers `5xxx`
+(theme) and `SGL6001` (renderer) via the whole pipeline. Before Stage G the
+second half had gone stale — its allowlist comment said theme and the renderer
+were not corpus-reachable, which had already become false at Stage D and Stage F
+respectively — so `SGL5004` and `SGL6001` sat marked unreachable for two stages
+after `checkout.sgl` and `injection/js-url-link.sgl` already covered them.
+
 ## Not yet covered
 
-Fixtures still to add as the stages that emit their codes land: `SGL3005`
-(needs a generated document past the 1 000-edge expansion ceiling — it belongs
-with the `n*` fixtures in `bench/generate.js`), `SGL4001`–`SGL4011`,
-`SGL5001`–`SGL5006`, `SGL6001`.
+`SGL4001`–`SGL4011` (the layout host and worker; Stage H) and `SGL5001`,
+`SGL5002`, `SGL5003`, `SGL5005`, `SGL5006` (each fires on a defect in a *theme
+document* — an extends cycle, depth over 8, an unknown token — not in a `.sgl`
+document, and both built-in themes are well-formed, so no corpus fixture can
+reach them; `@sgl/theme`'s own suite covers them directly against hand-built
+`ThemeDoc`s).
 
 Stage B (resolver) added fixtures for `SGL2005`–`SGL2009`, `SGL2011` and
 `SGL2012`. `SGL2009` (a `$variable` used before Stage K substitutes it) also
