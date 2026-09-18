@@ -250,8 +250,8 @@ no cast at the call site"), rather than silently skip it. No stage's task list n
 fallback; it belongs with whichever stage eventually reconsiders `ports: false` for `grid` or ships an
 engine that lays them out.
 
-**A second review round found four real defects and a set of smaller ones, all fixed on the same
-branch (1453 tests, up from 1438).** (1) `text.ts` interpolated `placement.align` straight into
+**A second review round found four real defects, all fixed on the same branch (1453 tests, up from
+1438), plus a set of smaller findings — most still open.** The four fixed defects: (1) `text.ts` interpolated `placement.align` straight into
 `text-anchor="..."` with no escaping and no allowlist — the one string in the package that skipped
 `escapeXml`, because every producer in the real pipeline (`layout-api/fallbacks.ts`) only ever emits
 a literal `'start'|'middle'|'end'`, so the injection corpus (driven entirely through that pipeline)
@@ -283,17 +283,51 @@ control-character test string), which made git treat both files as binary — un
 blame the package's two most security-sensitive files. Replaced with `\x00`-style escapes; both are
 ordinary diffable text now.
 
+**Fix 5 (this change) corrects a claim the review round's write-up made but never actually fixed:**
+the paint-only `<style>`-block-swap property asserted in five places (`index.ts`'s `RenderResult.styleBlock`
+doc comment, DD-07 §1/§2/§5/§11, DD-08 §3) does not hold — see **F7** above for the two independent
+reasons, both verified against the committed goldens. All five are corrected in the documents; nothing
+in `src/` changed beyond the `index.ts` comment text, because the code was already right — it never
+claimed the property internally, only the surrounding prose did. **F8** (above) is a second, unrelated
+finding surfaced while grepping for survivors of the same claim: whether `<style>`'s XML-escaped content
+still decodes correctly once it reaches DD-08 §6's `innerHTML` path is spec reading, not a verified
+result, because no browser target exists yet.
+
+**The smaller findings from the second review round are mostly still open — cosmetic or cleanup, no
+behaviour impact, none blocked on a future stage, so none of them belong in §2.1 (which is only for
+findings blocked on a stage that has not been built):**
+- `cssDash` (`style.ts:33`) has a dead conditional whose branches both return `null`.
+- `xmlns:xlink` is declared on every SVG and never used — no `xlink:href` is emitted, and `render.test.ts`
+  pins the dead declaration.
+- The renderer re-emits `SGL3001` for an unknown shape (`index.ts:151`), duplicating `compile()`'s own
+  diagnostic, though the Stage F brief in §5 says the shape table needs no fallback branch.
+- `eslint.config.js:78`'s `**/test/**/*.ts` exemption also disables the `Math.random`/`Date.now`
+  determinism bans, which its comment does not mention.
+- `security.ts` is still CRLF, the only such file in the repo (the NUL bytes that made it binary to git
+  were fixed in the review round above; the line endings were not).
+- DD-07 §8's `href` row still says the language spec's `#path` mention "needs the same correction" —
+  it was corrected in commit `405d451`, so that sentence is stale; the same section's CSS-values row
+  says "`rgb()/hsla()` grammar" where the code (`security.ts`) accepts `rgb|rgba|hsl|hsla`.
+- The hostile-label fixture's occlusion payload exercises nothing: the fixture's label is a node title,
+  so `renderEdgeLabel` — the only reader of `occlusion` — is never called. The assertion passes and
+  occlusion is safe anyway (`strict === 'plate'`, plus the `validateResult` check), but the test implies
+  coverage it does not have.
+
 **Deliberately left out.** DD-07 §11's "paint-only swap: render A, render B differing only in paint →
-trees identical when `<style>` is stripped" is not implemented as a test. `neutral-light`/
-`neutral-dark` differ only in theme tokens (`neutral-dark`'s own file says so), so the *layout* is
-provably unaffected by a theme switch — but the rendered *tree* is not byte-identical after stripping
-just the `<style>` block, because `s-{paintHash}`/`t-{paintHash}` class names embed the hash directly
-in every element's `class` attribute, so a paint change changes those attribute strings throughout the
-tree, not only inside `<style>`. DD-08 §3's "swaps `lastGood.styleBlock` in place instead of replacing
-the tree" describes an application-level DOM-patching strategy for Stage I to build, not a property
-`render()` itself — a pure function that regenerates its whole output string every call — can satisfy
-in isolation. The real version of this property (switching theme leaves `geometryHash` and layout
-untouched) is Stage G's stated exit test, at the pipeline level where it is actually true.
+trees identical when `<style>` is stripped" is not implemented as a test, for two independent reasons
+(F7). `neutral-light`/`neutral-dark` differ only in theme tokens (`neutral-dark`'s own file says so), so
+the *layout* is provably unaffected by a theme switch — but the rendered *tree* is not byte-identical
+after stripping just the `<style>` block. Reason (a): `s-{paintHash}`/`t-{paintHash}` class names embed
+the hash directly in every element's `class` attribute, so a paint change changes those attribute
+strings throughout the tree, not only inside `<style>` — fixable in principle by keying the class name on
+something theme-invariant, not pulled here. Reason (b), independent of (a) and not fixable by a class
+rename: a directed edge's arrowhead marker bakes its stroke colour into a `<defs>` element and into the
+marker's own `id`, so `marker-end`/`marker-start` references change too, for any document with a
+directed edge — this needs a different marker strategy or a `context-stroke` rewrite (both currently
+rejected), an ADR-level decision this stage does not make. DD-08 §3's strategy description is corrected
+by this change to reflect both reasons, describing a full re-render, not a `<style>`-only swap against
+a retained tree. The real version of the swappable property (switching theme leaves `geometryHash` and
+layout untouched) is Stage G's stated exit test, at the pipeline level where it is actually true.
 
 Both grammar defects tracked in the README (quoted `@`-keys, `$name` as a
 `Variable` token) are fixed and Stage A's gate passed on `main`. Stage B found
@@ -349,6 +383,8 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F3** | `linearizeClasses` recurses `@extends` with no visited-set guard. Safe **only** because `resolve()` splices every cycle's back-edge first, so no `DocumentModel` reaching `compile()` can contain one. A second producer of class tables would turn bad input into a stack overflow — which §1 reserves for invariant violations. | Stage L (A9) |
 | **F5** | `SGL3005` still has no corpus fixture and sits on the coverage gate's allowlist; the unit test hand-builds a `DocumentModel` to reach it. | Stage G |
 | **F6** | `renderNode`'s port-circle template (DD-07 §3) is live, correctly `aria-hidden`, and unit-tested directly — but unreachable through the real pipeline: `grid` declares `capabilities.ports: false` and no host fallback places ports (DD-06 §4 covers labels and routing, not ports), so `LayoutResult.nodes[id].ports` is never populated end to end. Found during Stage F's accessibility pass. | unassigned — whichever stage next reconsiders `ports: false` for `grid`, or ships a port-aware engine |
+| **F7** | The paint-only `<style>`-swap property (DD-07 §11, DD-08 §3) does not hold, for two independent reasons verified against the committed goldens. (a) `s-`/`t-`/`p-{paintHash}` class names (`style.ts`) embed the paint hash, so a paint change changes every referencing element's `class` attribute, not just the `<style>` block — fixable by keying the class name on something theme-invariant instead, which is a DD-07 §6 class-naming-scheme change (would churn every golden), not pulled here. (b) independently, a directed edge's arrowhead marker bakes its stroke colour into a `<defs>` `fill` and into the marker's own `id` (`markers.ts`), so `marker-end`/`marker-start` references change too — this needs a different marker strategy or a `context-stroke` rewrite (both currently rejected: resvg lacks `context-stroke`, Safari support arrived late), not just a class rename. DD-08 §3 is corrected to describe a full re-render instead of a `<style>`-only swap; the code is unchanged. | Stage I |
+| **F8** | `<style>` content is XML-escaped by `render()` (every golden carries `&apos;Segoe UI&apos;` in the font stack). For a standalone `.svg` this is verified correct — XML parses style content as character data and decodes entities, confirmed by the injection suite. For DD-08 §6's `innerHTML` path it should *also* be correct — `style` is not in HTML's foreign-content breakout list, so inside `<svg>` the parser treats it as a foreign element and never enters the RAWTEXT state, meaning entities decode there too — but that is spec reading, not a live-browser result, and no browser target exists yet (`apps/web` is not started) to prove it. If the reading is wrong, every multi-word font family silently degrades in the live view only, not in exports. | Stage I, to verify once `apps/web` runs |
 
 ---
 

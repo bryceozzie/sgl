@@ -93,7 +93,11 @@ else:
 svg = computed(() => layout.value && render(styled.value, layout.value, theme.value))
 ```
 
-When `svg` produces a result **and** `diags` contains no `error`, it becomes `lastGood`. The canvas always displays `lastGood`; this is FR-E4 in one line. On a paint-only change the canvas swaps `lastGood.styleBlock` in place instead of replacing the tree (DD-07 §2), which is what makes a theme toggle land in one frame.
+When `svg` produces a result **and** `diags` contains no `error`, it becomes `lastGood`. The canvas always displays `lastGood`; this is FR-E4 in one line.
+
+A paint-only change (`geometryHash` equal, `paintHash` different) skips *layout* — the layout effect's skip condition above — but it cannot skip the *render*, and the canvas cannot swap `lastGood.styleBlock` in place against the retained tree. Two independent properties of `@sgl/render-svg`'s output break that: (1) generated paint classes are named `s-{paintHash}` / `t-{paintHash}` / `p-{paintHash}` (DD-07 §6), so every element's `class` attribute changes along with the `<style>` block, not just the block; and (2) a directed edge's arrowhead marker bakes its stroke colour into a `<defs>` element's `fill` and into the marker's own `id` (`markers.ts`, `context-stroke` deliberately unused — resvg lacks it, Safari support arrived late), so `marker-end`/`marker-start` references change too, for any document containing a directed edge. Reason (1) has a lever — the class name only needs to be a stable key, so keying it on something theme-invariant instead of the paint hash would let the block swap alone repaint the tree — but pulling it is a DD-07 §6 design change deferred to whoever picks this up, not assumed here. Reason (2) needs a different marker strategy or a `context-stroke`-based rewrite; neither is scoped yet.
+
+So a theme toggle is a full re-render (`render()` regenerates the whole string; the canvas replaces the `innerHTML` wrapper as usual, §6), not a `<style>`-text swap. What DD-09 §2's "Paint-only theme switch" budget must actually be met by, and whatever headroom that leaves, is for whoever implements this to establish — not assumed here. See DD-07 §11 and execution plan §2.1 (F7) for the full finding.
 
 ### Timing budget on a keystroke (500-node document)
 
@@ -194,7 +198,7 @@ IndexedDB `sgl`, version 1, via `idb`:
 
 - **Engine ▾** lists registered engines with name and `determinism` badge (ADR-0004). Selecting sets `engineId`, resets `engineOptions` to the engine's defaults.
 - **Engine options** panel: MVP is a hand-built form per engine — `elk`: direction, node spacing, rank spacing, edge routing, node placement; `grid`: columns, gap, align. **⟶ B7** generates this from `optionsSchema`; the form values already round-trip through `engineOptions` so nothing else changes.
-- **Theme ▾** lists built-in themes with a 24 px swatch of `bg/surface/ink/accent`. Switching sets `themeId`; because the two built-ins share geometry, the switch is a `<style>` swap.
+- **Theme ▾** lists built-in themes with a 24 px swatch of `bg/surface/ink/accent`. Switching sets `themeId`; because the two built-ins share geometry, layout is skipped (§3's layout-effect skip), but the render itself is not a `<style>`-only swap — see §3.
 - `@layout.engine` / `@theme` in the document **override** the pickers; the picker shows "(set by document)" and editing it writes into the document's root config via a transaction — the document stays the source of truth.
 
 ---

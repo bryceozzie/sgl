@@ -38,8 +38,12 @@ export * from './text.js';
 
 export interface RenderResult {
   readonly svg: string;
-  /** Returned separately so the live view can replace only the `<style>` text on a
-   *  paint-only change — equal `geometryHash`, different `paintHash` (DD-08 §3). */
+  /** Returned separately for export and for re-theming an exported file. It is
+   *  *not* a paint-only live-view swap key: `s-`/`t-`/`p-` class names embed
+   *  `paintHash`, so a paint change also changes every element's `class`
+   *  attribute, and a directed edge's marker id embeds the stroke colour too
+   *  (`markers.ts`). See DD-07 §2, §6, §11 and DD-08 §3 for what is and is not
+   *  implementable here. */
   readonly styleBlock: string;
   readonly bounds: Rect;
   readonly diagnostics: readonly Diagnostic[];

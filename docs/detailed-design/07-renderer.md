@@ -15,7 +15,7 @@ A pure string renderer. No DOM, no virtual DOM. The same function serves the liv
 | Emit text as positioned `<tspan>`s from `TextLayout` — no `<foreignObject>` | Embed fonts (**⟶ C8**) |
 | Assign stable, sanitised element IDs | Add interaction chrome (DD-08 §6 overlays it *outside* this tree) |
 | Escape every string that reaches markup; allowlist link schemes | |
-| Split output so a paint-only change can swap the `<style>` block without re-emitting the tree | |
+| Return `styleBlock` separately, for export and for re-theming an exported file | Support swapping just the `<style>` block against a *retained* live-view tree on a paint-only change — not implementable today; see §11 |
 
 ---
 
@@ -40,7 +40,7 @@ A pure string renderer. No DOM, no virtual DOM. The same function serves the liv
 
 Layer order is fixed: containers, edges, nodes, edge labels. Node and container titles are emitted inside their own element's `<g>` so they move with it; edge labels are a separate top layer so plates never sit under a node.
 
-The renderer returns the whole string **and** `styleBlock` separately. The live view keeps the tree and replaces only the `<style>` text on a paint-only change (`geometryHash` equal, `paintHash` different) — DD-08 §3.
+The renderer returns the whole string **and** `styleBlock` separately, for export and for re-theming an exported file. This is *not* the same thing as the live view keeping its tree and swapping only `<style>` on a paint-only change (`geometryHash` equal, `paintHash` different): that property does not hold, for two independent reasons spelled out in §11, and DD-08 §3 has been corrected accordingly (F7, execution plan §2.1).
 
 ---
 
@@ -128,7 +128,7 @@ For a `LabelPlacement` and its `TextLayout`:
 - `y` also honours `placement.baseline`: `top` → `frame.y + ascent` (the formula above); `middle` → `frame.y + (frame.h − block.height) / 2 + ascent`; `bottom` → `frame.y + frame.h − block.height + ascent`. Found missing during Stage F's review round — the renderer always computed `top` regardless of `baseline`, latent only because the host fallbacks (DD-06 §4.1) always emit a frame sized exactly to the label, where `top` and `middle` coincide.
 - `align` and `baseline` are enumerated fields (DD-06 §0's `contract.ts`), but that is a compile-time guarantee only: an engine's output is untrusted at runtime (worker-boundary JSON from Stage H erases the union). `align` is mapped to one of `start|middle|end` before it reaches `text-anchor`, falling back to `middle` for anything else — the one attribute in this package that took a raw union member straight from `LayoutView` without going through `escapeXml` or an allowlist, and the one place `corpus/injection/*.sgl` could not catch the gap, since every producer in the real pipeline already emits a literal union member. `validateResult` (DD-06 §5) rejects an out-of-range value before it reaches here at all; the renderer's own guard is defence in depth for a caller that skips validation.
 - `rotation` → `transform="rotate(deg cx cy)"` on the `<text>`.
-- Font properties come from the `t-{hash}` class, never inline, so a paint-only font-colour change needs no tree rewrite. (Font *size* is geometry and does re-render.)
+- Font properties come from the `t-{hash}` class, never inline — but the `hash` in `t-{hash}` is `style.paintHash` (`style.ts`'s `classesFor`), so a font-*colour* change still produces a new class name, not just a new declaration inside the same class. This class split is about not repeating font declarations across elements that share them, not about enabling a paint-only swap against a retained tree (§11 explains why that property does not hold). (Font *size* is geometry and lives in its own `g-{hash}` class, which a paint change does not touch.)
 - `xml:space="preserve"` on `<text>` so leading spaces in a line survive.
 
 **⟶ A18:** runs with `style: code|strong|em` become nested `<tspan class="r-code">` etc. inside the line `tspan`. Same emitter.
@@ -210,5 +210,9 @@ The live view's pan/zoom `<g transform>` and selection overlay live in a *host* 
 - Text: `y` from ascent, multi-line `dy`, rotation transform.
 - ID sanitisation: collision pair, unicode key, dotted quoted key.
 - Injection corpus: labels, keys, links, tooltips, class names containing `<script>`, `"`, `javascript:`, `&#x` — assert no element or attribute other than the intended text is produced, via an XML parser over the output.
-- Paint-only swap: render A, render B differing only in paint → trees identical when `<style>` is stripped.
+- ~~Paint-only swap: render A, render B differing only in paint → trees identical when `<style>` is stripped.~~ **Not implementable, for two independent reasons — not tested here, and not just "deliberately left out" of the test suite (execution plan §2):**
+  1. `s-{paintHash}` / `t-{paintHash}` / `p-{paintHash}` (`style.ts`'s `ClassTable.classesFor`) name paint rules after the paint hash itself, so a paint change gives every element referencing them a *different* class attribute, not just a different rule body. This is fixable in principle — the class name only needs to be a stable key, so keying it on something theme-invariant instead would let the block swap alone repaint the tree — but that is a class-naming-scheme change (a lever for Stage I to pull, not pulled here) and would churn every golden.
+  2. Independently of (1), `markers.ts` bakes the stroke colour into a `<defs>` marker's `fill` and hashes it into the marker's `id` (and therefore into every `marker-end`/`marker-start` reference), so any document with a directed edge changes tree bytes outside `<style>` on a paint change regardless of (1). This has no fix without an ADR: `context-stroke` is deliberately rejected (resvg lacks it; Safari support arrived late), and a `<defs>` marker is shared by `url(#id)` reference, so two edges with different stroke colours need two distinct marker elements — the paint stays encoded in the id whatever the fill mechanism.
+
+  See F7 (execution plan §2.1) and DD-08 §3, which now describes what this actually lets Stage I build.
 - Manual gate (release checklist): open a golden in Inkscape, Figma and Safari; labels within 1 px.

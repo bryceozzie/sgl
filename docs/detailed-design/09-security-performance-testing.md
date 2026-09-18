@@ -57,7 +57,7 @@ Budgets from [Requirements §4.1](../01-requirements.md#41-performance-budgets),
 | Keystroke → SVG, 50 nodes | < 60 ms | Sync stages only on the keystroke path (DD-08 §3); layout debounced and off-thread; incremental reparse via the editor's tree |
 | Full pipeline, 500 nodes | < 400 ms | `elk` on a 500-node compound graph is typically 100–250 ms; pre-measure delta; string renderer |
 | Full pipeline, 2 000 nodes | < 3 s | Same path; chip after 300 ms; `grid` suggested above 2 000 |
-| Paint-only theme switch | < 16 ms | `<style>` text swap, no tree replacement (DD-07 §2, DD-08 §3) |
+| Paint-only theme switch | < 16 ms | DD-08 §3 — **not** a `<style>`-only swap against a retained tree, which DD-07 §11 and execution plan §2.1 (F7) record as not implementable; budget applies to whatever Stage I actually builds |
 | Layout timeout | 10 s | Worker terminate + respawn (DD-06 §3) |
 
 ### Where it will actually go wrong, and the planned response
