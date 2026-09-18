@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="sgl" data-sgl="1.0" width="0" height="0" viewBox="0 0 0 0" role="img" aria-labelledby="sgl-t sgl-d"><title id="sgl-t">Diagram</title><desc id="sgl-d">0 nodes, 0 connections, 0 groups.</desc><style>svg.sgl{--sgl-canvas:#0E131C;--accent:#62A8CA;--bg:#0E131C;--danger:#E4737E;--font-sans:Inter, system-ui, -apple-system, &apos;Segoe UI&apos;, Roboto, sans-serif;--ink:#E4E9F1;--ink-muted:#A6B1C2;--line:#4A5768;--surface:#171E2B;--surface-sunken:#10161F}
+.canvas{fill:var(--sgl-canvas)}
+.c-shape,.n-shape{stroke-linejoin:round}
+.e-path{fill:none;stroke-linecap:round}
+.el-plate{stroke:none}
+.n-port{stroke:none}
+text{white-space:pre}</style><defs></defs><rect class="canvas" x="0" y="0" width="0" height="0" aria-hidden="true"/><g class="L-containers"></g><g class="L-edges"></g><g class="L-nodes"></g><g class="L-labels"></g></svg>

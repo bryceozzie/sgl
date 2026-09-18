@@ -8,6 +8,7 @@ import type { DiagnosticCode } from '../src/diagnostics.js';
 import type { GraphEdge } from '../src/graph.js';
 import { parse } from '../src/parse.js';
 import { resolve } from '../src/resolve.js';
+import { CLEAN_DOCS } from './corpus-docs.js';
 
 const corpusDir = fileURLToPath(new URL('../../../corpus/', import.meta.url));
 const corpus = (name: string): string => readFileSync(`${corpusDir}${name}`, 'utf8');
@@ -31,26 +32,6 @@ const compileSrc = (src: string) => {
   const { model } = resolve(ast);
   return compile(model);
 };
-
-/** Every document `compile()` must handle cleanly — no error diagnostics (warnings,
- *  like `checkout.sgl`'s `SGL3001` for `@shape: cloud`, are expected and fine). */
-const CLEAN_DOCS = [
-  'empty.sgl',
-  'single.sgl',
-  'json-form.sgl.json',
-  'checkout.sgl',
-  'nesting-3.sgl',
-  'chains.sgl',
-  'parallel-selfloop.sgl',
-  'ports.sgl',
-  'classes.sgl',
-  'containers-edges.sgl',
-  'wildcards.sgl',
-  'wildcard-globs.sgl',
-  'shapes.sgl',
-  'unicode.sgl',
-  'hidden.sgl',
-];
 
 /** `SGL2001`, `SGL2003` and every `SGL3xxx` are compile()'s, not resolve()'s
  *  (DD-02 §8) — the `corpus/unresolved/*.sgl` fixtures resolve.test.ts skips for

@@ -108,7 +108,7 @@ A stage is not done because the code is written. It is done when its gate passes
 | Workspace, types, diagnostics catalogue, style registry, built-in themes, Lezer grammar | **Done** | `main` |
 | `@sgl/theme` — `resolveTheme`, `styleGraph`, geometry/paint hashes | **Done**, T1+T2 gate green, tested against `corpus/`-derived graphs (Stage D) | `main` |
 | `@sgl/measure` — `premeasure`, three `Measurer`s, run keys | **Done**, T1+T2 gate green, tested against `corpus/`-derived graphs (Stage D) | `main` |
-| `@sgl/render-svg` — shapes, style block, markers, text, `render()` | **Implementation only, no tests** | `feat/renderer` |
+| `@sgl/render-svg` — shapes, style block, markers, text, `render()` | **Done**, T1+T2 gate green (Stage F) | `feat/renderer` |
 | `@sgl/core` — `parse()`, `buildAst`, grammar fixes | **Done**, T1+T2 gate green | `main` |
 | `@sgl/core` — `resolve()`, `toJson`/`fromJson`, config-key registry | **Done**, T1+T2 gate green | `main` |
 | `@sgl/core` — `compile()`, wildcard expansion, class linearisation | **Done**, T1+T2 gate green, diagnostics coverage gate enabled | `main` |
@@ -136,9 +136,10 @@ criterion), asserted directly rather than inferred. A handful of tests keep hand
 no corpus document contains an invalid `@style`/`@size` value, an inline `@style.fontSize`, or a
 single-`Critical`-class node without its own inline override — each noted in place.
 
-One branch remains deliberately unmerged, per §1 rather than by oversight: `feat/renderer`
-(implementation only, no tests — Stage F's gate has not run). `feat/grid-engine` cleared the review
-of the deviations recorded in its commit message and in DD-06 and merged to `main` at `fdff204`;
+One branch remains deliberately unmerged, per §1 rather than by oversight: `feat/renderer`, where
+Stage F's own gate now passes (`pnpm check` green, 1453 tests) but the branch has not been merged
+pending review of the deviations recorded below — the same pattern `feat/grid-engine` went through
+before it merged. `feat/grid-engine` itself cleared that review and merged to `main` at `fdff204`;
 `pnpm check` is green there (757 tests, unchanged from the branch). `main` must be green at every
 commit.
 
@@ -178,11 +179,18 @@ cylinder) came out too small — a diamond roughly half the size it needed to ho
 the solved-for-the-label forms (`packages/render-svg/src/shapes.ts` on `feat/renderer`, commit
 f1c476c5, already had the correct derivation; DD-07 §4 is amended to say explicitly which `w`/`h` the
 table means). The test suite now asserts the containment property the formulas exist to satisfy, not
-just pinned numbers, across a spread of label sizes — the drift guard the duplication needs until
-Stage F merges and the two copies become one. `anchor.ts` was checked line-for-line against the same
+just pinned numbers, across a spread of label sizes — the drift guard the duplication needs, since
+`layout-api` may not import `render-svg` even after both are on `main` (DD-00 §2 rule 2 is permanent,
+not a merge-order artefact; the "until Stage F merges and the two copies become one" framing here was
+wrong and is corrected by this note). `anchor.ts` was checked line-for-line against the same
 `feat/renderer` commit's anchor functions and found to already agree (no fix needed there); its tests
-were strengthened with diagonal-ray boundary checks to pin the defining geometric property, since a
-cross-package equality test isn't possible before `render-svg` merges. Separately, in
+were strengthened with diagonal-ray boundary checks to pin the defining geometric property. Stage F
+then added the automated cross-package equality test this paragraph said wasn't possible yet — a
+`render-svg` *test* file is exempt from the import-boundary lint rule, so
+`packages/render-svg/test/shapes.test.ts` now calls both `@sgl/layout-api`'s `anchorPoint`/
+`contentInsets` and `render-svg`'s own `SHAPES[id].anchor`/`.contentInsets` and asserts exact equality
+across all seven shapes, a spread of ray angles, and a spread of label sizes — confirming the two
+independently-written copies do agree, not just by manual line-for-line comparison. Separately, in
 `fallbacks.ts`: `routeOne`'s port-terminated `endNormal` used a port's own *outward* boundary normal
 directly instead of negating it, inverting §4.4's arrow reserve at a port-terminated head (latent
 today — `grid` declares `ports: false`); and `selfLoopLayout` returned before §4.4's arrow reserve
@@ -190,6 +198,148 @@ ran at all, so a directed self-loop's arrowhead would have straddled the boundar
 edges the reserve was added to fix. Both corrected, with tests. DD-06 §7 also gained a line noting
 that `pack()` — per the algorithm exactly as designed, not a bug — honours a container's `min` but
 silently ignores its `fixed`/`max`.
+
+**Stage F is done** on `feat/renderer`, merged forward onto `main` at Stage E (`fdff204`) before this
+stage's own work started. It proves the renderer implementation that was already on the branch:
+1438 tests, up from 757, all new. Golden SVGs are committed for the clean-document corpus set under
+both built-in themes — **`grid` only**, not "both engines" per DD-07 §11's aspirational list, because
+the `elk` adapter is still `NotImplemented` (Stage K). The injection suite
+(`packages/render-svg/test/injection.test.ts`) parses every rendered `corpus/injection/*.sgl` output
+with `fast-xml-parser` and asserts no `script` element, no `on*` attribute, and every `href` on the
+allowlist — plus a same-shape check for `checkout.sgl`, so the suite also proves a normal document
+parses cleanly, not only that hostile ones are neutralised. Shape maths (`shapes.test.ts`) pins path
+strings, the degenerate centre case, and — for every ray angle tested — the exact boundary property
+each anchor family must satisfy (on a frame edge for box shapes, on the ellipse equation, on a polygon
+edge for diamond/hexagon), plus the cross-package equality test against `@sgl/layout-api` described
+above. Document order (DD-07 §7) is asserted directly: the `L-containers`/`L-nodes` layers each follow
+`graph.order` filtered to their own kind, and `L-edges` follows declaration order with hidden edges
+skipped — not inferred from the goldens.
+
+**F4 (§2.1) is resolved, not just decided.** A one-sided wildcard whose expansion contains its own
+literal other endpoint (`x -> /**` type self-pairing) is confirmed as intended behaviour, not an
+artefact to suppress: `compile()` needed no code change. DD-03 §3.1's "open" framing is corrected to
+"resolved," and `corpus/wildcards.sgl` gained `loop.p -> loop.*` (one self-loop, one ordinary edge)
+so the case has real coverage — regenerating the `resolve`/`compile`/`grid` goldens for that one
+document, additively, with every other node and edge in it untouched.
+
+**Two documented discrepancies with the implementation, both in DD-07 §8, are fixed — in the
+documents, not the code**, which had it right in both cases. The doc described an `escText`/`escAttr`
+split; the code correctly collapsed both into one `escapeXml` (the attribute character set is a strict
+superset of the text set). The doc's `href` row also listed `http:` and in-document `#n-…` fragment
+links as allowed; `safeUrl` only ever implemented `https:`/`mailto:`, and the language spec's own
+`@link` row already agreed with the code on schemes — only its incidental mention of `#path` needed
+the same correction `security.test.ts` now pins directly (`safeUrl('#n-target').href` is `null`).
+In-document fragment linking remains an unimplemented, now-honestly-undocumented gap, not a silently
+dropped feature.
+
+**One real gap surfaced during accessibility verification and was fixed, not just noted**: DD-07 §7
+specifies `@a11y.description` adding `aria-description` alongside `aria-label`'s `@a11y.label`
+override, and the code had no such branch at all — not a latent bug, a feature that was simply never
+written. `a11yDescription()` in `index.ts` fills it, wired into both `renderNode` and `renderEdge`, and
+`corpus/a11y-links.sgl` (new — no existing fixture exercised `@a11y` or a valid `@link` at all) covers
+both the node and edge cases plus the `@link` happy path, which was equally uncovered.
+
+**A second gap was found and left as a documented finding, not fixed, because fixing it is out of this
+stage's reach**: `renderNode`'s port-circle loop (DD-07 §3's `<circle class="n-port">` template) is
+live code, but nothing in the pipeline ever populates `LayoutResult.nodes[id].ports` for it to read —
+`grid` declares `capabilities.ports: false`, and DD-06 §4's host fallbacks cover label placement and
+edge routing but not port placement. `render.test.ts` pins the property directly (a port circle carries
+`aria-hidden="true"`) against a hand-built `LayoutView`, per DD-07's own `LayoutView` doc comment
+anticipating exactly this ("every field here is structurally satisfied by the real `LayoutResult` ...
+no cast at the call site"), rather than silently skip it. No stage's task list names a port-layout host
+fallback; it belongs with whichever stage eventually reconsiders `ports: false` for `grid` or ships an
+engine that lays them out.
+
+**A second review round found four real defects, all fixed on the same branch (1453 tests, up from
+1438), plus a set of smaller findings — most still open.** The four fixed defects: (1) `text.ts` interpolated `placement.align` straight into
+`text-anchor="..."` with no escaping and no allowlist — the one string in the package that skipped
+`escapeXml`, because every producer in the real pipeline (`layout-api/fallbacks.ts`) only ever emits
+a literal `'start'|'middle'|'end'`, so the injection corpus (driven entirely through that pipeline)
+structurally could not exercise a hostile value. A hand-built `LayoutView` with
+`align: 'middle"><script>alert(1)</script>'` produced a real `<script>` element in otherwise
+well-formed XML. Fixed by mapping `align` to one of the three literals before it reaches markup
+(`'middle'` fallback, chosen over `'start'` because it cannot overflow the frame), and by adding the
+same enum check — plus `baseline` and `occlusion` — to `validateResult` (DD-06 §5) so a buggy engine
+is rejected before the renderer ever sees the value; both layers are tested. (2) `LabelPlacement
+.baseline` was declared but never read: `renderText` always top-aligned, latent only because the host
+fallbacks always emit a frame sized exactly to the label. Now honoured (`top`/`middle`/`bottom`, DD-07
+§5). Regenerating the goldens surfaced a second, unrelated bug the size of the resulting shift made
+visible: `index.ts`'s `labelLines()` joined a label's already-one-run-per-line `LabelSpec.runs` with
+`''` and then split on `'\n'` — a no-op search for a character `compile()`'s `textRuns` had already
+consumed — silently collapsing every multi-line label onto one line (`corpus/unicode.sgl`'s
+`multiline` node rendered as `"Line oneLine two"`). Fixed to the one-line function the comment already
+claimed it was (`runs.map((r) => r.text)`); the largest resulting golden delta, measured directly
+rather than assumed, dropped from 8.4 px (the multi-line bug) to 0.003 px (quantization noise) across
+all 248 labels in the clean corpus. (3) `corpus/a11y-links.sgl` had render goldens under both themes
+and nothing else — no `resolve`/`compile`/`grid` golden, and it was absent from three of the four
+independently hand-maintained `CLEAN_DOCS` arrays (`core/test/resolve.test.ts`, `compile.test.ts`,
+`layout-std/test/grid.test.ts`), because the guard meant to catch exactly this only asserted the list
+*contained* two unrelated entries. Consolidated into one `CLEAN_DOCS` in `packages/core/test/corpus-docs.ts`
+(core is the dependency graph's floor, DD-00 §2), all four suites re-pointed at it, the missing
+goldens committed, and the guard replaced with a real assertion that `CLEAN_DOCS` plus the known-dirty
+corpus subdirectories exactly partition `listCorpusDocs()`. (4) `render-svg/src/security.ts` and its
+test carried one literal control character apiece (inside `safeUrl`'s scheme-stripping class and a
+control-character test string), which made git treat both files as binary — unable to diff, merge or
+blame the package's two most security-sensitive files. Replaced with `\x00`-style escapes; both are
+ordinary diffable text now.
+
+**Fix 5 (this change) corrects a claim the review round's write-up made but never actually fixed:**
+the paint-only `<style>`-block-swap property asserted in **nine** places does not hold — see **F7**
+above for the two independent reasons, both verified against the committed goldens. Seven were fixed
+in the Fix 5 change itself (`index.ts`'s `RenderResult.styleBlock` doc comment, DD-07 §1/§2/§5/§11,
+DD-08 §3 and its Theme ▾ row, DD-09 §2's budget row); a follow-up review found the last two, which
+had escaped because neither uses the phrase the sweep grepped for. **They were the two that mattered
+most**, both being instructions rather than prose: Stage I's own gate in §5 told a future agent to
+"assert the SVG tree is untouched and only the `<style>` block changes" — a Playwright assertion that
+cannot pass, now restated to assert *geometry* is untouched, which is what MVP criterion 2 actually
+says; and `text.ts`'s `renderText` doc comment still mirrored the DD-07 §5 claim that was corrected
+in the document but not in the code beside it. Nothing in `src/` changed beyond those two comments,
+because the code was always right — it never claimed the property internally, only the surrounding
+prose did. **The lesson for the next sweep:** grep for the *assertion*, not the vocabulary. Both
+survivors named the property without using the words `paint-only`, `styleBlock` or `style block`.
+
+**F8** (above) is a second, unrelated finding surfaced while grepping for survivors of the same claim:
+whether `<style>`'s XML-escaped content still decodes correctly once it reaches DD-08 §6's `innerHTML`
+path is spec reading, not a verified result, because no browser target exists yet. **F9** is a
+consequence of F7 rather than a separate discovery: DD-09 §2's `< 16 ms` paint-only-theme-switch
+budget was justified *by* the style-swap, so removing the swap left the figure with nothing behind it
+and nothing able to measure it until Stage G builds the bench.
+
+**The smaller findings from the second review round are mostly still open — cosmetic or cleanup, no
+behaviour impact, none blocked on a future stage, so none of them belong in §2.1 (which is only for
+findings blocked on a stage that has not been built):**
+- `cssDash` (`style.ts:33`) has a dead conditional whose branches both return `null`.
+- `xmlns:xlink` is declared on every SVG and never used — no `xlink:href` is emitted, and `render.test.ts`
+  pins the dead declaration.
+- The renderer re-emits `SGL3001` for an unknown shape (`index.ts:151`), duplicating `compile()`'s own
+  diagnostic, though the Stage F brief in §5 says the shape table needs no fallback branch.
+- `eslint.config.js:78`'s `**/test/**/*.ts` exemption also disables the `Math.random`/`Date.now`
+  determinism bans, which its comment does not mention.
+- `security.ts` is still CRLF, the only such file in the repo (the NUL bytes that made it binary to git
+  were fixed in the review round above; the line endings were not).
+- DD-07 §8's `href` row still says the language spec's `#path` mention "needs the same correction" —
+  it was corrected in commit `405d451`, so that sentence is stale; the same section's CSS-values row
+  says "`rgb()/hsla()` grammar" where the code (`security.ts`) accepts `rgb|rgba|hsl|hsla`.
+- The hostile-label fixture's occlusion payload exercises nothing: the fixture's label is a node title,
+  so `renderEdgeLabel` — the only reader of `occlusion` — is never called. The assertion passes and
+  occlusion is safe anyway (`strict === 'plate'`, plus the `validateResult` check), but the test implies
+  coverage it does not have.
+
+**Deliberately left out.** DD-07 §11's "paint-only swap: render A, render B differing only in paint →
+trees identical when `<style>` is stripped" is not implemented as a test, for two independent reasons
+(F7). `neutral-light`/`neutral-dark` differ only in theme tokens (`neutral-dark`'s own file says so), so
+the *layout* is provably unaffected by a theme switch — but the rendered *tree* is not byte-identical
+after stripping just the `<style>` block. Reason (a): `s-{paintHash}`/`t-{paintHash}` class names embed
+the hash directly in every element's `class` attribute, so a paint change changes those attribute
+strings throughout the tree, not only inside `<style>` — fixable in principle by keying the class name on
+something theme-invariant, not pulled here. Reason (b), independent of (a) and not fixable by a class
+rename: a directed edge's arrowhead marker bakes its stroke colour into a `<defs>` element and into the
+marker's own `id`, so `marker-end`/`marker-start` references change too, for any document with a
+directed edge — this needs a different marker strategy or a `context-stroke` rewrite (both currently
+rejected), an ADR-level decision this stage does not make. DD-08 §3's strategy description is corrected
+by this change to reflect both reasons, describing a full re-render, not a `<style>`-only swap against
+a retained tree. The real version of the swappable property (switching theme leaves `geometryHash` and
+layout untouched) is Stage G's stated exit test, at the pipeline level where it is actually true.
 
 Both grammar defects tracked in the README (quoted `@`-keys, `$name` as a
 `Variable` token) are fixed and Stage A's gate passed on `main`. Stage B found
@@ -243,8 +393,11 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 |---|---|---|
 | **F2** | One bad value in a class body yields one diagnostic **per node using the class** — three nodes extending a class with `@shape: trapezoid` give three `SGL3001`s, each spanned to a node, none to the class. Same for `SGL3007`. Correct but noisy; wants a `related` span on the class declaration. | Stage I |
 | **F3** | `linearizeClasses` recurses `@extends` with no visited-set guard. Safe **only** because `resolve()` splices every cycle's back-edge first, so no `DocumentModel` reaching `compile()` can contain one. A second producer of class tables would turn bad input into a stack overflow — which §1 reserves for invariant violations. | Stage L (A9) |
-| **F4** | A **one-sided** wildcard whose expansion contains the other endpoint emits a self-loop: `x -> /**` gives `x -> x`. DD-03 §3.1 excludes self-pairs only when *both* sides are wildcarded, so code and document agree — but nothing in the corpus covers it and it may not be what an author means. Open question, not a defect. | Stage F |
 | **F5** | `SGL3005` still has no corpus fixture and sits on the coverage gate's allowlist; the unit test hand-builds a `DocumentModel` to reach it. | Stage G |
+| **F6** | `renderNode`'s port-circle template (DD-07 §3) is live, correctly `aria-hidden`, and unit-tested directly — but unreachable through the real pipeline: `grid` declares `capabilities.ports: false` and no host fallback places ports (DD-06 §4 covers labels and routing, not ports), so `LayoutResult.nodes[id].ports` is never populated end to end. Found during Stage F's accessibility pass. | unassigned — whichever stage next reconsiders `ports: false` for `grid`, or ships a port-aware engine |
+| **F7** | The paint-only `<style>`-swap property (DD-07 §11, DD-08 §3) does not hold, for two independent reasons verified against the committed goldens. (a) `s-`/`t-`/`p-{paintHash}` class names (`style.ts`) embed the paint hash, so a paint change changes every referencing element's `class` attribute, not just the `<style>` block — fixable by keying the class name on something theme-invariant instead, which is a DD-07 §6 class-naming-scheme change (would churn every golden), not pulled here. (b) independently, a directed edge's arrowhead marker bakes its stroke colour into a `<defs>` `fill` and into the marker's own `id` (`markers.ts`), so `marker-end`/`marker-start` references change too — this needs a different marker strategy or a `context-stroke` rewrite (both currently rejected: resvg lacks `context-stroke`, Safari support arrived late), not just a class rename. DD-08 §3 is corrected to describe a full re-render instead of a `<style>`-only swap; the code is unchanged. | Stage I |
+| **F8** | `<style>` content is XML-escaped by `render()` (every golden carries `&apos;Segoe UI&apos;` in the font stack). For a standalone `.svg` this is verified correct — XML parses style content as character data and decodes entities, confirmed by the injection suite. For DD-08 §6's `innerHTML` path it should *also* be correct — `style` is not in HTML's foreign-content breakout list, so inside `<svg>` the parser treats it as a foreign element and never enters the RAWTEXT state, meaning entities decode there too — but that is spec reading, not a live-browser result, and no browser target exists yet (`apps/web` is not started) to prove it. If the reading is wrong, every multi-word font family silently degrades in the live view only, not in exports. | Stage I, to verify once `apps/web` runs |
+| **F9** | DD-09 §2's **`< 16 ms` paint-only theme switch** budget has lost its justification. It was underwritten by "`<style>` text swap, no tree replacement" — which **F7** shows is not implementable, so a theme toggle is a full `render()` plus an `innerHTML` replacement. Nobody has measured that: `render()` has no benchmark, because `bench/generate.js` and the generated `corpus/n50.sgl`, `n500.sgl`, `n2000.sgl` are Stage G task 3 and do not exist yet. The budget is therefore a number with nothing behind it, and MVP acceptance criterion 2 rests on it. **Clear it by measuring** `render()` alone at 50/500/2 000 nodes once the bench exists, then either confirm `< 16 ms` or renegotiate it in DD-09 §2 and [01 §4.1](01-requirements.md) together — do not let the figure stand unmeasured. | Stage G (it builds the bench); renegotiation with Stage I |
 
 ---
 
@@ -602,8 +755,12 @@ the cost visible, so it is where the fix pays for itself. Clear F2 when a class-
 `SGL3006` or `SGL3007` carries a `related` span pointing at the class declaration.
 
 **Gate — T1 + T4 (partial).** Playwright: MVP acceptance criteria **1, 2 and 3**. Criterion 2 is the
-visible half of what Stage G already proved — assert the SVG tree is untouched and only the `<style>`
-block changes.
+visible half of what Stage G already proved — assert that switching theme leaves *geometry* untouched:
+same node frames, same edge route `d` attributes, same `viewBox`, while paint changes. **Do not assert
+"the tree is untouched and only the `<style>` block changes"** — that is what this gate said before
+**F7** (§2.1), and the property does not hold: paint class names embed `paintHash` and a directed
+edge's marker id embeds its stroke colour, so a theme switch is a full re-render. Assert the geometry,
+not the bytes.
 
 ---
 

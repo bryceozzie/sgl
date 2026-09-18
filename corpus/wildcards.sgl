@@ -78,3 +78,16 @@ lane1.* -> switch -> lane2.*
 
 // Matches nothing: SGL3003, and only this edge is skipped.
 empty.* -> switch
+
+loop: {
+  @label: "Loop"
+  p: {}
+  q: {}
+}
+
+// F4 (DD-03 §3.1): a one-sided wildcard whose expansion contains the literal
+// other endpoint keeps the self-pair. loop.* expands to {p, q}; loop.p is one
+// of them, so this yields loop.p -> loop.p (a kept self-loop) and
+// loop.p -> loop.q — not a cross-product artefact, because only one side is
+// generated here.
+loop.p -> loop.*

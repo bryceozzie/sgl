@@ -13,6 +13,19 @@ import type { EdgeLayout, LabelPlacement, LayoutResult, NodeLayout } from './con
 type Missing = (span: SourceSpan, detail: string) => Diagnostic;
 
 /**
+ * `LabelPlacement.align`/`.baseline`/`.occlusion` are enumerated fields on the
+ * frozen `contract.ts`, but that is a compile-time guarantee only — an engine's
+ * output is untrusted at runtime (a third party writes against `contract.ts`
+ * directly, and Stage H sends it across a worker boundary as JSON, which erases
+ * the TypeScript union entirely). `@sgl/render-svg` reads all three; a value
+ * outside the declared set must be caught here; the charter Stage E's own task 3
+ * states is "a buggy engine must never corrupt the renderer" (DD-06 §4).
+ */
+const VALID_ALIGN: ReadonlySet<string> = new Set(['start', 'middle', 'end']);
+const VALID_BASELINE: ReadonlySet<string> = new Set(['top', 'middle', 'bottom']);
+const VALID_OCCLUSION: ReadonlySet<string> = new Set(['plate', 'none']);
+
+/**
  * Validate an engine's output before the renderer is allowed to trust it.
  *
  * NaN/Infinity coordinates, unknown node IDs and missing entries are rejected with
@@ -94,6 +107,15 @@ export function validateResult(result: LayoutResult, graph: SemanticGraph, engin
       continue;
     }
     checkFrame(label.frame, NO_SPAN, `label '${label.labelId}'`, missing, diagnostics);
+    if (!VALID_ALIGN.has(label.align)) {
+      diagnostics.push(missing(NO_SPAN, `label '${label.labelId}' has invalid align '${String(label.align)}'`));
+    }
+    if (!VALID_BASELINE.has(label.baseline)) {
+      diagnostics.push(missing(NO_SPAN, `label '${label.labelId}' has invalid baseline '${String(label.baseline)}'`));
+    }
+    if (label.occlusion !== undefined && !VALID_OCCLUSION.has(label.occlusion)) {
+      diagnostics.push(missing(NO_SPAN, `label '${label.labelId}' has invalid occlusion '${String(label.occlusion)}'`));
+    }
   }
 
   checkFrame(result.bounds, NO_SPAN, 'bounds', missing, diagnostics);

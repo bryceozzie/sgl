@@ -15,11 +15,12 @@ single purpose, so a failure names what broke.
 | `ports.sgl` | all four sides, port-to-port edges |
 | `classes.sgl` | inheritance diamond, override order, theme `byClass`, ports cascading from a class with inline override |
 | `containers-edges.sgl` | edges to containers, boundary-crossing edges (the ELK case) |
-| `wildcards.sgl` | `*` and `**` endpoints: fan-out, descendants, cross product, ports (one- and both-sided), hidden children, relative and root-absolute wildcards |
+| `wildcards.sgl` | `*` and `**` endpoints: fan-out, descendants, cross product, ports (one- and both-sided), hidden children, relative and root-absolute wildcards, a one-sided wildcard whose expansion contains its own literal other endpoint (F4) |
 | `wildcard-globs.sgl` | name globs: prefix, suffix, both ends, a dash before the star, quoted keys, and the near-misses that must **not** match |
 | `shapes.sgl` | every built-in shape once |
 | `unicode.sgl` | quoted keys with spaces, dots and emoji; RTL text in labels |
 | `hidden.sgl` | hidden nodes with edges to them, and an edge hidden by its own `@hidden` between two visible nodes |
+| `a11y-links.sgl` | `@a11y.label`/`@a11y.description` overrides on a node and an edge, and a valid `https:` `@link` |
 | `n50.sgl` `n500.sgl` `n2000.sgl` | **generated** by `bench/generate.js`; perf and scale |
 | `malformed/*.sgl` | one syntax error each, with the expected diagnostic and a partial AST |
 | `injection/*.sgl` | one hostile string per context |

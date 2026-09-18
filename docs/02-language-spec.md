@@ -191,7 +191,7 @@ gives every expanded edge that label and that style. There is no way to tell, do
 | `@type` | node, edge | Class reference; may be a list |
 | `@shape` | node | `rect` `round` `circle` `ellipse` `diamond` `hexagon` `cylinder` `cloud` `document` `actor` `package` `note`, or a theme-defined shape |
 | `@icon` | node | Icon reference (see backlog) |
-| `@tooltip`, `@link` | node, edge | `@link` restricted to `https:`, `mailto:`, and in-document `#path` |
+| `@tooltip`, `@link` | node, edge | `@link` restricted to `https:` and `mailto:`; anything else, including in-document `#path`, is dropped with `SGL6001` (DD-07 §8) |
 | `@style.*` | any | Paint overrides: `fill`, `stroke`, `strokeWidth`, `strokeDash`, `opacity`, `font*`, `radius`, `shadow` |
 | `@layout.*` | any | Engine hints. `@layout.engine`, plus free-form engine-specific keys |
 | `@size.*` | node | `width`, `height`, `minWidth`, `maxWidth`, `aspectRatio` |

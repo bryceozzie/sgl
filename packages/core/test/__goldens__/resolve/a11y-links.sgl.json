@@ -1,0 +1,24 @@
+{
+  "@sgl": "1.0",
+  "@title": "Accessibility and links",
+  "a": {
+    "@label": "Widget",
+    "@link": "https://example.com/a",
+    "@a11y": {
+      "label": "Custom label",
+      "description": "Extra detail for screen readers"
+    }
+  },
+  "b": {},
+  "@edges": [
+    {
+      "from": "a",
+      "to": "b",
+      "directed": "forward",
+      "ordinal": 0,
+      "@a11y": {
+        "description": "An edge description"
+      }
+    }
+  ]
+}

@@ -158,12 +158,15 @@ For nodes with `aspectRatio`, after layout: `w = h = max(w, h)` (ratio 1) or the
 | Every edge has an `EdgeLayout`; no unknown ids | `SGL4002` |
 | All numbers finite; all frame sizes ≥ 0 | `SGL4002` |
 | Every `LabelPlacement.labelId` exists in `graph.labels` | `SGL4002` |
+| Every `LabelPlacement.align`/`.baseline`/`.occlusion` is one of its declared enum values | `SGL4002` |
 | Container `contentFrame` inside its `frame` | `SGL4003` warning |
 | Child frames inside parent contentFrame (± 0.5 px) | `SGL4003` warning; not corrected — some engines overflow deliberately |
 
 **DEVIATION:** the "contentFrame reset to frame inset by padding" correction this table originally specified for the first `SGL4003` row is **not implemented**. `validateResult`'s signature — inherited unchanged from the stub Stage E started from — returns `readonly Diagnostic[]` only; it has no way to hand back a corrected `LayoutResult`. Both `SGL4003` rows are therefore warnings with no correction, which is what the table's own second row already said for the sibling case. A future stage wiring this into a real pipeline, with a code path that can return a new `LayoutResult`, can add the correction then. `engineId` is a third parameter Stage E added, needed only to fill in `SGL4002`'s `{id}` placeholder in the message text — it plays no part in what is checked.
 
 `SGL4002` rejects the whole result; the application keeps the previous `LayoutResult` (FR-E4 at the layout stage).
+
+**Added by Stage F's review round, filling a gap this table did not name:** `align`/`baseline`/`occlusion` are enumerated fields on `LabelPlacement` (§0's `contract.ts`), but the enum is a compile-time guarantee only — `@sgl/render-svg` reads all three from an engine's output, which is untrusted at runtime, and Stage H sends `LayoutResult` across a worker boundary as JSON, which erases the TypeScript union entirely. A hostile or buggy engine returning `align: 'middle"><script>alert(1)</script>'` reached the renderer unescaped before this row existed (found by review, fixed in `render-svg` alongside this check — see DD-07 §8). This is exactly Stage E task 3's charter, "a buggy engine must never corrupt the renderer," extended to a field this table had not yet covered.
 
 **Quantization** (ADR-0004): every `x y w h`, every path point, every label frame → `Math.round(v * 64) / 64`. Applied to the validated result; the `LayoutResult` the renderer sees is always quantized.
 

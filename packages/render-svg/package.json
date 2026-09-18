@@ -12,5 +12,11 @@
   "scripts": {
     "build": "tsdown"
   },
-  "dependencies": { "@sgl/core": "workspace:*", "@sgl/theme": "workspace:*" }
+  "dependencies": { "@sgl/core": "workspace:*", "@sgl/theme": "workspace:*" },
+  "devDependencies": {
+    "@sgl/layout-api": "workspace:*",
+    "@sgl/layout-std": "workspace:*",
+    "@sgl/measure": "workspace:*",
+    "fast-xml-parser": "^4.5.0"
+  }
 }
