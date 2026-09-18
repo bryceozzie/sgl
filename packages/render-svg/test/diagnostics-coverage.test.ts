@@ -1,6 +1,7 @@
-import { CATALOGUE, type DiagnosticCode } from '@sgl/core';
+import type { DiagnosticCode } from '@sgl/core';
 import { neutralDark, neutralLight, type ThemeDoc } from '@sgl/theme';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { RENDER_SVG_OWNED_CODES } from '../../core/test/diagnostics-scope.js';
 import { corpusSource, listCorpusDocs, runPipeline } from './pipeline.js';
 
 /**
@@ -28,6 +29,11 @@ import { corpusSource, listCorpusDocs, runPipeline } from './pipeline.js';
  * well-formed — no corpus fixture, however malformed itself, can reach them.
  * `@sgl/theme`'s own suite (`cascade.test.ts`) exercises them directly against
  * hand-built `ThemeDoc`s instead.
+ *
+ * `RENDER_SVG_OWNED_CODES` comes from `../../core/test/diagnostics-scope.js`,
+ * the same module `packages/core/test/diagnostics-coverage.test.ts` derives
+ * `CORE_OWNED_CODES` from and asserts partitions `CATALOGUE` against — so this
+ * file's set and that one's can't drift apart into a gap or an overlap.
  */
 const NOT_YET_REACHABLE: ReadonlySet<DiagnosticCode> = new Set<DiagnosticCode>([
   'SGL5001',
@@ -37,9 +43,7 @@ const NOT_YET_REACHABLE: ReadonlySet<DiagnosticCode> = new Set<DiagnosticCode>([
   'SGL5006',
 ]);
 
-const OWNED_CODES: readonly DiagnosticCode[] = (Object.keys(CATALOGUE) as DiagnosticCode[]).filter(
-  (c) => c.startsWith('SGL5') || c === 'SGL6001',
-);
+const OWNED_CODES = RENDER_SVG_OWNED_CODES;
 
 const THEMES: readonly ThemeDoc[] = [neutralLight, neutralDark];
 const DOCS = listCorpusDocs();

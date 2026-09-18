@@ -387,29 +387,48 @@ silently treated as a hit on the document root instead of `SGL2001`; and
 per distinct portless node.
 
 **Stage G is done** on `feat/pipeline`, branched from `main` at `fffe941` (Stages A–F, 1453
-tests); not yet merged. `pnpm check` is green (1513 tests, up from 1453). It formalises the
+tests); not yet merged. `pnpm check` is green (1553 tests, up from 1453) after a review round
+that found four real gaps and four nits, all fixed on the same branch. It formalises the
 `source -> RenderResult` harness Stage F had already written early (as `renderCorpusDoc` in
 `packages/render-svg/test/pipeline.ts`) into `runPipeline`, the literal function task 1 asks
-for, and layers two new pipeline-level properties on top of the corpus goldens Stage F already
-proved: `packages/render-svg/test/pipeline.test.ts` pins each `CLEAN_DOCS` document's *exact*
-audited diagnostic set end to end (a document being "clean" was never "zero diagnostics" —
-`checkout.sgl`, `wildcards.sgl`, `wildcard-globs.sgl` and `hidden.sgl` all carry documented,
-intentional warnings — so the gate is "nothing new," verified against a table read off a real
-run, not guessed), and separately proves Gate 2's own theme-switch claim at the level MVP
-criterion 2 actually needs: under `neutral-light` vs `neutral-dark`, `geometryHash` matches,
-`paintHash` differs, and the two runs' `LayoutResult`s are `toEqual`, not just hash-equal —
-the property DD-09 §3.3 invariant 3 only checked at the `styleGraph` level, for one document.
+for. **`runPipeline` also inserts `validateResult` into the shared harness for the first time**
+— DD-06 §4's own guard against a corrupt engine result reaching the renderer, which the earlier
+`renderCorpusDoc` never ran — so every golden and double-run test Stage F wrote (`render.test.ts`,
+`injection.test.ts`) now passes through it too on every run, not just Stage G's own tests; `grid`
+still produces nothing `validateResult` rejects, so no golden changed.
 
-**Task 3 closes F5.** `bench/generate.js` writes `corpus/n50.sgl`, `n500.sgl`, `n2000.sgl` and
+**Two pipeline-level properties sit on top of the corpus goldens Stage F already proved**, both
+in `packages/render-svg/test/pipeline.test.ts`: every corpus document — all 52, not only the 16
+`CLEAN_DOCS` — emits exactly its audited end-to-end diagnostic set, and a `neutral-light` vs
+`neutral-dark` switch leaves `geometryHash` and the full `LayoutResult` untouched while moving
+`paintHash` (MVP criterion 2, at the level it actually holds, stronger than DD-09 §3.3 invariant
+3's `styleGraph`-only check). The diagnostics property was `CLEAN_DOCS`-only in the first pass,
+which a review round called out as covering 16 of 52 documents while leaving the 36 dirtiest —
+`malformed/`, `unresolved/`, `injection/`, and the three generated scale documents — to
+`render.test.ts`'s never-throws sweep, which asserts nothing about *which* diagnostics come out.
+Extended the same way the clean half was built (a table read off a real `runPipeline` run, not
+guessed): each dirty document's own `// expects: SGLnnnn` header (read directly, the same
+convention `parse.test.ts`/`resolve.test.ts`/`compile.test.ts` already use) plus an explicit,
+human-written `DOWNSTREAM_EXTRA` map for the two fixtures where parser error-recovery adds a
+second, pre-existing diagnostic `parse.test.ts`'s own malformed-corpus check already tolerated
+without pinning (`malformed/unterminated-string.sgl` also emits `SGL1001`;
+`malformed/wildcard-two-stars.sgl` also emits `SGL3003`). A partition check
+(`every non-CLEAN_DOCS corpus document is accounted for above`) guards the split itself.
+
+**Task 3 closes F5.** `bench/generate.js` writes `corpus/n50.sgl`, `n500.sgl` and `n2000.sgl`
+deterministically; none are committed, matching the design's existing intent (bench/README.md:
+"generated rather than committed so the shape of the scale fixtures stays a single decision in
+one file"), and `pnpm test`/`pnpm check` regenerate them first via a new `generate:corpus` script.
 `corpus/unresolved/edge-expansion-limit.sgl` (a 32 x 32 wildcard cross product, the smallest
-square past `MAX_EDGE_EXPANSION`) deterministically. None of the four are committed — a
-deviation from how every other corpus fixture and every golden in this project is handled, but
-one the design already called for (bench/README.md: "generated rather than committed so the
-shape of the scale fixtures stays a single decision in one file"); `pnpm test`/`pnpm check`
-regenerate them first via a new `generate:corpus` script, so CI never sees a stale or missing
-fixture. `edge-expansion-limit.sgl` is added to `compile.test.ts`'s compiler-owned-diagnostics
-list and `SGL3005` is removed from `packages/core/test/diagnostics-coverage.test.ts`'s
-allowlist — the F5 finding is deleted from §2.1 below, not left to rot.
+square past `MAX_EDGE_EXPANSION`) was generated the same way in the first pass; a review round
+found that wrong against bench/README.md's own rationale — a ~30-line correctness fixture is not
+"the shape of a scale fixture," and generating it made a correctness gate depend on a build step
+a bare `vitest run` or an IDE test runner outside `pnpm test` would not take, unlike every other
+committed `unresolved/*.sgl` fixture. It is committed instead, `bench/generate.js` no longer
+writes it, and its `.gitignore` entry is removed. It is added to `compile.test.ts`'s
+compiler-owned-diagnostics list and `SGL3005` is removed from
+`packages/core/test/diagnostics-coverage.test.ts`'s allowlist — the F5 finding is deleted from
+§2.1 below, not left to rot.
 
 **A second, unrelated staleness bug turned up while touching that same allowlist, and is fixed
 in the same change.** `SGL5004` (theme: a style value failing its registry type) and `SGL6001`
@@ -425,7 +444,11 @@ runs the *whole* pipeline and owns `5xxx`/`SGL6001`. `SGL5004` (`checkout.sgl`) 
 `SGL5002`, `SGL5003`, `SGL5005`, `SGL5006` stay on it, but the reason is corrected: each fires on
 a defect in a *theme document* (an extends cycle, depth over 8, an unknown token), not a `.sgl`
 document, and both built-in themes are well-formed, so no corpus fixture — however malformed
-itself — can ever reach them.
+itself — can ever reach them. A review round found the split itself had no partition guard — a
+future `SGL6002` could fall through neither gate, a future `SGL5007` could demand a fixture core
+structurally cannot produce — so both sets now derive from one predicate in a new
+`packages/core/test/diagnostics-scope.ts` (`isRenderSvgOwned`), with a test asserting the two are
+disjoint and their union is exactly `CATALOGUE`.
 
 **A real, if narrow, defect in `@sgl/theme` surfaced from writing the theme-switch test above,
 and is fixed, not just noted**: `StyledGraph.paintHash` is computed entirely from per-element
@@ -438,7 +461,15 @@ report "no paint change" and could wrongly skip a repaint. Fixed in `packages/th
 by folding `canvas=<background>` into the same `paintParts` array before hashing; DD-04 §5's
 `StyledGraph.paintHash` comment is corrected to say so. This is the graph-level aggregate hash
 only — no per-element `ComputedStyle.paintHash` changed, so no rendered SVG byte changed and no
-golden needed regenerating (verified: all render/injection goldens pass unchanged).
+golden needed regenerating (verified: all render/injection goldens pass unchanged). A review
+round found this fix had no direct unit test — only the three-packages-downstream pipeline test,
+and only load-bearing for `empty.sgl` specifically, which nothing stated. Added a direct case to
+`packages/theme/test/cascade.test.ts`'s existing hash-partition `describe` block: two
+`ResolvedTheme`s differing *only* in `canvas.background` move the graph `paintHash`, leave
+`geometryHash` and every element's `ComputedStyle` untouched — proving the canvas term is doing
+the work, not a coincidental element change — and the pipeline test now says in a comment that
+`empty.sgl` is the one document where its own assertion is load-bearing rather than redundant
+with an element-level paint difference.
 
 **Deliberately left out.** The actual benchmark *runner* — DD-09 §3.1 puts this measurement in
 headless Chromium, and no browser test target exists until Stage H (Vitest browser mode). Task 3
@@ -446,7 +477,13 @@ only asks for the fixture generator, and F9 (§2.1) is updated to reflect that t
 exist but the measurement, and any renegotiation of DD-09 §2's numbers, still needs a browser
 target. Also left out: actually running `pnpm generate:corpus`'s output through headless
 Chromium, a Playwright smoke test of the generated `n2000.sgl`, and any change to `apps/web`
-(unstarted, Stage I).
+(unstarted, Stage I). DD-09 §4's acceptance-mapping row for MVP criterion 2 now names the new
+pipeline-level theme-switch test alongside the Playwright test and hash property it already
+credited, since it is the strongest automation of that criterion that exists today. Two
+same-branch renames for clarity, not behaviour: `grid.test.ts`'s local `LayoutInput ->
+LayoutResult` helper, also called `runPipeline`, is now `runHostPipeline`, distinct from
+`pipeline.ts`'s exported `source -> RenderResult` one; and `eslint.config.js`'s
+`bench/**/*.js` globals block no longer declares `process`, which `bench/generate.js` never uses.
 
 ### 2.1 Open findings
 

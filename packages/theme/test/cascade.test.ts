@@ -134,6 +134,13 @@ function patchedLight(rule: string, patch: StyleSet): ThemeDoc {
   };
 }
 
+/** `neutral-light` with only `canvas.background` changed — every rule, every
+ *  `byShape`/`byClass` entry and every token stays identical, so this isolates
+ *  the canvas term in `paintHash` from every other paint source. */
+function patchedCanvasBackground(background: string): ThemeDoc {
+  return { ...neutralLight, id: 'patched-canvas', canvas: { background } };
+}
+
 function resolved(doc: ThemeDoc): ResolvedTheme {
   const { value, diagnostics } = resolveTheme(doc, BUILT_IN_LOOKUP);
   expect(diagnostics.map((d) => d.code)).toEqual([]);
@@ -555,6 +562,22 @@ describe('styleGraph: the geometry/paint hash partition (DD-04 §8)', () => {
     expect(bigger.labelStyles['l:outside']?.geometryHash)
       .not.toBe(base.labelStyles['l:outside']?.geometryHash);
     expect(bigger.geometryHash).not.toBe(base.geometryHash);
+  });
+
+  it('moves the graph paint hash when only canvas.background changes, with no element touched', () => {
+    // The canvas has no ComputedStyle of its own — nothing in the per-element
+    // loop ever sees `theme.canvas.background` — so this is the one property
+    // that can only move `StyledGraph.paintHash` via the dedicated `canvas=...`
+    // term `styleGraph` folds in after that loop (DD-04 §5). Isolating it here
+    // (every rule, every token, every `byShape`/`byClass` entry held fixed)
+    // proves that term is doing the work, not a coincidental element change.
+    const repainted = styleGraph(graph, resolved(patchedCanvasBackground('#010203'))).value;
+
+    expect(repainted.canvas.background).not.toBe(base.canvas.background);
+    expect(repainted.paintHash).not.toBe(base.paintHash);
+    expect(repainted.geometryHash).toBe(base.geometryHash);
+    expect(JSON.stringify(repainted.styles)).toBe(JSON.stringify(base.styles));
+    expect(JSON.stringify(repainted.labelStyles)).toBe(JSON.stringify(base.labelStyles));
   });
 
   it('puts every registry property in exactly one half', () => {

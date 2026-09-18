@@ -58,7 +58,7 @@ function layoutInputFor(name: string): { readonly styled: StyledGraph; readonly 
 /** The full host pipeline over one `LayoutInput`, matching what a real caller
  *  would run for an engine declaring `labelPlacement: false, edgeRouting:
  *  'straight'` (DD-06 §4, §5). */
-async function runPipeline(input: LayoutInput): Promise<LayoutResult> {
+async function runHostPipeline(input: LayoutInput): Promise<LayoutResult> {
   const raw = await gridEngine.layout(input, CTX);
   const routed = routeStraight(input, raw, METRICS);
   const labelled = placeLabels(input, routed, METRICS);
@@ -111,21 +111,21 @@ describe('grid engine over the corpus (DD-06 §7, T2 gate)', () => {
   for (const doc of DOCS) {
     it(`${doc}: lays out with no layout diagnostics at all (errors or warnings)`, async () => {
       const { input } = layoutInputFor(doc);
-      const result = await runPipeline(input);
+      const result = await runHostPipeline(input);
       const diagnostics = validateResult(result, input.graph, gridEngine.id);
       expect(diagnostics).toEqual([]);
     });
 
     it(`${doc}: bitwise-identical across two runs (ADR-0004, DD-00 §6 exit criterion)`, async () => {
       const { input } = layoutInputFor(doc);
-      const a = await runPipeline(input);
-      const b = await runPipeline(input);
+      const a = await runHostPipeline(input);
+      const b = await runHostPipeline(input);
       expect(JSON.stringify(a)).toBe(JSON.stringify(b));
     });
 
     it(`${doc}: no two sibling leaf frames overlap (DD-06 §8, conformance item 3)`, async () => {
       const { input } = layoutInputFor(doc);
-      const result = await runPipeline(input);
+      const result = await runHostPipeline(input);
       expect(siblingLeafOverlaps(input.graph, result)).toEqual([]);
     });
   }
@@ -133,7 +133,7 @@ describe('grid engine over the corpus (DD-06 §7, T2 gate)', () => {
   for (const doc of CLEAN_DOCS) {
     it(`${doc}: layout golden`, async () => {
       const { input } = layoutInputFor(doc);
-      const result = await runPipeline(input);
+      const result = await runHostPipeline(input);
       await expect(`${JSON.stringify(result, null, 2)}\n`).toMatchFileSnapshot(`./__goldens__/grid/${doc}.json`);
     });
   }
@@ -150,7 +150,7 @@ describe('grid engine over the corpus (DD-06 §7, T2 gate)', () => {
 
   it('self-loops route to a multi-segment teardrop, not a degenerate point (DD-06 §4.5)', async () => {
     const { input } = layoutInputFor('parallel-selfloop.sgl');
-    const result = await runPipeline(input);
+    const result = await runHostPipeline(input);
     const selfLoopEdges = input.graph.edges.filter((e) => e.from.node === e.to.node && !e.hidden);
     expect(selfLoopEdges.length).toBeGreaterThan(0);
     for (const edge of selfLoopEdges) {

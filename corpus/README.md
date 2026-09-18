@@ -22,15 +22,19 @@ single purpose, so a failure names what broke.
 | `hidden.sgl` | hidden nodes with edges to them, and an edge hidden by its own `@hidden` between two visible nodes |
 | `a11y-links.sgl` | `@a11y.label`/`@a11y.description` overrides on a node and an edge, and a valid `https:` `@link` |
 | `n50.sgl` `n500.sgl` `n2000.sgl` | **generated** by `bench/generate.js`; perf and scale |
-| `unresolved/edge-expansion-limit.sgl` | **generated** by `bench/generate.js`; a 32 x 32 wildcard cross product, over the 1 000-edge expansion ceiling — the only way to reach `SGL3005` |
 | `malformed/*.sgl` | one syntax error each, with the expected diagnostic and a partial AST |
 | `injection/*.sgl` | one hostile string per context |
-| `unresolved/*.sgl` | one resolution error each |
+| `unresolved/*.sgl` | one resolution error each, including `edge-expansion-limit.sgl` — a 32 x 32 wildcard cross product, over the 1 000-edge expansion ceiling, the only way to reach `SGL3005` |
 
-Everything under "generated" is **not committed** — `bench/generate.js` writes
-it deterministically, and `pnpm test`/`pnpm check` regenerate it before Vitest
-collects `corpus/` (root `package.json`'s `generate:corpus` script). Run
-`pnpm generate:corpus` by hand to inspect the files directly.
+`n50.sgl`/`n500.sgl`/`n2000.sgl` are **not committed** — `bench/generate.js`
+writes them deterministically, and `pnpm test`/`pnpm check` regenerate them
+before Vitest collects `corpus/` (root `package.json`'s `generate:corpus`
+script). Run `pnpm generate:corpus` by hand to inspect them directly.
+`edge-expansion-limit.sgl` used to be generated alongside them but is
+committed like every other fixture here: at ~30 lines it is a correctness
+fixture, not a scale one, so its shape isn't "one decision to keep out of
+diffs" the way the `n*` documents' is, and generating it made the `SGL3005`
+coverage check depend on a build step running first.
 
 ## The coverage gate
 

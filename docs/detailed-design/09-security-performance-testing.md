@@ -134,7 +134,7 @@ Line coverage is reported, not gated. The gate is the corpus: **every diagnostic
 | MVP criterion (06 §3) | Automated by |
 |---|---|
 | 1. 40-node, 3-level doc under both engines; switch changes geometry only | Playwright test 4 + SVG goldens |
-| 2. Theme switch without re-layout | Playwright test 3 + hash property 3 + the `neutral-dark ≡ neutral-light` geometry test (DD-04 §8) |
+| 2. Theme switch without re-layout | Playwright test 3 + hash property 3 + the `neutral-dark ≡ neutral-light` geometry test (DD-04 §8) + the pipeline-level theme-switch test (`packages/render-svg/test/pipeline.test.ts`, Stage G) — the strongest automation of this criterion that exists today: a real `grid` run under both built-in themes produces `toEqual` `LayoutResult`s, not just an equal hash |
 | 3. Broken syntax keeps last render, shows squiggle | Playwright test 2 + malformed corpus |
 | 4. Open / edit / save round-trip for all three file types | Playwright test 5 |
 | 5. Full function offline | Playwright test 7 |

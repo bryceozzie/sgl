@@ -2,7 +2,7 @@ import type { DiagnosticCode } from '@sgl/core';
 import { neutralDark, neutralLight } from '@sgl/theme';
 import { describe, expect, it } from 'vitest';
 import { CLEAN_DOCS } from '../../core/test/corpus-docs.js';
-import { corpusSource, runPipeline } from './pipeline.js';
+import { corpusSource, listCorpusDocs, runPipeline } from './pipeline.js';
 
 /**
  * Stage G — the end-to-end seam (07-execution-plan.md §5). Gate 2's own words:
@@ -43,11 +43,76 @@ function codesOf(diagnostics: readonly { readonly code: DiagnosticCode }[]): Dia
   return diagnostics.map((d) => d.code).sort();
 }
 
-describe('the pipeline, source to SVG: no unexpected diagnostics (Stage G)', () => {
+/**
+ * A dirty document's *own* expected code(s) — the same `// expects: SGLnnnn`
+ * header `parse.test.ts`/`resolve.test.ts`/`compile.test.ts` already read for
+ * `malformed/`/`unresolved/*.sgl`, plus `injection/js-url-link.sgl`'s
+ * (renderer-owned `SGL6001`). A document with no header (every other
+ * `injection/*.sgl` fixture, and the generated `n50`/`n500`/`n2000.sgl` scale
+ * documents) expects nothing on its own.
+ */
+function ownExpected(src: string): readonly DiagnosticCode[] {
+  const m = /\/\/ expects: (SGL\d+)/.exec(src);
+  return m === null ? [] : [m[1] as DiagnosticCode];
+}
+
+/**
+ * Codes a *later* stage adds beyond a dirty document's own `// expects:` code —
+ * a side effect of running the whole pipeline over a document a single-stage
+ * test only partially exercises. Both entries here are pre-existing, harmless
+ * parser-recovery artefacts that `parse.test.ts`'s own malformed-corpus check
+ * already tolerates (it asserts the expected code is *present*, not that it is
+ * the *only* one) — Stage G is the first place they get written down instead
+ * of silently passing through a subset check. An empty entry is the default;
+ * anything else must be listed here explicitly, by a human, not inferred.
+ */
+const DOWNSTREAM_EXTRA: Readonly<Record<string, readonly DiagnosticCode[]>> = {
+  // The unterminated string swallows the rest of the line looking for its
+  // closing quote, which the parser then recovers from as a second, unrelated
+  // syntax error one token later.
+  'malformed/unterminated-string.sgl': ['SGL1001'],
+  // The parser's recovery from the doubled wildcard leaves a partial edge
+  // statement whose surviving wildcard matches nothing once compiled.
+  'malformed/wildcard-two-stars.sgl': ['SGL3003'],
+};
+
+describe('the pipeline, source to SVG: no unexpected diagnostics (Stage G, T3 gate)', () => {
+  it('EXPECTED_DIAGNOSTICS and DOWNSTREAM_EXTRA name only real documents', () => {
+    const docs = new Set(listCorpusDocs());
+    for (const doc of Object.keys(EXPECTED_DIAGNOSTICS)) {
+      expect(CLEAN_DOCS, `${doc} is a stale EXPECTED_DIAGNOSTICS key — not in CLEAN_DOCS`).toContain(doc);
+    }
+    for (const doc of Object.keys(DOWNSTREAM_EXTRA)) {
+      expect(docs, `${doc} is a stale DOWNSTREAM_EXTRA key — not in the corpus`).toContain(doc);
+      expect(CLEAN_DOCS, `${doc} is in both CLEAN_DOCS and DOWNSTREAM_EXTRA`).not.toContain(doc);
+    }
+  });
+
   for (const doc of CLEAN_DOCS) {
     it(`${doc}: emits exactly its audited diagnostic set`, async () => {
       const expected = [...(EXPECTED_DIAGNOSTICS[doc] ?? [])].sort();
       const { diagnostics } = await runPipeline(corpusSource(doc), neutralLight);
+      expect(codesOf(diagnostics)).toEqual(expected);
+    });
+  }
+
+  // The other 36 of 52 corpus documents (malformed/, unresolved/, injection/,
+  // and the three generated scale documents) reach theme, layout and render as
+  // partial or hostile graphs — the inputs most likely to surface a seam bug —
+  // and until now only got `render.test.ts`'s never-throws sweep, which
+  // asserts nothing about *which* diagnostics come out the other end.
+  const dirtyDocs = listCorpusDocs().filter((doc) => !CLEAN_DOCS.includes(doc));
+
+  it('every non-CLEAN_DOCS corpus document is accounted for above', () => {
+    expect(dirtyDocs.length).toBeGreaterThan(0);
+    expect(new Set([...CLEAN_DOCS, ...dirtyDocs])).toEqual(new Set(listCorpusDocs()));
+  });
+
+  for (const doc of dirtyDocs) {
+    it(`${doc}: emits exactly its own code plus its documented downstream extras`, async () => {
+      const src = corpusSource(doc);
+      const expected = [...ownExpected(src), ...(DOWNSTREAM_EXTRA[doc] ?? [])].sort();
+      const { diagnostics } = await runPipeline(src, neutralLight);
       expect(codesOf(diagnostics)).toEqual(expected);
     });
   }
@@ -67,6 +132,12 @@ describe('a theme switch at the pipeline level (MVP acceptance criterion 2, DD-0
       const dark = await runPipeline(src, neutralDark);
 
       expect(dark.styled.geometryHash).toBe(light.styled.geometryHash);
+      // For every other CLEAN_DOCS document this also moves for element reasons
+      // (some node or edge has a paint property that differs between the built-in
+      // themes) — `empty.sgl` is the one case with zero elements, so it is the
+      // only one where this assertion actually exercises the `canvas=...` term
+      // `styleGraph` folds into `paintHash` (packages/theme/src/cascade.ts, and
+      // packages/theme/test/cascade.test.ts's own direct unit test for it).
       expect(dark.styled.paintHash).not.toBe(light.styled.paintHash);
 
       // The layout engine never sees paint (DD-06 §2's `LayoutInput` carries no
