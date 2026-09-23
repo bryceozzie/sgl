@@ -1,4 +1,5 @@
 import type { Pipeline } from './pipeline.js';
+import { defaultOptionsFor } from './engine-options.js';
 import { setRootConfigString, type TextChange } from './root-config-edit.js';
 
 /** The slice of the pipeline a picker touches. */
@@ -22,13 +23,13 @@ export function selectTheme(pipeline: PickerPipeline, id: string): TextChange {
 }
 
 /** DD-08 §10, Engine ▾: sets `engineId`, resets `engineOptions` to the
- *  engine's defaults, and returns the text change that writes
- *  `@layout.engine`. No engine publishes real defaults until the options form
- *  lands (F11, Stage K), so "its defaults" is the empty bag today — still a
- *  real reset: the previous engine's options never leak across a switch. */
+ *  engine's defaults (F11's hand-built form, `engine-options.ts`; the empty
+ *  bag for an engine with no form), and returns the text change that writes
+ *  `@layout.engine`. The previous engine's options never leak across a
+ *  switch. */
 export function selectEngine(pipeline: PickerPipeline, id: string): TextChange {
   const change = rootConfigEdit(pipeline, ['layout', 'engine'], id);
   pipeline.engineId.value = id;
-  pipeline.engineOptions.value = {};
+  pipeline.engineOptions.value = defaultOptionsFor(id);
   return change;
 }

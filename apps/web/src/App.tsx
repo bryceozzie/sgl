@@ -25,6 +25,7 @@ import { createToasts } from './state/toasts.js';
 import type { Cancel } from './state/types.js';
 import { createAppWorkerHost } from './state/worker-host.js';
 import { DocumentsMenu } from './toolbar/DocumentsMenu.js';
+import { EngineOptions } from './toolbar/EngineOptions.js';
 import { EnginePicker } from './toolbar/EnginePicker.js';
 import { FileMenu } from './toolbar/FileMenu.js';
 import { ThemePicker } from './toolbar/ThemePicker.js';
@@ -45,11 +46,10 @@ const NOTICE_TOASTS: Readonly<Record<BootNotice, { readonly message: string; rea
 /**
  * The application shell (DD-08 §2's layout: editor left, canvas right).
  *
- * I1: the default engine is whichever engine is actually registered in the
- * worker — `gridEngine.id` (`sgl.grid`) — not `@sgl/layout-api`'s frozen
- * `DEFAULT_ENGINE_ID` (`sgl.elk`, ADR-0005's eventual default), which is not
- * registered until Stage K. `boot` (`io/app-boot.ts`) has already chosen the
- * document (§8/§9) and validated its engine and theme against what exists.
+ * The default engine is `elk` (ADR-0005; Stage K ended Stage I's interim
+ * `grid` default, I1). `boot` (`io/app-boot.ts`) has already chosen the
+ * document (§8/§9) and validated its engine and theme against what exists —
+ * a stored document keeps its own engine.
  */
 export function App({ boot }: { readonly boot: AppBoot }) {
   const app = useMemo(() => {
@@ -223,6 +223,7 @@ export function App({ boot }: { readonly boot: AppBoot }) {
           </div>
         ) : null}
         <EnginePicker pipeline={pipeline} view={view} registered={REGISTERED_ENGINES} />
+        <EngineOptions pipeline={pipeline} />
         <ThemePicker pipeline={pipeline} view={view} />
         <button type="button" class="toolbar-button toolbar-fit" onClick={() => fit?.()}>
           <span aria-hidden="true">⟳</span> Fit
