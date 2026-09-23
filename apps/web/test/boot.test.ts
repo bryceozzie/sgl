@@ -112,6 +112,16 @@ describe('boot with a share link', () => {
     expect(await store.getSetting('lastOpenDocId')).toBe('new-1');
   });
 
+  it("a link's engine reaches the new record even when it is not the default (fix round 1, item 15)", async () => {
+    const store = createMemoryStore();
+    const fragment = await fragmentFor({ source: 'shared: "Shared"\n', engineId: 'sgl.grid' });
+    const result = await bootDocument(
+      deps(store, { hash: fragment, defaultEngineId: 'sgl.elk', isKnownEngine: (id) => id === 'sgl.grid' || id === 'sgl.elk' }),
+    );
+    expect(result.record.engineId).toBe('sgl.grid');
+    expect((await store.getDocument(result.record.id))?.engineId).toBe('sgl.grid');
+  });
+
   it("a link's unknown engine or theme falls back to the default", async () => {
     const fragment = await fragmentFor({ source: 'x\n', engineId: 'sgl.elk', themeId: 'sepia' });
     const { record } = await bootDocument(deps(createMemoryStore(), { hash: `#${fragment}` }));

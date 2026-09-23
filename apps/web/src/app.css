@@ -102,6 +102,8 @@ body {
 }
 .engine-options .options-field { display: contents; }
 .engine-options .options-form input, .engine-options .options-form select { font: inherit; font-size: 0.78rem; width: 9rem; }
+.engine-options .options-error { grid-column: 1 / -1; margin: 0; max-width: 16rem; color: light-dark(#a8071a, #ff7875); font-size: 0.72rem; }
+.engine-options [aria-invalid='true'] { outline: 2px solid light-dark(#a8071a, #ff7875); }
 
 .save-menu .menu,
 .docs-menu .menu,

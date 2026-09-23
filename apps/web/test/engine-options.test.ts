@@ -1,7 +1,7 @@
 import { elkDescriptor } from '@sgl/layout-elk/descriptor';
 import { gridEngine } from '@sgl/layout-std';
 import { describe, expect, it } from 'vitest';
-import { defaultOptionsFor, engineForm, formValues, withOption } from '../src/state/engine-options.js';
+import { defaultOptionsFor, editOption, engineForm, formValues, optionsForEngine, withOption } from '../src/state/engine-options.js';
 
 /** F11 (DD-08 §10, Stage K decision K9): one hand-built form per engine,
  *  DOM-free. `toolbar/EngineOptions.tsx` only renders this. */
@@ -62,6 +62,29 @@ describe('engine options form (F11)', () => {
     expect(withOption('sgl.grid', {}, 'columns', '4')).toEqual({ columns: 4, gap: 24, align: 'center' });
     expect(withOption('sgl.grid', { columns: 4 }, 'columns', '')).toMatchObject({ columns: 'auto' });
     expect(withOption('sgl.grid', { columns: 4 }, 'columns', '1.5')).toMatchObject({ columns: 4 });
+  });
+
+  it('bounds every number field and says why a value was refused, and which value is in use (fix round 1, item 22)', () => {
+    const elkForm = engineForm('sgl.elk')!;
+    const gridForm = engineForm('sgl.grid')!;
+    const max = (form: typeof elkForm, key: string) => (form.fields.find((f) => f.key === key) as { max: number }).max;
+    expect(max(elkForm, 'nodeSpacing')).toBe(500);
+    expect(max(elkForm, 'rankSpacing')).toBe(500);
+    expect(max(gridForm, 'gap')).toBe(200);
+    expect(max(gridForm, 'columns')).toBe(50);
+
+    expect(editOption('sgl.elk', {}, 'nodeSpacing', '500')).toEqual({ bag: { ...defaultOptionsFor('sgl.elk'), nodeSpacing: 500 }, rejected: null });
+    const tooWide = editOption('sgl.elk', { nodeSpacing: 60 }, 'nodeSpacing', '501');
+    expect(tooWide.bag).toMatchObject({ nodeSpacing: 60 });
+    expect(tooWide.rejected).toBe('Node spacing must be a number from 0 to 500. Using 60.');
+    expect(editOption('sgl.elk', {}, 'rankSpacing', '-1').rejected).toBe('Rank spacing must be a number from 0 to 500. Using 70.');
+    expect(editOption('sgl.grid', {}, 'columns', '51').rejected).toBe('Columns must be a whole number from 1 to 50, or empty for automatic. Using auto.');
+    expect(editOption('sgl.grid', {}, 'gap', '201').rejected).toBe('Gap must be a number from 0 to 200. Using 24.');
+
+    // A stored value beyond the form's range is shown, and sent (item 3), as the default.
+    expect(formValues('sgl.elk', { nodeSpacing: 9000 })).toMatchObject({ nodeSpacing: 40 });
+    expect(formValues('sgl.grid', { columns: 80, gap: 999 })).toMatchObject({ columns: 'auto', gap: 24 });
+    expect(optionsForEngine('sgl.grid', { columns: 'x' })).toEqual({ columns: 'auto', gap: 24, align: 'center' });
   });
 
   it('an engine with no hand-built form gets none, and resets to an empty bag', () => {

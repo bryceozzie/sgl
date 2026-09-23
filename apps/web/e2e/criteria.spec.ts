@@ -12,6 +12,7 @@ import {
   nodeGeometry,
   paintHash,
   renderedIdentity,
+  renderedPaintHash,
   renderedSvg,
   setSource,
   sourceDiagnostics,
@@ -106,7 +107,12 @@ test.describe('MVP acceptance', () => {
     await expect(page.locator('.engine-picker select')).toHaveValue('sgl.elk'); // the default (ADR-0005)
     await expect(page.locator('.diagnostics-panel')).toHaveCount(0); // clean document, no diagnostics.
 
-    const underElk = { identity: await renderedIdentity(page), paint: await paintHash(page), geometry: await layoutGeometryHash(page) };
+    const underElk = {
+      identity: await renderedIdentity(page),
+      paint: await paintHash(page),
+      renderedPaint: await renderedPaintHash(page),
+      geometry: await layoutGeometryHash(page),
+    };
     const geomElk = await nodeGeometry(page);
     expect(Object.keys(geomElk)).toHaveLength(40);
     for (const d of Object.values(geomElk)) expect(d.length).toBeGreaterThan(0);
@@ -115,10 +121,19 @@ test.describe('MVP acceptance', () => {
     await switchEngine(page, 'sgl.grid', underElk.geometry);
     await waitForExactNodeCount(page, 40);
     await expect(page.locator('.diagnostics-panel')).toHaveCount(0);
-    const underGrid = { identity: await renderedIdentity(page), paint: await paintHash(page), geometry: await layoutGeometryHash(page) };
+    const underGrid = {
+      identity: await renderedIdentity(page),
+      paint: await paintHash(page),
+      renderedPaint: await renderedPaintHash(page),
+      geometry: await layoutGeometryHash(page),
+    };
 
     expect(underGrid.identity).toEqual(underElk.identity); // the same nodes, edges and labels …
-    expect(underGrid.paint).toBe(underElk.paint); // … the same paint …
+    expect(underGrid.paint).toBe(underElk.paint); // … the same paint, by the pipeline's own hash …
+    // … and as rendered (fix round 1, item 14): the <style> text and every
+    // element's class/fill/stroke/stroke-dasharray, so a paint difference
+    // the pipeline's hash does not see would still fail here …
+    expect(underGrid.renderedPaint).toBe(underElk.renderedPaint);
     expect(underGrid.geometry).not.toBe(underElk.geometry); // … different geometry.
   });
 });

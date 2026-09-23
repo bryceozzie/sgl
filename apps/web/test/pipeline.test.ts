@@ -31,6 +31,7 @@ class TestMeasurer extends StaticMetricsMeasurer implements AppMeasurer {
 interface PendingRun {
   readonly engineId: string;
   readonly input: LayoutInput;
+  readonly options: object;
   readonly signal: AbortSignal;
   readonly resolve: (result: StageResult<LayoutResult | null>) => void;
   /** Not part of the real `LayoutHost` contract (DD-06 §3: `run()` only ever
@@ -54,9 +55,9 @@ interface PendingRun {
 function createFakeHost(options: { readonly ignoreAbort?: boolean } = {}): { readonly host: LayoutHost; readonly pending: PendingRun[] } {
   const pending: PendingRun[] = [];
   const host: LayoutHost = {
-    run(engineId, input, _options, _metrics, _table, signal) {
+    run(engineId, input, engineOptions, _metrics, _table, signal) {
       return new Promise<StageResult<LayoutResult | null>>((resolve, reject) => {
-        pending.push({ engineId, input, signal, resolve, reject });
+        pending.push({ engineId, input, options: engineOptions, signal, resolve, reject });
         if (!options.ignoreAbort) signal.addEventListener('abort', () => reject(makeAbortError()), { once: true });
       });
     },
@@ -163,6 +164,26 @@ async function completeOneLayout(env: ReturnType<typeof setup>, nodeId: string):
 }
 
 describe('pipeline (DD-08 §3)', () => {
+  it("sends the engine exactly the options its form shows, not the stored bag raw (fix round 1, item 3)", async () => {
+    const env = setup('a: "A"');
+    // A stored record's bag the grid form cannot show: it shows `auto`, 24, center.
+    env.pipeline.engineOptions.value = { columns: 'x', gap: -3, align: 'sideways', stray: true };
+    await completeOneLayout(env, 'a');
+    expect(env.pending.at(-1)!.options).toEqual({ columns: 'auto', gap: 24, align: 'center' });
+
+    env.pipeline.engineId.value = 'sgl.elk';
+    env.pipeline.engineOptions.value = { direction: 'right', nodeSpacing: 'wide' };
+    await completeOneLayout(env, 'a');
+    expect(env.pending.at(-1)!.engineId).toBe('sgl.elk');
+    expect(env.pending.at(-1)!.options).toEqual({ direction: 'right', nodeSpacing: 40, rankSpacing: 70, edgeRouting: 'ORTHOGONAL', nodePlacement: 'BRANDES_KOEPF' });
+
+    // An engine with no hand-built form gets its bag unchanged.
+    env.pipeline.engineId.value = 'org.example.other';
+    env.pipeline.engineOptions.value = { anything: 1 };
+    await completeOneLayout(env, 'a');
+    expect(env.pending.at(-1)!.options).toEqual({ anything: 1 });
+  });
+
   it('last-good survives a syntax error (FR-E4)', async () => {
     const env = setup('a: "A"');
     await completeOneLayout(env, 'a');

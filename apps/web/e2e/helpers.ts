@@ -200,6 +200,7 @@ export interface StoredDocument {
   readonly title: string;
   readonly source: string;
   readonly engineId: string;
+  readonly engineOptions?: Readonly<Record<string, unknown>>;
   readonly themeId: string;
   readonly lastGoodSvg?: string;
   readonly fileExtension?: string;
@@ -229,6 +230,51 @@ export async function readStorage(page: Page): Promise<{ readonly documents: Sto
       };
     }).catch(() => ({ documents: [] as StoredDocument[], lastOpenDocId: undefined })),
   );
+}
+
+/** Rewrites fields of the open document's stored record straight in
+ *  IndexedDB — how a record written by an older version, or by hand, looks
+ *  to the next boot. The page should be reloaded afterwards. */
+export async function patchStoredOpenDocument(page: Page, patch: Readonly<Record<string, unknown>>): Promise<void> {
+  await page.evaluate(
+    (fields) =>
+      new Promise<void>((resolve, reject) => {
+        const open = indexedDB.open('sgl');
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const db = open.result;
+          const tx = db.transaction(['documents', 'settings'], 'readwrite');
+          const last = tx.objectStore('settings').get('lastOpenDocId');
+          last.onsuccess = () => {
+            const id = (last.result as { value?: string } | undefined)?.value;
+            if (id === undefined) return;
+            const docs = tx.objectStore('documents');
+            const get = docs.get(id);
+            get.onsuccess = () => docs.put({ ...(get.result as object), ...fields });
+          };
+          tx.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error);
+        };
+      }),
+    patch,
+  );
+}
+
+/** A hash of everything paint decides, as rendered, before or after layout
+ *  alike (fix round 1, item 14): the `<style>` text, and each element's
+ *  `class`, `fill`, `stroke` and `stroke-dasharray`, in document order. */
+export async function renderedPaintHash(page: Page): Promise<string> {
+  const paint = await renderedSvg(page).evaluate((svg) => {
+    const style = [...svg.querySelectorAll('style')].map((s) => s.textContent ?? '').join('\n');
+    const attrs = [...svg.querySelectorAll('*')].map((el) =>
+      ['class', 'fill', 'stroke', 'stroke-dasharray'].map((a) => `${a}=${el.getAttribute(a) ?? ''}`).join(' '),
+    );
+    return JSON.stringify({ style, attrs });
+  });
+  return createHash('sha256').update(paint).digest('hex');
 }
 
 /** The open document's stored record (`lastOpenDocId`'s), or `undefined`. */

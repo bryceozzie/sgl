@@ -18,6 +18,7 @@ import { BUILT_IN, DEFAULT_THEME_ID, resolveTheme, styleGraph, type ResolvedThem
 import { render, type RenderResult } from '@sgl/render-svg';
 import { boundsChangedSignificantly, type Extent } from '../canvas/viewport.js';
 import { deriveChipState, type ChipState } from './chip.js';
+import { optionsForEngine } from './engine-options.js';
 import { distinctTextStyles } from './measure-styles.js';
 import { documentEngineOverride, documentThemeOverride } from './overrides.js';
 import { makePipelineError, type PipelineError } from './pipeline-error.js';
@@ -483,7 +484,8 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     const styledSnapshot = styled.value.value;
     const tableSnapshot = table.value;
     const engine = effectiveEngineId.value;
-    const options = engineOptions.value;
+    // The engine gets exactly what the options form shows (fix round 1, item 3).
+    const options = optionsForEngine(engine, engineOptions.value);
 
     // Reads `table.value` above regardless, so this effect is still subscribed
     // to it and re-runs the instant the first real table lands (see
