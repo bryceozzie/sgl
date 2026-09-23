@@ -114,7 +114,7 @@ A stage is not done because the code is written. It is done when its gate passes
 | `@sgl/core` — `compile()`, wildcard expansion, class linearisation | **Done**, T1+T2 gate green, diagnostics coverage gate enabled | `main` |
 | `@sgl/layout-api` — `buildLayoutInput`, shape content insets + anchors, host fallbacks, `validateResult`/`quantize` | **Done**, T1+T2 gate green (Stage E) | `main` |
 | `@sgl/layout-std` — `grid` | **Done**, T1+T2 gate green, bitwise double-run over the whole corpus (Stage E) | `main` |
-| End-to-end pipeline (`source -> RenderResult`), `bench/generate.js` | **Done**, T3 gate green (Stage G) | `feat/pipeline`, unmerged |
+| End-to-end pipeline (`source -> RenderResult`), `bench/generate.js` | **Done**, T3 gate green (Stage G) | `main` |
 | Worker host, `apps/web` | **Not started** | — |
 
 **Gate 1 is cleared.** `feat/compiler` merged to `main` at `a46c72b`; `pnpm check` green there
@@ -137,12 +137,12 @@ criterion), asserted directly rather than inferred. A handful of tests keep hand
 no corpus document contains an invalid `@style`/`@size` value, an inline `@style.fontSize`, or a
 single-`Critical`-class node without its own inline override — each noted in place.
 
-**No branch is now unmerged.** `feat/renderer` cleared its review and merged to `main` at `6d76e2c`;
-`pnpm check` is green there (1453 tests, unchanged from the branch), so **Stages A–F are all on
-`main` and Stage G's stated dependency is satisfied**. `feat/grid-engine` merged at `fdff204` before
-it (757 tests). Both stages sat unmerged on their branch through review first, which is the documented
+**Gate 2 is cleared. No branch is now unmerged.** `feat/pipeline` cleared its review and merged to
+`main` at `ffff7de`; `pnpm check` is green there (1553 tests, unchanged from the branch), so **Stages
+A–G are all on `main` and Stage H's stated dependency is satisfied**. `feat/renderer` merged at
+`6d76e2c` before it (1453 tests), and `feat/grid-engine` at `fdff204` before that (757 tests). Each sat unmerged on their branch through review first, which is the documented
 pattern, not the merge-gap failure mode — but it is worth noting for the next stage that this has now
-happened three times in a row (Stages C, E, F), so **check `git branch -vv` before briefing stage
+happened four times in a row (Stages C, E, F, G), so **check `git branch -vv` before briefing stage
 N+1** rather than trusting a §5 entry that says "Depends on. Stage X merged." `main` must be green at
 every commit.
 
@@ -386,8 +386,8 @@ silently treated as a hit on the document root instead of `SGL2001`; and
 `SGL2003` was fired once per edge in a wildcard cross product instead of once
 per distinct portless node.
 
-**Stage G is done** on `feat/pipeline`, branched from `main` at `fffe941` (Stages A–F, 1453
-tests); not yet merged. `pnpm check` is green (1553 tests, up from 1453) after a review round
+**Stage G is done**, merged to `main` at `ffff7de` from `feat/pipeline`, branched from `main` at
+`fffe941` (Stages A–F, 1453 tests). `pnpm check` is green (1553 tests, up from 1453) after a review round
 that found four real gaps and four nits, all fixed on the same branch. It formalises the
 `source -> RenderResult` harness Stage F had already written early (as `renderCorpusDoc` in
 `packages/render-svg/test/pipeline.ts`) into `runPipeline`, the literal function task 1 asks
@@ -733,7 +733,7 @@ something in it is unworkable, **report it loudly** rather than working around i
 - `validateResult` rejects each malformed shape with the right code.
 - Layout goldens for the corpus, committed.
 
-**Out of scope.** The worker host (Stage G). The elk adapter (Stage J). Ports — `grid` declares
+**Out of scope.** The worker host (Stage H). The elk adapter (Stage K). Ports — `grid` declares
 `ports: false`.
 
 ---
@@ -994,6 +994,50 @@ Then `pnpm check`, commit to `[branch]`, and do not merge or push.
   Gate 1 this is never necessary — say so in the brief.
 - **Quiet deviation.** An agent that finds a design document wrong tends to just write working code
   and not mention it. The report-back section is not a formality; it is how the documents stay true.
+
+A fourth, learned from Stage F's review round: **the overclaimed write-up.** An agent's report — and
+the §2 prose it writes — can say "all fixed" while whole findings went untouched. Every item in a
+brief or fix list must name the file it has to change, so the claim can be checked against
+`git diff --stat main...<branch>` rather than read.
+
+### The loop around the brief
+
+How a stage moves from brief to `main`. One orchestrator owns the loop, the decisions and every
+merge; implementation and review are delegated.
+
+1. **Preflight** (orchestrator). `git branch -vv`: the previous stage is actually merged, not just
+   "done" in §2. `pnpm check` green on `main`. List the §2.1 rows this stage owns.
+2. **Brief** (orchestrator). The template above, plus: an explicit out-of-scope list; the owned
+   §2.1 rows; the known traps (a fresh worktree needs `pnpm install` and `pnpm build` before tests
+   resolve cross-package imports; any new Lezer token needs `@precedence` and an audit of every
+   production the token it shadows appears in).
+3. **Implement** (one agent, own worktree, branch `feat/<stage>`). Commits; does not merge or push.
+4. **Verify** (orchestrator), *before* reading the report's prose: map every task to a file in the
+   diffstat, run `pnpm check` independently, map every gate bullet to a named test.
+5. **Review** (two or three agents in parallel, fresh context, read-only, each one lens): design-doc
+   conformance; gate falsifiability and test coverage — could this gate be green while something is
+   visibly broken?; standing rules (§1: determinism, errors as values, dependency direction,
+   diagnostics catalogue). The implementer's report is handed over as *claims to check*. Each finding
+   carries a severity, a file/line, and whether it needs a decision.
+6. **Triage** (orchestrator). Confirm each finding against the code, then: fix now; defer to §2.1
+   with a named owner; reject with the reason recorded; or decide (below).
+7. **Fix round** (the same implementer, context kept). A numbered list; each item names its file.
+8. **Re-verify** (orchestrator). Diffstat per item, `pnpm check`, and §2's new prose read against
+   the diff. **At most two fix rounds** — needing a third means the brief or the design is wrong,
+   and that goes to a human rather than round four.
+9. **Merge** (orchestrator). `git merge --no-ff`, `pnpm check` on `main`, §2 updated in a follow-up
+   commit. Never push.
+
+**Who decides.** The orchestrator decides — and records the decision in the commit message and §2
+— anything reversible that does not change what the product promises: what the design documents
+already settle; test structure, fixture placement, naming; filling an incomplete document the way the
+surrounding design implies; which later stage owns a deferred finding; a reviewer disagreement where
+one side is document-backed. **A human decides** anything that changes a promise: a DD-09 budget or
+an MVP acceptance criterion (F9); a change that re-baselines every golden (F7); the language spec,
+an ADR, a new runtime dependency, the security posture (CSP, sandboxing); dropping a Must; anything
+outward-facing (push, PR, deploy); and any split between two defensible options with product
+consequences. Escalations are batched, each with a recommendation, while work that does not depend
+on the answer continues.
 
 ---
 
