@@ -7,10 +7,12 @@
   "sideEffects": false,
   "files": ["dist"],
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./descriptor": { "types": "./dist/descriptor.d.ts", "default": "./dist/descriptor.js" }
   },
   "scripts": {
     "build": "tsdown"
   },
-  "dependencies": { "@sgl/core": "workspace:*", "@sgl/layout-api": "workspace:*", "elkjs": "^0.11.0" }
+  "dependencies": { "@sgl/core": "workspace:*", "@sgl/layout-api": "workspace:*", "elkjs": "^0.11.0" },
+  "devDependencies": { "@sgl/measure": "workspace:*", "@sgl/theme": "workspace:*" }
 }

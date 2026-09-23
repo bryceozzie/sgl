@@ -1,67 +1,66 @@
-import { NotImplemented } from '@sgl/core';
-import {
-  LAYOUT_API_VERSION,
-  type LayoutContext,
-  type LayoutEngine,
-  type LayoutInput,
-  type LayoutResult,
-} from '@sgl/layout-api';
+import type { LayoutContext, LayoutEngine, LayoutInput, LayoutResult } from '@sgl/layout-api';
+import { elkDescriptor, normalizeElkOptions } from './descriptor.js';
+import { fromElkGraph, toElkGraph, type ElkNode } from './mapping.js';
+
+export * from './descriptor.js';
+export * from './mapping.js';
 
 /**
  * The default engine (ADR-0005): an adapter over elkjs's layered algorithm.
  *
  * Uses `elk.bundled.js` — the synchronous, single-thread build — inside our own
- * layout worker. elkjs's worker build would nest a worker inside a worker and cost
- * two serialisation hops (06 §4, pitfall 7). `org.eclipse.elk.randomSeed` is pinned
- * to 1 explicitly: layered is deterministic by default, but pin it.
+ * layout worker. elkjs's worker build (`elk-worker.js`, or `elk-api.js` with a
+ * `workerUrl`) would nest a worker inside a worker and cost two serialisation
+ * hops (06 §4, pitfall 7). The random seed is pinned (`elk.randomSeed: '1'`,
+ * `mapping.ts`): layered is deterministic by default, but pin it.
  *
- * Ships as a lazy-loaded chunk, excluded from the core bundle budget.
+ * **Lazy (Stage K, decision K1).** elkjs is ~1.6 MB minified. It is loaded by
+ * a dynamic `import()` on the first `layout()` call and the `ELK` instance is
+ * cached, so importing this module costs only the mapping code, and a
+ * bundler emits elkjs as its own chunk (DD-10 §2's `elk` chunk), outside the
+ * core bundle budget. The main thread imports `@sgl/layout-elk/descriptor`
+ * instead of this module, so it never sees the dynamic import at all.
+ *
+ * Errors are values: anything ELK throws (or rejects with) propagates out of
+ * `layout()`, and the worker runtime turns it into `SGL4011` (DD-06 §3).
  *
  * Design: DD-06 §6.
  */
+
+/** The one member of elkjs's `ELK` class this adapter uses. */
+interface ElkInstance {
+  layout(graph: ElkNode): Promise<ElkNode>;
+}
+
+type ElkConstructor = new () => ElkInstance;
+
+let elkInstance: Promise<ElkInstance> | null = null;
+
+/** Loads `elk.bundled.js` once and caches the instance. A failed load is not
+ *  cached, so the next request retries it (a chunk that failed to fetch). */
+function loadElk(): Promise<ElkInstance> {
+  if (elkInstance === null) {
+    elkInstance = import('elkjs/lib/elk.bundled.js').then(
+      (mod: { readonly default: unknown }) => new (mod.default as ElkConstructor)(),
+      (err: unknown) => {
+        elkInstance = null;
+        throw err;
+      },
+    );
+  }
+  return elkInstance;
+}
+
 export const elkEngine: LayoutEngine = {
-  id: 'sgl.elk',
-  name: 'ELK Layered',
-  version: '0.0.0',
-  apiVersion: LAYOUT_API_VERSION,
+  ...elkDescriptor,
 
-  capabilities: {
-    containers: true,
-    edgeRouting: 'orthogonal',
-    ports: true,
-    labelPlacement: true,
-    incremental: false,
-    determinism: 'quantized',
-  },
-
-  optionsSchema: {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-      direction: { type: 'string', enum: ['down', 'up', 'left', 'right'], default: 'down' },
-      nodeSpacing: { type: 'number', default: 40 },
-      rankSpacing: { type: 'number', default: 70 },
-      // ORTHOGONAL across hierarchy boundaries is ELK's busiest bug area (06 §4,
-      // pitfall 8). POLYLINE is one option away when an artefact appears, and the
-      // conformance corpus carries boundary-crossing edges from day one.
-      edgeRouting: { type: 'string', enum: ['ORTHOGONAL', 'POLYLINE', 'SPLINES'], default: 'ORTHOGONAL' },
-      nodePlacement: { type: 'string', enum: ['BRANDES_KOEPF', 'NETWORK_SIMPLEX', 'LINEAR_SEGMENTS'], default: 'BRANDES_KOEPF' },
-    },
-  },
-
-  hintsSchema: {
-    type: 'object',
-    properties: {
-      rank: { type: 'string', enum: ['same'] }, // ⟶ B13
-      priority: { type: 'number' },
-      portConstraints: { type: 'string' },
-    },
-  },
-
-  layout(input: LayoutInput, ctx: LayoutContext): Promise<LayoutResult> {
-    void input;
-    void ctx;
-    throw new NotImplemented('elkEngine.layout()', 'DD-06 §6');
+  async layout(input: LayoutInput, ctx: LayoutContext): Promise<LayoutResult> {
+    const graph = toElkGraph(input, normalizeElkOptions(ctx.options), ctx.metrics);
+    const elk = await loadElk();
+    // ELK writes its results (and GWT bookkeeping) into the object it is
+    // given, so it gets its own deep copy; `graph` itself stays as sent.
+    const out = await elk.layout(JSON.parse(JSON.stringify(graph)) as ElkNode);
+    return fromElkGraph(input, out);
   },
 };
 

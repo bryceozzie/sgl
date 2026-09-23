@@ -99,6 +99,154 @@ function placeEdgeLabel(
   };
 }
 
+/**
+ * Every host fallback, in the order the worker runtime applies them after
+ * `engine.layout()` returns (DD-06 §3, §4): finish the routes the engine
+ * returned (`finishEngineRoutes`: §4.4, §4.5), route the edges it left out
+ * (`routeStraight`: §4.2–§4.5), then place labels if the engine does not
+ * (`placeLabels`: §4.1, which *replaces* `result.labels`, so it runs only for
+ * `labelPlacement: false`).
+ *
+ * One sequence, shared by `worker-runtime.ts` and the conformance harness
+ * (`conformance.ts`), so what the suite checks is what a real request gets.
+ * The order is load-bearing: `finishEngineRoutes` runs *before*
+ * `routeStraight`, so it sees only the engine's own routes, and an edge the
+ * fallback routed (which already reserved its arrowhead) is never reserved a
+ * second time.
+ */
+export function applyHostFallbacks(
+  input: LayoutInput,
+  raw: LayoutResult,
+  capabilities: { readonly labelPlacement: boolean },
+  metrics: ResolvedThemeMetricsView,
+): LayoutResult {
+  const finished = finishEngineRoutes(input, raw, metrics);
+  const routed = routeStraight(input, finished, metrics);
+  return capabilities.labelPlacement ? routed : placeLabels(input, routed, metrics);
+}
+
+/** A self-loop an engine routes shorter than this (its route's vertical
+ *  extent) gets the host's teardrop instead (DD-06 §6.2: ELK's own loops are
+ *  a tight box). */
+export const MIN_SELF_LOOP_HEIGHT = 16;
+
+/**
+ * DD-06 §4.4 and §4.5 for the edges an engine routed itself (Stage K: DD-06
+ * §6.2's "then the host applies §4.4 (arrow reserve) and §4.5 (self-loops)").
+ * The contract is that an engine's route ends *on* the node or port boundary;
+ * the host then pulls a directed end back by `arrowSize` along the final
+ * segment so the marker tip, not the line, lands there — exactly what
+ * `routeStraight` does for the routes it makes. A self-loop with fewer than
+ * two segments, or under `MIN_SELF_LOOP_HEIGHT` tall, is replaced by the
+ * teardrop (§4.5), which does its own reserve.
+ *
+ * Only edges present in `result.edges` are touched; run it before
+ * `routeStraight` (see `applyHostFallbacks`).
+ */
+export function finishEngineRoutes(input: LayoutInput, result: LayoutResult, metrics: ResolvedThemeMetricsView): LayoutResult {
+  let edges: Record<EdgeId, EdgeLayout> | null = null;
+  const replacedLoops: GraphEdge[] = [];
+  for (const edge of input.graph.edges) {
+    const layout = result.edges[edge.id];
+    if (edge.hidden || layout === undefined) continue;
+    let finished: EdgeLayout | null;
+    if (edge.from.node === edge.to.node && isShortLoop(layout)) {
+      const node = input.graph.nodes[edge.from.node];
+      const frame = result.nodes[edge.from.node]?.frame;
+      finished = node === undefined || frame === undefined ? null : selfLoopLayout(node, frame, edge, metrics);
+      if (finished !== null) replacedLoops.push(edge);
+    } else {
+      finished = reserveOnRoute(layout, edge.directed, metrics.arrowSize);
+    }
+    if (finished === null || finished === layout) continue;
+    edges ??= { ...result.edges };
+    edges[edge.id] = finished;
+  }
+  if (edges === null) return result;
+  const next: LayoutResult = { ...result, edges };
+  if (replacedLoops.length === 0) return next;
+
+  // The host now owns these routes, so it owns their labels too: an engine's
+  // label sat beside the loop the host just discarded. §4.5's "label at the
+  // loop's apex", the same placement `placeLabels` gives a self-loop.
+  const relabel = new Map<LabelId, LabelPlacement>();
+  for (const edge of replacedLoops) {
+    if (edge.labelId === null) continue;
+    const spec = input.graph.labels[edge.labelId];
+    const placement = spec === undefined ? null : placeEdgeLabel(input, next, spec, edge, metrics);
+    if (placement !== null) relabel.set(edge.labelId, placement);
+  }
+  const labels = relabel.size === 0 ? next.labels : next.labels.map((l) => relabel.get(l.labelId) ?? l);
+
+  // The teardrop reaches past the node, where the engine's `bounds` never
+  // allowed for anything, so the canvas would clip it. Grow `bounds` to take
+  // in what the host just drew (plus DD-06 §5's 16 px canvas margin). Only
+  // here, where the host replaced an engine's own geometry: DD-06 §5's
+  // general bounds recomputation is not implemented, and doing it for every
+  // engine would move `grid`'s existing goldens.
+  let bounds = next.bounds;
+  for (const edge of replacedLoops) {
+    const layout = edges[edge.id];
+    if (layout !== undefined) bounds = unionRect(bounds, pointsBox(controlPoints(layout)), HOST_GEOMETRY_MARGIN);
+    const label = edge.labelId === null ? undefined : relabel.get(edge.labelId);
+    if (label !== undefined) bounds = unionRect(bounds, label.frame, HOST_GEOMETRY_MARGIN);
+  }
+  return { ...next, labels, bounds };
+}
+
+/** DD-06 §5's `canvas.margin`. */
+const HOST_GEOMETRY_MARGIN = 16;
+
+function controlPoints(layout: EdgeLayout): Point[] {
+  const pts: Point[] = [layout.start];
+  for (const seg of layout.route) {
+    if (seg.t === 'C') pts.push(seg.c1, seg.c2);
+    else if (seg.t === 'Q') pts.push(seg.c);
+    pts.push(seg.to);
+  }
+  return pts;
+}
+
+function pointsBox(points: readonly Point[]): Rect {
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
+}
+
+/** `a` grown to contain `b` inflated by `margin`; `a` unchanged if it already does. */
+function unionRect(a: Rect, b: Rect, margin: number): Rect {
+  const x0 = Math.min(a.x, b.x - margin);
+  const y0 = Math.min(a.y, b.y - margin);
+  const x1 = Math.max(a.x + a.w, b.x + b.w + margin);
+  const y1 = Math.max(a.y + a.h, b.y + b.h + margin);
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+
+function isShortLoop(layout: EdgeLayout): boolean {
+  if (layout.route.length < 2) return true;
+  const ys = routePoints(layout).map((p) => p.y);
+  return Math.max(...ys) - Math.min(...ys) < MIN_SELF_LOOP_HEIGHT;
+}
+
+/** §4.4 on an engine's route: move `end` (and the route's final point) back
+ *  along `endNormal`, and `start` along `startNormal` for `both`. A missing
+ *  normal is taken from the end segment's own direction. */
+function reserveOnRoute(layout: EdgeLayout, directed: GraphEdge['directed'], arrowSize: number): EdgeLayout {
+  if (directed === 'none' || layout.route.length === 0) return layout;
+  const points = routePoints(layout);
+  const last = layout.route[layout.route.length - 1]!;
+  const beforeEnd = last.t === 'C' ? last.c2 : last.t === 'Q' ? last.c : (points[points.length - 2] ?? layout.start);
+  const first = layout.route[0]!;
+  const afterStart = first.t === 'C' ? first.c1 : first.t === 'Q' ? first.c : first.to;
+  const endNormal = layout.endNormal ?? unit(layout.end.x - beforeEnd.x, layout.end.y - beforeEnd.y) ?? { x: 1, y: 0 };
+  const startNormal = layout.startNormal ?? unit(layout.start.x - afterStart.x, layout.start.y - afterStart.y) ?? { x: -1, y: 0 };
+  const { start, end } = applyArrowReserve(layout.start, layout.end, startNormal, endNormal, directed, arrowSize);
+  const route = [...layout.route.slice(0, -1), { ...last, to: end }];
+  return { ...layout, start, end, route, startNormal, endNormal };
+}
+
 /** Applied when an engine returns no route for an edge (DD-06 §4.2, §4.3, §4.5). */
 export function routeStraight(input: LayoutInput, result: LayoutResult, metrics: ResolvedThemeMetricsView): LayoutResult {
   const edges: Record<EdgeId, EdgeLayout> = { ...result.edges };

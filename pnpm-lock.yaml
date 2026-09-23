@@ -154,6 +154,13 @@ importers:
       elkjs:
         specifier: ^0.11.0
         version: 0.11.1
+    devDependencies:
+      '@sgl/measure':
+        specifier: workspace:*
+        version: link:../measure
+      '@sgl/theme':
+        specifier: workspace:*
+        version: link:../theme
 
   packages/layout-std:
     dependencies:
@@ -192,6 +199,9 @@ importers:
       '@sgl/layout-api':
         specifier: workspace:*
         version: link:../layout-api
+      '@sgl/layout-elk':
+        specifier: workspace:*
+        version: link:../layout-elk
       '@sgl/layout-std':
         specifier: workspace:*
         version: link:../layout-std
