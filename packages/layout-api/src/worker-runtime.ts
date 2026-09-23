@@ -1,5 +1,6 @@
 import { diagnostic, NO_SPAN } from '@sgl/core';
 import type { LayoutContext } from './contract.js';
+import { placeLabels, routeStraight } from './fallbacks.js';
 import type { HostToWorker, WorkerToHost } from './protocol.js';
 import type { EngineRegistry } from './registry.js';
 
@@ -63,10 +64,7 @@ export function createWorkerRuntime(registry: EngineRegistry, port: WorkerRuntim
       port.post({
         t: 'error',
         id: message.id,
-        diagnostic: diagnostic('SGL4011', NO_SPAN, {
-          id: message.engine,
-          message: `engine '${message.engine}' is not registered in this worker`,
-        }),
+        diagnostic: diagnostic('SGL4011', NO_SPAN, { id: message.engine, message: 'not registered in this worker' }),
       });
       return;
     }
@@ -106,10 +104,27 @@ export function createWorkerRuntime(registry: EngineRegistry, port: WorkerRuntim
       sublayout: () => Promise.reject(new Error('sublayout is reserved, not implemented (DD-06 §2, Architecture §4.2).')),
     };
 
-    const start = performance.now();
+    const start = now();
     try {
-      const result = await engine.layout(message.input, ctx);
-      port.post({ t: 'result', id: message.id, result, ms: performance.now() - start });
+      const raw = await engine.layout(message.input, ctx);
+      // Host fallbacks (DD-06 §4) — this is the only place in the whole
+      // pipeline that has both the engine's `capabilities` (from the
+      // registry, worker-side) and its `LayoutInput`/`LayoutResult`, so they
+      // run here rather than in `host.ts`, which never sees either. Found
+      // missing entirely in review (Stage H fix round 1, item 3): with no
+      // fallback applied, `grid` — which declares `edgeRouting: 'straight'`
+      // and returns no edges of its own — could never pass `validateResult`
+      // through the real worker/host pipeline, only through the hand-rolled
+      // composition `render-svg/test/pipeline.ts` and `layout-std/test/
+      // grid.test.ts` each already did for their own purposes.
+      // `routeStraight` only fills an edge the engine left out, so it is safe
+      // to run unconditionally regardless of what `edgeRouting` declares (an
+      // engine that already routed everything has nothing left for it to
+      // fill); `placeLabels` *replaces* `result.labels` outright, so it may
+      // only run for an engine that declares it does no placement of its own.
+      const routed = routeStraight(message.input, raw, message.metrics);
+      const result = engine.capabilities.labelPlacement ? routed : placeLabels(message.input, routed, message.metrics);
+      port.post({ t: 'result', id: message.id, result, ms: now() - start });
     } catch (err) {
       port.post({
         t: 'error',
@@ -126,6 +141,20 @@ export function createWorkerRuntime(registry: EngineRegistry, port: WorkerRuntim
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+/**
+ * DD-06 §3's `'result'` message carries `ms`, purely as telemetry the host may
+ * display — it is never read back into anything an engine or the renderer
+ * produces. That makes it the one sanctioned exception to §1's determinism ban
+ * (`eslint.config.js` bans `performance.now` alongside `Math.random`/
+ * `Date.now` precisely so an exception has to be written down like this one,
+ * not just remembered); every other timing need in this codebase still goes
+ * through an injected clock or `setTimeout`/`ctx.random`.
+ */
+function now(): number {
+  // eslint-disable-next-line no-restricted-properties
+  return performance.now();
 }
 
 /**

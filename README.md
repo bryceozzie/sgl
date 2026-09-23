@@ -30,6 +30,13 @@ Keys are containers. Unprefixed entries inside them are children; `@`-prefixed e
 pnpm install && pnpm check
 ```
 
+`pnpm check`/`pnpm test` run a Vitest browser project (Chromium + Firefox) alongside the Node
+suite, which needs Playwright's browser binaries fetched once per machine (not by `pnpm install`):
+
+```bash
+pnpm exec playwright install chromium firefox
+```
+
 | Command | Does |
 |---|---|
 | `pnpm dev` | Vite dev server for `apps/web` |

@@ -58,7 +58,14 @@ function run(
 
 describe('createWorkerHost against a real Worker (DD-06 §10)', () => {
   it('timeout terminates and respawns the worker and yields SGL4001, then serves the next request', async () => {
-    const host = createWorkerHost(spawn, { timeoutMs: 300 });
+    // A per-engine override, not the host-wide default: `timeoutMs` would also
+    // apply to the follow-up `test.ok` request, and under CI/load a real
+    // worker's cold boot + module import can eat a meaningful slice of a
+    // short host-wide timeout, making that second request flaky (found by the
+    // orchestrator: failed once under a full `pnpm check` run, passed 3/3
+    // alone). `test.slow` alone gets the short budget; `test.ok` gets the
+    // default (10 s), which is not the thing this test is timing.
+    const host = createWorkerHost(spawn, { engineTimeoutMs: { 'test.slow': 300 } });
     try {
       const outcome = await run(host, 'test.slow', OK_INPUT);
       expect(outcome.value).toBeNull();

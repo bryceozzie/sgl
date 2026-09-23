@@ -39,7 +39,9 @@ export interface WorkerHostOptions {
    * see `contract.ts`'s `MeasurerView.layoutRunsAsync`). May be sync or async.
    * Optional: a host whose registered engines never call `ctx.measure.layoutRunsAsync`
    * never needs it — omitting it degrades a real miss to an empty `TextLayout`-shaped
-   * value rather than hanging forever.
+   * value rather than hanging forever. The returned value crosses back to the
+   * worker via `postMessage`, so it must be `structuredClone`-safe plain data
+   * (DD-00 §3) — no class instance, no function, no `Map`/`Set`.
    */
   readonly measure?: (runs: readonly unknown[], box: Readonly<Record<string, unknown>>) => unknown | Promise<unknown>;
 }
@@ -102,10 +104,26 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
   let nextId = 0;
   let disposed = false;
 
-  wireWorker();
+  wireWorker(worker);
 
-  function wireWorker(): void {
-    worker.addEventListener('message', (ev: MessageEvent) => {
+  /**
+   * `w` is the specific worker instance this listener was attached to,
+   * captured at registration time — not read from the mutable `worker`
+   * variable, whose whole purpose is to be reassigned on respawn. `worker !==
+   * w` inside the listener is therefore "this worker has already been
+   * replaced": a message from a killed-or-superseded worker is ignored
+   * outright, closing the gap a review round found — after a respawn, the new
+   * worker's own `'measure'` `req` counter restarts at 0 (worker-side state,
+   * `worker-runtime.ts`), so a late generation-0 `'measure'` reaching an
+   * un-gated listener could resolve an unrelated `layoutRunsAsync` call in
+   * generation 1 with the wrong data. DD-06 §3: "a late reply for an
+   * already-aborted id is discarded" generalises to "a late reply from an
+   * already-replaced worker is discarded," which this one check gives every
+   * message type at once, not just `'result'`/`'error'`.
+   */
+  function wireWorker(w: Worker): void {
+    w.addEventListener('message', (ev: MessageEvent) => {
+      if (worker !== w) return; // stale — this worker was already replaced.
       onMessage(ev.data as WorkerToHost);
     });
   }
@@ -124,7 +142,7 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
     for (const pending of pendingAborts.values()) clearTimeout(pending.timer);
     pendingAborts.clear();
     worker = spawn();
-    wireWorker();
+    wireWorker(worker);
   }
 
   /** Detaches `id`'s timer/abort-listener and hands back its state, but only if
@@ -183,8 +201,19 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
         return;
       }
       case 'measure': {
+        // The worker-identity check above already discards a `'measure'` from
+        // an already-*respawned* worker; this catches the narrower case of a
+        // live, not-yet-respawned worker whose in-flight request was
+        // *superseded* (a new `run()` posts `'abort'` and a new `'layout'` to
+        // the same worker instance without respawning it — respawn only
+        // follows a 250 ms unanswered escalation or a hard timeout). An
+        // engine that doesn't notice `ctx.signal` right away can still post a
+        // `'measure'` for the request it no longer owns; answering it would
+        // both leak the callback's work on dead output and risk colliding
+        // with the *new* request's own `req` numbering.
+        if (message.id !== current?.id) return;
         void Promise.resolve(measureCallback(message.runs, message.box)).then((layout) => {
-          if (disposed) return;
+          if (disposed || message.id !== current?.id) return;
           worker.postMessage({ t: 'measure-reply', id: message.id, req: message.req, layout });
         });
         return;
@@ -199,6 +228,15 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
 
   return {
     run(engineId, input, options, metrics, table, signal) {
+      // Calling `run()` on a disposed host is a programming error, not a
+      // runtime condition about the input or the engine — §1's "throwing is
+      // reserved for a violated invariant." Rejecting a *fresh* `Promise`
+      // (rather than throwing synchronously) keeps `run()`'s return type
+      // honest for every caller that already does `await host.run(...)`; a
+      // review round found this path previously posted to a terminated
+      // worker, which never replies, so the request hung until timeout and
+      // then spawned an orphan worker nothing would ever use.
+      if (disposed) return Promise.reject(new Error('createWorkerHost: run() called after dispose().'));
       if (signal.aborted) return Promise.reject(makeAbortError());
 
       if (current !== null) {

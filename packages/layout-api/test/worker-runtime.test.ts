@@ -1,4 +1,4 @@
-import type { NodeId, SemanticGraph } from '@sgl/core';
+import { asEdgeId, asNodeId, NO_SPAN, type GraphEdge, type GraphNode, type NodeId, type SemanticGraph } from '@sgl/core';
 import { describe, expect, it } from 'vitest';
 import { LAYOUT_API_VERSION, type LayoutEngine, type LayoutInput, type LayoutResult } from '../src/contract.js';
 import type { WorkerToHost } from '../src/protocol.js';
@@ -68,6 +68,79 @@ describe('createWorkerRuntime (DD-06 §3, Stage H decision D2)', () => {
     expect(port.sent).toHaveLength(1);
     expect(port.sent[0]).toMatchObject({ t: 'result', id: 1, result: EMPTY_RESULT });
     expect((port.sent[0] as { ms: number }).ms).toBeGreaterThanOrEqual(0);
+  });
+
+  it('applies the host fallbacks (routeStraight/placeLabels) before posting "result" — an engine declaring labelPlacement:false/edgeRouting:straight gets edges and labels it never computed', async () => {
+    // Found missing entirely in review (Stage H fix round 1, item 3): with no
+    // fallback applied here, `grid` — whose real capabilities are exactly
+    // this shape — could never pass `validateResult` through the real
+    // worker/host pipeline; every edge came back SGL4002 "missing
+    // EdgeLayout".
+    const a = asNodeId('a');
+    const b = asNodeId('b');
+    const node = (id: NodeId, path: string): GraphNode => ({
+      id,
+      path: [path],
+      parent: null,
+      children: [],
+      depth: 0,
+      shape: 'rect',
+      classes: [],
+      labelId: null,
+      ports: [],
+      config: {},
+      hidden: false,
+      span: NO_SPAN,
+    });
+    const edge: GraphEdge = {
+      id: asEdgeId('e-ab'),
+      from: { node: a },
+      to: { node: b },
+      directed: 'forward',
+      classes: [],
+      labelId: null,
+      config: {},
+      declaredIn: null,
+      hidden: false,
+      span: NO_SPAN,
+    };
+    const graph: SemanticGraph = {
+      nodes: { [a]: node(a, 'a'), [b]: node(b, 'b') },
+      edges: [edge],
+      rootChildren: [a, b],
+      order: [a, b],
+      labels: {},
+      meta: { nodeCount: 2, edgeCount: 1, containerCount: 0 },
+    };
+    const input: LayoutInput = { graph, scope: null, sizing: {}, labelSizes: {} };
+
+    const registry = new EngineRegistry();
+    registry.register(
+      engine('test.grid-like', () =>
+        Promise.resolve({
+          bounds: { x: 0, y: 0, w: 100, h: 50 },
+          nodes: {
+            [a]: { frame: { x: 0, y: 0, w: 20, h: 20 } },
+            [b]: { frame: { x: 40, y: 0, w: 20, h: 20 } },
+          },
+          // No edges, no labels — exactly what a `labelPlacement: false,
+          // edgeRouting: 'straight'` engine like `grid` returns.
+          edges: {},
+          labels: [],
+        }),
+      ),
+    );
+    const port = fakePort();
+    const runtime = createWorkerRuntime(registry, port);
+
+    runtime.receive({ ...layoutMessage({ engine: 'test.grid-like' }), input });
+    await flush();
+
+    expect(port.sent).toHaveLength(1);
+    const msg = port.sent[0]!;
+    expect(msg.t).toBe('result');
+    if (msg.t !== 'result') throw new Error('unreachable');
+    expect(msg.result.edges[asEdgeId('e-ab')]).toBeDefined();
   });
 
   it('SGL4011: an engine that is not registered', async () => {
@@ -200,6 +273,42 @@ describe('createWorkerRuntime (DD-06 §3, Stage H decision D2)', () => {
     expect(received).toEqual({ size: { w: 42, h: 10 }, lines: [] });
     expect(port.sent).toHaveLength(2);
     expect(port.sent[1]).toMatchObject({ t: 'result', id: 3 });
+  });
+
+  it('measure-reply routes by req, not by delivery order (two concurrent requests, replies out of order)', async () => {
+    const registry = new EngineRegistry();
+    const seen: Record<string, unknown> = {};
+    registry.register(
+      engine('test.engine', async (_input, ctx) => {
+        const [first, second] = await Promise.all([
+          ctx.measure.layoutRunsAsync([{ text: 'first' }], {}),
+          ctx.measure.layoutRunsAsync([{ text: 'second' }], {}),
+        ]);
+        seen['first'] = first;
+        seen['second'] = second;
+        return EMPTY_RESULT;
+      }),
+    );
+    const port = fakePort();
+    const runtime = createWorkerRuntime(registry, port);
+
+    runtime.receive(layoutMessage({ id: 9 }));
+    await flush();
+
+    const measureMsgs = port.sent.filter((m): m is Extract<WorkerToHost, { t: 'measure' }> => m.t === 'measure');
+    expect(measureMsgs).toHaveLength(2);
+    const [m1, m2] = measureMsgs;
+    expect(m1!.runs).toEqual([{ text: 'first' }]);
+    expect(m2!.runs).toEqual([{ text: 'second' }]);
+    expect(m1!.req).not.toBe(m2!.req);
+
+    // Deliver replies in *reverse* order.
+    runtime.receive({ t: 'measure-reply', id: 9, req: m2!.req, layout: { tag: 'second-reply' } });
+    runtime.receive({ t: 'measure-reply', id: 9, req: m1!.req, layout: { tag: 'first-reply' } });
+    await flush();
+
+    expect(seen['first']).toEqual({ tag: 'first-reply' });
+    expect(seen['second']).toEqual({ tag: 'second-reply' });
   });
 
   it('a measure-reply for an unknown req is a no-op', () => {

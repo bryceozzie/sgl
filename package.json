@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "SGL â€” Structured Graphing Language. Text-first diagramming: JSON-esque source in, SVG out.",
+  "description": "SGL \u00e2\u20ac\u201d Structured Graphing Language. Text-first diagramming: JSON-esque source in, SVG out.",
   "license": "MIT",
   "packageManager": "pnpm@10.34.5",
   "engines": {
@@ -13,15 +13,16 @@
     "grammar": "pnpm --filter @sgl/core grammar",
     "generate:corpus": "node bench/generate.js",
     "generate:bench-fixtures": "node bench/generate-render-fixtures.js",
+    "generate:grid-fixture": "node bench/generate-grid-fixture.js",
     "typecheck": "tsc -b && tsc -p apps/web --noEmit",
     "lint": "eslint .",
     "build": "pnpm --filter \"./packages/*\" build && pnpm --filter \"./apps/*\" build",
     "dev": "pnpm --filter @sgl/web dev",
-    "test": "pnpm generate:corpus && pnpm generate:bench-fixtures && vitest run",
+    "test": "pnpm generate:corpus && pnpm generate:bench-fixtures && pnpm generate:grid-fixture && vitest run",
     "test:unit": "pnpm generate:corpus && vitest run --project unit",
-    "test:browser": "pnpm generate:corpus && pnpm generate:bench-fixtures && vitest run --project browser",
+    "test:browser": "pnpm generate:corpus && pnpm generate:bench-fixtures && pnpm generate:grid-fixture && vitest run --project browser",
     "test:watch": "pnpm generate:corpus && vitest",
-    "clean": "rimraf \"packages/*/dist\" \"apps/*/dist\" .tsbuild bench/render-fixtures.json",
+    "clean": "rimraf \"packages/*/dist\" \"apps/*/dist\" .tsbuild bench/render-fixtures.json bench/grid-fixture.json",
     "changeset": "changeset",
     "check": "pnpm lint && pnpm typecheck && pnpm build && pnpm test"
   },
@@ -36,7 +37,7 @@
     "tsdown": "^0.15.6",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.0",
-    "vitest": "^3.2.4"
+    "vitest": "3.2.7"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

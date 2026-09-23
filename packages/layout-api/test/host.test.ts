@@ -128,6 +128,47 @@ describe('createWorkerHost (DD-06 §3, Stage H decision D1)', () => {
     expect(outcome.value?.bounds.x).toBe(0);
   });
 
+  it('a success can still carry warnings (e.g. SGL4003) alongside a non-null value', async () => {
+    // DD-06 §3's lifecycle doc previously said a successful 'result' always
+    // resolves `diagnostics: []` — wrong: §5's warnings (a container
+    // contentFrame overflowing its own frame, SGL4003) pass through
+    // `validateResult` on a success too, same as `runPipeline` already
+    // exercises them outside the worker/host protocol.
+    const { spawn, workers } = makeSpawn();
+    const host = createWorkerHost(spawn);
+
+    const C = asNodeId('c');
+    const container = node({ id: C, path: ['c'], children: [A] });
+    const child = node({ id: A, path: ['c', 'a'], parent: C, depth: 1 });
+    const graph: SemanticGraph = {
+      nodes: { [C]: container, [A]: child },
+      edges: [],
+      rootChildren: [C],
+      order: [C, A],
+      labels: {},
+      meta: { nodeCount: 2, edgeCount: 0, containerCount: 1 },
+    };
+    const warnInput: LayoutInput = { graph, scope: null, sizing: {}, labelSizes: {} };
+    const warnResult: LayoutResult = {
+      bounds: { x: 0, y: 0, w: 100, h: 100 },
+      nodes: {
+        [C]: { frame: { x: 0, y: 0, w: 50, h: 50 }, contentFrame: { x: -10, y: 0, w: 50, h: 50 } }, // overflows its own frame
+        [A]: { frame: { x: 0, y: 0, w: 10, h: 10 } },
+      },
+      edges: {},
+      labels: [],
+    };
+
+    const promise = host.run('sgl.test', warnInput, {}, METRICS, {}, new AbortController().signal);
+    workers[0]!.emit({ t: 'result', id: 0, result: warnResult, ms: 1 });
+    const outcome = await promise;
+
+    expect(outcome.value).not.toBeNull();
+    expect(outcome.diagnostics).toHaveLength(1);
+    expect(outcome.diagnostics[0]!.code).toBe('SGL4003');
+    expect(outcome.diagnostics[0]!.severity).toBe('warning');
+  });
+
   it('resolves { value: null, diagnostics: [SGL4011] } on an "error" message, and stays usable', async () => {
     const { spawn, workers } = makeSpawn();
     const host = createWorkerHost(spawn);
@@ -331,5 +372,79 @@ describe('createWorkerHost (DD-06 §3, Stage H decision D1)', () => {
     expect(() => {
       workers[0]!.emit({ t: 'result', id: 0, result: GOOD_RESULT, ms: 1 });
     }).not.toThrow();
+  });
+
+  it('a stale "result" from a terminated (respawned-away) worker is ignored even though the next request reuses no id', async () => {
+    const { spawn, workers } = makeSpawn();
+    const host = createWorkerHost(spawn, { timeoutMs: 1_000 });
+
+    const promise = run(host);
+    await vi.advanceTimersByTimeAsync(1_000); // times out, terminates workers[0], spawns workers[1]
+    await promise;
+
+    const next = run(host); // now being served by workers[1]
+    // workers[0] is dead, but nothing stops it from firing a late event if the
+    // real Worker implementation ever did (defence in depth: the listener is
+    // bound to the worker instance it was registered on).
+    workers[0]!.emit({ t: 'result', id: 1, result: GOOD_RESULT, ms: 1 });
+
+    // workers[1] must be the one — and the only one — to settle `next`.
+    expect(workers[1]!.posted).toHaveLength(1);
+    workers[1]!.emit({ t: 'result', id: 1, result: GOOD_RESULT, ms: 1 });
+    expect((await next).value).not.toBeNull();
+  });
+
+  it('a late "measure" after timeout+respawn is ignored: callback not called, nothing posted to the new worker', async () => {
+    const { spawn, workers } = makeSpawn();
+    const measure = vi.fn().mockResolvedValue({ size: { w: 1, h: 1 }, lines: [] });
+    const host = createWorkerHost(spawn, { timeoutMs: 1_000, measure });
+
+    const promise = run(host);
+    await vi.advanceTimersByTimeAsync(1_000); // times out: workers[0] terminated, workers[1] spawned
+    await promise;
+
+    // workers[0]'s own `'measure'` req counter would restart at 0 in a fresh
+    // worker too — this is the collision the fix closes.
+    workers[0]!.emit({ t: 'measure', id: 0, req: 0, runs: [], box: {} });
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(measure).not.toHaveBeenCalled();
+    expect(workers[1]!.posted.some((m) => m.t === 'measure-reply')).toBe(false);
+  });
+
+  it('a late "measure" from a superseded (but not yet respawned) request on the same worker is ignored', async () => {
+    const { spawn, workers } = makeSpawn();
+    const measure = vi.fn().mockResolvedValue({ size: { w: 1, h: 1 }, lines: [] });
+    const host = createWorkerHost(spawn, { measure });
+
+    const first = run(host); // id 0
+    const second = run(host); // id 1 — supersedes id 0 on the *same* workers[0] (no respawn yet)
+    await expect(first).rejects.toMatchObject({ name: 'AbortError' });
+
+    // The superseded engine posts its own 'measure' late, for the request it no
+    // longer owns.
+    workers[0]!.emit({ t: 'measure', id: 0, req: 3, runs: [], box: {} });
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(measure).not.toHaveBeenCalled();
+    expect(workers[0]!.posted.some((m) => m.t === 'measure-reply')).toBe(false);
+
+    workers[0]!.emit({ t: 'result', id: 1, result: GOOD_RESULT, ms: 1 });
+    expect((await second).value).not.toBeNull();
+  });
+
+  it('run() after dispose() rejects immediately with no worker traffic', async () => {
+    const { spawn, workers } = makeSpawn();
+    const host = createWorkerHost(spawn);
+    host.dispose();
+
+    await expect(run(host)).rejects.toThrow(/dispose/i);
+
+    expect(workers).toHaveLength(1); // no respawn/orphan
+    expect(workers[0]!.posted).toHaveLength(0); // no 'layout' posted
   });
 });

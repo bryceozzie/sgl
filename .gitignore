@@ -23,3 +23,7 @@ __screenshots__/
 # bench/generate-render-fixtures.js output (Stage H, F9) — same reasoning, and it
 # additionally embeds full LayoutResult/StyledGraph JSON, so it is also just big.
 /bench/render-fixtures.json
+
+# bench/generate-grid-fixture.js output (Stage H fix round 1, item 3) — same
+# reasoning, for the real gridEngine's real-Worker browser test.
+/bench/grid-fixture.json
