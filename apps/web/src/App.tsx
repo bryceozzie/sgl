@@ -1,5 +1,5 @@
 import type { EditorView } from '@codemirror/view';
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { SGL_LANGUAGE_VERSION } from '@sgl/core';
 import { CanvasMeasurer } from '@sgl/measure';
 import { Canvas } from './canvas/Canvas.js';
@@ -13,6 +13,7 @@ import { Toasts } from './panels/Toasts.js';
 import { createAutosave } from './state/autosave.js';
 import type { BootNotice } from './state/boot.js';
 import { createDocumentSession } from './state/document-session.js';
+import { createOpenQueue } from './state/open-queue.js';
 import { readOpenedFile } from './state/files.js';
 import { APP_METRICS } from './state/metrics.js';
 import { createPipeline } from './state/pipeline.js';
@@ -82,29 +83,35 @@ export function App({ boot }: { readonly boot: AppBoot }) {
   // CodeMirror or the DOM) — the editor view and the canvas's imperative
   // `fit()` are both DOM handles the pickers/diagnostics/toolbar need.
   const [view, setView] = useState<EditorView | null>(null);
-  const viewRef = useRef<EditorView | null>(null);
-  viewRef.current = view;
   const [fit, setFit] = useState<(() => void) | null>(null);
   const [fitRequest, setFitRequest] = useState(0);
   const [applyUpdate, setApplyUpdate] = useState<ApplyUpdate | null>(null);
 
-  /** DD-08 §7's one Open path: toolbar, Ctrl/⌘+O, the launch queue (§12). */
-  const openRef = useRef<(file: File) => void>(() => undefined);
-  openRef.current = (file: File) => {
+  /** DD-08 §7's one Open path: toolbar, Ctrl/⌘+O, the launch queue (§12).
+   *  An Open read before the editor exists (the launch queue can deliver
+   *  that early) waits in `opens` until it does (fix round 1, item 13). */
+  const opens = useMemo(() => createOpenQueue<{ readonly text: string; readonly extension: string }>(), []);
+  useEffect(() => {
+    opens.setTarget(
+      view === null
+        ? null
+        : (opened) => {
+            // A transaction, not a new EditorState: undo history survives (§4).
+            replaceDocument(view, opened.text);
+            session.setFileExtension(opened.extension);
+            setFitRequest((n) => n + 1);
+          },
+    );
+  }, [view]);
+  const open = (file: File): void => {
     void readOpenedFile(file).then((result) => {
       if (!result.ok) {
         toasts.push(result.message, 'error');
         return;
       }
-      const editor = viewRef.current;
-      if (editor === null) return;
-      // A transaction, not a new EditorState: undo history survives (§4).
-      replaceDocument(editor, result.text);
-      session.setFileExtension(result.extension);
-      setFitRequest((n) => n + 1);
+      opens.deliver({ text: result.text, extension: result.extension });
     });
   };
-  const open = (file: File): void => openRef.current(file);
 
   useEffect(() => {
     // DD-08 §9: "a crash mid-edit loses at most 500 ms" — and leaving the page

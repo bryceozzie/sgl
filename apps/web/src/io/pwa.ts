@@ -7,6 +7,30 @@
  * waiting worker, and message it only when the user clicks.
  */
 
+/** At most this often, a page that becomes visible again asks the browser to
+ *  check for a new service worker (fix round 1, item 15). */
+export const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
+
+/**
+ * The browser checks for a new `sw.js` on navigation, and on its own only
+ * about once a day — so an installed app left open for days, never reloaded,
+ * would never see its "Update available" chip. `check()` is called whenever
+ * the page becomes visible again and runs `update()` if the last check was at
+ * least `intervalMs` ago; a failed check (offline) is ignored and retried at
+ * the next opportunity past the interval. DOM-free, for the unit test.
+ */
+export function createUpdateCheck(update: () => Promise<unknown>, now: () => number, intervalMs: number = UPDATE_CHECK_INTERVAL_MS): { check(): void } {
+  let last = now(); // registering has just checked
+  return {
+    check() {
+      const at = now();
+      if (at - last < intervalMs) return;
+      last = at;
+      update().catch(() => undefined);
+    },
+  };
+}
+
 /** Activates the waiting worker; the page reloads once it takes control. */
 export type ApplyUpdate = () => void;
 
@@ -41,6 +65,10 @@ export function registerServiceWorker(onUpdateReady: (apply: ApplyUpdate) => voi
           // behind the current worker; without one it is the first install.
           if (installing.state === 'installed' && container.controller !== null) offer(installing);
         });
+      });
+      const updates = createUpdateCheck(() => registration.update(), () => Date.now());
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') updates.check();
       });
     } catch (err) {
       console.warn('[SGL] service worker registration failed; the app works, but not offline.', err);

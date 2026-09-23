@@ -221,3 +221,30 @@ test.describe('DD-08 §7 Open', () => {
     expect(saved.text).toContain('<rect class="canvas"'); // background on (DD-07 §9).
   });
 });
+
+test.describe('DD-08 §12 launch queue (fix round 1, item 13)', () => {
+  // `beforeEach` above has already loaded the page; this one needs its fake
+  // `launchQueue` in place before the app's scripts run, so it loads again.
+  test('a file delivered before the editor exists is opened, not dropped', async ({ page }) => {
+    const launched = 'launched: "Launched"\n';
+    await page.addInitScript((text) => {
+      const file = new File([text], 'launched.sgl', { type: 'text/plain' });
+      // Chromium's real launchQueue delivers to a consumer as soon as it is
+      // set — here, synchronously, during the app's first effects, before
+      // CodeMirror's view has reached the shell.
+      // (Chromium has a native, read-only `launchQueue`: redefine it.)
+      Object.defineProperty(window, 'launchQueue', {
+        configurable: true,
+        value: {
+          setConsumer(consumer: (params: unknown) => void) {
+            consumer({ files: [{ getFile: () => Promise.resolve(file) }] });
+          },
+        },
+      });
+    }, launched);
+    await page.goto('/');
+    await waitForDocument(page, launched);
+    // The remembered extension came with it (§7).
+    expect((await saveAs(page, 'sgl')).name).toBe('launched.sgl');
+  });
+});
