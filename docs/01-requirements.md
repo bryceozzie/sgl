@@ -158,7 +158,8 @@ Measured on a mid-range laptop (roughly a 2020 i5 or an M1), cold cache excluded
 | Keystroke to updated SVG, 50-node graph | < 60 ms | 120 ms |
 | Full pipeline, 500-node graph | < 400 ms | 1.5 s |
 | Full pipeline, 2 000-node graph | < 3 s | 10 s (with progress and cancel) |
-| Paint-only theme switch (no re-layout) | < 16 ms | 50 ms |
+| Paint-only theme switch (no re-layout), up to 500 nodes | < 16 ms | 50 ms |
+| Paint-only theme switch (no re-layout), 2 000-node graph | < 50 ms | 100 ms |
 | Layout engine timeout | — | 10 s, cancellable |
 
 Above 2 000 nodes the app degrades gracefully: warn, suggest the `grid`/`fixed` engines, disable live re-render.
