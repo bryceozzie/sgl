@@ -1,0 +1,26 @@
+// Boundary-crossing edges below the root (Stage K fix round 1, item 10). The
+// labelled edge's endpoints meet first at `platform`, not at the root, so ELK
+// reports it — sections and label — in `platform`'s coordinates (DD-06 §6.2).
+// `containers-edges.sgl` never exercises that: all of its edges meet at the
+// root.
+platform: {
+  @label: "Platform"
+
+  web: {
+    @label: "Web"
+    ui: "UI"
+    cdn: "CDN"
+  }
+
+  data: {
+    @label: "Data"
+    db: "DB"
+    cache: "Cache"
+  }
+
+  web.ui -> data.db: "query"
+  web.cdn -> data.cache
+}
+
+client: "Client"
+client -> platform.web.ui

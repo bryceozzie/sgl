@@ -1,5 +1,5 @@
 import type { LabelId, Size } from '@sgl/core';
-import type { LayoutHost, ResolvedThemeMetricsView } from '@sgl/layout-api';
+import type { EngineSchemas, LayoutHost, ResolvedThemeMetricsView } from '@sgl/layout-api';
 import type { Measurer, TextStyle } from '@sgl/measure';
 import type { LayoutResult } from '@sgl/layout-api';
 import type { StyledGraph } from '@sgl/theme';
@@ -32,11 +32,15 @@ export interface PipelineDeps {
   readonly host: LayoutHost;
   readonly metrics: ResolvedThemeMetricsView;
   /** The engine the app starts with. Chosen by the caller from what is actually
-   *  registered in the worker (I1) — `@sgl/layout-api`'s frozen
-   *  `DEFAULT_ENGINE_ID` names `sgl.elk`, which is not registered until Stage K. */
+   *  registered in the worker — `sgl.elk` since Stage K (ADR-0005), which is
+   *  also `@sgl/layout-api`'s `DEFAULT_ENGINE_ID`. */
   readonly defaultEngineId: string;
   readonly defaultThemeId?: string;
   readonly schedule?: Schedule;
+  /** The registered engines' option and hint schemas, by id — what SGL4010
+   *  (`layoutConfigDiagnostics`, fix round 1 item 23) checks the document's
+   *  `@layout` keys against. Absent: only the nested-engine case is checked. */
+  readonly engineSchemas?: (engineId: string) => EngineSchemas | undefined;
   readonly debounceMs?: number;
   /**
    * Test-only fault injection for DD-08 §13's error boundary: called at the

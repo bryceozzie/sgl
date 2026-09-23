@@ -8,19 +8,22 @@ import {
   EXAMPLE_NODE_COUNT,
   EXAMPLE_SOURCE,
   expectedErrorDecorations,
+  layoutGeometryHash,
   nodeGeometry,
   paintHash,
+  renderedIdentity,
+  renderedPaintHash,
   renderedSvg,
   setSource,
   sourceDiagnostics,
+  switchEngine,
   viewBox,
+  waitForExactNodeCount,
   waitForNodeCount,
   waitForTheme,
 } from './helpers.js';
 
-/** MVP acceptance criteria (06 §3), Stage I's slice: criteria 2 and 3 in full,
- *  criterion 1's single-engine half (I1 — the engine-switch half waits for
- *  `elk`, Stage K). */
+/** MVP acceptance criteria (06 §3): 1 (both engines, Stage K), 2 and 3. */
 test.describe('MVP acceptance', () => {
   test('criterion 2: switching theme changes paint only — geometry and viewBox untouched', async ({ page }) => {
     await page.goto('/');
@@ -87,18 +90,50 @@ test.describe('MVP acceptance', () => {
     expect(await renderedSvg(page).innerHTML()).toBe(svgBefore); // FR-E4.
   });
 
-  test('criterion 1 (single-engine half): a 40-node, three-level document renders under grid', async ({ page }) => {
+  /** Criterion 1 (Stage K, K7): a 40-node, three-level document renders
+   *  under **both** engines, and switching changes only geometry. Identity
+   *  (node ids, edge ids, label texts) and the pipeline's own paint hash
+   *  (`data-paint-hash`, `StyledGraph.paintHash`) must match; the layout's
+   *  geometry hash (`layoutGeometryHash`, computed from the rendered shapes,
+   *  routes, label positions and `viewBox` — the pipeline has no layout hash
+   *  of its own) must differ. */
+  test('criterion 1: a 40-node, three-level document renders under both engines; switching changes only geometry', async ({ page }) => {
     test.setTimeout(60_000);
     await page.goto('/');
     await setSource(page, corpusDoc('forty-three-level.sgl'));
     // 40 counts containers as well as leaves (DD-08 §14's note on criterion
-    // 1): `waitForNodeCount`/`nodeGeometry` read both `g.n` and `g.c`.
-    await waitForNodeCount(page, 40);
-
-    const geom = await nodeGeometry(page);
-    expect(Object.keys(geom)).toHaveLength(40);
-    for (const d of Object.values(geom)) expect(d.length).toBeGreaterThan(0);
+    // 1): `waitForExactNodeCount`/`nodeGeometry` read both `g.n` and `g.c`.
+    await waitForExactNodeCount(page, 40);
+    await expect(page.locator('.engine-picker select')).toHaveValue('sgl.elk'); // the default (ADR-0005)
     await expect(page.locator('.diagnostics-panel')).toHaveCount(0); // clean document, no diagnostics.
-    await expect(page.locator('.engine-picker select')).toHaveValue('sgl.grid');
+
+    const underElk = {
+      identity: await renderedIdentity(page),
+      paint: await paintHash(page),
+      renderedPaint: await renderedPaintHash(page),
+      geometry: await layoutGeometryHash(page),
+    };
+    const geomElk = await nodeGeometry(page);
+    expect(Object.keys(geomElk)).toHaveLength(40);
+    for (const d of Object.values(geomElk)) expect(d.length).toBeGreaterThan(0);
+    expect(underElk.identity.edges.length).toBeGreaterThan(0);
+
+    await switchEngine(page, 'sgl.grid', underElk.geometry);
+    await waitForExactNodeCount(page, 40);
+    await expect(page.locator('.diagnostics-panel')).toHaveCount(0);
+    const underGrid = {
+      identity: await renderedIdentity(page),
+      paint: await paintHash(page),
+      renderedPaint: await renderedPaintHash(page),
+      geometry: await layoutGeometryHash(page),
+    };
+
+    expect(underGrid.identity).toEqual(underElk.identity); // the same nodes, edges and labels …
+    expect(underGrid.paint).toBe(underElk.paint); // … the same paint, by the pipeline's own hash …
+    // … and as rendered (fix round 1, item 14): the <style> text and every
+    // element's class/fill/stroke/stroke-dasharray, so a paint difference
+    // the pipeline's hash does not see would still fail here …
+    expect(underGrid.renderedPaint).toBe(underElk.renderedPaint);
+    expect(underGrid.geometry).not.toBe(underElk.geometry); // … different geometry.
   });
 });

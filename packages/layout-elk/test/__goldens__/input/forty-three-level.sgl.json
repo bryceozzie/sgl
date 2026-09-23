@@ -1,0 +1,753 @@
+{
+  "id": "root",
+  "layoutOptions": {
+    "elk.algorithm": "layered",
+    "elk.direction": "DOWN",
+    "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+    "elk.randomSeed": "1",
+    "elk.edgeRouting": "ORTHOGONAL",
+    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+    "elk.spacing.nodeNode": "40",
+    "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+    "elk.spacing.edgeLabel": "4",
+    "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]"
+  },
+  "children": [
+    {
+      "id": "frontend",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+        "elk.nodeSize.constraints": "MINIMUM_SIZE",
+        "elk.nodeSize.minimum": "(0,83.86592000000002)"
+      },
+      "children": [
+        {
+          "id": "frontend.web",
+          "layoutOptions": {
+            "elk.spacing.nodeNode": "40",
+            "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+            "elk.spacing.edgeLabel": "4",
+            "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+            "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+            "elk.nodeSize.constraints": "MINIMUM_SIZE",
+            "elk.nodeSize.minimum": "(0,58.64576)"
+          },
+          "children": [
+            {
+              "id": "frontend.web.home",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:frontend.web.home",
+                  "width": 32.513000000000005,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "frontend.web.search",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:frontend.web.search",
+                  "width": 39.013000000000005,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "frontend.web.cart",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:frontend.web.cart",
+                  "width": 21.671,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "frontend.web.checkout",
+              "width": 76.02600000000001,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:frontend.web.checkout",
+                  "width": 52.02600000000001,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "frontend.web.profile",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:frontend.web.profile",
+                  "width": 35.399,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "frontend.web.orders",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:frontend.web.orders",
+                  "width": 36.842000000000006,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "frontend.web.support",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:frontend.web.support",
+                  "width": 43.355000000000004,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "frontend.web.admin",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:frontend.web.admin",
+                  "width": 35.399,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "frontend.web.reports",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:frontend.web.reports",
+                  "width": 40.45600000000001,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "frontend.mobile",
+          "layoutOptions": {
+            "elk.spacing.nodeNode": "40",
+            "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+            "elk.spacing.edgeLabel": "4",
+            "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+            "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+            "elk.nodeSize.constraints": "MINIMUM_SIZE",
+            "elk.nodeSize.minimum": "(0,70.16720000000001)"
+          },
+          "children": [
+            {
+              "id": "frontend.mobile.ios",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:frontend.mobile.ios",
+                  "width": 16.614,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "frontend.mobile.android",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:frontend.mobile.android",
+                  "width": 43.355000000000004,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "frontend.mobile.push",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:frontend.mobile.push",
+                  "width": 28.184,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "frontend.mobile.sync",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:frontend.mobile.sync",
+                  "width": 26.728,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "frontend.mobile.cache",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:frontend.mobile.cache",
+                  "width": 34.684000000000005,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "frontend.mobile.auth",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:frontend.mobile.auth",
+                  "width": 25.298000000000002,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "frontend.mobile.onboarding",
+              "width": 89.03900000000002,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:frontend.mobile.onboarding",
+                  "width": 65.03900000000002,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "frontend.mobile.settings",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:frontend.mobile.settings",
+                  "width": 44.798,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "backend",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+        "elk.nodeSize.constraints": "MINIMUM_SIZE",
+        "elk.nodeSize.minimum": "(0,82.42736)"
+      },
+      "children": [
+        {
+          "id": "backend.api",
+          "layoutOptions": {
+            "elk.spacing.nodeNode": "40",
+            "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+            "elk.spacing.edgeLabel": "4",
+            "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+            "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+            "elk.nodeSize.constraints": "MINIMUM_SIZE",
+            "elk.nodeSize.minimum": "(0,52.89152)"
+          },
+          "children": [
+            {
+              "id": "backend.api.gateway",
+              "width": 72.412,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:backend.api.gateway",
+                  "width": 48.412000000000006,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "backend.api.users",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:backend.api.users",
+                  "width": 31.785000000000004,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "backend.api.orders",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:backend.api.orders",
+                  "width": 36.842000000000006,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "backend.api.payments",
+              "width": 80.35500000000002,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:backend.api.payments",
+                  "width": 56.35500000000001,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "backend.api.inventory",
+              "width": 76.74100000000001,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:backend.api.inventory",
+                  "width": 52.74100000000001,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "backend.api.shipping",
+              "width": 72.412,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:backend.api.shipping",
+                  "width": 48.412000000000006,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "backend.api.notifications",
+              "width": 92.64,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:backend.api.notifications",
+                  "width": 68.64,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "backend.api.search",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:backend.api.search",
+                  "width": 39.013000000000005,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "backend.api.recommendations",
+              "width": 127.311,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:backend.api.recommendations",
+                  "width": 103.311,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "backend.data",
+          "layoutOptions": {
+            "elk.spacing.nodeNode": "40",
+            "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+            "elk.spacing.edgeLabel": "4",
+            "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+            "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+            "elk.nodeSize.constraints": "MINIMUM_SIZE",
+            "elk.nodeSize.minimum": "(0,59.371520000000004)"
+          },
+          "children": [
+            {
+              "id": "backend.data.primary",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:backend.data.primary",
+                  "width": 43.329,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "backend.data.replica",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:backend.data.replica",
+                  "width": 38.285000000000004,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "backend.data.warehouse",
+              "width": 87.583,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:backend.data.warehouse",
+                  "width": 63.583,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "backend.data.cache",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:backend.data.cache",
+                  "width": 34.684000000000005,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "backend.data.queue",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:backend.data.queue",
+                  "width": 36.14,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "backend.data.blob",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:backend.data.blob",
+                  "width": 24.57,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "backend.data.search",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:backend.data.search",
+                  "width": 39.013000000000005,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "backend.data.backup",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:backend.data.backup",
+                  "width": 41.912000000000006,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-e46eb8dd5238e1e6",
+      "sources": [
+        "frontend.web.home"
+      ],
+      "targets": [
+        "frontend.web.search"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-b26e2618c1a88e1b",
+      "sources": [
+        "frontend.web.search"
+      ],
+      "targets": [
+        "frontend.web.cart"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-3d5537aaa91d0843",
+      "sources": [
+        "frontend.web.cart"
+      ],
+      "targets": [
+        "frontend.web.checkout"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-d1c6966c80d738f6",
+      "sources": [
+        "frontend.web.checkout"
+      ],
+      "targets": [
+        "backend.api.orders"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-de6b0e913a941714",
+      "sources": [
+        "frontend.web.checkout"
+      ],
+      "targets": [
+        "backend.api.payments"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-df1051e75b27b164",
+      "sources": [
+        "frontend.mobile.ios"
+      ],
+      "targets": [
+        "backend.api.gateway"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-7a2bea8d665101a6",
+      "sources": [
+        "frontend.mobile.android"
+      ],
+      "targets": [
+        "backend.api.gateway"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-39b661bc8bf640a7",
+      "sources": [
+        "backend.api.gateway"
+      ],
+      "targets": [
+        "backend.api.users"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-008a5d6a68b7aa50",
+      "sources": [
+        "backend.api.orders"
+      ],
+      "targets": [
+        "backend.data.primary"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-fecd6779f40f2a36",
+      "sources": [
+        "backend.api.payments"
+      ],
+      "targets": [
+        "backend.data.primary"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-778d181669820f97",
+      "sources": [
+        "backend.data.primary"
+      ],
+      "targets": [
+        "backend.data.replica"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-3ff92aeb077b83cb",
+      "sources": [
+        "backend.api.search"
+      ],
+      "targets": [
+        "backend.data.search"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-81f0e053a6ce27ba",
+      "sources": [
+        "backend.api.notifications"
+      ],
+      "targets": [
+        "backend.data.queue"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-9fe36a32ada67c29",
+      "sources": [
+        "frontend.mobile.push"
+      ],
+      "targets": [
+        "backend.api.notifications"
+      ],
+      "labels": []
+    }
+  ]
+}

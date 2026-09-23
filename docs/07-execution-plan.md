@@ -148,6 +148,7 @@ A stage is not done because the code is written. It is done when its gate passes
 | End-to-end pipeline (`source -> RenderResult`), `bench/generate.js` | **Done**, T3 gate green (Stage G) | `main` |
 | `@sgl/layout-api` — `createWorkerHost`, `worker-runtime.ts` (worker-side message handling) | **Done**, T1 gate green; the gate's four conditions also proven against a real `Worker` (browser project, Chromium + Firefox) (Stage H) | `main` |
 | `apps/web` | **Stage I done** — the editor loop, pickers, diagnostics panel, status chip, fonts, the §13 error boundary and the Playwright e2e gate (DD-08 §14 tests 1/2/3/8, MVP criteria 2/3/1-single-engine) all work end to end. Fix round 1 done (below). `elk`/engine-switch and the per-engine options form are Stage K | `main` |
+| `@sgl/layout-elk` — the elk adapter (lazy elkjs, K11 `document` stub), `@sgl/layout-api/conformance`, `applyHostFallbacks`; `apps/web` — elk registered and the default, F11 options form, engine-switch e2e, `size-limit` | **Stage K + fix round 1 on `feat/layout-elk`, not merged** — T2 + T3 + size check (177.22 kB) + T4 (Chromium only) green, twice from clean after fix round 1 (23 items incl. SGL4010, human decision 2026-09-23); H2/H3 held | `feat/layout-elk` |
 | `apps/web` — files, share, persistence, PWA, `_headers` | **Stage J done, merged at `0a32679`** — Open/Save (`.sgl`, `.sgl.json`, `.svg`), share by URL with the 2 MB inflate cap, IndexedDB autosave and boot, the stored-SVG boot paint (J6), `vite-plugin-pwa` precache + manifest + update chip, the `_headers` CSP; e2e gate MVP criteria 2–6 single-engine plus DD-08 §14 tests 5–7 green in Chromium, Firefox and WebKit (fix rounds 1 and 2 re-verified in Chromium only); Open makes a new local document and a minimal Documents ▾ list reaches every stored one (fix round 2, human decision 2026-09-23) | `main` |
 
 **Gate 1 is cleared.** `feat/compiler` merged to `main` at `a46c72b`; `pnpm check` green there
@@ -1027,6 +1028,134 @@ item:
 After round 2, the clean `pnpm check`-equivalent run is green twice: Vitest 1881 passed (unit and `browser (chromium)`), e2e
 50/50 in Chromium.
 
+**Stage K is implemented on `feat/layout-elk`** (branched from `main` at `35ab6bb`; not merged,
+awaiting review). The brief's gate command, run from clean twice, is green both times: Vitest
+2040 passed (the `unit` and `browser (chromium)` projects), e2e 51/51 in Chromium, `pnpm size`
+174.63 kB of 180 kB. **Chromium only**: Firefox and WebKit could not be fetched in this sandbox.
+The harness refused the command as one shell line, so its steps were run in the same order as
+three consecutive commands, each stopping on the first failure. No existing golden changed. What
+landed, by decision:
+
+- **The adapter (DD-06 §6).** `packages/layout-elk/src/`: `descriptor.ts` (the engine's id,
+  capabilities, schemas and option defaults as their own entry, `@sgl/layout-elk/descriptor`, so
+  the main thread lists the engine and builds its form without elkjs), `mapping.ts` (§6.1/§6.2
+  as pure functions), `load-elk.ts` and `index.ts`. Running elkjs 0.11.1 showed nine places
+  where §6.1/§6.2's pseudocode is wrong or silent (empty label text is ignored; `H_LEFT` titles
+  reserve a left column, so titles are centred; ELK adds the title band itself; label padding is
+  read from the parent; spacing is per level; `nodeSize.minimum` is not transposed for DOWN/UP;
+  `portSize` is unseen; edges are relative to ELK's `container`; label boxes for asymmetric
+  insets), all written up in DD-06 §6.1/§6.2.
+- **K1, lazy.** `elk.bundled.js` is a dynamic `import()` on the first `layout()`, the instance
+  cached. The app's build emits it as its own `elk` chunk (1 439.76 kB raw, ≈ 436.5 kB gzip),
+  imported only by the worker, and precached. That needed `worker.format: 'es'` and an `elk`
+  manual chunk holding elkjs only (DD-10 §2).
+- **K11, a scoped `document` stub (orchestrator decision on a blocker Stage K reported).**
+  Inside a worker, `elk.bundled.js` (line 6430) takes its own worker branch — installs itself as
+  `self.onmessage`, never exports its in-thread FakeWorker — so `new ELK()` failed. `load-elk.ts`
+  sets `globalThis.document = {}` only when absent, only for the import, and deletes it in a
+  `finally`. The wip commit `7e5aed5` reproduces the failure; `344620e` fixes it; the Chromium
+  worker test has no shim of its own and is the tripwire.
+- **Host (DD-06 §4).** `applyHostFallbacks` is now the one post-engine sequence, shared by the
+  worker runtime and the conformance harness; it adds `finishEngineRoutes` (§4.4's arrow reserve
+  on routes an engine returned; §4.5's teardrop for an engine self-loop under 16 px, whose label
+  and `bounds` follow it). It runs before `routeStraight`, so nothing is reserved twice (tested
+  alone and through the real worker runtime). `grid` returns no edges, so its output is unchanged.
+- **K2.** `elk.randomSeed: '1'`. Two runs are identical after quantization in Node (conformance
+  check 2, every corpus document) and through a real Chromium worker; ELK's quantized output in
+  Chromium equals Node's golden byte for byte.
+- **K3.** New goldens only: the `ElkNode` sent and the engine's `LayoutResult`, for each
+  `CLEAN_DOCS` document, under `packages/layout-elk/test/__goldens__/`.
+- **K4.** `hierarchyCrossings` counts route segments through an unrelated container's frame, as
+  a logged warning: **0 on every corpus document**, and 0 for `containers-edges.sgl` under both
+  `ORTHOGONAL` and `POLYLINE`. Found by inspection instead: an edge entering a container from
+  above can cross its centred title (`checkout.sgl`), recorded in DD-06 §6.3 for review.
+- **K5.** Labels come from ELK: the output-mapping unit test places each label at ELK's own
+  coordinates; through the real worker runtime (Node) and a real Chromium worker the posted
+  labels equal ELK's, and a centred container title differs from what `placeLabels` would place.
+- **K6.** `.size-limit.js` + root `pnpm size` + a CI step: the entry, its static imports, the
+  CSS and the worker, gzipped, elk excluded — **174.63 kB**, limit 180 kB.
+- **K7/K8, T4.** `criteria.spec.ts` criterion 1 on both engines (`forty-three-level.sgl`: ids,
+  edge ids, label texts and paint hash identical, layout geometry hash different); DD-08 §14
+  test 4 (`dd08-14.spec.ts`); criterion 5 offline (`offline.spec.ts`: the elk chunk is served by
+  the service worker after the HTTP cache is emptied; elk → grid → elk offline, no failed
+  request); `pwa.spec.ts` checks elk is precached and imported only by the worker.
+- **K9, F11.** `state/engine-options.ts` (Node-tested) and `toolbar/EngineOptions.tsx`: one
+  hand-built form per engine beside Engine ▾, a plain disclosure (Save ▾'s pattern), writing the
+  persisted `engineOptions`; selecting an engine resets it to that engine's defaults.
+- **Default engine.** `sgl.elk` (ADR-0005), ending I1's interim `grid` default; stored
+  documents keep their own `engineId`.
+- **Conformance (DD-06 §8).** `@sgl/layout-api/conformance` (`runConformance`), run on both
+  engines over every corpus document plus a 1 000-node graph built in memory
+  (`bench/scale-document.js`, shared with `bench/generate.js`). **K10**: elk's 1 000-node graph
+  takes ≈ 0.8 s in Node and ≈ 1.1 s round trip in a Chromium worker run alone (≈ 2.3 s inside
+  the full parallel test run), against its 10 s timeout, which is not raised.
+
+**Stage K fix round 1** (22 review items plus item 23, SGL4010, from the human decision of
+2026-09-23 on held item H1; on `feat/layout-elk`, not merged). H2 (DD-06 §5's bounds
+recomputation) and H3 (an elk performance budget) stay held. Chromium only. The brief's gate
+command, run from clean twice, is green both times: Vitest 2139 passed (the `unit` and
+`browser (chromium)` projects), e2e 55/55, `pnpm size` 177.22 kB of 180 kB, with the new
+boot-path check passing. The first attempt at the first run failed one test on a Vitest timeout
+(`n2000.sgl` under elk at 5.5 s against the 5 s default under the full parallel run); that
+test now has 30 s. Item by item:
+
+- **1. Container titles are top-left again** (DD-06 §4.1/§6.1): `start`/`top`, at ELK's
+  container frame inset by `contentInset`, as `grid` places them — pinned per `CLEAN_DOCS`
+  document. The reviewer's `[H_LEFT, V_TOP, INSIDE, V_PRIORITY]` works only because
+  `V_PRIORITY` is not an ELK placement and ELK rejects the whole value; the title is instead
+  not sent to ELK at all (byte-identical layouts, pinned), with `elk.padding.top` covering the
+  band once and the title's width a minimum container width. Elk goldens regenerated (12
+  files: titles `middle`/`bottom` → `start`/`top`); no other golden changed.
+- **2. Edges through a title**, counted by `titleCrossings`. Centred titles (before item 1):
+  `checkout` 2, `containers-edges` 1, `forty-three-level` 1, `nesting-3` 2, `wildcards` 1,
+  `n50` 4, `n500` 49, `n2000` 199. Top-left titles (after): `checkout` 2, `containers-edges` 1,
+  `nesting-3` 1, `wildcards` 4. No ELK mitigation removed the rest (`considerModelOrder` makes
+  ELK throw on 8 documents; `mergeHierarchyEdges` and `spacing.labelNode` change nothing;
+  `FIXED_SIDE` on containers moves them), so they are a pinned, counted warning.
+- **3.** The pipeline sends `optionsForEngine(engine, bag)`, what the form shows; a stored
+  `columns: "x"` no longer reaches grid raw (it threw `SGL4011`). Unit and e2e tests.
+- **4.** `portConstraints` is ELK's enum in `hintsSchema` and the mapping; unknown values
+  skipped. **5.** A missing ELK coordinate is `NaN` (→ `SGL4002`), never 0.
+  **6.** The arrow reserve on an engine route is clamped: never reverses or zeroes a short end
+  segment. **7.** `elkEngine.layout()` honours an abort once elkjs has loaded, so the worker
+  and its loaded elkjs survive; DD-06 §3's "respawn ~30 ms" premise amended. **8.** The
+  redundant deep copy is gone (the graph is built per call; nothing re-reads it).
+  **9.** DD-06 §6.2 (every section is concatenated), §8 (check 1 fails on errors only),
+  DD-08 §10 (item 3's sentence).
+- **10.** The K4 tests assert: hierarchy crossings equal the recorded `{}`,
+  `containers-edges.sgl` is `{ORTHOGONAL: 0, POLYLINE: 0}`, title counts pinned; new corpus
+  document `nested-crossing.sgl` puts an edge in a non-root ELK `container`.
+- **11.** Conformance check 6: every edge end within `arrowSize` of its node (or port) — grid
+  and elk pass. **12.** Per directed edge, the end sits `arrowSize` ± 0.5 px off its node,
+  failing with the reserve skipped and with it doubled. **18.** Check 3 compares all siblings,
+  containers included. **16.** A non-root-container edge label is placed absolutely.
+  **19.** The Chromium worker has no `document` after elk loads.
+- **13.** F11 end to end (`e2e/engine-options.spec.ts`): Direction → Right re-lays out,
+  persists across a reload, and an engine switch resets it; fails with the form's write made
+  inert. **14.** Criterion 1 also compares the rendered paint (`<style>` plus every element's
+  `class`/`fill`/`stroke`/`stroke-dasharray`). **15.** Criterion 6 with `e=sgl.grid`: grid on
+  the picker, in the record, and geometry different from elk's; boot unit test.
+- **17.** `pnpm size` also runs `apps/web/scripts/check-core-chunks.mjs`: no chunk reachable
+  from `index.html`'s entry by static imports may reference an `elk` chunk or contain elkjs,
+  and elkjs is emitted once. Importing `@sgl/layout-elk` into `App.tsx` passed size-limit
+  (178.71 kB) and failed this check.
+- **20.** `size-limit` + `@size-limit/file` pinned to **12.1.0** (engines `^20 || ^22 || >=24`),
+  the newest that runs on CI's Node: run under Node 20.19.0 itself (`npx -y node@20.19.0`) it
+  passes; 14.0.0 there fails with "does not provide an export named 'glob'".
+  **21.** Root `check` runs `pnpm size` after `build`.
+- **22.** F11 number fields have maxima (spacing 0–500 px, grid gap 0–200 px, columns 1–50); a
+  refused value gets `aria-invalid`, a visible message, and the box shows the value in use.
+- **23. SGL4010 is live** (human decision 2026-09-23). `layoutConfigDiagnostics` in
+  `@sgl/layout-api` warns, at the key, for (a) a container-level `@layout.engine` naming
+  another engine — **until B8/B9 (per-container engines), a nested engine warns and is
+  ignored** — and (b) any `@layout` key the effective engine declares neither as an option nor
+  as a hint. The app's pipeline runs it with the effective engine's descriptor; the panel shows
+  it with a warning squiggle and the diagram stays. Corpus fixtures `layout/nested-engine.sgl`
+  and `layout/unknown-key.sgl`; SGL4010 moves to the whole-pipeline coverage half. The welcome
+  example drops `payments`' nested `@layout`, so a first visit shows no warning. One test table
+  (not a golden) changed: corpus `checkout.sgl`'s audited diagnostics gain SGL4010 (its root
+  `direction` under grid).
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
@@ -1037,11 +1166,10 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | # | Finding | Owner |
 |---|---|---|
 | **F3** | `linearizeClasses` recurses `@extends` with no visited-set guard. Safe **only** because `resolve()` splices every cycle's back-edge first, so no `DocumentModel` reaching `compile()` can contain one. A second producer of class tables would turn bad input into a stack overflow — which §1 reserves for invariant violations. | Stage L (A9) |
-| **F6** | `renderNode`'s port-circle template (DD-07 §3) is live, correctly `aria-hidden`, and unit-tested directly — but unreachable through the real pipeline: `grid` declares `capabilities.ports: false` and no host fallback places ports (DD-06 §4 covers labels and routing, not ports), so `LayoutResult.nodes[id].ports` is never populated end to end. Found during Stage F's accessibility pass. | unassigned — whichever stage next reconsiders `ports: false` for `grid`, or ships a port-aware engine |
+| **F6** | `renderNode`'s port-circle template (DD-07 §3) is live, correctly `aria-hidden`, and unit-tested directly — but unreachable through the real pipeline: `grid` declares `capabilities.ports: false` and no host fallback places ports (DD-06 §4 covers labels and routing, not ports), so `LayoutResult.nodes[id].ports` is never populated end to end. Found during Stage F's accessibility pass. **Since Stage K the port circles are reachable under `elk`**, which declares `ports: true` and fills `NodeLayout.ports`; still not under `grid`, and the row's owner is still to be assigned. | unassigned — whichever stage next reconsiders `ports: false` for `grid`, or ships a port-aware engine |
 | **F7** | The paint-only `<style>`-swap property (DD-07 §11, DD-08 §3) does not hold, for two independent reasons verified against the committed goldens. (a) `s-`/`t-`/`p-{paintHash}` class names (`style.ts`) embed the paint hash, so a paint change changes every referencing element's `class` attribute, not just the `<style>` block — fixable by keying the class name on something theme-invariant instead, which is a DD-07 §6 class-naming-scheme change (would churn every golden), not pulled here. (b) independently, a directed edge's arrowhead marker bakes its stroke colour into a `<defs>` `fill` and into the marker's own `id` (`markers.ts`), so `marker-end`/`marker-start` references change too — this needs a different marker strategy or a `context-stroke` rewrite (both currently rejected: resvg lacks `context-stroke`, Safari support arrived late), not just a class rename. DD-08 §3 is corrected to describe a full re-render instead of a `<style>`-only swap; the code is unchanged. | Stage I |
 | **F9** | The paint-only theme-switch budget: **`< 16 ms` up to 500 nodes and `< 50 ms` at 2 000 nodes, measured in Chromium** (hard ceilings 50 / 100 ms; 01 §4.1, DD-09 §2). **Measured, and not met.** `packages/render-svg/test/browser/render.bench.browser.test.ts`, median of 15, Chromium, several standalone runs. The live-view operation is `render()` plus the `innerHTML` swap of the wrapper `<g>` (DD-08 §6). Timed up to the assignment only, it measured n50 **1.1–3.0 ms**, n500 **10–25 ms** and n2000 **53–150 ms** (Stage I part 2 and fix round 1 together). That undercounts: the browser has not yet computed style or laid out the new subtree. With `wrapper.getBBox()` forcing that work inside the timed region (fix round 1, item 17), the figures are n50 **3.4–9.7 ms**, n500 **37–72 ms**, n2000 **183–254 ms**. So with layout counted, 500 nodes misses too, not only 2 000. **Decision (human, 2026-09-23): keep the budget, and do not renegotiate it again.** The 2 000-node miss is scheduled as performance work required before Gate 4: replace the live view's wholesale `innerHTML` swap with `morphdom` on the wrapper `<g>` (DD-08 §6's and DD-09 §2's own planned response). `morphdom` is a new runtime dependency, approved by this decision. MVP / Gate 3 is not blocked, since no MVP criterion is timed. **Clears when** the forced-layout variant of that bench shows **both** budget points met in Chromium: n500 < 16 ms **and** n2000 < 50 ms. The decision keeps the whole budget, and with layout counted 500 nodes misses too, so clearing on n2000 alone would pass a known miss. | **Stage L — morphdom live-view swap, before Gate 4** |
 | **F10** | `ctx.random`'s seed (`host.ts`'s `SEED = 1`) is one fixed constant, shared by every request for every document — `LayoutHost.run()`'s frozen signature has no per-call seed parameter, so Stage H could not add one unilaterally (DD-06 §3). Where a per-document seed should come from — a new `run()` parameter, or something content-addressed from a graph hash so the same document always seeds the same way without threading a value through every call site — is undecided, and is an orchestrator/design decision to make, not Stage H's to settle unilaterally. No engine shipped so far reads `ctx.random` at all (`grid` is fully deterministic; `elk` is unbuilt), so nothing depends on the answer yet. | Stage L (B5 `radial`/`force`, the first seed-consuming engines) |
-| **F11** | DD-08 §10's engine options panel — "MVP is a hand-built form per engine" — is not built. With one registered engine (`grid`) there is nothing to switch *between*, so a form whose whole point is per-engine variation has no second case to prove it against; building it now risks shaping it around `grid`'s own three options (`columns`, `gap`, `align`) in a way that does not generalise to `elk`'s different set (direction, node/rank spacing, edge routing, node placement). `engineOptions` itself is wired end to end (the signal, `buildLayoutInput`, the worker protocol) — only the settings UI is missing. | Stage K (the second engine makes the form's generality checkable) |
 | **F12** | After a service-worker update is accepted in one tab, other open tabs keep running the old JS while `cleanupOutdatedCaches` has already removed the old precache, so a lazy chunk the old code has not yet loaded (from Stage K, `elk`) can fail to load offline in those tabs. Found in Stage J's review; `pwa.ts` has no cross-tab coordination (e.g. reloading other clients on `controllerchange`). | Stage L |
 | **F13** | A share link pasted into an already-open tab (Stage J fix round 1, item 14) imports by flushing autosave and **reloading**, not by switching in place like Open and Documents ▾ (fix round 2). That loses undo history, and when IndexedDB is unavailable (memory-store fallback) the reload loses the tab's documents outright. Also: criterion 5's offline test is falsifiable against the HTTP cache in Chromium and WebKit but not in Firefox, which has neither mechanism the spec uses; and error toasts persist until closed with no cap on how many pile up. | Stage L (E17, alongside the rest of the Documents UI) |
 

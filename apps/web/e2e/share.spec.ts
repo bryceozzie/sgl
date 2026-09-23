@@ -6,6 +6,7 @@ import {
   editorText,
   EXAMPLE_NODE_COUNT,
   EXAMPLE_SOURCE,
+  layoutGeometryHash,
   nodeGeometry,
   readStorage,
   setSource,
@@ -27,13 +28,14 @@ async function diagram(page: Page) {
 }
 
 /** Opens the Share dialog and returns its link, whose `e=`/`t=` must be
- *  exactly `sgl.grid` and `themeId` — the effective theme the sharer sees. */
+ *  exactly `sgl.elk` (the default engine, Stage K) and `themeId` — the
+ *  effective engine and theme the sharer sees. */
 async function shareLinkFor(page: Page, themeId: string): Promise<string> {
   await page.locator('.share-open').click();
   const link = await page.locator('.share-link').inputValue();
   expect(link).toMatch(/#s=[A-Za-z0-9_-]+&e=[^&]+&t=[^&]+$/);
   const params = new URLSearchParams(new URL(link).hash.slice(1));
-  expect(params.get('e')).toBe('sgl.grid');
+  expect(params.get('e')).toBe('sgl.elk');
   expect(params.get('t')).toBe(themeId);
   return link;
 }
@@ -121,6 +123,17 @@ test('criterion 6: a link made outside the app (Node zlib) opens with exactly it
     await waitForTheme(page, 'neutral-dark');
     expect(await editorText(page)).toBe(SHARED);
     await expect.poll(async () => (await storedOpenDocument(page))?.source).toBe(SHARED);
+    // e=sgl.grid, not the default elk (fix round 1, item 15): the picker says
+    // so, the record keeps it, and the geometry is grid's, not elk's.
+    await expect(page.locator('.engine-picker select')).toHaveValue('sgl.grid');
+    await expect.poll(async () => (await storedOpenDocument(page))?.engineId).toBe('sgl.grid');
+    const gridGeometry = await layoutGeometryHash(page);
+
+    const elkPage = await fresh.newPage();
+    await elkPage.goto(`/${nodeBuiltHash(SHARED, '&e=sgl.elk&t=neutral-dark')}`);
+    await waitForExactNodeCount(elkPage, visibleNodeCount(SHARED));
+    await expect(elkPage.locator('.engine-picker select')).toHaveValue('sgl.elk');
+    expect(await layoutGeometryHash(elkPage)).not.toBe(gridGeometry);
   } finally {
     await fresh.close();
   }

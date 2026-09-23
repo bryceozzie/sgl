@@ -1,0 +1,390 @@
+{
+  "nodes": {
+    "platform": {
+      "id": "platform",
+      "path": [
+        "platform"
+      ],
+      "parent": null,
+      "children": [
+        "platform.web",
+        "platform.data"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform",
+      "ports": [],
+      "config": {
+        "label": "Platform"
+      },
+      "hidden": false,
+      "span": {
+        "from": 322,
+        "to": 536
+      }
+    },
+    "platform.web": {
+      "id": "platform.web",
+      "path": [
+        "platform",
+        "web"
+      ],
+      "parent": "platform",
+      "children": [
+        "platform.web.ui",
+        "platform.web.cdn"
+      ],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform.web",
+      "ports": [],
+      "config": {
+        "label": "Web"
+      },
+      "hidden": false,
+      "span": {
+        "from": 358,
+        "to": 414
+      }
+    },
+    "platform.web.ui": {
+      "id": "platform.web.ui",
+      "path": [
+        "platform",
+        "web",
+        "ui"
+      ],
+      "parent": "platform.web",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform.web.ui",
+      "ports": [],
+      "config": {
+        "label": "UI"
+      },
+      "hidden": false,
+      "span": {
+        "from": 387,
+        "to": 395
+      }
+    },
+    "platform.web.cdn": {
+      "id": "platform.web.cdn",
+      "path": [
+        "platform",
+        "web",
+        "cdn"
+      ],
+      "parent": "platform.web",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform.web.cdn",
+      "ports": [],
+      "config": {
+        "label": "CDN"
+      },
+      "hidden": false,
+      "span": {
+        "from": 400,
+        "to": 410
+      }
+    },
+    "platform.data": {
+      "id": "platform.data",
+      "path": [
+        "platform",
+        "data"
+      ],
+      "parent": "platform",
+      "children": [
+        "platform.data.db",
+        "platform.data.cache"
+      ],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform.data",
+      "ports": [],
+      "config": {
+        "label": "Data"
+      },
+      "hidden": false,
+      "span": {
+        "from": 418,
+        "to": 480
+      }
+    },
+    "platform.data.db": {
+      "id": "platform.data.db",
+      "path": [
+        "platform",
+        "data",
+        "db"
+      ],
+      "parent": "platform.data",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform.data.db",
+      "ports": [],
+      "config": {
+        "label": "DB"
+      },
+      "hidden": false,
+      "span": {
+        "from": 449,
+        "to": 457
+      }
+    },
+    "platform.data.cache": {
+      "id": "platform.data.cache",
+      "path": [
+        "platform",
+        "data",
+        "cache"
+      ],
+      "parent": "platform.data",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform.data.cache",
+      "ports": [],
+      "config": {
+        "label": "Cache"
+      },
+      "hidden": false,
+      "span": {
+        "from": 462,
+        "to": 476
+      }
+    },
+    "client": {
+      "id": "client",
+      "path": [
+        "client"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:client",
+      "ports": [],
+      "config": {
+        "label": "Client"
+      },
+      "hidden": false,
+      "span": {
+        "from": 538,
+        "to": 554
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-be334112e524c233",
+      "from": {
+        "node": "client"
+      },
+      "to": {
+        "node": "platform.web.ui"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 555,
+        "to": 580
+      }
+    },
+    {
+      "id": "e-69689b04ba39061f",
+      "from": {
+        "node": "platform.web.ui"
+      },
+      "to": {
+        "node": "platform.data.db"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-69689b04ba39061f",
+      "config": {
+        "label": "query"
+      },
+      "declaredIn": "platform",
+      "hidden": false,
+      "span": {
+        "from": 484,
+        "to": 510
+      }
+    },
+    {
+      "id": "e-66a7798fce94a874",
+      "from": {
+        "node": "platform.web.cdn"
+      },
+      "to": {
+        "node": "platform.data.cache"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": "platform",
+      "hidden": false,
+      "span": {
+        "from": 513,
+        "to": 534
+      }
+    }
+  ],
+  "rootChildren": [
+    "platform",
+    "client"
+  ],
+  "order": [
+    "platform",
+    "platform.web",
+    "platform.web.ui",
+    "platform.web.cdn",
+    "platform.data",
+    "platform.data.db",
+    "platform.data.cache",
+    "client"
+  ],
+  "labels": {
+    "l:e-69689b04ba39061f": {
+      "id": "l:e-69689b04ba39061f",
+      "owner": {
+        "kind": "edge",
+        "id": "e-69689b04ba39061f"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "query"
+        }
+      ]
+    },
+    "l:platform": {
+      "id": "l:platform",
+      "owner": {
+        "kind": "node",
+        "id": "platform"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Platform"
+        }
+      ]
+    },
+    "l:platform.web": {
+      "id": "l:platform.web",
+      "owner": {
+        "kind": "node",
+        "id": "platform.web"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Web"
+        }
+      ]
+    },
+    "l:platform.web.ui": {
+      "id": "l:platform.web.ui",
+      "owner": {
+        "kind": "node",
+        "id": "platform.web.ui"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "UI"
+        }
+      ]
+    },
+    "l:platform.web.cdn": {
+      "id": "l:platform.web.cdn",
+      "owner": {
+        "kind": "node",
+        "id": "platform.web.cdn"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "CDN"
+        }
+      ]
+    },
+    "l:platform.data": {
+      "id": "l:platform.data",
+      "owner": {
+        "kind": "node",
+        "id": "platform.data"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Data"
+        }
+      ]
+    },
+    "l:platform.data.db": {
+      "id": "l:platform.data.db",
+      "owner": {
+        "kind": "node",
+        "id": "platform.data.db"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "DB"
+        }
+      ]
+    },
+    "l:platform.data.cache": {
+      "id": "l:platform.data.cache",
+      "owner": {
+        "kind": "node",
+        "id": "platform.data.cache"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Cache"
+        }
+      ]
+    },
+    "l:client": {
+      "id": "l:client",
+      "owner": {
+        "kind": "node",
+        "id": "client"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Client"
+        }
+      ]
+    }
+  },
+  "meta": {
+    "nodeCount": 8,
+    "edgeCount": 3,
+    "containerCount": 3
+  }
+}

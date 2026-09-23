@@ -45,14 +45,21 @@ function sglHeaders(): Plugin {
 // DD-10 §2. Manual chunks keep the lazily-loaded engines and the editor out of the
 // core bundle, which is what the 180 kB core budget (NFR 4.1) is measured against.
 // Written as a function so a chunk stays declared before anything imports it.
+//
+// Stage K: the `elk` chunk holds elkjs only. `@sgl/layout-elk`'s own code (its
+// descriptor, which the main thread's pickers import, and its mapping, which
+// the worker imports statically) must stay out of it: a manual chunk that a
+// static import reaches is loaded eagerly, elkjs and all.
+function elkChunk(id: string): string | undefined {
+  return id.includes('/elkjs/') ? 'elk' : undefined;
+}
 export default defineConfig({
   plugins: [
     preact(),
     // DD-08 §12. `generateSW` precaches whatever the build emits that
     // `globPatterns` matches — the shell, the worker and every engine chunk
-    // the worker can import (J1: only `grid` today; an engine chunk exists
-    // only once something imports it, so Stage K's `elk` is picked up by
-    // registering it, with no change here), the Inter WOFF2 files, `OFL.txt`,
+    // the worker can import (J1; Stage K's lazy `elk` chunk, ~1.44 MB, is
+    // picked up by registering it, with no change here), the Inter WOFF2 files, `OFL.txt`,
     // the icons and the manifest. Both themes and the example document are
     // compiled into the app chunk, so they come with it. The size cap is
     // raised because Workbox *skips* (with only a warning) any file over its
@@ -94,11 +101,19 @@ export default defineConfig({
     }),
     sglHeaders(),
   ],
+  // The layout worker is its own Rollup build. It must be an ES module
+  // (Vite's default worker format is `iife`, which cannot code-split), so
+  // that `elkEngine.layout()`'s dynamic `import()` of elkjs becomes a chunk
+  // fetched on first use rather than being inlined into the worker (K1).
+  worker: {
+    format: 'es',
+    rollupOptions: { output: { manualChunks: elkChunk } },
+  },
   build: {
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('elkjs') || id.includes('layout-elk')) return 'elk';
+          if (elkChunk(id) !== undefined) return 'elk';
           if (id.includes('layout-std')) return 'grid';
           if (id.includes('codemirror') || id.includes('@lezer')) return 'editor';
           return undefined;

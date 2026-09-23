@@ -1,0 +1,248 @@
+{
+  "id": "root",
+  "layoutOptions": {
+    "elk.algorithm": "layered",
+    "elk.direction": "DOWN",
+    "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+    "elk.randomSeed": "1",
+    "elk.edgeRouting": "ORTHOGONAL",
+    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+    "elk.spacing.nodeNode": "40",
+    "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+    "elk.spacing.edgeLabel": "4",
+    "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]"
+  },
+  "children": [
+    {
+      "id": "edge",
+      "width": 72,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:edge",
+          "width": 28.157999999999998,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "storefront",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+        "elk.nodeSize.constraints": "MINIMUM_SIZE",
+        "elk.nodeSize.minimum": "(0,88.90736000000001)"
+      },
+      "children": [
+        {
+          "id": "storefront.web",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:storefront.web",
+              "width": 23.842000000000002,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "storefront.bff",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:storefront.bff",
+              "width": 24.557,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "payments",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+        "elk.nodeSize.constraints": "MINIMUM_SIZE",
+        "elk.nodeSize.minimum": "(0,89.62016)"
+      },
+      "children": [
+        {
+          "id": "payments.api",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:payments.api",
+              "width": 17.342000000000002,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "payments.ledger",
+          "width": 72,
+          "height": 49.800000000000004,
+          "labels": [
+            {
+              "text": "l:payments.ledger",
+              "width": 36.127,
+              "height": 22.533333333333335,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "payments.outbox",
+          "width": 72,
+          "height": 49.800000000000004,
+          "labels": [
+            {
+              "text": "l:payments.outbox",
+              "width": 39.026,
+              "height": 22.533333333333335,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "psp",
+      "width": 72,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:psp",
+          "width": 33.956,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-87441157bd4f5902",
+      "sources": [
+        "edge"
+      ],
+      "targets": [
+        "storefront.web"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-9b7b78b27b104012",
+      "sources": [
+        "storefront.bff"
+      ],
+      "targets": [
+        "payments.api"
+      ],
+      "labels": [
+        {
+          "text": "l:e-9b7b78b27b104012",
+          "width": 69.696,
+          "height": 14.3,
+          "layoutOptions": {
+            "elk.edgeLabels.placement": "CENTER"
+          }
+        }
+      ]
+    },
+    {
+      "id": "e-b226b1373bf1da7f",
+      "sources": [
+        "payments.api"
+      ],
+      "targets": [
+        "psp"
+      ],
+      "labels": [
+        {
+          "text": "l:e-b226b1373bf1da7f",
+          "width": 45.243,
+          "height": 14.3,
+          "layoutOptions": {
+            "elk.edgeLabels.placement": "CENTER"
+          }
+        }
+      ]
+    },
+    {
+      "id": "e-d20dab6abc46ae7d",
+      "sources": [
+        "storefront.web"
+      ],
+      "targets": [
+        "storefront.bff"
+      ],
+      "labels": [
+        {
+          "text": "l:e-d20dab6abc46ae7d",
+          "width": 45.242999999999995,
+          "height": 14.3,
+          "layoutOptions": {
+            "elk.edgeLabels.placement": "CENTER"
+          }
+        }
+      ]
+    },
+    {
+      "id": "e-fee3fa2995887984",
+      "sources": [
+        "payments.api"
+      ],
+      "targets": [
+        "payments.ledger"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-7cfa36e0eac91b9c",
+      "sources": [
+        "payments.api"
+      ],
+      "targets": [
+        "payments.outbox"
+      ],
+      "labels": [
+        {
+          "text": "l:e-7cfa36e0eac91b9c",
+          "width": 28.732,
+          "height": 14.3,
+          "layoutOptions": {
+            "elk.edgeLabels.placement": "CENTER"
+          }
+        }
+      ]
+    }
+  ]
+}

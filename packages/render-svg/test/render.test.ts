@@ -14,7 +14,7 @@ import { listCorpusDocs, renderCorpusDoc } from './pipeline.js';
  *  only make sense against a clean document; the full corpus is still exercised
  *  below by the "never throws" and double-run sweeps, which is the property
  *  that matters for those. */
-const KNOWN_DIRTY = /^(?:malformed|unresolved|injection)\//;
+const KNOWN_DIRTY = /^(?:malformed|unresolved|injection|layout)\//;
 const GENERATED_BENCH = /^n(?:50|500|2000)\.sgl$/;
 
 const THEMES: readonly ThemeDoc[] = [neutralLight, neutralDark];

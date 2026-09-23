@@ -1,12 +1,13 @@
 import type { Diagnostic, LabelId, Size } from '@sgl/core';
 import { compile, parse, resolve } from '@sgl/core';
 import {
+  applyHostFallbacks,
   buildLayoutInput,
-  placeLabels,
+  layoutConfigDiagnostics,
   quantize,
-  routeStraight,
   validateResult,
   type LayoutContext,
+  type LayoutEngine,
   type LayoutInput,
   type LayoutResult,
   type ResolvedThemeMetricsView,
@@ -42,15 +43,15 @@ const METRICS: ResolvedThemeMetricsView = {
   arrowSize: 8,
 };
 
-const CTX: LayoutContext = {
-  options: {},
+const ctxWith = (options: Readonly<Record<string, unknown>>): LayoutContext => ({
+  options,
   metrics: METRICS,
   measure: {
     layoutRuns(): never {
-      throw new Error('grid never asks the host to measure a label it created.');
+      throw new Error('neither grid nor elk asks the host to measure a label it created.');
     },
     layoutRunsAsync(): never {
-      throw new Error('grid never asks the host to measure a label it created.');
+      throw new Error('neither grid nor elk asks the host to measure a label it created.');
     },
   },
   random: () => 0,
@@ -59,7 +60,7 @@ const CTX: LayoutContext = {
   sublayout(): never {
     throw new Error('sublayout is reserved, not implemented (DD-06 §2).');
   },
-};
+});
 
 export interface RenderedDoc {
   readonly styled: StyledGraph;
@@ -79,13 +80,18 @@ export interface RenderedDoc {
   readonly diagnostics: readonly Diagnostic[];
 }
 
-/** Lay a `StyledGraph` out under the host pipeline for an engine declaring
- *  `labelPlacement: false, edgeRouting: 'straight'` (DD-06 §4, §5) — the same
- *  fallback composition `grid.test.ts`'s `runPipeline` uses — then
+/** Lay a `StyledGraph` out under the host pipeline (DD-06 §4, §5) —
+ *  `applyHostFallbacks`, the worker runtime's own sequence, which for `grid`
+ *  (`labelPlacement: false, edgeRouting: 'straight'`, no edges of its own) is
+ *  exactly `grid.test.ts`'s `routeStraight -> placeLabels` — then
  *  `validateResult` (DD-06 §4), so a corrupt engine result is guarded before
- *  the renderer ever sees it, exactly as the design intends. */
+ *  the renderer ever sees it, exactly as the design intends. `engine`
+ *  defaults to `grid`, which every golden here is taken under; Stage K passes
+ *  `elk` for its engine-switch property. */
 async function layOut(
   styled: StyledGraph,
+  engine: LayoutEngine,
+  options: Readonly<Record<string, unknown>>,
 ): Promise<{ readonly input: LayoutInput; readonly result: LayoutResult; readonly diagnostics: readonly Diagnostic[] }> {
   const table = premeasure(styled, new StaticMetricsMeasurer());
   const labelSizes: Record<LabelId, Size> = {};
@@ -94,23 +100,29 @@ async function layOut(
     labelSizes[labelId] = layout === undefined ? { w: 0, h: 0 } : { w: layout.width, h: layout.height };
   }
   const input = buildLayoutInput(styled as StyledGraphInput, labelSizes);
-  const raw = await gridEngine.layout(input, CTX);
-  const routed = routeStraight(input, raw, METRICS);
-  const labelled = placeLabels(input, routed, METRICS);
-  const result = quantize(labelled, 64);
-  const diagnostics = validateResult(result, styled.graph, gridEngine.id);
+  const raw = await engine.layout(input, ctxWith(options));
+  const result = quantize(applyHostFallbacks(input, raw, engine.capabilities, METRICS), 64);
+  const diagnostics = validateResult(result, styled.graph, engine.id);
   return { input, result, diagnostics };
 }
 
 /** The whole pipeline, `source -> RenderResult`, under one theme. Calls the
  *  engine directly, in-process — no worker (Stage G). */
-export async function runPipeline(source: string, themeDoc: ThemeDoc = neutralLight): Promise<RenderedDoc> {
+export async function runPipeline(
+  source: string,
+  themeDoc: ThemeDoc = neutralLight,
+  engine: LayoutEngine = gridEngine,
+  options: Readonly<Record<string, unknown>> = {},
+): Promise<RenderedDoc> {
   const { ast, diagnostics: d1 } = parse(source);
   const { model, diagnostics: d2 } = resolve(ast);
   const { graph, diagnostics: d3 } = compile(model);
+  // SGL4010 (Stage K fix round 1, item 23), as the app's pipeline emits it:
+  // the document's `@layout` keys against the engine laying it out.
+  const d3b = layoutConfigDiagnostics(ast, { id: engine.id, ...(engine.optionsSchema && { optionsSchema: engine.optionsSchema }), ...(engine.hintsSchema && { hintsSchema: engine.hintsSchema }) });
   const { value: theme, diagnostics: d4 } = resolveTheme(themeDoc, (id) => BUILT_IN[id]);
   const { value: styled, diagnostics: d5 } = styleGraph(graph, theme, model.classes);
-  const { input, result, diagnostics: d6 } = await layOut(styled);
+  const { input, result, diagnostics: d6 } = await layOut(styled, engine, options);
   const rendered = render(styled, result, theme);
   return {
     styled,
@@ -118,7 +130,7 @@ export async function runPipeline(source: string, themeDoc: ThemeDoc = neutralLi
     result,
     theme,
     rendered,
-    diagnostics: [...d1, ...d2, ...d3, ...d4, ...d5, ...d6, ...rendered.diagnostics],
+    diagnostics: [...d1, ...d2, ...d3, ...d3b, ...d4, ...d5, ...d6, ...rendered.diagnostics],
   };
 }
 

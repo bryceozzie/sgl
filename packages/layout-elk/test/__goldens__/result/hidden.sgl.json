@@ -1,0 +1,99 @@
+{
+  "bounds": {
+    "x": 0,
+    "y": 0,
+    "w": 208,
+    "h": 166
+  },
+  "nodes": {
+    "visible": {
+      "frame": {
+        "x": 124,
+        "y": 12,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "other": {
+      "frame": {
+        "x": 124,
+        "y": 118,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "another": {
+      "frame": {
+        "x": 12,
+        "y": 12,
+        "w": 72,
+        "h": 36
+      }
+    }
+  },
+  "edges": {
+    "e-5353c6cb522d2c65": {
+      "start": {
+        "x": 160,
+        "y": 48
+      },
+      "end": {
+        "x": 160,
+        "y": 118
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 160,
+            "y": 118
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0,
+        "y": -1
+      },
+      "endNormal": {
+        "x": 0,
+        "y": 1
+      },
+      "clip": "none"
+    }
+  },
+  "labels": [
+    {
+      "labelId": "l:visible",
+      "frame": {
+        "x": 141.9375,
+        "y": 21.546875,
+        "w": 36.109375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:other",
+      "frame": {
+        "x": 145.1875,
+        "y": 127.546875,
+        "w": 29.625,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:another",
+      "frame": {
+        "x": 25.953125,
+        "y": 21.546875,
+        "w": 44.078125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    }
+  ]
+}

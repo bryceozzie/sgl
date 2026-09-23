@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, type Locator, type Page } from '@playwright/test';
@@ -199,6 +200,7 @@ export interface StoredDocument {
   readonly title: string;
   readonly source: string;
   readonly engineId: string;
+  readonly engineOptions?: Readonly<Record<string, unknown>>;
   readonly themeId: string;
   readonly lastGoodSvg?: string;
   readonly fileExtension?: string;
@@ -230,6 +232,51 @@ export async function readStorage(page: Page): Promise<{ readonly documents: Sto
   );
 }
 
+/** Rewrites fields of the open document's stored record straight in
+ *  IndexedDB — how a record written by an older version, or by hand, looks
+ *  to the next boot. The page should be reloaded afterwards. */
+export async function patchStoredOpenDocument(page: Page, patch: Readonly<Record<string, unknown>>): Promise<void> {
+  await page.evaluate(
+    (fields) =>
+      new Promise<void>((resolve, reject) => {
+        const open = indexedDB.open('sgl');
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const db = open.result;
+          const tx = db.transaction(['documents', 'settings'], 'readwrite');
+          const last = tx.objectStore('settings').get('lastOpenDocId');
+          last.onsuccess = () => {
+            const id = (last.result as { value?: string } | undefined)?.value;
+            if (id === undefined) return;
+            const docs = tx.objectStore('documents');
+            const get = docs.get(id);
+            get.onsuccess = () => docs.put({ ...(get.result as object), ...fields });
+          };
+          tx.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error);
+        };
+      }),
+    patch,
+  );
+}
+
+/** A hash of everything paint decides, as rendered, before or after layout
+ *  alike (fix round 1, item 14): the `<style>` text, and each element's
+ *  `class`, `fill`, `stroke` and `stroke-dasharray`, in document order. */
+export async function renderedPaintHash(page: Page): Promise<string> {
+  const paint = await renderedSvg(page).evaluate((svg) => {
+    const style = [...svg.querySelectorAll('style')].map((s) => s.textContent ?? '').join('\n');
+    const attrs = [...svg.querySelectorAll('*')].map((el) =>
+      ['class', 'fill', 'stroke', 'stroke-dasharray'].map((a) => `${a}=${el.getAttribute(a) ?? ''}`).join(' '),
+    );
+    return JSON.stringify({ style, attrs });
+  });
+  return createHash('sha256').update(paint).digest('hex');
+}
+
 /** The open document's stored record (`lastOpenDocId`'s), or `undefined`. */
 export async function storedOpenDocument(page: Page): Promise<StoredDocument | undefined> {
   const { documents, lastOpenDocId } = await readStorage(page);
@@ -256,4 +303,40 @@ export async function saveAs(page: Page, kind: 'sgl' | 'json' | 'svg'): Promise<
 /** The toast region's messages. */
 export function toastMessages(page: Page): Locator {
   return page.locator('.toasts .toast-message');
+}
+
+/** What must survive an engine switch (MVP criterion 1, DD-08 §14 test 4):
+ *  every rendered node/container id, every edge id, and every label's text,
+ *  each sorted. */
+export async function renderedIdentity(page: Page): Promise<{ readonly nodes: string[]; readonly edges: string[]; readonly labels: string[] }> {
+  return renderedSvg(page).evaluate((svg) => {
+    const ids = (sel: string) => [...svg.querySelectorAll(sel)].map((g) => g.getAttribute('id') ?? '').sort();
+    return {
+      nodes: ids('g.L-nodes > g.n, g.L-containers > g.c'),
+      edges: ids('g.L-edges > g.e'),
+      labels: [...svg.querySelectorAll('text')].map((t) => t.textContent ?? '').sort(),
+    };
+  });
+}
+
+/** A hash of everything the layout decides, as rendered: node and container
+ *  shapes, edge routes, label positions and the `viewBox`. The pipeline has
+ *  no layout hash of its own (`StyledGraph.geometryHash` is the *style*
+ *  geometry, the same under every engine), so it is computed here. */
+export async function layoutGeometryHash(page: Page): Promise<string> {
+  const labels = await renderedSvg(page).evaluate((svg) =>
+    [...svg.querySelectorAll('text')].map((t) => `${t.getAttribute('x')},${t.getAttribute('y')},${t.getAttribute('text-anchor')}`),
+  );
+  const geometry = { nodes: await nodeGeometry(page), edges: await edgePaths(page), labels, viewBox: await viewBox(page) };
+  return createHash('sha256').update(JSON.stringify(geometry)).digest('hex');
+}
+
+/** Selects `engineId` in Engine ▾ and waits until the canvas shows a layout
+ *  whose geometry differs from `before` — the switch's own render. The
+ *  switch is one debounced layout request, so the first changed geometry is
+ *  the new engine's. */
+export async function switchEngine(page: Page, engineId: string, before: string): Promise<void> {
+  await page.locator('.engine-picker select').selectOption(engineId);
+  await expect(page.locator('.engine-picker select')).toHaveValue(engineId);
+  await expect.poll(() => layoutGeometryHash(page), { timeout: 20_000 }).not.toBe(before);
 }

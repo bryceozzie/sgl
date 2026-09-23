@@ -27,20 +27,21 @@ function apply(text: string, change: { from: number; to: number; insert: string 
 }
 
 describe('picker actions (DD-08 §10)', () => {
-  it('selectEngine sets engineId, resets engineOptions to the defaults ({} until F11), and writes @layout.engine', () => {
+  it("selectEngine sets engineId, resets engineOptions to that engine's defaults (F11), and writes @layout.engine", () => {
     const text = '@layout: { engine: "sgl.grid" }\na: "A"\n';
     const pipeline = pickerPipeline(text);
     const change = selectEngine(pipeline, 'sgl.elk');
 
     expect(pipeline.engineId.value).toBe('sgl.elk');
-    expect(pipeline.engineOptions.value).toEqual({}); // the previous engine's { columns, gap } do not leak.
+    // elk's own defaults; the previous engine's { columns, gap } do not leak.
+    expect(pipeline.engineOptions.value).toEqual({ direction: 'down', nodeSpacing: 40, rankSpacing: 70, edgeRouting: 'ORTHOGONAL', nodePlacement: 'BRANDES_KOEPF' });
     expect(apply(text, change)).toBe('@layout: { engine: "sgl.elk" }\na: "A"\n');
   });
 
   it('selectEngine resets engineOptions even when re-selecting the current engine', () => {
     const pipeline = pickerPipeline('a: "A"\n');
     selectEngine(pipeline, 'sgl.grid');
-    expect(pipeline.engineOptions.value).toEqual({});
+    expect(pipeline.engineOptions.value).toEqual({ columns: 'auto', gap: 24, align: 'center' });
   });
 
   it('selectTheme sets themeId, leaves engineOptions alone, and writes @theme', () => {

@@ -1,0 +1,158 @@
+{
+  "id": "root",
+  "layoutOptions": {
+    "elk.algorithm": "layered",
+    "elk.direction": "DOWN",
+    "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+    "elk.randomSeed": "1",
+    "elk.edgeRouting": "ORTHOGONAL",
+    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+    "elk.spacing.nodeNode": "40",
+    "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+    "elk.spacing.edgeLabel": "4",
+    "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]"
+  },
+  "children": [
+    {
+      "id": "order service",
+      "width": 104.18400000000001,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:order service",
+          "width": 80.18400000000001,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "metrics\\.v2",
+      "width": 83.22800000000001,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:metrics\\.v2",
+          "width": 59.228,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "🚀",
+      "width": 83.25399999999999,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:🚀",
+          "width": 59.254,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "rtl",
+      "width": 114.35000000000001,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:rtl",
+          "width": 90.35000000000001,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mixed",
+      "width": 130.92499999999995,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:mixed",
+          "width": 106.92499999999997,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "multiline",
+      "width": 73.868,
+      "height": 49.800000000000004,
+      "labels": [
+        {
+          "text": "l:multiline",
+          "width": 49.868,
+          "height": 33.800000000000004,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-6a7b252557e4c923",
+      "sources": [
+        "order service"
+      ],
+      "targets": [
+        "metrics\\.v2"
+      ],
+      "labels": [
+        {
+          "text": "l:e-6a7b252557e4c923",
+          "width": 26.279000000000003,
+          "height": 14.3,
+          "layoutOptions": {
+            "elk.edgeLabels.placement": "CENTER"
+          }
+        }
+      ]
+    },
+    {
+      "id": "e-d33bd50921525076",
+      "sources": [
+        "🚀"
+      ],
+      "targets": [
+        "rtl"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-436805ac67632802",
+      "sources": [
+        "rtl"
+      ],
+      "targets": [
+        "mixed"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-b06622fe03dabe8b",
+      "sources": [
+        "mixed"
+      ],
+      "targets": [
+        "multiline"
+      ],
+      "labels": []
+    }
+  ]
+}

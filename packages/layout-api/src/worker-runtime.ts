@@ -1,6 +1,6 @@
 import { diagnostic, NO_SPAN } from '@sgl/core';
 import type { LayoutContext } from './contract.js';
-import { placeLabels, routeStraight } from './fallbacks.js';
+import { applyHostFallbacks } from './fallbacks.js';
 import type { HostToWorker, WorkerToHost } from './protocol.js';
 import type { EngineRegistry } from './registry.js';
 import { describeShapeError } from './validate.js';
@@ -135,11 +135,12 @@ export function createWorkerRuntime(registry: EngineRegistry, port: WorkerRuntim
       // a raw `TypeError` message instead — round 1's shape guard in
       // `validateResult` was only ever reachable through a fake `Worker` that
       // skips the fallbacks entirely, never through the real protocol.
-      let result = raw;
-      if (describeShapeError(raw) === null) {
-        const routed = routeStraight(message.input, raw, message.metrics);
-        result = engine.capabilities.labelPlacement ? routed : placeLabels(message.input, routed, message.metrics);
-      }
+      //
+      // Stage K: the sequence itself is `applyHostFallbacks` (`fallbacks.ts`),
+      // shared with the conformance harness, and now also finishes the routes
+      // an engine returned (§4.4's arrow reserve, §4.5's short self-loops)
+      // before `routeStraight` fills the rest.
+      const result = describeShapeError(raw) === null ? applyHostFallbacks(message.input, raw, engine.capabilities, message.metrics) : raw;
       port.post({ t: 'result', id: message.id, result, ms: now() - start });
     } catch (err) {
       port.post({

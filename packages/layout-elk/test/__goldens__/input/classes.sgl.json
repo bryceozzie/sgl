@@ -1,0 +1,221 @@
+{
+  "id": "root",
+  "layoutOptions": {
+    "elk.algorithm": "layered",
+    "elk.direction": "DOWN",
+    "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+    "elk.randomSeed": "1",
+    "elk.edgeRouting": "ORTHOGONAL",
+    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+    "elk.spacing.nodeNode": "40",
+    "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+    "elk.spacing.edgeLabel": "4",
+    "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]"
+  },
+  "children": [
+    {
+      "id": "plain",
+      "width": 72,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:plain",
+          "width": 27.456000000000003,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "left",
+      "width": 72,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:left",
+          "width": 17.342000000000002,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "right",
+      "width": 72,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:right",
+          "width": 25.285000000000004,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "diamond",
+      "width": 73.85499999999999,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:diamond",
+          "width": 49.855,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "both",
+      "width": 72,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:both",
+          "width": 25.298000000000002,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "override",
+      "width": 72,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:override",
+          "width": 46.956,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "routed",
+      "width": 72,
+      "height": 36,
+      "layoutOptions": {
+        "elk.portConstraints": "FIXED_SIDE"
+      },
+      "labels": [
+        {
+          "text": "l:routed",
+          "width": 36.855,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ],
+      "ports": [
+        {
+          "id": "routed#in",
+          "width": 0,
+          "height": 0,
+          "layoutOptions": {
+            "elk.port.side": "WEST"
+          }
+        },
+        {
+          "id": "routed#out",
+          "width": 0,
+          "height": 0,
+          "layoutOptions": {
+            "elk.port.side": "EAST"
+          }
+        }
+      ]
+    },
+    {
+      "id": "routedOverride",
+      "width": 110.697,
+      "height": 36,
+      "layoutOptions": {
+        "elk.portConstraints": "FIXED_SIDE"
+      },
+      "labels": [
+        {
+          "text": "l:routedOverride",
+          "width": 86.697,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ],
+      "ports": [
+        {
+          "id": "routedOverride#in",
+          "width": 0,
+          "height": 0,
+          "layoutOptions": {
+            "elk.port.side": "WEST"
+          }
+        },
+        {
+          "id": "routedOverride#out",
+          "width": 0,
+          "height": 0,
+          "layoutOptions": {
+            "elk.port.side": "WEST"
+          }
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-fe297c3f0d279af4",
+      "sources": [
+        "plain"
+      ],
+      "targets": [
+        "left"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-2847a08bfb69307a",
+      "sources": [
+        "left"
+      ],
+      "targets": [
+        "diamond"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-4de4a934f2ea2378",
+      "sources": [
+        "right"
+      ],
+      "targets": [
+        "both"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-a3ae2354924ebedc",
+      "sources": [
+        "both"
+      ],
+      "targets": [
+        "override"
+      ],
+      "labels": []
+    }
+  ]
+}

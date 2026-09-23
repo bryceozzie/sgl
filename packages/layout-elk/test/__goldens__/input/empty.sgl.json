@@ -1,0 +1,17 @@
+{
+  "id": "root",
+  "layoutOptions": {
+    "elk.algorithm": "layered",
+    "elk.direction": "DOWN",
+    "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+    "elk.randomSeed": "1",
+    "elk.edgeRouting": "ORTHOGONAL",
+    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+    "elk.spacing.nodeNode": "40",
+    "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+    "elk.spacing.edgeLabel": "4",
+    "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]"
+  },
+  "children": [],
+  "edges": []
+}

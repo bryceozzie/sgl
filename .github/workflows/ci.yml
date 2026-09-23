@@ -46,6 +46,14 @@ jobs:
         # the way `tsdown` does.
         run: pnpm build
 
+      - name: Size
+        # DD-10 §4, Stage K (K6): size-limit on the core chunk — the entry, its
+        # static imports and the layout worker, gzipped, excluding the lazy elk
+        # chunk (.size-limit.js). Limit 180 kB; raising it is a human decision.
+        # Then check-core-chunks.mjs: no chunk the page loads at boot reaches
+        # elkjs (fix round 1, item 17).
+        run: pnpm size
+
       - name: Unit and golden tests
         run: pnpm test:unit
 
@@ -71,9 +79,5 @@ jobs:
       - name: Audit
         run: pnpm audit --prod --audit-level high
 
-  # ⟶ Steps from DD-10 §4 still to arrive with the code they test:
-  #
-  #   size          size-limit on the core chunk (< 180 kB gz, hard 300)
-  #
-  # And nightly: bench against the DD-09 §2 targets, commenting on regressions over
-  # the hard ceiling.
+  # ⟶ Still to arrive from DD-10 §4: nightly bench against the DD-09 §2 targets,
+  # commenting on regressions over the hard ceiling.

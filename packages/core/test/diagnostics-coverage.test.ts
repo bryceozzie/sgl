@@ -31,7 +31,6 @@ const NOT_YET_REACHABLE: ReadonlySet<DiagnosticCode> = new Set<DiagnosticCode>([
   'SGL4001',
   'SGL4002',
   'SGL4003',
-  'SGL4010',
   'SGL4011',
 ]);
 
