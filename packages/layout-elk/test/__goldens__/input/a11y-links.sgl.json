@@ -1,0 +1,59 @@
+{
+  "id": "root",
+  "layoutOptions": {
+    "elk.algorithm": "layered",
+    "elk.direction": "DOWN",
+    "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+    "elk.randomSeed": "1",
+    "elk.edgeRouting": "ORTHOGONAL",
+    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+    "elk.spacing.nodeNode": "40",
+    "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+    "elk.spacing.edgeLabel": "4",
+    "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]"
+  },
+  "children": [
+    {
+      "id": "a",
+      "width": 72,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:a",
+          "width": 40.456,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "b",
+      "width": 72,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:b",
+          "width": 7.228000000000001,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-43cd40b7c998acd4",
+      "sources": [
+        "a"
+      ],
+      "targets": [
+        "b"
+      ],
+      "labels": []
+    }
+  ]
+}

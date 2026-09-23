@@ -1,0 +1,202 @@
+{
+  "id": "root",
+  "layoutOptions": {
+    "elk.algorithm": "layered",
+    "elk.direction": "DOWN",
+    "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+    "elk.randomSeed": "1",
+    "elk.edgeRouting": "ORTHOGONAL",
+    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+    "elk.spacing.nodeNode": "40",
+    "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+    "elk.spacing.edgeLabel": "4",
+    "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]"
+  },
+  "children": [
+    {
+      "id": "router",
+      "width": 72,
+      "height": 36,
+      "layoutOptions": {
+        "elk.portConstraints": "FIXED_SIDE"
+      },
+      "labels": [
+        {
+          "text": "l:router",
+          "width": 33.956,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ],
+      "ports": [
+        {
+          "id": "router#in",
+          "width": 0,
+          "height": 0,
+          "layoutOptions": {
+            "elk.port.side": "WEST"
+          }
+        },
+        {
+          "id": "router#out",
+          "width": 0,
+          "height": 0,
+          "layoutOptions": {
+            "elk.port.side": "EAST"
+          }
+        },
+        {
+          "id": "router#mgmt",
+          "width": 0,
+          "height": 0,
+          "layoutOptions": {
+            "elk.port.side": "NORTH"
+          }
+        },
+        {
+          "id": "router#drain",
+          "width": 0,
+          "height": 0,
+          "layoutOptions": {
+            "elk.port.side": "SOUTH"
+          }
+        }
+      ]
+    },
+    {
+      "id": "switch",
+      "width": 72,
+      "height": 36,
+      "layoutOptions": {
+        "elk.portConstraints": "FIXED_SIDE"
+      },
+      "labels": [
+        {
+          "text": "l:switch",
+          "width": 36.114,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ],
+      "ports": [
+        {
+          "id": "switch#uplink",
+          "width": 0,
+          "height": 0,
+          "layoutOptions": {
+            "elk.port.side": "WEST"
+          }
+        },
+        {
+          "id": "switch#down",
+          "width": 0,
+          "height": 0,
+          "layoutOptions": {
+            "elk.port.side": "EAST"
+          }
+        }
+      ]
+    },
+    {
+      "id": "client",
+      "width": 72,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:client",
+          "width": 30.342000000000002,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "server",
+      "width": 72,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:server",
+          "width": 36.114000000000004,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "console",
+      "width": 72,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:console",
+          "width": 44.798,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-fe56bf3c070deb64",
+      "sources": [
+        "client"
+      ],
+      "targets": [
+        "router#in"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-2add81bdced6c5bd",
+      "sources": [
+        "router#out"
+      ],
+      "targets": [
+        "switch#uplink"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-7da7ff22733c2d24",
+      "sources": [
+        "switch#down"
+      ],
+      "targets": [
+        "server"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-dcc0effb40c10f5e",
+      "sources": [
+        "console"
+      ],
+      "targets": [
+        "router#mgmt"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-75caf3b8ae7e05d7",
+      "sources": [
+        "router#drain"
+      ],
+      "targets": [
+        "server"
+      ],
+      "labels": []
+    }
+  ]
+}

@@ -1,0 +1,198 @@
+{
+  "id": "root",
+  "layoutOptions": {
+    "elk.algorithm": "layered",
+    "elk.direction": "DOWN",
+    "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+    "elk.randomSeed": "1",
+    "elk.edgeRouting": "ORTHOGONAL",
+    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+    "elk.spacing.nodeNode": "40",
+    "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+    "elk.spacing.edgeLabel": "4",
+    "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]"
+  },
+  "children": [
+    {
+      "id": "outside",
+      "width": 72,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:outside",
+          "width": 41.912000000000006,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "alpha",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=6,left=16,bottom=16,right=16]"
+      },
+      "labels": [
+        {
+          "text": "l:alpha",
+          "width": 33.138720000000006,
+          "height": 31.6,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "alpha.one",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:alpha.one",
+              "width": 21.684,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "alpha.two",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:alpha.two",
+              "width": 20.228,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "beta",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=6,left=16,bottom=16,right=16]"
+      },
+      "labels": [
+        {
+          "text": "l:beta",
+          "width": 26.658720000000006,
+          "height": 31.6,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "beta.three",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:beta.three",
+              "width": 29.627,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "beta.four",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:beta.four",
+              "width": 22.399,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-f2aac71dd31bb0c6",
+      "sources": [
+        "outside"
+      ],
+      "targets": [
+        "alpha"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-07477e7f41d96eed",
+      "sources": [
+        "alpha"
+      ],
+      "targets": [
+        "beta"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-a4e4b400f96e5f47",
+      "sources": [
+        "alpha.two"
+      ],
+      "targets": [
+        "beta.three"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-5389f0636f6aa357",
+      "sources": [
+        "beta.four"
+      ],
+      "targets": [
+        "alpha.one"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-b592fb1820a1522e",
+      "sources": [
+        "outside"
+      ],
+      "targets": [
+        "beta.three"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-0f949df0cb5f2817",
+      "sources": [
+        "alpha.one"
+      ],
+      "targets": [
+        "alpha.two"
+      ],
+      "labels": []
+    }
+  ]
+}

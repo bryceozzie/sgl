@@ -1,0 +1,855 @@
+{
+  "id": "root",
+  "layoutOptions": {
+    "elk.algorithm": "layered",
+    "elk.direction": "DOWN",
+    "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+    "elk.randomSeed": "1",
+    "elk.edgeRouting": "ORTHOGONAL",
+    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+    "elk.spacing.nodeNode": "40",
+    "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+    "elk.spacing.edgeLabel": "4",
+    "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]"
+  },
+  "children": [
+    {
+      "id": "switch",
+      "width": 72,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:switch",
+          "width": 38.285000000000004,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "lane1",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=6,left=16,bottom=16,right=16]"
+      },
+      "labels": [
+        {
+          "text": "l:lane1",
+          "width": 39.63168000000001,
+          "height": 31.6,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "lane1.a",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:lane1.a",
+              "width": 7.228000000000001,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "lane1.b",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:lane1.b",
+              "width": 7.228000000000001,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lane2",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=6,left=16,bottom=16,right=16]"
+      },
+      "labels": [
+        {
+          "text": "l:lane2",
+          "width": 39.63168000000001,
+          "height": 31.6,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "lane2.x",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:lane2.x",
+              "width": 6.5,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "lane2.y",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:lane2.y",
+              "width": 6.5,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "deep",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=6,left=16,bottom=16,right=16]"
+      },
+      "labels": [
+        {
+          "text": "l:deep",
+          "width": 30.974400000000003,
+          "height": 31.6,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "deep.top",
+          "layoutOptions": {
+            "elk.spacing.nodeNode": "40",
+            "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+            "elk.spacing.edgeLabel": "4",
+            "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+            "elk.padding": "[top=6,left=16,bottom=16,right=16]"
+          },
+          "labels": [
+            {
+              "text": "l:deep.top",
+              "width": 18.014400000000002,
+              "height": 31.6,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]"
+              }
+            }
+          ],
+          "children": [
+            {
+              "id": "deep.top.mid",
+              "layoutOptions": {
+                "elk.spacing.nodeNode": "40",
+                "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+                "elk.spacing.edgeLabel": "4",
+                "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+                "elk.padding": "[top=6,left=16,bottom=16,right=16]"
+              },
+              "labels": [
+                {
+                  "text": "l:deep.top.mid",
+                  "width": 20.878560000000004,
+                  "height": 31.6,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]"
+                  }
+                }
+              ],
+              "children": [
+                {
+                  "id": "deep.top.mid.leaf",
+                  "width": 72,
+                  "height": 36,
+                  "labels": [
+                    {
+                      "text": "l:deep.top.mid.leaf",
+                      "width": 20.956000000000003,
+                      "height": 16.900000000000002,
+                      "layoutOptions": {
+                        "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "empty",
+      "width": 72,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:empty",
+          "width": 36.842,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ported",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=6,left=16,bottom=16,right=16]"
+      },
+      "labels": [
+        {
+          "text": "l:ported",
+          "width": 36.7416,
+          "height": 31.6,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "ported.p",
+          "width": 72,
+          "height": 36,
+          "layoutOptions": {
+            "elk.portConstraints": "FIXED_SIDE"
+          },
+          "labels": [
+            {
+              "text": "l:ported.p",
+              "width": 7.228000000000001,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ],
+          "ports": [
+            {
+              "id": "ported.p#out",
+              "width": 0,
+              "height": 0,
+              "layoutOptions": {
+                "elk.port.side": "EAST"
+              }
+            }
+          ]
+        },
+        {
+          "id": "ported.q",
+          "width": 72,
+          "height": 36,
+          "layoutOptions": {
+            "elk.portConstraints": "FIXED_SIDE"
+          },
+          "labels": [
+            {
+              "text": "l:ported.q",
+              "width": 7.228000000000001,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ],
+          "ports": [
+            {
+              "id": "ported.q#out",
+              "width": 0,
+              "height": 0,
+              "layoutOptions": {
+                "elk.port.side": "EAST"
+              }
+            }
+          ]
+        },
+        {
+          "id": "ported.r",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:ported.r",
+              "width": 4.329000000000001,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fan1",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=6,left=16,bottom=16,right=16]"
+      },
+      "labels": [
+        {
+          "text": "l:fan1",
+          "width": 25.220160000000007,
+          "height": 31.6,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "fan1.x",
+          "width": 72,
+          "height": 36,
+          "layoutOptions": {
+            "elk.portConstraints": "FIXED_SIDE"
+          },
+          "labels": [
+            {
+              "text": "l:fan1.x",
+              "width": 6.5,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ],
+          "ports": [
+            {
+              "id": "fan1.x#out",
+              "width": 0,
+              "height": 0,
+              "layoutOptions": {
+                "elk.port.side": "EAST"
+              }
+            }
+          ]
+        },
+        {
+          "id": "fan1.y",
+          "width": 72,
+          "height": 36,
+          "layoutOptions": {
+            "elk.portConstraints": "FIXED_SIDE"
+          },
+          "labels": [
+            {
+              "text": "l:fan1.y",
+              "width": 6.5,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ],
+          "ports": [
+            {
+              "id": "fan1.y#out",
+              "width": 0,
+              "height": 0,
+              "layoutOptions": {
+                "elk.port.side": "EAST"
+              }
+            }
+          ]
+        },
+        {
+          "id": "fan1.z",
+          "width": 72,
+          "height": 36,
+          "layoutOptions": {
+            "elk.portConstraints": "FIXED_SIDE"
+          },
+          "labels": [
+            {
+              "text": "l:fan1.z",
+              "width": 6.5,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ],
+          "ports": [
+            {
+              "id": "fan1.z#out",
+              "width": 0,
+              "height": 0,
+              "layoutOptions": {
+                "elk.port.side": "EAST"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fan2",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=6,left=16,bottom=16,right=16]"
+      },
+      "labels": [
+        {
+          "text": "l:fan2",
+          "width": 25.220160000000007,
+          "height": 31.6,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "fan2.m",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:fan2.m",
+              "width": 10.828999999999999,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "fan2.n",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:fan2.n",
+              "width": 7.228000000000001,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "loop",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=6,left=16,bottom=16,right=16]"
+      },
+      "labels": [
+        {
+          "text": "l:loop",
+          "width": 28.823040000000006,
+          "height": 31.6,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "loop.p",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:loop.p",
+              "width": 7.228000000000001,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "loop.q",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:loop.q",
+              "width": 7.228000000000001,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-ff900463d968ca37",
+      "sources": [
+        "lane1.a"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-d3358a2d16b3995c",
+      "sources": [
+        "lane1.b"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-b5efc0f08f87e759",
+      "sources": [
+        "switch"
+      ],
+      "targets": [
+        "lane2.x"
+      ],
+      "labels": [
+        {
+          "text": "l:e-b5efc0f08f87e759",
+          "width": 50.127,
+          "height": 14.3,
+          "layoutOptions": {
+            "elk.edgeLabels.placement": "CENTER"
+          }
+        }
+      ]
+    },
+    {
+      "id": "e-5fba0ae8f4476ca8",
+      "sources": [
+        "switch"
+      ],
+      "targets": [
+        "lane2.y"
+      ],
+      "labels": [
+        {
+          "text": "l:e-5fba0ae8f4476ca8",
+          "width": 50.127,
+          "height": 14.3,
+          "layoutOptions": {
+            "elk.edgeLabels.placement": "CENTER"
+          }
+        }
+      ]
+    },
+    {
+      "id": "e-d7b74e4b5cf0aaec",
+      "sources": [
+        "deep.top"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-2b9f2c1f6112c220",
+      "sources": [
+        "deep.top.mid"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-765c54cc60f40bda",
+      "sources": [
+        "deep.top.mid.leaf"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-a9604a5f6c3e982b",
+      "sources": [
+        "lane1.a"
+      ],
+      "targets": [
+        "lane2.x"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-28cb545696fd993a",
+      "sources": [
+        "lane1.a"
+      ],
+      "targets": [
+        "lane2.y"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-4f6516d10b3c496e",
+      "sources": [
+        "lane1.b"
+      ],
+      "targets": [
+        "lane2.x"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-d0d38cd9e136129f",
+      "sources": [
+        "lane1.b"
+      ],
+      "targets": [
+        "lane2.y"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-6269016d693faabd",
+      "sources": [
+        "ported.p#out"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-5eed803bce1204d2",
+      "sources": [
+        "ported.q#out"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-43a5a8c7b1979b1b",
+      "sources": [
+        "ported.r"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-ccce3ce86d957f9b",
+      "sources": [
+        "fan1.x#out"
+      ],
+      "targets": [
+        "fan2.m"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-4e3c32f1438e6f4c",
+      "sources": [
+        "fan1.x#out"
+      ],
+      "targets": [
+        "fan2.n"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-433bce2ccc1f582c",
+      "sources": [
+        "fan1.y#out"
+      ],
+      "targets": [
+        "fan2.m"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-c1cd5823f6258efb",
+      "sources": [
+        "fan1.y#out"
+      ],
+      "targets": [
+        "fan2.n"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-bcdf7fa82d2e5eb5",
+      "sources": [
+        "fan1.z#out"
+      ],
+      "targets": [
+        "fan2.m"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-62f33d8ee5415102",
+      "sources": [
+        "fan1.z#out"
+      ],
+      "targets": [
+        "fan2.n"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-ff900363d968c884",
+      "sources": [
+        "lane1.a"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-d3358b2d16b39b0f",
+      "sources": [
+        "lane1.b"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-b5efbff08f87e5a6",
+      "sources": [
+        "switch"
+      ],
+      "targets": [
+        "lane2.x"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-5fba0be8f4476e5b",
+      "sources": [
+        "switch"
+      ],
+      "targets": [
+        "lane2.y"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-43347c453477f129",
+      "sources": [
+        "loop.p"
+      ],
+      "targets": [
+        "loop.p"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-c1c6063c5e7e27f8",
+      "sources": [
+        "loop.p"
+      ],
+      "targets": [
+        "loop.q"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-a960495f6c3e9678",
+      "sources": [
+        "lane1.a"
+      ],
+      "targets": [
+        "lane2.x"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-4f6517d10b3c4b21",
+      "sources": [
+        "lane1.b"
+      ],
+      "targets": [
+        "lane2.x"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-fe0cf32b38145d20",
+      "sources": [
+        "deep.top.mid.leaf"
+      ],
+      "targets": [
+        "lane2.x"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-551c4932d40dd871",
+      "sources": [
+        "deep.top.mid.leaf"
+      ],
+      "targets": [
+        "lane2.y"
+      ],
+      "labels": []
+    }
+  ]
+}

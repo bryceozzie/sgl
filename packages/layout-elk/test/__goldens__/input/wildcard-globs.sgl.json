@@ -1,0 +1,609 @@
+{
+  "id": "root",
+  "layoutOptions": {
+    "elk.algorithm": "layered",
+    "elk.direction": "DOWN",
+    "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+    "elk.randomSeed": "1",
+    "elk.edgeRouting": "ORTHOGONAL",
+    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+    "elk.spacing.nodeNode": "40",
+    "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+    "elk.spacing.edgeLabel": "4",
+    "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]"
+  },
+  "children": [
+    {
+      "id": "switch",
+      "width": 72,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:switch",
+          "width": 38.285000000000004,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "lane1",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=6,left=16,bottom=16,right=16]"
+      },
+      "labels": [
+        {
+          "text": "l:lane1",
+          "width": 39.63168000000001,
+          "height": 31.6,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "lane1.cam1",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:lane1.cam1",
+              "width": 31.785000000000004,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "lane1.cam2",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:lane1.cam2",
+              "width": 31.785000000000004,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "lane1.cam-hd",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:lane1.cam-hd",
+              "width": 43.342,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "lane1.camera",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:lane1.camera",
+              "width": 43.342000000000006,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "lane1.mic1",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:lane1.mic1",
+              "width": 27.442999999999998,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "lane1.door1",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:lane1.door1",
+              "width": 46.228,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stores",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=6,left=16,bottom=16,right=16]"
+      },
+      "labels": [
+        {
+          "text": "l:stores",
+          "width": 35.29008,
+          "height": 31.6,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "stores.orders-db",
+          "width": 79.62700000000001,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:stores.orders-db",
+              "width": 55.62700000000001,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "stores.users-db",
+          "width": 74.57000000000001,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:stores.users-db",
+              "width": 50.57000000000001,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "stores.cache",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:stores.cache",
+              "width": 34.684000000000005,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "stores.order service",
+          "width": 99.12700000000001,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:stores.order service",
+              "width": 75.12700000000001,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mixed",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=6,left=16,bottom=16,right=16]"
+      },
+      "labels": [
+        {
+          "text": "l:mixed",
+          "width": 34.56432,
+          "height": 31.6,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "mixed.camAhd",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:mixed.camAhd",
+              "width": 47.684000000000005,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "mixed.camBhd",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:mixed.camBhd",
+              "width": 47.684000000000005,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "mixed.camB",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:mixed.camB",
+              "width": 33.228,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "mixed.cam",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:mixed.cam",
+              "width": 24.557,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-3c6a77508717ebb0",
+      "sources": [
+        "lane1.cam1"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-93351e61e84b317b",
+      "sources": [
+        "lane1.cam2"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-30a1fbedae6ba760",
+      "sources": [
+        "lane1.cam-hd"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-b1f41b60ecb5c8ab",
+      "sources": [
+        "lane1.camera"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-30a1fcedae6ba913",
+      "sources": [
+        "lane1.cam-hd"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": [
+        {
+          "text": "l:e-30a1fcedae6ba913",
+          "width": 35.464,
+          "height": 14.3,
+          "layoutOptions": {
+            "elk.edgeLabels.placement": "CENTER"
+          }
+        }
+      ]
+    },
+    {
+      "id": "e-c437b3ebcf028583",
+      "sources": [
+        "stores.orders-db"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-208e4cf54c0092b8",
+      "sources": [
+        "stores.users-db"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-c437b2ebcf0283d0",
+      "sources": [
+        "stores.orders-db"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-e45d836b6c2944bc",
+      "sources": [
+        "stores.order service"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-cf78ddec09373fae",
+      "sources": [
+        "mixed.camAhd"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-757e9768b56c6d1d",
+      "sources": [
+        "mixed.camBhd"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-47776fd878c64117",
+      "sources": [
+        "lane1.cam1"
+      ],
+      "targets": [
+        "mixed.camAhd"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-e6eccffe8370aab0",
+      "sources": [
+        "lane1.cam1"
+      ],
+      "targets": [
+        "mixed.camBhd"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-adda24527e8599b8",
+      "sources": [
+        "lane1.cam2"
+      ],
+      "targets": [
+        "mixed.camAhd"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-0d0fa642014a1dff",
+      "sources": [
+        "lane1.cam2"
+      ],
+      "targets": [
+        "mixed.camBhd"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-e3f58f56b5404f87",
+      "sources": [
+        "lane1.cam-hd"
+      ],
+      "targets": [
+        "mixed.camAhd"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-84bae0b38b3182a0",
+      "sources": [
+        "lane1.cam-hd"
+      ],
+      "targets": [
+        "mixed.camBhd"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-2cdffc5b29573468",
+      "sources": [
+        "lane1.camera"
+      ],
+      "targets": [
+        "mixed.camAhd"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-8b410afe52ad00af",
+      "sources": [
+        "lane1.camera"
+      ],
+      "targets": [
+        "mixed.camBhd"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-3c6a78508717ed63",
+      "sources": [
+        "lane1.cam1"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-93351d61e84b2fc8",
+      "sources": [
+        "lane1.cam2"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-30a1fdedae6baac6",
+      "sources": [
+        "lane1.cam-hd"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-b1f41a60ecb5c6f8",
+      "sources": [
+        "lane1.camera"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-3c6a79508717ef16",
+      "sources": [
+        "lane1.cam1"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-93352061e84b34e1",
+      "sources": [
+        "lane1.cam2"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-30a1feedae6bac79",
+      "sources": [
+        "lane1.cam-hd"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-b1f41d60ecb5cc11",
+      "sources": [
+        "lane1.camera"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-c437b5ebcf0288e9",
+      "sources": [
+        "stores.orders-db"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-208e4df54c00946b",
+      "sources": [
+        "stores.users-db"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    }
+  ]
+}
