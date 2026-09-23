@@ -655,6 +655,16 @@ export function styleGraph(
     }
   }
 
+  // The canvas background is paint with nowhere else to live: it is not any
+  // element's ComputedStyle, so the per-element loop above never records it,
+  // and `paintHash` would then be unchanged by a theme that alters only the
+  // background — the exact gap Stage G's pipeline-level theme-switch test
+  // (packages/render-svg/test/pipeline.test.ts) surfaced on `empty.sgl`, whose
+  // paintHash was `fnv1a64('')` under both themes. Geometry has no canvas
+  // analogue (DD-04's split has nothing geometric at canvas scope), so only
+  // paintParts gets this extra entry.
+  paintParts.push(`canvas=${theme.canvas.background}`);
+
   const value: StyledGraph = {
     graph,
     styles: styles as Readonly<Record<NodeId | EdgeId, ComputedStyle>>,

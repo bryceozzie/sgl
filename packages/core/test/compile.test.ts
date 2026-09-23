@@ -151,6 +151,7 @@ describe('corpus/unresolved/*.sgl — compiler-owned diagnostics (DD-02 §8)', (
     'wildcard-no-match.sgl',
     'wildcard-on-leaf.sgl',
     'wildcard-unknown-prefix.sgl',
+    'edge-expansion-limit.sgl',
   ];
 
   it.each(files)('%s emits exactly its expected code from compile()', (file) => {

@@ -11,13 +11,14 @@
   },
   "scripts": {
     "grammar": "pnpm --filter @sgl/core grammar",
+    "generate:corpus": "node bench/generate.js",
     "typecheck": "tsc -b && tsc -p apps/web --noEmit",
     "lint": "eslint .",
     "build": "pnpm --filter \"./packages/*\" build && pnpm --filter \"./apps/*\" build",
     "dev": "pnpm --filter @sgl/web dev",
-    "test": "vitest run",
-    "test:unit": "vitest run --project unit",
-    "test:watch": "vitest",
+    "test": "pnpm generate:corpus && vitest run",
+    "test:unit": "pnpm generate:corpus && vitest run --project unit",
+    "test:watch": "pnpm generate:corpus && vitest",
     "clean": "rimraf \"packages/*/dist\" \"apps/*/dist\" .tsbuild",
     "changeset": "changeset",
     "check": "pnpm lint && pnpm typecheck && pnpm build && pnpm test"

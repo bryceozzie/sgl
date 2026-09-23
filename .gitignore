@@ -11,3 +11,10 @@ playwright-report/
 
 # Agent worktrees
 .claude/worktrees/
+
+# bench/generate.js output (DD-09 §3.2, bench/README.md) — generated
+# deterministically, not committed, so the shape of a scale fixture stays a
+# single decision in bench/generate.js rather than a diff to review each time.
+/corpus/n50.sgl
+/corpus/n500.sgl
+/corpus/n2000.sgl

@@ -159,7 +159,7 @@ interface StyledGraph {
   readonly canvas: { readonly background: string };
   readonly themeId: string;
   readonly geometryHash: string;      // hash of all element geometry hashes in `order` — one number for "does layout need to re-run"
-  readonly paintHash: string;
+  readonly paintHash: string;         // likewise over paint, PLUS `canvas.background` (Stage G fix: the canvas has no ComputedStyle of its own to fold it in otherwise, so a theme that changed only the background left this hash — and so "did paint change?" — wrongly unchanged)
 }
 ```
 

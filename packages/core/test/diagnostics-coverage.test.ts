@@ -2,9 +2,10 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { compile } from '../src/compile.js';
-import { CATALOGUE, type DiagnosticCode } from '../src/diagnostics.js';
+import type { DiagnosticCode } from '../src/diagnostics.js';
 import { parse } from '../src/parse.js';
 import { resolve } from '../src/resolve.js';
+import { ALL_DIAGNOSTIC_CODES, CORE_OWNED_CODES, RENDER_SVG_OWNED_CODES } from './diagnostics-scope.js';
 
 /**
  * DD-09 §3.4's coverage gate, enabled from Stage C on (DD-03 §"Gate"): every code
@@ -12,31 +13,26 @@ import { resolve } from '../src/resolve.js';
  * does not. Codes the pipeline cannot reach yet are named here with a reason, and
  * this allowlist is expected to shrink as later stages land — see
  * `corpus/README.md`'s own "Not yet covered" section, which this mirrors.
+ *
+ * Scoped to `parse -> resolve -> compile` — `@sgl/core` imports nothing from the
+ * workspace (DD-00 §2 rule 1), so this file can't reach `@sgl/theme` or
+ * `@sgl/render-svg` to check `SGL5xxx`/`SGL6001` reachability itself.
+ * `packages/render-svg/test/diagnostics-coverage.test.ts` (Stage G) runs the
+ * *whole* pipeline — parse through render — and owns those codes instead.
+ * `./diagnostics-scope.js` defines the split once, so `CORE_OWNED_CODES` here and
+ * `RENDER_SVG_OWNED_CODES` there are a partition of `CATALOGUE` by construction,
+ * not two hand-maintained lists that could drift apart; the last test below
+ * checks that directly.
  */
 const NOT_YET_REACHABLE: ReadonlySet<DiagnosticCode> = new Set<DiagnosticCode>([
-  // Needs a document past the 1 000-edge expansion ceiling — a generated fixture
-  // that belongs with the `n*` corpus documents `bench/generate.js` produces in
-  // Stage G, not a hand-written one (DD-03 §3.1, Stage G tasks).
-  'SGL3005',
-  // Layout — the engine and worker host (Stage E, Stage H) don't exist yet.
+  // Layout — the engine and worker host (Stage E, Stage H) don't exist below
+  // @sgl/core; SGL4002/SGL4003 additionally need a deliberately corrupt engine
+  // output, which no *document* can produce (see the render-svg gate).
   'SGL4001',
   'SGL4002',
   'SGL4003',
   'SGL4010',
   'SGL4011',
-  // Theme cascade — @sgl/theme exists but is still tested against hand-built
-  // StyledGraph fixtures (packages/theme/test/cascade.test.ts); it is not yet
-  // wired to the corpus (that is Stage D's job), so these are unreachable from
-  // *this* corpus-driven pipeline even though the theme package's own suite
-  // already exercises the codes directly.
-  'SGL5001',
-  'SGL5002',
-  'SGL5003',
-  'SGL5004',
-  'SGL5005',
-  'SGL5006',
-  // Renderer — @sgl/render-svg exists but has no tests yet (Stage F).
-  'SGL6001',
 ]);
 
 function listCorpusFiles(dir: string, rel = ''): string[] {
@@ -48,7 +44,7 @@ function listCorpusFiles(dir: string, rel = ''): string[] {
   return out;
 }
 
-describe('diagnostics coverage gate (DD-09 §3.4)', () => {
+describe('diagnostics coverage gate, parse/resolve/compile (DD-09 §3.4)', () => {
   const corpusDir = fileURLToPath(new URL('../../../corpus/', import.meta.url));
   const files = listCorpusFiles(corpusDir.slice(0, -1));
   expect(files.length).toBeGreaterThan(0);
@@ -69,7 +65,11 @@ describe('diagnostics coverage gate (DD-09 §3.4)', () => {
     }
   }
 
-  const codes = Object.keys(CATALOGUE) as DiagnosticCode[];
+  // SGL5xxx/SGL6001 are the full-pipeline gate's to check (see the file doc
+  // comment above) — excluded here rather than added to NOT_YET_REACHABLE,
+  // because that set means "no corpus fixture reaches this at all", which is
+  // no longer true for SGL5004/SGL6001 and was never the reason for the rest.
+  const codes = CORE_OWNED_CODES;
 
   it.each(codes.filter((c) => !NOT_YET_REACHABLE.has(c)))('%s has a corpus fixture that emits it', (code) => {
     expect(emittedBy.get(code)?.size ?? 0).toBeGreaterThan(0);
@@ -86,5 +86,11 @@ describe('diagnostics coverage gate (DD-09 §3.4)', () => {
     for (const code of NOT_YET_REACHABLE) {
       expect(emittedBy.get(code)?.size ?? 0, `${code} is reachable now — remove it from NOT_YET_REACHABLE`).toBe(0);
     }
+  });
+
+  it('CORE_OWNED_CODES and RENDER_SVG_OWNED_CODES partition CATALOGUE (no drift between the two gates)', () => {
+    const overlap = CORE_OWNED_CODES.filter((c) => RENDER_SVG_OWNED_CODES.includes(c));
+    expect(overlap).toEqual([]);
+    expect(new Set([...CORE_OWNED_CODES, ...RENDER_SVG_OWNED_CODES])).toEqual(new Set(ALL_DIAGNOSTIC_CODES));
   });
 });
