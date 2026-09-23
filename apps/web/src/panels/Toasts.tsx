@@ -1,19 +1,28 @@
-import type { Toasts as ToastStore } from '../state/toasts.js';
+import type { Toast, Toasts as ToastStore } from '../state/toasts.js';
 
 /** DD-08 §11's toasts — file and share outcomes only. A thin renderer of
- *  `state/toasts.ts`. */
+ *  `state/toasts.ts`. Two live regions, both always in the DOM so a screen
+ *  reader is already watching them when a toast arrives: `info` toasts in a
+ *  polite `status` region (they time out), `error` toasts in an `alert`
+ *  region (announced at once, and they stay until their × is clicked). */
 export function Toasts({ toasts }: { readonly toasts: ToastStore }) {
   const items = toasts.items.value;
+  const render = (t: Toast) => (
+    <div class={`toast toast-${t.kind}`} key={t.id}>
+      <span class="toast-message">{t.message}</span>
+      <button type="button" class="toast-dismiss" aria-label="Dismiss" onClick={() => toasts.dismiss(t.id)}>
+        <span aria-hidden="true">×</span>
+      </button>
+    </div>
+  );
   return (
-    <div class="toasts" role="status" aria-live="polite">
-      {items.map((t) => (
-        <div class={`toast toast-${t.kind}`} key={t.id}>
-          <span class="toast-message">{t.message}</span>
-          <button type="button" class="toast-dismiss" aria-label="Dismiss" onClick={() => toasts.dismiss(t.id)}>
-            ×
-          </button>
-        </div>
-      ))}
+    <div class="toasts">
+      <div class="toast-region toast-region-error" role="alert">
+        {items.filter((t) => t.kind === 'error').map(render)}
+      </div>
+      <div class="toast-region toast-region-info" role="status" aria-live="polite">
+        {items.filter((t) => t.kind === 'info').map(render)}
+      </div>
     </div>
   );
 }

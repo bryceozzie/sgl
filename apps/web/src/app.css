@@ -165,6 +165,8 @@ body {
   pointer-events: auto;
 }
 
+.toast-region { display: flex; flex-direction: column; gap: 0.4rem; }
+
 .toast-error { border-color: light-dark(#dc2626, #f87171); }
 .toast-dismiss { font: inherit; border: 0; background: transparent; color: inherit; cursor: pointer; opacity: 0.7; }
 

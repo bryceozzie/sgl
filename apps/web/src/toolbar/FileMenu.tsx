@@ -32,7 +32,52 @@ interface ShareState {
 export function FileMenu({ pipeline, session, toasts, onOpen }: FileMenuProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const saveMenuRef = useRef<HTMLDetailsElement | null>(null);
+  const shareButtonRef = useRef<HTMLButtonElement | null>(null);
+  const shareLinkRef = useRef<HTMLInputElement | null>(null);
   const [share, setShare] = useState<ShareState | null>(null);
+  const [saveOpen, setSaveOpen] = useState(false);
+
+  // The Share dialog takes focus when it opens (the link, selected, ready to
+  // copy), so Escape closes it without tabbing in first.
+  const shareOpen = share !== null;
+  useEffect(() => {
+    if (shareOpen) shareLinkRef.current?.focus();
+  }, [shareOpen]);
+
+  /** Closes the Share dialog; `returnFocus` puts focus back on the Share
+   *  button (Escape, Close) — not when something else took over (Save ▾). */
+  function closeShare(returnFocus: boolean): void {
+    setShare(null);
+    if (returnFocus) shareButtonRef.current?.focus();
+  }
+
+  function closeSaveMenu(returnFocus: boolean): void {
+    const menu = saveMenuRef.current;
+    if (menu === null || !menu.open) return;
+    menu.open = false;
+    if (returnFocus) menu.querySelector('summary')?.focus();
+  }
+
+  // Save ▾ is a disclosure of plain buttons (not an ARIA menu, which would
+  // promise arrow-key navigation it does not have). While open, Escape and a
+  // click anywhere outside it close it.
+  useEffect(() => {
+    if (!saveOpen) return undefined;
+    const onKey = (ev: KeyboardEvent): void => {
+      if (ev.key !== 'Escape') return;
+      ev.preventDefault();
+      closeSaveMenu(saveMenuRef.current?.contains(document.activeElement) ?? false);
+    };
+    const onPointer = (ev: PointerEvent): void => {
+      if (!(ev.target instanceof Node) || saveMenuRef.current?.contains(ev.target) !== true) closeSaveMenu(false);
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPointer);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onPointer);
+    };
+  }, [saveOpen]);
 
   // DD-08 §7: Ctrl/⌘+O opens, from anywhere — capture phase, so CodeMirror
   // (which does not bind it) and the browser's own "open file" both lose.
@@ -54,7 +99,7 @@ export function FileMenu({ pipeline, session, toasts, onOpen }: FileMenuProps) {
   }
 
   function save(kind: SaveKind): void {
-    if (saveMenuRef.current !== null) saveMenuRef.current.open = false;
+    closeSaveMenu(false);
     const record = session.record.peek();
     const result = saveContent(kind, {
       title: record.title,
@@ -76,7 +121,7 @@ export function FileMenu({ pipeline, session, toasts, onOpen }: FileMenuProps) {
       engineId: pipeline.effectiveEngineId.peek(),
       themeId: pipeline.effectiveThemeId.peek(),
     });
-    if (saveMenuRef.current !== null) saveMenuRef.current.open = false;
+    closeSaveMenu(false);
     if (!encoded.ok) {
       // No `CompressionStream` here (an older or locked-down browser): the
       // file is the other way to share (fix round 1, item 11).
@@ -107,25 +152,52 @@ export function FileMenu({ pipeline, session, toasts, onOpen }: FileMenuProps) {
       </button>
       <input ref={inputRef} class="file-input" type="file" accept={OPEN_ACCEPT} hidden onChange={onPicked} />
 
-      <details class="save-menu" ref={saveMenuRef} onToggle={(e) => (e.currentTarget as HTMLDetailsElement).open && setShare(null)}>
-        <summary class="toolbar-button">Save ▾</summary>
-        <div class="menu" role="menu">
+      <details
+        class="save-menu"
+        ref={saveMenuRef}
+        onToggle={(e) => {
+          const open = (e.currentTarget as HTMLDetailsElement).open;
+          setSaveOpen(open);
+          if (open) closeShare(false);
+        }}
+      >
+        <summary class="toolbar-button">
+          Save <span aria-hidden="true">▾</span>
+        </summary>
+        <div class="menu">
           {SAVE_ITEMS.map((item) => (
-            <button type="button" role="menuitem" class={`save-${item.kind}`} key={item.kind} onClick={() => save(item.kind)}>
+            <button type="button" class={`save-${item.kind}`} key={item.kind} onClick={() => save(item.kind)}>
               {item.label}
             </button>
           ))}
         </div>
       </details>
 
-      <button type="button" class="toolbar-button share-open" onClick={() => void openShare()}>
+      <button type="button" class="toolbar-button share-open" ref={shareButtonRef} onClick={() => void openShare()}>
         Share
       </button>
 
       {share !== null ? (
-        <div class="share-dialog" role="dialog" aria-label="Share by link" onKeyDown={(e) => e.key === 'Escape' && setShare(null)}>
+        <div
+          class="share-dialog"
+          role="dialog"
+          aria-label="Share by link"
+          onKeyDown={(e) => {
+            if (e.key !== 'Escape') return;
+            e.preventDefault();
+            closeShare(true);
+          }}
+        >
           <p class="share-note">The whole diagram is inside this link. Nothing is uploaded anywhere.</p>
-          <input class="share-link" type="text" readOnly value={share.link} onFocus={(e) => (e.currentTarget as HTMLInputElement).select()} />
+          <input
+            ref={shareLinkRef}
+            class="share-link"
+            type="text"
+            readOnly
+            aria-label="Share link"
+            value={share.link}
+            onFocus={(e) => (e.currentTarget as HTMLInputElement).select()}
+          />
           {share.long ? (
             <p class="share-warning" role="alert">
               This link is {share.link.length.toLocaleString('en')} characters long. Some chats and browsers cut long links short, so it may not
@@ -141,7 +213,7 @@ export function FileMenu({ pipeline, session, toasts, onOpen }: FileMenuProps) {
                 Save as a file instead
               </button>
             ) : null}
-            <button type="button" class="share-close" onClick={() => setShare(null)}>
+            <button type="button" class="share-close" onClick={() => closeShare(true)}>
               Close
             </button>
           </div>

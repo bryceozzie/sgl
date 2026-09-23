@@ -138,6 +138,22 @@ test.describe('DD-08 §14 test 6: invalid links toast and open the last document
   });
 });
 
+test('the Share dialog takes focus, closes on Escape, and gives focus back to Share', async ({ page }) => {
+  await page.goto('/');
+  await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+  await page.locator('.share-open').click();
+  await expect(page.locator('.share-link')).toBeFocused();
+  await page.keyboard.press('Escape'); // no tabbing in first
+  await expect(page.locator('.share-dialog')).toHaveCount(0);
+  await expect(page.locator('.share-open')).toBeFocused();
+
+  await page.locator('.share-open').click();
+  await expect(page.locator('.share-link')).toBeFocused();
+  await page.locator('.share-close').click();
+  await expect(page.locator('.share-dialog')).toHaveCount(0);
+  await expect(page.locator('.share-open')).toBeFocused();
+});
+
 test('a link over 8 000 characters warns and offers the file save instead', async ({ page }) => {
   await page.goto('/');
   await waitForNodeCount(page, EXAMPLE_NODE_COUNT);

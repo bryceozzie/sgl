@@ -12,6 +12,9 @@ export interface Toast {
   readonly message: string;
 }
 
+/** How long an `info` toast stays. An `error` toast has no time to live: it
+ *  stays until its × is clicked (fix round 1, item 10) — a failure the reader
+ *  was not looking at when it appeared must still be there to read. */
 export const TOAST_TTL_MS = 8000;
 
 export interface Toasts {
@@ -37,10 +40,7 @@ export function createToasts(schedule: Schedule, ttlMs: number = TOAST_TTL_MS): 
       const id = nextId;
       nextId += 1;
       items.value = [...items.value, { id, kind, message }];
-      timers.set(
-        id,
-        schedule(() => dismiss(id), ttlMs),
-      );
+      if (kind === 'info') timers.set(id, schedule(() => dismiss(id), ttlMs));
       return id;
     },
     dismiss,

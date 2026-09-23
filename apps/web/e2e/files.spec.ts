@@ -114,6 +114,30 @@ test.describe('MVP acceptance criterion 4 / DD-08 §14 test 5', () => {
   });
 });
 
+test.describe('Save ▾ is a disclosure of buttons (fix round 1, item 10)', () => {
+  test('no menu roles; Escape and an outside click close it', async ({ page }) => {
+    const menu = page.locator('.save-menu');
+    await expect(page.locator('.save-menu [role="menu"], .save-menu [role="menuitem"]')).toHaveCount(0);
+    await expect(page.locator('.save-menu > summary [aria-hidden="true"]')).toHaveText('▾');
+    await expect(page.locator('.save-menu > summary')).toHaveAccessibleName('Save');
+
+    await page.locator('.save-menu > summary').click();
+    await expect(menu).toHaveJSProperty('open', true);
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveJSProperty('open', false);
+    await expect(page.locator('.save-menu > summary')).toBeFocused();
+
+    await page.locator('.save-menu > summary').click();
+    await expect(menu).toHaveJSProperty('open', true);
+    await page.locator('.cm-content').click();
+    await expect(menu).toHaveJSProperty('open', false);
+  });
+
+  test('the Fit button is named "Fit", its glyph hidden', async ({ page }) => {
+    await expect(page.locator('.toolbar-fit')).toHaveAccessibleName('Fit');
+  });
+});
+
 test.describe('DD-08 §7 Open', () => {
   test('Ctrl+O opens the file chooser, and the open is undoable', async ({ page }) => {
     const small = 'solo: "Solo"\n';

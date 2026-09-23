@@ -145,7 +145,7 @@ export function App({ boot }: { readonly boot: AppBoot }) {
         <EnginePicker pipeline={pipeline} view={view} registered={REGISTERED_ENGINES} />
         <ThemePicker pipeline={pipeline} view={view} />
         <button type="button" class="toolbar-button toolbar-fit" onClick={() => fit?.()}>
-          ⟳ Fit
+          <span aria-hidden="true">⟳</span> Fit
         </button>
         <FileMenu pipeline={pipeline} session={session} toasts={toasts} onOpen={open} />
       </header>
