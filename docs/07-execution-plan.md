@@ -148,7 +148,7 @@ A stage is not done because the code is written. It is done when its gate passes
 | End-to-end pipeline (`source -> RenderResult`), `bench/generate.js` | **Done**, T3 gate green (Stage G) | `main` |
 | `@sgl/layout-api` — `createWorkerHost`, `worker-runtime.ts` (worker-side message handling) | **Done**, T1 gate green; the gate's four conditions also proven against a real `Worker` (browser project, Chromium + Firefox) (Stage H) | `main` |
 | `apps/web` | **Stage I done** — the editor loop, pickers, diagnostics panel, status chip, fonts, the §13 error boundary and the Playwright e2e gate (DD-08 §14 tests 1/2/3/8, MVP criteria 2/3/1-single-engine) all work end to end. Fix round 1 done (below). `elk`/engine-switch and the per-engine options form are Stage K | `main` |
-| `apps/web` — files, share, persistence, PWA, `_headers` | **Stage J implemented, not yet reviewed or merged** — Open/Save (`.sgl`, `.sgl.json`, `.svg`), share by URL with the 2 MB inflate cap, IndexedDB autosave and boot, the stored-SVG boot paint (J6), `vite-plugin-pwa` precache + manifest + update chip, the `_headers` CSP; e2e gate MVP criteria 2–6 single-engine plus DD-08 §14 tests 5–7 green in Chromium, Firefox and WebKit | `feat/app-files` |
+| `apps/web` — files, share, persistence, PWA, `_headers` | **Stage J implemented, review fix round 1 applied, not yet merged** — Open/Save (`.sgl`, `.sgl.json`, `.svg`), share by URL with the 2 MB inflate cap, IndexedDB autosave and boot, the stored-SVG boot paint (J6), `vite-plugin-pwa` precache + manifest + update chip, the `_headers` CSP; e2e gate MVP criteria 2–6 single-engine plus DD-08 §14 tests 5–7 green in Chromium, Firefox and WebKit (fix round 1 re-verified in Chromium only) | `feat/app-files` |
 
 **Gate 1 is cleared.** `feat/compiler` merged to `main` at `a46c72b`; `pnpm check` green there
 (496 tests). `.sgl` text in, `SemanticGraph` out, for every document in the corpus, with goldens
@@ -918,7 +918,7 @@ unaccepted extension is refused like an oversize file; Open replaces the current
 link clears the hash too; `e`/`t` carry the effective engine/theme and fall back to the default
 when unknown; only `lastOpenDocId` is written to `settings`.
 
-**Two test-infrastructure findings, fixed at the root rather than retried** (J5's CI-only
+**Three test-infrastructure findings, fixed at the root rather than retried** (J5's CI-only
 `retries: 1` was already in `playwright.config.ts`; it is now commented): (1) every Playwright
 context installed the service worker and filled a ~560 KB precache, and with ten parallel Firefox
 workers that alone pushed unrelated tests past their timeouts in set-up and teardown — the suite
@@ -937,9 +937,60 @@ already satisfied before typing, so the test passed without testing anything; it
 node and waits for exactly one more.
 
 **Left out**: `elk`, engine switching and F11 (Stage K); PNG (D6), drag-and-drop (F2),
-`showSaveFilePicker` (F3), short links (F6), the document drawer (E17), the SVG export-options UI;
+`showSaveFilePicker` (F3), short links (F6), the document drawer (E17), the SVG export-options UI (D10, Stage L);
 deploying and `wrangler.toml` (J4). No automated test covers the update chip (it needs two
 successive builds) or `launchQueue` (it needs an installed app); both belong to the T5 manual gate.
+
+**Stage J fix round 1** (three reviews, each finding confirmed by the orchestrator; on
+`feat/app-files`, not merged). Verified in **Chromium only** — Firefox and WebKit were not available
+to this round, so the all-browser figure above predates it. Item by item:
+
+1. **The offline gate is falsifiable.** `offline.spec.ts` empties the HTTP cache before going
+   offline (Chromium: CDP `Network.clearBrowserCache`) and requires every response of the offline
+   reload to be `fromServiceWorker()`, plus a response for each kind of file the app needs. With
+   `globPatterns: ['**/*.html']` it now fails (it passed before). WebKit's own server
+   (`static-server.ts`) sends `no-store`; Firefox has neither mechanism and stays unfalsifiable.
+2. **Edits in the last 500 ms before leaving the page were lost** (every time). The `pagehide`
+   flush did issue the IndexedDB `put`, but the transaction was left to auto-commit, which needs a
+   later task that Chromium never runs for a page being unloaded; it aborted instead.
+   `storage-idb.ts` now calls `IDBTransaction.commit()` after each `put`, and `autosave.flush()`
+   issues its write synchronously rather than behind a write in flight (IndexedDB keeps issue
+   order). e2e and unit tests; a no-op flush fails both.
+3. **Criterion 6's theme half**: `t=` is pinned exactly, and a source with no `@theme` must render
+   the link's theme in a fresh (light-default) context.
+4. **Criterion 6 outside the app**: the produced link is decoded with Node's `inflateRawSync`, and a
+   link built with `deflateRawSync` opens with exactly its source.
+5. **The 512-byte inflate slice** is held by a test that records every write to the decompressor
+   (fails with the slice at `1 << 30`; the older 64 MB bomb test did not).
+6. **The 2 MB share cap** is pinned (`SHARE_INFLATED_CAP === 2 * 1024 * 1024`) and exercised at
+   exactly 2 MB and 2 MB + 1 with the default cap.
+7. **Criterion 4's JSON oracle** is a checked-in file (`e2e/fixtures/json-form-edited.expected.sgl.json`),
+   not `toJson`; Open's 2 MB boundary is tested both sides.
+8. **Boot never rejects**: ids fall back from `crypto.randomUUID` (absent on insecure origins) to
+   `getRandomValues`, then to time + counter; any boot failure opens the example in memory with a
+   toast, in `bootApp` and again in `main.tsx`'s new `catch` (before: a blank page).
+9. **Share dialog focus**: focus moves to the link on open; Escape works at once; Escape/Close
+   return focus to Share.
+10. **Save ▾** is a plain disclosure (no `menu`/`menuitem` roles) that closes on Escape and outside
+    click; the `▾`/`⟳` glyphs are `aria-hidden`; error toasts are `role="alert"` and stay until
+    closed.
+11. **Share where `CompressionStream` is missing** toasts instead of failing silently
+    (`encodeShareFragment` returns a value).
+12. **File names**: the reserved-device check uses the stem before the first dot and knows
+    `CONIN$`/`CONOUT$`/`COM¹²³`/`LPT¹²³`; the cap counts code points; bidi and zero-width
+    characters are stripped.
+13. **An Open read before the editor exists** is held and applied when it arrives
+    (`state/open-queue.ts`); a fake-`launchQueue` e2e now covers that path in-page (it also passed
+    before — today's timing never drops it — so this one is defensive).
+14. **A share link pasted into an open tab** (`hashchange`) is imported: invalid → toast, stay;
+    valid → flush autosave, then reload so boot imports it exactly as on load.
+15. **Service-worker updates**: `registration.update()` when the page becomes visible, at most
+    hourly.
+16. **CI**: `retries: 1` stays, with `failOnFlakyTests: true`, so a retry cannot hide a race.
+17. DD-08 §7–§9, §11, §12, §14 and this section updated to match; D10 added to Stage L.
+
+After the round, `pnpm check`-equivalent from clean is green twice: Vitest 1866 passed (the unit and `browser (chromium)` projects), e2e
+45/45 in Chromium.
 
 ### 2.1 Open findings
 
@@ -1403,6 +1454,7 @@ complete the Playwright suite's engine-switch cases (DD-08 §14 test 4).
 | D6/D7 PNG and clipboard export | Canvas `drawImage` of the SVG blob. |
 | F2 drag-and-drop, F5 `.sglpack` | Conveniences on F1. |
 | E17 multiple documents | Storage is already a list; this is UI. |
+| D10 SVG export options UI | Background on/off and scale for Save ▾ SVG (DD-08 §7); today it saves the defaults, `render()`'s own output. |
 | **F9 — `morphdom` live-view swap** | **Required before Gate 4** (human decision, 2026-09-23; §2.1 **F9**). Patch the canvas's wrapper `<g class="rendered">` with `morphdom` instead of replacing its `innerHTML` wholesale (DD-08 §6, DD-09 §2's planned response). The overlay stays a sibling of the exported tree, never inside the patched wrapper. Measured by the F9 bench (`packages/render-svg/test/browser/render.bench.browser.test.ts`, forced-layout variant): done when n500 < 16 ms **and** n2000 < 50 ms in Chromium. **Measure before committing to morphdom alone:** a theme switch changes every element's `class` (F7), so style recalculation and layout (the larger share of the forced-layout time) may remain after patching. Keying paint classes on something theme-invariant (F7's lever (1)) may be the bigger win, but it re-baselines every golden, so that choice goes back to a human. `morphdom` is a new runtime dependency, approved by that decision. |
 
 **Gate 4 — v1.0.** Every Must in [04](04-feature-backlog.md) done, all gates green, bench inside the
