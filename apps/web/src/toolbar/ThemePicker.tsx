@@ -2,7 +2,7 @@ import type { EditorView } from '@codemirror/view';
 import { dispatchTextChange } from '../editor/editor-actions.js';
 import type { Pipeline } from '../state/pipeline.js';
 import { themeOptions } from '../state/pickers.js';
-import { setRootConfigString } from '../state/root-config-edit.js';
+import { selectTheme } from '../state/picker-actions.js';
 
 export interface ThemePickerProps {
   readonly pipeline: Pipeline;
@@ -16,12 +16,11 @@ export function ThemePicker({ pipeline, view }: ThemePickerProps) {
   const overridden = pipeline.documentThemeId.value !== undefined;
   const selected = options.find((o) => o.selected);
 
+  // DD-08 §10; the logic (signal writes, the root-config edit built from the
+  // pipeline's own parsed AST) lives in `state/picker-actions.ts`, Node-tested.
   function select(id: string): void {
-    pipeline.themeId.value = id;
-    if (view === null) return;
-    // DD-08 §4: "the app never calls `parse` on its own" — reuse the
-    // pipeline's own already-parsed AST rather than re-parsing `source` here.
-    dispatchTextChange(view, setRootConfigString(pipeline.parsed.value.value, ['theme'], id));
+    const change = selectTheme(pipeline, id);
+    if (view !== null) dispatchTextChange(view, change);
   }
 
   return (

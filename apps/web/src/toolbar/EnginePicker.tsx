@@ -2,7 +2,7 @@ import type { EditorView } from '@codemirror/view';
 import { dispatchTextChange } from '../editor/editor-actions.js';
 import type { Pipeline } from '../state/pipeline.js';
 import { engineOptionsFor, type EngineDescriptor } from '../state/pickers.js';
-import { setRootConfigString } from '../state/root-config-edit.js';
+import { selectEngine } from '../state/picker-actions.js';
 
 export interface EnginePickerProps {
   readonly pipeline: Pipeline;
@@ -20,19 +20,11 @@ export function EnginePicker({ pipeline, view, registered }: EnginePickerProps) 
   const options = engineOptionsFor(registered, effective);
   const overridden = pipeline.documentEngineId.value !== undefined;
 
+  // DD-08 §10; the logic (signal writes, the root-config edit built from the
+  // pipeline's own parsed AST) lives in `state/picker-actions.ts`, Node-tested.
   function select(id: string): void {
-    pipeline.engineId.value = id;
-    // DD-08 §10: "selecting an engine resets `engineOptions` to that engine's
-    // defaults." No engine has a real options schema wired up yet (F11,
-    // Stage K), so the only defaults available today are the empty bag —
-    // still a real reset, not a no-op: it clears whatever the *previous*
-    // engine's options happened to be, rather than leaking them across a
-    // switch.
-    pipeline.engineOptions.value = {};
-    if (view === null) return;
-    // DD-08 §4: "the app never calls `parse` on its own" — reuse the
-    // pipeline's own already-parsed AST rather than re-parsing `source` here.
-    dispatchTextChange(view, setRootConfigString(pipeline.parsed.value.value, ['layout', 'engine'], id));
+    const change = selectEngine(pipeline, id);
+    if (view !== null) dispatchTextChange(view, change);
   }
 
   return (

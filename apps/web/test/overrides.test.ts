@@ -1,4 +1,4 @@
-import { parse, resolve } from '@sgl/core';
+import { compile, parse, resolve } from '@sgl/core';
 import { describe, expect, it } from 'vitest';
 import { documentEngineOverride, documentThemeOverride } from '../src/state/overrides.js';
 import { setRootConfigString } from '../src/state/root-config-edit.js';
@@ -33,67 +33,99 @@ describe('documentThemeOverride / documentEngineOverride (DD-08 §10)', () => {
   });
 });
 
+
+/** Applies `setRootConfigString`'s change to `source`, the way the picker's
+ *  transaction does. */
+function write(source: string, keyPath: readonly string[], value: string): string {
+  const change = setRootConfigString(parse(source).ast, source, keyPath, value);
+  return source.slice(0, change.from) + change.insert + source.slice(change.to);
+}
+
+/** Every diagnostic the whole front end (parse, resolve, compile) emits. */
+function allDiagnostics(source: string): readonly string[] {
+  const parsed = parse(source);
+  const resolved = resolve(parsed.ast);
+  const compiled = compile(resolved.model);
+  return [...parsed.diagnostics, ...resolved.diagnostics, ...compiled.diagnostics].map((d) => d.code);
+}
+
 describe('setRootConfigString (DD-08 §10)', () => {
-  it('inserts a new line at the start when no entry exists', () => {
-    const source = 'a: "A"\n';
-    const { ast } = parse(source);
-    const change = setRootConfigString(ast, ['theme'], 'neutral-dark');
-    expect(change).toEqual({ from: 0, to: 0, insert: '@theme: "neutral-dark"\n' });
+  describe('@theme', () => {
+    it('none: inserts one new line at the start', () => {
+      const source = 'a: "A"\n';
+      expect(setRootConfigString(parse(source).ast, source, ['theme'], 'neutral-dark')).toEqual({ from: 0, to: 0, insert: '@theme: "neutral-dark"\n' });
+      expect(documentThemeOverride(modelOf(write(source, ['theme'], 'neutral-dark')))).toBe('neutral-dark');
+    });
+
+    it('existing string entry: replaces only its value span', () => {
+      const applied = write('@theme: "neutral-light"\na: "A"\n', ['theme'], 'neutral-dark');
+      expect(applied).toBe('@theme: "neutral-dark"\na: "A"\n');
+      expect(documentThemeOverride(modelOf(applied))).toBe('neutral-dark');
+      expect(allDiagnostics(applied)).toEqual([]);
+    });
+
+    it('existing bareword entry: replaced in place too, not shadowed by a second entry', () => {
+      const applied = write('@theme: dark\na: "A"\n', ['theme'], 'neutral-dark');
+      expect(applied).toBe('@theme: "neutral-dark"\na: "A"\n');
+      expect(allDiagnostics(applied)).toEqual([]);
+    });
   });
 
-  it('replaces only the value span of an existing string entry', () => {
-    const source = '@theme: "neutral-light"\na: "A"\n';
-    const { ast } = parse(source);
-    const change = setRootConfigString(ast, ['theme'], 'neutral-dark');
-    const applied = source.slice(0, change.from) + change.insert + source.slice(change.to);
-    expect(applied).toBe('@theme: "neutral-dark"\na: "A"\n');
-  });
+  describe('@layout.engine — all three shapes: none, dotted, object', () => {
+    it('none: inserts one dotted line at the start; a second write edits it rather than adding another', () => {
+      const once = write('a: "A"\n', ['layout', 'engine'], 'sgl.grid');
+      expect(once).toBe('@layout.engine: "sgl.grid"\na: "A"\n');
+      const twice = write(once, ['layout', 'engine'], 'sgl.elk');
+      expect(twice).toBe('@layout.engine: "sgl.elk"\na: "A"\n');
+      expect(documentEngineOverride(modelOf(twice))).toBe('sgl.elk');
+      expect(allDiagnostics(twice)).toEqual([]);
+    });
 
-  it('the applied change round-trips through parse/resolve to the new override', () => {
-    const source = '@theme: "neutral-light"\na: "A"\n';
-    const { ast } = parse(source);
-    const change = setRootConfigString(ast, ['theme'], 'neutral-dark');
-    const applied = source.slice(0, change.from) + change.insert + source.slice(change.to);
-    expect(documentThemeOverride(modelOf(applied))).toBe('neutral-dark');
-  });
+    it('dotted: replaces the existing value span', () => {
+      const applied = write('@layout.engine: "sgl.grid"\na: "A"\n', ['layout', 'engine'], 'sgl.elk');
+      expect(applied).toBe('@layout.engine: "sgl.elk"\na: "A"\n');
+      expect(documentEngineOverride(modelOf(applied))).toBe('sgl.elk');
+      expect(allDiagnostics(applied)).toEqual([]);
+    });
 
-  it('a dotted @layout.engine entry is replaced precisely, not duplicated', () => {
-    const source = '@layout.engine: "sgl.grid"\na: "A"\n';
-    const { ast } = parse(source);
-    const change = setRootConfigString(ast, ['layout', 'engine'], 'sgl.elk');
-    const applied = source.slice(0, change.from) + change.insert + source.slice(change.to);
-    expect(applied).toBe('@layout.engine: "sgl.elk"\na: "A"\n');
-    expect(documentEngineOverride(modelOf(applied))).toBe('sgl.elk');
-  });
+    it('object with an engine property: edits the property in place', () => {
+      const applied = write('@layout: { engine: "sgl.grid", direction: right }\na: "A"\n', ['layout', 'engine'], 'sgl.elk');
+      expect(applied).toBe('@layout: { engine: "sgl.elk", direction: right }\na: "A"\n');
+      expect(documentEngineOverride(modelOf(applied))).toBe('sgl.elk');
+      expect(allDiagnostics(applied)).toEqual([]);
+    });
 
-  it('K2: an @layout: { engine: "..." } object entry is edited in place, not duplicated', () => {
-    const source = '@layout: { engine: "sgl.grid", direction: right }\na: "A"\n';
-    const { ast } = parse(source);
-    const change = setRootConfigString(ast, ['layout', 'engine'], 'sgl.elk');
-    const applied = source.slice(0, change.from) + change.insert + source.slice(change.to);
-    expect(applied).toBe('@layout: { engine: "sgl.elk", direction: right }\na: "A"\n');
-    expect(documentEngineOverride(modelOf(applied))).toBe('sgl.elk');
+    it('object with a bareword engine: edits the property in place', () => {
+      const applied = write('@layout: { engine: grid }\na: "A"\n', ['layout', 'engine'], 'sgl.elk');
+      expect(applied).toBe('@layout: { engine: "sgl.elk" }\na: "A"\n');
+      expect(allDiagnostics(applied)).toEqual([]);
+    });
 
-    // K2's actual point: no duplicate-key diagnostic — the app's own picker
-    // action must never make the user's document emit one.
-    const { model, diagnostics } = resolve(parse(applied).ast);
-    expect(diagnostics).toEqual([]);
-    void model;
-  });
+    it('object without an engine property (one line): adds the property to that object, no second @layout entry', () => {
+      const applied = write('@layout: { direction: right }\na: "A"\n', ['layout', 'engine'], 'sgl.elk');
+      expect(applied).toBe('@layout: { engine: "sgl.elk", direction: right }\na: "A"\n');
+      expect(documentEngineOverride(modelOf(applied))).toBe('sgl.elk');
+      expect(allDiagnostics(applied)).toEqual([]);
+    });
 
-  it('K2: with neither a dotted nor an object entry, only one new line is inserted (no duplication on a second write)', () => {
-    const source = 'a: "A"\n';
-    const { ast: ast1 } = parse(source);
-    const change1 = setRootConfigString(ast1, ['layout', 'engine'], 'sgl.grid');
-    const applied1 = source.slice(0, change1.from) + change1.insert + source.slice(change1.to);
-    expect(applied1).toBe('@layout.engine: "sgl.grid"\na: "A"\n');
+    it('object without an engine property (multi-line): adds it on its own line with the same indentation', () => {
+      const applied = write('@layout: {\n  direction: right\n}\na: "A"\n', ['layout', 'engine'], 'sgl.elk');
+      expect(applied).toBe('@layout: {\n  engine: "sgl.elk"\n  direction: right\n}\na: "A"\n');
+      expect(documentEngineOverride(modelOf(applied))).toBe('sgl.elk');
+      expect(allDiagnostics(applied)).toEqual([]);
+    });
 
-    // Writing again finds the entry it just created and edits it in place.
-    const { ast: ast2 } = parse(applied1);
-    const change2 = setRootConfigString(ast2, ['layout', 'engine'], 'sgl.elk');
-    const applied2 = applied1.slice(0, change2.from) + change2.insert + applied1.slice(change2.to);
-    expect(applied2).toBe('@layout.engine: "sgl.elk"\na: "A"\n');
-    const { diagnostics } = resolve(parse(applied2).ast);
-    expect(diagnostics).toEqual([]);
+    it('empty object: fills it', () => {
+      const applied = write('@layout: {}\na: "A"\n', ['layout', 'engine'], 'sgl.elk');
+      expect(applied).toBe('@layout: { engine: "sgl.elk" }\na: "A"\n');
+      expect(documentEngineOverride(modelOf(applied))).toBe('sgl.elk');
+      expect(allDiagnostics(applied)).toEqual([]);
+    });
+
+    it('set twice (object, then dotted): edits the later one, which is the one that wins', () => {
+      const applied = write('@layout: { engine: "x" }\n@layout.engine: "sgl.grid"\na: "A"\n', ['layout', 'engine'], 'sgl.elk');
+      expect(applied).toBe('@layout: { engine: "x" }\n@layout.engine: "sgl.elk"\na: "A"\n');
+      expect(documentEngineOverride(modelOf(applied))).toBe('sgl.elk');
+    });
   });
 });
