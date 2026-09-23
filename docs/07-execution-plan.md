@@ -857,7 +857,17 @@ orchestrator's triage of the part 2 review. An interrupted implementer left a WI
 - **Docs**: DD-08 §3/§5/§6/§10/§11/§13/§14, the DD-09 §2 row, `corpus/README.md`, and the
   corrected tsdown description (above and in `tsdown.config.ts`).
 - **F9**: the bench's forced-layout variant (item 17) and the human decision (item 18) are in the
-  §2.1 row and in Stage L's table. `morphdom` is not implemented.
+  §2.1 row and in Stage L's table. `morphdom` is not implemented. The forced-layout variant runs
+  in Chromium only, where the budget is judged: running it in Firefox too slowed neighbouring
+  tests enough to fail a clean `pnpm check`.
+- **A pre-existing cold-cache failure, fixed test-side.** `pnpm check` from clean failed
+  `packages/layout-std/test/browser/grid.browser.test.ts` twice, with `SGL4001`. The first request
+  through a real Worker also pays Vite's dependency optimisation, while the Node unit project
+  saturates the CPU, and so exceeded `sgl.grid`'s 2 s timeout. The `fd6bbf0` bench fails the same
+  way. That test proves bitwise equality, so its host now gets a 30 s grid timeout. After this, two
+  consecutive clean `pnpm check` runs were green. Every e2e test passes in each of Chromium,
+  Firefox and WebKit (`test:e2e:all-browsers`, 42/42). One earlier all-browser run hit three
+  Firefox 30 s timeouts under three-browser parallel load; Firefox alone passed 14/14.
 
 ### 2.1 Open findings
 

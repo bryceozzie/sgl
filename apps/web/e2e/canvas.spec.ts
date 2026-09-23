@@ -18,13 +18,26 @@ async function viewportTransform(page: Page): Promise<Transform> {
   return { tx: Number(m[1]), ty: Number(m[2]), k: Number(m[3]) };
 }
 
-/** The element's geometry box in client pixels. `getBoundingClientRect`, not
- *  Playwright's `boundingBox()`: for an SVG shape the latter includes the
- *  stroke, and the outline and the node shape have different strokes. */
+/** The element's box in client pixels, from `getBoundingClientRect` — for
+ *  the `<svg>` elements, whose box is their viewport. */
 async function box(locator: Locator): Promise<{ x: number; y: number; width: number; height: number }> {
   return locator.evaluate((el) => {
     const r = el.getBoundingClientRect();
     return { x: r.x, y: r.y, width: r.width, height: r.height };
+  });
+}
+
+/** An SVG shape's *geometry* box in client pixels: `getBBox()` mapped through
+ *  `getScreenCTM()` (a scale plus translation here). Not `getBoundingClientRect`
+ *  or Playwright's `boundingBox()`: Firefox includes the stroke in the first and
+ *  every engine in the second, and the outline's stroke differs from the node's. */
+async function shapeBox(locator: Locator): Promise<{ x: number; y: number; width: number; height: number }> {
+  return locator.evaluate((el) => {
+    const g = el as SVGGraphicsElement;
+    const b = g.getBBox();
+    const m = g.getScreenCTM();
+    if (m === null) throw new Error('shape has no screen CTM');
+    return { x: b.x * m.a + m.e, y: b.y * m.d + m.f, width: b.width * m.a, height: b.height * m.d };
   });
 }
 
@@ -105,7 +118,7 @@ test.describe('Canvas (DD-08 §6)', () => {
       const node = nodes.nth(i);
       await node.hover();
       await expect(hoverRect(page)).toHaveAttribute('visibility', 'visible');
-      expectSameBox(await box(hoverRect(page)), await box(shapeOf(node)));
+      expectSameBox(await shapeBox(hoverRect(page)), await shapeBox(shapeOf(node)));
     }
   });
 
@@ -115,10 +128,10 @@ test.describe('Canvas (DD-08 §6)', () => {
 
     await nodes.first().click();
     await expect(selectedRect(page)).toHaveAttribute('visibility', 'visible');
-    expectSameBox(await box(selectedRect(page)), await box(shapeOf(nodes.first())));
+    expectSameBox(await shapeBox(selectedRect(page)), await shapeBox(shapeOf(nodes.first())));
 
     await nodes.nth(1).click();
-    expectSameBox(await box(selectedRect(page)), await box(shapeOf(nodes.nth(1))));
+    expectSameBox(await shapeBox(selectedRect(page)), await shapeBox(shapeOf(nodes.nth(1))));
   });
 
   test('ctrl + wheel zooms about the cursor and clamps the scale to [0.1, 8]', async ({ page }) => {
@@ -139,10 +152,10 @@ test.describe('Canvas (DD-08 §6)', () => {
     expect((localX - after.tx) / after.k).toBeCloseTo((localX - before.tx) / before.k, 3);
     expect((localY - after.ty) / after.k).toBeCloseTo((localY - before.ty) / before.k, 3);
 
-    await ctrlWheel(page, -300, 30);
+    await ctrlWheel(page, -300, 10); // each is a factor of e^3; 10 is far past 8.
     await expect.poll(async () => (await viewportTransform(page)).k).toBeCloseTo(8, 6);
 
-    await ctrlWheel(page, 300, 40);
+    await ctrlWheel(page, 300, 10); // likewise far past 0.1.
     await expect.poll(async () => (await viewportTransform(page)).k).toBeCloseTo(0.1, 6);
   });
 
