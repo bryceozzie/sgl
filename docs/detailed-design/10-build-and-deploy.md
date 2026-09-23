@@ -97,6 +97,8 @@ not_found_handling = "single-page-application"
   Cache-Control: no-cache
 ```
 
+**Implemented (Stage J)**: `vite build` writes this file into `apps/web/dist/` from `apps/web/build/headers.ts` (held to the block above by `apps/web/test/headers.test.ts`), and `vite preview` serves the build with the headers it declares, so the e2e suite runs under them. `wrangler.toml` and the deploy itself are not set up: publishing is a human step (decision J4).
+
 Pipeline: `main` → CI green → `wrangler deploy` to production. Pull requests → `wrangler versions upload` preview URL posted on the PR. No server-side code exists in MVP, so there is no second deployment unit; **⟶ G5** adds routes to the same Worker.
 
 Cost at MVP: the free tier covers it entirely (static requests are unmetered).

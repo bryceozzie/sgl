@@ -117,6 +117,10 @@ three (DD-10 §4), which needs WebKit fetched once per machine too:
 pnpm exec playwright install webkit
 ```
 
+The e2e server is `vite preview` on port 4173 and is **never reused** (Stage J): if the port is
+taken, the run fails instead of testing whatever build is already listening there. Set
+`SGL_E2E_PORT` to use another port, e.g. when a second checkout is running its own suite.
+
 `check` builds before testing because a workspace package's cross-package `import`s resolve
 through its published `exports`, which point at `dist/`. `tsc -b` (the typecheck step) only
 compiles `.ts` files, so a package that re-exports a hand-generated `.js` asset — `@sgl/core`'s
@@ -143,7 +147,8 @@ A stage is not done because the code is written. It is done when its gate passes
 | `@sgl/layout-std` — `grid` | **Done**, T1+T2 gate green, bitwise double-run over the whole corpus (Stage E) | `main` |
 | End-to-end pipeline (`source -> RenderResult`), `bench/generate.js` | **Done**, T3 gate green (Stage G) | `main` |
 | `@sgl/layout-api` — `createWorkerHost`, `worker-runtime.ts` (worker-side message handling) | **Done**, T1 gate green; the gate's four conditions also proven against a real `Worker` (browser project, Chromium + Firefox) (Stage H) | `main` |
-| `apps/web` | **Stage I done** — the editor loop, pickers, diagnostics panel, status chip, fonts, the §13 error boundary and the Playwright e2e gate (DD-08 §14 tests 1/2/3/8, MVP criteria 2/3/1-single-engine) all work end to end. Open/save, share, autosave and the PWA shell are Stage J; `elk`/engine-switch and the per-engine options form are Stage K. Fix round 1 done (below) | `main` |
+| `apps/web` | **Stage I done** — the editor loop, pickers, diagnostics panel, status chip, fonts, the §13 error boundary and the Playwright e2e gate (DD-08 §14 tests 1/2/3/8, MVP criteria 2/3/1-single-engine) all work end to end. Fix round 1 done (below). `elk`/engine-switch and the per-engine options form are Stage K | `main` |
+| `apps/web` — files, share, persistence, PWA, `_headers` | **Stage J implemented, not yet reviewed or merged** — Open/Save (`.sgl`, `.sgl.json`, `.svg`), share by URL with the 2 MB inflate cap, IndexedDB autosave and boot, the stored-SVG boot paint (J6), `vite-plugin-pwa` precache + manifest + update chip, the `_headers` CSP; e2e gate MVP criteria 2–6 single-engine plus DD-08 §14 tests 5–7 green in Chromium, Firefox and WebKit | `feat/app-files` |
 
 **Gate 1 is cleared.** `feat/compiler` merged to `main` at `a46c72b`; `pnpm check` green there
 (496 tests). `.sgl` text in, `SemanticGraph` out, for every document in the corpus, with goldens
@@ -869,6 +874,68 @@ orchestrator's triage of the part 2 review. An interrupted implementer left a WI
   consecutive clean `pnpm check` runs were green. Every e2e test passes in each of Chromium,
   Firefox and WebKit (`test:e2e:all-browsers`, 42/42). One earlier all-browser run hit three
   Firefox 30 s timeouts under three-browser parallel load; Firefox alone passed 14/14.
+
+**Stage J is implemented on `feat/app-files`** (branched from `main` at `9645992`), not yet
+reviewed or merged. `pnpm check` from clean is green twice in a row: Vitest 1847 passed + 6 skipped
+by design (1803 unit, 44 browser; up from 1772), and the e2e suite 34/34 in Chromium. The
+all-browser run (`test:e2e:all-browsers`) passes 102/102 across Chromium, Firefox and WebKit. No
+golden changed. What landed, by file:
+
+- **The DOM-free state layer** (`apps/web/src/state/`), each piece behind an injected interface and
+  Node-tested in `apps/web/test/`: `share.ts` + `base64url.ts` (DD-08 §8: `deflate-raw` +
+  base64url, the 2 MB cap that stops *reading* — reader cancelled, input fed in 512-byte slices —
+  and every refusal a value), `filename.ts` + `files.ts` (§7: the title chain, sanitising, the
+  remembered extension, the 2 MB Open cap checked before reading, what each Save item writes),
+  `storage.ts` + `storage-idb.ts` (§9: IndexedDB `sgl` v1 via `idb`, `documents` and `settings`,
+  and an in-memory store for tests and as the fallback), `autosave.ts` (500 ms, chained writes,
+  quota toast once per run), `boot.ts` (share link → new document; invalid → toast and the last
+  document; `lastOpenDocId`; else the example), `document-session.ts` (the whole record follows the
+  pipeline) and `toasts.ts`.
+- **The DOM around it**: `toolbar/FileMenu.tsx` (Open, `Ctrl/⌘+O`, Save ▾, the Share dialog),
+  `panels/Toasts.tsx`, `io/{app-boot,download,pwa,launch-queue}.ts`, `App.tsx`/`main.tsx` (boot from
+  storage before the first render), `canvas/Canvas.tsx` (J6's stored-SVG paint, `data-origin`,
+  fit on Open), `app.css`.
+- **The build**: `vite.config.ts` (`vite-plugin-pwa` `generateSW`; the `_headers` plugin),
+  `build/headers.ts` (DD-09 §1.2's CSP and DD-10 §5's `_headers` from one definition, held to both
+  documents' text by `test/headers.test.ts`), placeholder icons (`public/icons/`, from
+  `scripts/generate-icons.mjs`), the example (`src/examples/checkout.sgl`). New dependencies are the
+  two the design names (J3): `idb` (runtime) and `vite-plugin-pwa` (dev; it brings `workbox-build`,
+  and the app registers the service worker by hand so `workbox-window` stays out of the bundle).
+- **The e2e gate** (`apps/web/e2e/`): `files.spec.ts` (criterion 4, §14 test 5), `share.spec.ts`
+  (criterion 6 in a fresh browser context, §14 test 6), `offline.spec.ts` (criterion 5 and §14 test
+  7, single-engine), `persistence.spec.ts` (autosave across a reload, the J6 boot paint),
+  `pwa.spec.ts` (every emitted file is precached; the manifest), `csp.spec.ts` (the build served
+  under its own `_headers`, with no CSP violation). Stage I's specs now wait on the example's
+  computed node count.
+
+**Decisions the brief and the documents left open, all recorded in DD-08 §5/§7–§9/§11/§12/§14**:
+the first-run example is an adapted copy of `corpus/checkout.sgl`, because that file pins
+`engine: "layered"` (roadmap, unregistered) and would boot every new user into `SGL4011` and a
+blank canvas; canonical JSON is refused while the document has a parse/resolve error; an
+unaccepted extension is refused like an oversize file; Open replaces the current document's text
+(Share, not Open, creates a document); the 8 000-character guard measures the whole link; an invalid
+link clears the hash too; `e`/`t` carry the effective engine/theme and fall back to the default
+when unknown; only `lastOpenDocId` is written to `settings`.
+
+**Two test-infrastructure findings, fixed at the root rather than retried** (J5's CI-only
+`retries: 1` was already in `playwright.config.ts`; it is now commented): (1) every Playwright
+context installed the service worker and filled a ~560 KB precache, and with ten parallel Firefox
+workers that alone pushed unrelated tests past their timeouts in set-up and teardown — the suite
+now blocks service workers except in `offline.spec.ts` and `csp.spec.ts`, and the same Firefox run
+is then clean; (2) Playwright's WebKit fails an offline navigation, and blocks routed requests,
+before the service worker can answer, so in WebKit criterion 5 takes the network away by stopping a
+server of the test's own (`e2e/static-server.ts`). Separately, `playwright.config.ts` no longer
+reuses an existing server and takes `SGL_E2E_PORT`: another checkout's `vite preview` was found
+listening on a neighbouring port serving a different build, which a reused server would have tested
+silently. Two bugs in Stage I's e2e surfaced on the way: DD-08 §14 test 1 typed an edge from an
+undeclared node (an error, so the document never rendered) and its "at least 3 nodes" wait was
+already satisfied before typing, so the test passed without testing anything; it now adds a real
+node and waits for exactly one more.
+
+**Left out**: `elk`, engine switching and F11 (Stage K); PNG (D6), drag-and-drop (F2),
+`showSaveFilePicker` (F3), short links (F6), the document drawer (E17), the SVG export-options UI;
+deploying and `wrangler.toml` (J4). No automated test covers the update chip (it needs two
+successive builds) or `launchQueue` (it needs an installed app); both belong to the T5 manual gate.
 
 ### 2.1 Open findings
 
