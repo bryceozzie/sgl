@@ -242,10 +242,25 @@ function reserveOnRoute(layout: EdgeLayout, directed: GraphEdge['directed'], arr
   const afterStart = first.t === 'C' ? first.c1 : first.t === 'Q' ? first.c : first.to;
   const endNormal = layout.endNormal ?? unit(layout.end.x - beforeEnd.x, layout.end.y - beforeEnd.y) ?? { x: 1, y: 0 };
   const startNormal = layout.startNormal ?? unit(layout.start.x - afterStart.x, layout.start.y - afterStart.y) ?? { x: -1, y: 0 };
-  const { start, end } = applyArrowReserve(layout.start, layout.end, startNormal, endNormal, directed, arrowSize);
+  // Fix round 1, item 6: an end segment shorter than `arrowSize` must not be
+  // reversed or zeroed — the reserve is clamped to leave at least
+  // `MIN_END_SEGMENT` of it, in its own direction. A single segment reserved
+  // at both ends shares that budget between them.
+  const headLen = Math.hypot(layout.end.x - beforeEnd.x, layout.end.y - beforeEnd.y);
+  const tailLen = Math.hypot(afterStart.x - layout.start.x, afterStart.y - layout.start.y);
+  const shared = directed === 'both' && layout.route.length === 1;
+  const budget = (len: number): number => Math.max(0, shared ? (len - MIN_END_SEGMENT) / 2 : len - MIN_END_SEGMENT);
+  const head = Math.min(arrowSize, budget(headLen));
+  const tail = directed === 'both' ? Math.min(arrowSize, budget(tailLen)) : 0;
+  const end = { x: layout.end.x - endNormal.x * head, y: layout.end.y - endNormal.y * head };
+  const start = { x: layout.start.x - startNormal.x * tail, y: layout.start.y - startNormal.y * tail };
   const route = [...layout.route.slice(0, -1), { ...last, to: end }];
   return { ...layout, start, end, route, startNormal, endNormal };
 }
+
+/** The shortest an engine route's end segment may become after §4.4's
+ *  reserve (fix round 1, item 6). */
+const MIN_END_SEGMENT = 1;
 
 /** Applied when an engine returns no route for an edge (DD-06 §4.2, §4.3, §4.5). */
 export function routeStraight(input: LayoutInput, result: LayoutResult, metrics: ResolvedThemeMetricsView): LayoutResult {

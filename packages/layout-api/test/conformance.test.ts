@@ -1,11 +1,7 @@
 import { asEdgeId, asLabelId, asNodeId, NO_SPAN, type GraphEdge, type GraphNode, type LabelSpec, type NodeId, type SemanticGraph } from '@sgl/core';
 import { describe, expect, it } from 'vitest';
-import {
-  hierarchyCrossings,
-  missingLabelPlacements,
-  runConformance,
-  siblingLeafOverlaps,
-} from '../src/conformance.js';
+import * as conformance from '../src/conformance.js';
+import { hierarchyCrossings, missingLabelPlacements, runConformance, siblingLeafOverlaps } from '../src/conformance.js';
 import { LAYOUT_API_VERSION, type LayoutEngine, type LayoutInput, type LayoutResult, type ResolvedThemeMetricsView } from '../src/contract.js';
 
 /**
@@ -107,12 +103,59 @@ describe('siblingLeafOverlaps and missingLabelPlacements', () => {
     expect(siblingLeafOverlaps(g, overlapping)).toEqual([['x', 'y']]);
   });
 
+  it('reports overlapping sibling containers too, not only leaves (fix round 1, item 18)', () => {
+    // Two root-level containers side by side, then pushed into each other.
+    const nodes = [node('p', null, ['p.a']), node('p.a', 'p'), node('q', null, ['q.b']), node('q.b', 'q')];
+    const g: SemanticGraph = {
+      nodes: Object.fromEntries(nodes.map((n) => [n.id, n])) as SemanticGraph['nodes'],
+      edges: [],
+      rootChildren: [asNodeId('p'), asNodeId('q')],
+      order: [asNodeId('p'), asNodeId('p.a'), asNodeId('q'), asNodeId('q.b')],
+      labels: {},
+      meta: { nodeCount: 4, edgeCount: 0, containerCount: 2 },
+    };
+    const at = (x: number) => ({ frame: { x, y: 0, w: 50, h: 50 } });
+    const inner = (x: number) => ({ frame: { x: x + 10, y: 10, w: 10, h: 10 } });
+    const apart: LayoutResult = { bounds: { x: 0, y: 0, w: 200, h: 50 }, nodes: { p: at(0), 'p.a': inner(0), q: at(100), 'q.b': inner(100) } as LayoutResult['nodes'], edges: {}, labels: [] };
+    expect(siblingLeafOverlaps(g, apart)).toEqual([]);
+    const overlapping: LayoutResult = { ...apart, nodes: { ...apart.nodes, q: at(30), 'q.b': inner(60) } as LayoutResult['nodes'] };
+    expect(siblingLeafOverlaps(g, overlapping)).toEqual([['p', 'q']]);
+  });
+
   it('lists every visible label without a placement', () => {
     const id = asLabelId('l:xy');
     const spec: LabelSpec = { id, owner: { kind: 'edge', id: asEdgeId('xy') }, role: 'edge', runs: [{ text: 'q' }] };
     const g = graph([edge('xy', 'x', 'y', 'l:xy')], { [id]: spec });
     expect(missingLabelPlacements(g, layoutOf(g))).toEqual(['l:xy']);
     expect(missingLabelPlacements(g, layoutOf(g, {}, [{ labelId: id, frame: { x: 0, y: 0, w: 1, h: 1 }, align: 'middle', baseline: 'top' }]))).toEqual([]);
+  });
+});
+
+describe('detachedEdges (DD-06 §8 check 6, fix round 1, item 11)', () => {
+  const g = graph([edge('xy', 'x', 'y')]);
+  const route = (start: { x: number; y: number }, end: { x: number; y: number }) => ({
+    [asEdgeId('xy')]: { start, end, route: [{ t: 'L' as const, to: end }] },
+  });
+
+  it('accepts ends on, or up to arrowSize off, their frames', () => {
+    expect(conformance.detachedEdges(g, layoutOf(g, route({ x: 20, y: 10 }, { x: 150, y: 10 })), 8)).toEqual([]);
+    expect(conformance.detachedEdges(g, layoutOf(g, route({ x: 28, y: 10 }, { x: 142, y: 10 })), 8)).toEqual([]);
+  });
+
+  it('reports an end further than arrowSize from its frame — e.g. a route in the wrong coordinate system', () => {
+    // The route shifted by (+30, +30), as if an edge's container offset were applied twice.
+    expect(conformance.detachedEdges(g, layoutOf(g, route({ x: 50, y: 40 }, { x: 180, y: 40 })), 8)).toEqual([
+      { edge: 'xy', end: 'start', distance: expect.any(Number) },
+      { edge: 'xy', end: 'end', distance: expect.any(Number) },
+    ]);
+  });
+
+  it('measures a port-terminated end against its port point', () => {
+    const pg = graph([{ ...edge('xy', 'x', 'y'), to: { node: asNodeId('y'), port: 'in' as never } }]);
+    const base = layoutOf(pg, route({ x: 20, y: 10 }, { x: 150, y: 10 }));
+    const withPort: LayoutResult = { ...base, nodes: { ...base.nodes, [asNodeId('y')]: { ...base.nodes[asNodeId('y')]!, ports: { in: { point: { x: 160, y: 0 }, normal: { x: 0, y: -1 } } } } } };
+    // 10 px from the port, although on the node's frame.
+    expect(conformance.detachedEdges(pg, withPort, 8).map((d) => d.end)).toEqual(['end']);
   });
 });
 

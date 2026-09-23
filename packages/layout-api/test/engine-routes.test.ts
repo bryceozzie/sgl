@@ -110,6 +110,34 @@ describe('finishEngineRoutes (DD-06 §4.4 on an engine route)', () => {
     expect(finishEngineRoutes(inputOf([edge('e1', 'a', 'b', 'none')]), plain, METRICS)).toBe(plain);
   });
 
+  it('never reverses or zeroes a final segment shorter than arrowSize: it clamps, keeping the direction (fix round 1, item 6)', () => {
+    // The last segment is 5 px long, against an 8 px arrowSize.
+    const short: EdgeLayout = {
+      start: { x: 20, y: 20 },
+      end: { x: 120, y: 100 },
+      route: [
+        { t: 'L', to: { x: 20, y: 95 } },
+        { t: 'L', to: { x: 120, y: 95 } },
+        { t: 'L', to: { x: 120, y: 100 } },
+      ],
+      clip: 'none',
+    };
+    const out = finishEngineRoutes(inputOf([edge('e1', 'a', 'b')]), result({ [asEdgeId('e1')]: short }), METRICS).edges[asEdgeId('e1')]!;
+    const before = { x: 120, y: 95 };
+    // Still heading down (+y) from the previous point, and not onto it.
+    expect(out.end.x).toBe(120);
+    expect(out.end.y).toBeGreaterThan(before.y);
+    expect(out.end.y).toBeLessThanOrEqual(100);
+    expect(out.endNormal).toEqual({ x: 0, y: 1 });
+
+    // One 6 px segment reserved at both ends: neither end crosses the other.
+    const tiny: EdgeLayout = { start: { x: 0, y: 0 }, end: { x: 6, y: 0 }, route: [{ t: 'L', to: { x: 6, y: 0 } }], clip: 'none' };
+    const both = finishEngineRoutes(inputOf([edge('e1', 'a', 'b', 'both')]), result({ [asEdgeId('e1')]: tiny }), METRICS).edges[asEdgeId('e1')]!;
+    expect(both.start.x).toBeGreaterThanOrEqual(0);
+    expect(both.end.x).toBeLessThanOrEqual(6);
+    expect(both.end.x).toBeGreaterThan(both.start.x);
+  });
+
   it('derives a missing end direction from the final segment', () => {
     const { startNormal: _s, endNormal: _e, ...bare } = ORTHO;
     void _s;
