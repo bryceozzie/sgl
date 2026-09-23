@@ -148,7 +148,7 @@ A stage is not done because the code is written. It is done when its gate passes
 | End-to-end pipeline (`source -> RenderResult`), `bench/generate.js` | **Done**, T3 gate green (Stage G) | `main` |
 | `@sgl/layout-api` — `createWorkerHost`, `worker-runtime.ts` (worker-side message handling) | **Done**, T1 gate green; the gate's four conditions also proven against a real `Worker` (browser project, Chromium + Firefox) (Stage H) | `main` |
 | `apps/web` | **Stage I done** — the editor loop, pickers, diagnostics panel, status chip, fonts, the §13 error boundary and the Playwright e2e gate (DD-08 §14 tests 1/2/3/8, MVP criteria 2/3/1-single-engine) all work end to end. Fix round 1 done (below). `elk`/engine-switch and the per-engine options form are Stage K | `main` |
-| `apps/web` — files, share, persistence, PWA, `_headers` | **Stage J implemented, review fix rounds 1 and 2 applied, not yet merged** — Open/Save (`.sgl`, `.sgl.json`, `.svg`), share by URL with the 2 MB inflate cap, IndexedDB autosave and boot, the stored-SVG boot paint (J6), `vite-plugin-pwa` precache + manifest + update chip, the `_headers` CSP; e2e gate MVP criteria 2–6 single-engine plus DD-08 §14 tests 5–7 green in Chromium, Firefox and WebKit (fix rounds 1 and 2 re-verified in Chromium only); Open makes a new local document and a minimal Documents ▾ list reaches every stored one (fix round 2, human decision 2026-09-23) | `feat/app-files` |
+| `apps/web` — files, share, persistence, PWA, `_headers` | **Stage J done, merged at `0a32679`** — Open/Save (`.sgl`, `.sgl.json`, `.svg`), share by URL with the 2 MB inflate cap, IndexedDB autosave and boot, the stored-SVG boot paint (J6), `vite-plugin-pwa` precache + manifest + update chip, the `_headers` CSP; e2e gate MVP criteria 2–6 single-engine plus DD-08 §14 tests 5–7 green in Chromium, Firefox and WebKit (fix rounds 1 and 2 re-verified in Chromium only); Open makes a new local document and a minimal Documents ▾ list reaches every stored one (fix round 2, human decision 2026-09-23) | `main` |
 
 **Gate 1 is cleared.** `feat/compiler` merged to `main` at `a46c72b`; `pnpm check` green there
 (496 tests). `.sgl` text in, `SemanticGraph` out, for every document in the corpus, with goldens
@@ -170,7 +170,15 @@ criterion), asserted directly rather than inferred. A handful of tests keep hand
 no corpus document contains an invalid `@style`/`@size` value, an inline `@style.fontSize`, or a
 single-`Critical`-class node without its own inline override — each noted in place.
 
-**Gate 2 is cleared. No branch is now unmerged.** `feat/app-editor` cleared its review-fix round
+**Stage J merged to `main` at `0a32679`** (`--no-ff`, 2026-09-23) after a three-lens review and two
+fix rounds (below). `pnpm check` from clean is green on `main`, run by the orchestrator as one
+command: 1881 Vitest passed (unit + browser project, **Chromium only**) and e2e 50/50 in Chromium.
+The orchestrator's sandbox blocks Playwright's browser CDN, so Firefox and WebKit could not be
+fetched there; the Firefox half of the browser project and `test:e2e:all-browsers` last ran on the
+implementer's own machine before the fix rounds, and run in CI. **Stage K is next**, and
+its dependency is now satisfied.
+
+**Gate 2 is cleared.** `feat/app-editor` cleared its review-fix round
 and merged to `main` at `b013aff`; `pnpm check` is green there (1772 Vitest + 6 skipped by design,
 14 e2e in Chromium, unchanged from the branch), so **Stages A–I are all on `main` and Stage J's
 stated dependency is satisfied**. `fix/arrowhead-gap` merged at `b16ad27` before it (1643 tests),
@@ -875,8 +883,8 @@ orchestrator's triage of the part 2 review. An interrupted implementer left a WI
   Firefox and WebKit (`test:e2e:all-browsers`, 42/42). One earlier all-browser run hit three
   Firefox 30 s timeouts under three-browser parallel load; Firefox alone passed 14/14.
 
-**Stage J is implemented on `feat/app-files`** (branched from `main` at `9645992`), not yet
-reviewed or merged. `pnpm check` from clean is green twice in a row: Vitest 1847 passed + 6 skipped
+**Stage J is implemented on `feat/app-files`** (branched from `main` at `9645992`; merged at
+`0a32679` after the two fix rounds below — this paragraph describes the branch as first submitted). `pnpm check` from clean is green twice in a row: Vitest 1847 passed + 6 skipped
 by design (1803 unit, 44 browser; up from 1772), and the e2e suite 34/34 in Chromium. The
 all-browser run (`test:e2e:all-browsers`) passes 102/102 across Chromium, Firefox and WebKit. No
 golden changed. What landed, by file:
@@ -992,7 +1000,7 @@ to this round, so the all-browser figure above predates it. Item by item:
 After the round, `pnpm check`-equivalent from clean is green twice: Vitest 1866 passed (the unit and `browser (chromium)` projects), e2e
 45/45 in Chromium.
 
-**Stage J fix round 2** (the last round; on `feat/app-files`, not merged; Chromium only). Item by
+**Stage J fix round 2** (the last round; on `feat/app-files`, merged with it; Chromium only). Item by
 item:
 
 - **R1: autosave ordering.** Round 1's synchronous flush could be overtaken. With write A in flight,
@@ -1034,6 +1042,8 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F9** | The paint-only theme-switch budget: **`< 16 ms` up to 500 nodes and `< 50 ms` at 2 000 nodes, measured in Chromium** (hard ceilings 50 / 100 ms; 01 §4.1, DD-09 §2). **Measured, and not met.** `packages/render-svg/test/browser/render.bench.browser.test.ts`, median of 15, Chromium, several standalone runs. The live-view operation is `render()` plus the `innerHTML` swap of the wrapper `<g>` (DD-08 §6). Timed up to the assignment only, it measured n50 **1.1–3.0 ms**, n500 **10–25 ms** and n2000 **53–150 ms** (Stage I part 2 and fix round 1 together). That undercounts: the browser has not yet computed style or laid out the new subtree. With `wrapper.getBBox()` forcing that work inside the timed region (fix round 1, item 17), the figures are n50 **3.4–9.7 ms**, n500 **37–72 ms**, n2000 **183–254 ms**. So with layout counted, 500 nodes misses too, not only 2 000. **Decision (human, 2026-09-23): keep the budget, and do not renegotiate it again.** The 2 000-node miss is scheduled as performance work required before Gate 4: replace the live view's wholesale `innerHTML` swap with `morphdom` on the wrapper `<g>` (DD-08 §6's and DD-09 §2's own planned response). `morphdom` is a new runtime dependency, approved by this decision. MVP / Gate 3 is not blocked, since no MVP criterion is timed. **Clears when** the forced-layout variant of that bench shows **both** budget points met in Chromium: n500 < 16 ms **and** n2000 < 50 ms. The decision keeps the whole budget, and with layout counted 500 nodes misses too, so clearing on n2000 alone would pass a known miss. | **Stage L — morphdom live-view swap, before Gate 4** |
 | **F10** | `ctx.random`'s seed (`host.ts`'s `SEED = 1`) is one fixed constant, shared by every request for every document — `LayoutHost.run()`'s frozen signature has no per-call seed parameter, so Stage H could not add one unilaterally (DD-06 §3). Where a per-document seed should come from — a new `run()` parameter, or something content-addressed from a graph hash so the same document always seeds the same way without threading a value through every call site — is undecided, and is an orchestrator/design decision to make, not Stage H's to settle unilaterally. No engine shipped so far reads `ctx.random` at all (`grid` is fully deterministic; `elk` is unbuilt), so nothing depends on the answer yet. | Stage L (B5 `radial`/`force`, the first seed-consuming engines) |
 | **F11** | DD-08 §10's engine options panel — "MVP is a hand-built form per engine" — is not built. With one registered engine (`grid`) there is nothing to switch *between*, so a form whose whole point is per-engine variation has no second case to prove it against; building it now risks shaping it around `grid`'s own three options (`columns`, `gap`, `align`) in a way that does not generalise to `elk`'s different set (direction, node/rank spacing, edge routing, node placement). `engineOptions` itself is wired end to end (the signal, `buildLayoutInput`, the worker protocol) — only the settings UI is missing. | Stage K (the second engine makes the form's generality checkable) |
+| **F12** | After a service-worker update is accepted in one tab, other open tabs keep running the old JS while `cleanupOutdatedCaches` has already removed the old precache, so a lazy chunk the old code has not yet loaded (from Stage K, `elk`) can fail to load offline in those tabs. Found in Stage J's review; `pwa.ts` has no cross-tab coordination (e.g. reloading other clients on `controllerchange`). | Stage L |
+| **F13** | A share link pasted into an already-open tab (Stage J fix round 1, item 14) imports by flushing autosave and **reloading**, not by switching in place like Open and Documents ▾ (fix round 2). That loses undo history, and when IndexedDB is unavailable (memory-store fallback) the reload loses the tab's documents outright. Also: criterion 5's offline test is falsifiable against the HTTP cache in Chromium and WebKit but not in Firefox, which has neither mechanism the spec uses; and error toasts persist until closed with no cap on how many pile up. | Stage L (E17, alongside the rest of the Documents UI) |
 
 ---
 
