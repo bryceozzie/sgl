@@ -670,7 +670,7 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F6** | `renderNode`'s port-circle template (DD-07 §3) is live, correctly `aria-hidden`, and unit-tested directly — but unreachable through the real pipeline: `grid` declares `capabilities.ports: false` and no host fallback places ports (DD-06 §4 covers labels and routing, not ports), so `LayoutResult.nodes[id].ports` is never populated end to end. Found during Stage F's accessibility pass. | unassigned — whichever stage next reconsiders `ports: false` for `grid`, or ships a port-aware engine |
 | **F7** | The paint-only `<style>`-swap property (DD-07 §11, DD-08 §3) does not hold, for two independent reasons verified against the committed goldens. (a) `s-`/`t-`/`p-{paintHash}` class names (`style.ts`) embed the paint hash, so a paint change changes every referencing element's `class` attribute, not just the `<style>` block — fixable by keying the class name on something theme-invariant instead, which is a DD-07 §6 class-naming-scheme change (would churn every golden), not pulled here. (b) independently, a directed edge's arrowhead marker bakes its stroke colour into a `<defs>` `fill` and into the marker's own `id` (`markers.ts`), so `marker-end`/`marker-start` references change too — this needs a different marker strategy or a `context-stroke` rewrite (both currently rejected: resvg lacks `context-stroke`, Safari support arrived late), not just a class rename. DD-08 §3 is corrected to describe a full re-render instead of a `<style>`-only swap; the code is unchanged. | Stage I |
 | **F8** | `<style>` content is XML-escaped by `render()` (every golden carries `&apos;Segoe UI&apos;` in the font stack). For a standalone `.svg` this is verified correct — XML parses style content as character data and decodes entities, confirmed by the injection suite. For DD-08 §6's `innerHTML` path it should *also* be correct — `style` is not in HTML's foreign-content breakout list, so inside `<svg>` the parser treats it as a foreign element and never enters the RAWTEXT state, meaning entities decode there too — but that is spec reading, not a live-browser result, and no browser target exists yet (`apps/web` is not started) to prove it. If the reading is wrong, every multi-word font family silently degrades in the live view only, not in exports. | Stage I, to verify once `apps/web` runs |
-| **F9** | DD-09 §2's **`< 16 ms` paint-only theme switch** budget has lost its justification (F7: a theme toggle is a full `render()` plus an `innerHTML` replacement, not a `<style>`-only swap). **Measured** by Stage H once the browser project existed (`packages/render-svg/test/browser/render.bench.browser.test.ts`, fixtures precomputed in Node by `bench/generate-render-fixtures.js` off `runPipeline`'s stages up to but excluding `render()`, per D4): median of 15 runs, `render()` alone, Chromium / Firefox — <br>n50: **1.1 / 0.8 ms** (light/dark) Chromium, **2.0 / 2.0 ms** Firefox — inside budget.<br>n500: **8.9 / 7.7 ms** Chromium, **15–16 ms** Firefox — borderline.<br>n2000: **33.8 / 41.3 ms** Chromium, **54 / 54 ms** Firefox — **well over** 16 ms.<br>So the budget holds only for the small end of the corpus; a 500-node document is already borderline in Firefox, and 2 000 nodes is 2–3× over everywhere. **Not cleared** — confirming `< 16 ms` isn't an option given these numbers, so renegotiating it in DD-09 §2 and [01 §4.1](01-requirements.md) (or narrowing which node counts the budget applies to) is the remaining, human, decision. | Renegotiation with Stage I |
+| **F9** | The paint-only theme-switch budget. **Renegotiated 2026-09-23 (human decision):** from a flat `< 16 ms` to **`< 16 ms` up to 500 nodes and `< 50 ms` at 2 000 nodes, measured in Chromium** (hard ceilings 50 / 100 ms), in [01 §4.1](01-requirements.md) and DD-09 §2 together. The basis: Stage H measured `render()` alone (`packages/render-svg/test/browser/render.bench.browser.test.ts`, median of 15, Chromium / Firefox) at n50 **1.1 / 2.0 ms**, n500 **8.9 / 15–16 ms**, n2000 **33.8–41.3 / 54 ms** — a flat 16 ms held only at the small end, because F7 makes a theme toggle a full `render()` plus `innerHTML` swap. **Still open:** the `innerHTML` swap on top of `render()` is unmeasured. Clear this row when Stage I measures `render()` + swap at 50/500/2 000 nodes in Chromium and it fits the new budget; if it does not, that is a new escalation, not a silent re-negotiation. Firefox at 2 000 nodes (54 ms for `render()` alone) is a watch item. | Stage I (part 2) |
 | **F10** | `ctx.random`'s seed (`host.ts`'s `SEED = 1`) is one fixed constant, shared by every request for every document — `LayoutHost.run()`'s frozen signature has no per-call seed parameter, so Stage H could not add one unilaterally (DD-06 §3). Where a per-document seed should come from — a new `run()` parameter, or something content-addressed from a graph hash so the same document always seeds the same way without threading a value through every call site — is undecided, and is an orchestrator/design decision to make, not Stage H's to settle unilaterally. No engine shipped so far reads `ctx.random` at all (`grid` is fully deterministic; `elk` is unbuilt), so nothing depends on the answer yet. | Stage L (B5 `radial`/`force`, the first seed-consuming engines) |
 
 ---
@@ -1028,7 +1028,10 @@ already carries `related`, and `resolve()` already keeps `classSpans`; this is w
 the cost visible, so it is where the fix pays for itself. Clear F2 when a class-sourced `SGL3001`,
 `SGL3006` or `SGL3007` carries a `related` span pointing at the class declaration.
 
-**Gate — T1 + T4 (partial).** Playwright: MVP acceptance criteria **1, 2 and 3**. Criterion 2 is the
+**Gate — T1 + T4 (partial).** Playwright: MVP acceptance criteria **2 and 3**, and the single-engine
+half of **1** (a 40-node three-level document renders under `grid`; switching engines waits for `elk`
+in Stage K — orchestrator decision I1). Also measures `render()` + `innerHTML` swap against F9's
+renegotiated budget. Criterion 2 is the
 visible half of what Stage G already proved — assert that switching theme leaves *geometry* untouched:
 same node frames, same edge route `d` attributes, same `viewBox`, while paint changes. **Do not assert
 "the tree is untouched and only the `<style>` block changes"** — that is what this gate said before
@@ -1049,10 +1052,47 @@ not the bytes.
 **Tasks.** Open/save `.sgl`, `.sgl.json`, `.txt`; IndexedDB autosave with storage as a keyed list from
 day one so multi-document (E17) is later UI only; URL-fragment share via
 `CompressionStream('deflate-raw')` + base64url with a size cap; `vite-plugin-pwa` precaching the shell,
-both engines and both themes; `file_handlers` for `.sgl`; the `_headers` CSP from DD-09 §1.2.
+every registered engine (only `grid` until Stage K adds `elk`) and both themes; `file_handlers` for `.sgl`; the `_headers` CSP from DD-09 §1.2.
 
-**Gate — T4 complete.** Playwright covers all six MVP criteria, including the offline run and a share
-link opening in a fresh browser context.
+**Gate — T4 (single engine).** Playwright covers MVP criteria 2–6 with `grid` as the only engine,
+including the offline run and a share link opening in a fresh browser context. Criterion 1 and the
+engine-switch half of criterion 5 complete in Stage K, which now runs before Gate 3.
+
+---
+
+### Stage K — The elk adapter · `feat/layout-elk`
+
+**Goal.** The default engine (ADR-0005), and the proof that two engines sit behind one interface.
+
+**Depends on.** Stage J.
+
+**Read.** DD-06 §6 · ADR-0005 · 06 §4 pitfalls 7 and 8
+
+**Moved before Gate 3 (2026-09-23, human decision).** The plan previously ran this stage *after*
+the MVP gate, while Gate 3's own acceptance criteria 1 (switching engines) and 5 (both engines
+offline) cannot pass without `elk`, and [04](04-feature-backlog.md)'s phase-1 row already names elkjs
+as an MVP engine. The stage letter is unchanged so existing references stay valid.
+
+**Tasks.** Adapt `elk.bundled.js` — the **synchronous single-thread build**, because elkjs's own worker
+build would nest a worker inside our worker and cost two serialisation hops. Pin
+`org.eclipse.elk.randomSeed: 1`. Map the IR to ELK's graph and the result back, taking labels and
+container titles **from ELK** rather than from the host fallback. Lazy-load it as its own chunk,
+excluded from the core bundle budget. Register it in `apps/web/src/layout.worker.ts`, make
+`sgl.elk` the app's default engine (undoing Stage I's interim `sgl.grid` default, decision I1), add its
+chunk to the PWA precache Stage J set up, build the per-engine options form (**F11**, §2.1), and
+complete the Playwright suite's engine-switch cases (DD-08 §14 test 4).
+
+**Gate — T2 + T3 + a size check + T4 complete.**
+- Every corpus document lays out; labels and container titles come from ELK, asserted, not from the
+  fallback.
+- MVP acceptance criterion 1: a 40-node three-level document renders under **both** engines and
+  switching changes geometry only.
+- `determinism: 'quantized'` — two runs identical *after* quantization (ADR-0004).
+- Boundary-crossing edges from `corpus/containers-edges.sgl` render without artefacts. This is where
+  ELK's own tracker is busiest; if `ORTHOGONAL` misbehaves, `POLYLINE` is one option away.
+- `size-limit` on the core chunk: under 180 kB gz, hard ceiling 300. Wire it into CI here.
+- **T4 complete:** Playwright covers all six MVP criteria with both engines registered, including
+  switching engines offline (criterion 5).
 
 ---
 
@@ -1063,32 +1103,6 @@ link opening in a fresh browser context.
 > opened from the OS.
 >
 > Deployable. This is the phase-1 exit in [04](04-feature-backlog.md).
-
----
-
-### Stage K — The elk adapter · `feat/layout-elk`
-
-**Goal.** The default engine (ADR-0005), and the proof that two engines sit behind one interface.
-
-**Depends on.** Gate 3.
-
-**Read.** DD-06 §6 · ADR-0005 · 06 §4 pitfalls 7 and 8
-
-**Tasks.** Adapt `elk.bundled.js` — the **synchronous single-thread build**, because elkjs's own worker
-build would nest a worker inside our worker and cost two serialisation hops. Pin
-`org.eclipse.elk.randomSeed: 1`. Map the IR to ELK's graph and the result back, taking labels and
-container titles **from ELK** rather than from the host fallback. Lazy-load it as its own chunk,
-excluded from the core bundle budget.
-
-**Gate — T2 + T3 + a size check.**
-- Every corpus document lays out; labels and container titles come from ELK, asserted, not from the
-  fallback.
-- MVP acceptance criterion 1: a 40-node three-level document renders under **both** engines and
-  switching changes geometry only.
-- `determinism: 'quantized'` — two runs identical *after* quantization (ADR-0004).
-- Boundary-crossing edges from `corpus/containers-edges.sgl` render without artefacts. This is where
-  ELK's own tracker is busiest; if `ORTHOGONAL` misbehaves, `POLYLINE` is one option away.
-- `size-limit` on the core chunk: under 180 kB gz, hard ceiling 300. Wire it into CI here.
 
 ---
 
