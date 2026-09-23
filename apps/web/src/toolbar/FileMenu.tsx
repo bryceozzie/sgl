@@ -77,6 +77,7 @@ export function FileMenu({ pipeline, session, toasts, onOpen }: FileMenuProps) {
       themeId: pipeline.effectiveThemeId.peek(),
     });
     const link = shareLink(`${window.location.origin}${window.location.pathname}`, fragment);
+    if (saveMenuRef.current !== null) saveMenuRef.current.open = false;
     setShare({ link, long: isLongShareLink(link) });
   }
 
@@ -100,7 +101,7 @@ export function FileMenu({ pipeline, session, toasts, onOpen }: FileMenuProps) {
       </button>
       <input ref={inputRef} class="file-input" type="file" accept={OPEN_ACCEPT} hidden onChange={onPicked} />
 
-      <details class="save-menu" ref={saveMenuRef}>
+      <details class="save-menu" ref={saveMenuRef} onToggle={(e) => (e.currentTarget as HTMLDetailsElement).open && setShare(null)}>
         <summary class="toolbar-button">Save ▾</summary>
         <div class="menu" role="menu">
           {SAVE_ITEMS.map((item) => (
@@ -116,7 +117,7 @@ export function FileMenu({ pipeline, session, toasts, onOpen }: FileMenuProps) {
       </button>
 
       {share !== null ? (
-        <div class="share-dialog" role="dialog" aria-label="Share by link">
+        <div class="share-dialog" role="dialog" aria-label="Share by link" onKeyDown={(e) => e.key === 'Escape' && setShare(null)}>
           <p class="share-note">The whole diagram is inside this link. Nothing is uploaded anywhere.</p>
           <input class="share-link" type="text" readOnly value={share.link} onFocus={(e) => (e.currentTarget as HTMLInputElement).select()} />
           {share.long ? (

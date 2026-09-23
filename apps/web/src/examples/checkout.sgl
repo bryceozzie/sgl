@@ -1,6 +1,4 @@
-// The language-spec worked example (02 §9), the app's first-run document.
-// Adapted from corpus/checkout.sgl so it renders cleanly today: no engine pin
-// (the spec's "layered" is roadmap), no @vars (A8), no cloud shape.
+// Welcome to SGL. Edit the text; the diagram follows.
 @sgl: "1.0"
 @title: "Checkout Flow"
 

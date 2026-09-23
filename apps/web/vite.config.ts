@@ -29,7 +29,13 @@ function sglHeaders(): Plugin {
       server.middlewares.use((req, res, next) => {
         // (`@types/node` is not part of this app's toolchain; `url` is there.)
         const pathname = new URL((req as { url?: string }).url ?? '/', 'http://preview.invalid').pathname;
-        for (const [name, value] of headersFor(rules, pathname)) res.setHeader(name, value);
+        const declared = headersFor(rules, pathname);
+        for (const [name, value] of declared) res.setHeader(name, value);
+        // The static handler behind this sets its own `Cache-Control`; what
+        // `_headers` declares wins, as it does on the real host.
+        const names = new Set(declared.map(([name]) => name.toLowerCase()));
+        const setHeader = res.setHeader.bind(res);
+        res.setHeader = (name: string, value: string | number | readonly string[]) => (names.has(name.toLowerCase()) ? res : setHeader(name, value));
         next();
       });
     },
