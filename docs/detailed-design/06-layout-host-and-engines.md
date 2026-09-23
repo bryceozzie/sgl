@@ -73,7 +73,20 @@ Circles and other `aspectRatio`-locked shapes get `max(w,h)` applied by the engi
 
 ## 3. Worker host
 
-One long-lived `Worker` (`layout.worker.ts`), respawned on termination. Engines are lazy `import()`ed inside it and cached.
+One long-lived `Worker` (`layout.worker.ts`), respawned on termination. Engines are registered into an `EngineRegistry` at worker startup (Stage H registers `grid`; `elk` joins at Stage K — lazy `import()` inside the worker, once it exists, is still the plan, not yet needed with one built-in engine).
+
+**Implemented by Stage H** as two modules in `@sgl/layout-api`, split on the Worker boundary itself (not merely documented as a mental split):
+
+- `worker-runtime.ts` — everything that runs *inside* the worker: receive `'layout'`, look up the engine in the registry, run it with `ctx.signal`, post `'result'`/`'error'` (`SGL4011` on a throw — sync or async), answer `ctx.measure.layoutRunsAsync` via the `'measure'`/`'measure-reply'` RPC, honour `'abort'` by aborting that request's `AbortController`. Deliberately `Worker`-free — it takes an `EngineRegistry` and a small `{ post(message) }` port, so a Node test drives it with a fake port and no real `Worker` (`worker-runtime.test.ts`).
+- `host.ts`'s `createWorkerHost` — the main-thread half, below.
+
+`apps/web/src/layout.worker.ts` is the thin, real entry that constructs the registry, registers `gridEngine`, and wires `worker-runtime.ts` to the actual worker global scope. It has to live in `apps/web` rather than `@sgl/layout-api`, because `@sgl/layout-api` may not import `@sgl/layout-std` (DD-00 §2 rule 3) but the entry needs `gridEngine` to register it. The browser test project (DD-09 §3.1) uses its own test-fixture worker entry (`packages/layout-api/test/browser/fixture.worker.ts`) registering small synthetic engines instead, so the Stage H gate's four conditions (timeout, abort, malformed output, a measure miss) can each be forced on demand against a real `Worker`, rather than depending on `grid`'s own timing or geometry.
+
+**`createWorkerHost` takes a factory, not an instance** (`createWorkerHost(spawn: () => Worker, options?)`) — the signature this section originally sketched, `createWorkerHost(worker, timeoutMs)`, cannot respawn after `terminate()`, because a terminated `Worker` stays terminated. `spawn()` runs once up front and again on every respawn (a timeout, or an unanswered abort). `options` (decision D1) carries: the default timeout (`DEFAULT_TIMEOUT_MS = 10 000`), per-engine overrides merged on top of a baked-in default (`DEFAULT_ENGINE_TIMEOUT_MS = { 'sgl.grid': 2 000 }`, this section's own "grid 2 000 ms" made concrete), and `measure` — the main-thread callback that answers a `'measure'` RPC. `measure` is optional: a host whose registered engines never call `ctx.measure.layoutRunsAsync` never needs it, and an unconfigured miss degrades to an empty `TextLayout`-shaped value rather than hanging the request forever.
+
+**`ctx.measure` needed a member `contract.ts` didn't have.** `MeasurerView` (§2's structural view of `@sgl/measure`'s `Measurer`) originally carried only the synchronous `layoutRuns`. But the RPC this section's protocol defines has nothing to call it from apiVersion 1's contract: a genuine table miss can only be served by round-tripping to the main thread, which is inherently async, and `layoutRuns`'s frozen signature returns a value, not a `Promise`. Architecture §6's full `Measurer` interface already anticipates exactly this split (`layoutRuns` / `layoutRunsAsync`); the reduced view in `contract.ts` had simply dropped the async half. Stage H restores it as `MeasurerView.layoutRunsAsync(runs, box): Promise<unknown>` — the design cannot express this section's own RPC without it. Inside the worker runtime, the synchronous `layoutRuns` now throws (a worker has no synchronous path to the host at all, so a call to it is a programming error in the caller, not a runtime condition — DD-00 §3's "throwing is reserved for a violated invariant"); every engine-created label goes through `layoutRunsAsync`, which is by construction always a miss (a label already in the pre-measured table doesn't need `ctx.measure` at all — it is already sized in `LayoutInput.labelSizes`). One further, narrower deviation: `layoutRunsAsync` always performs the RPC rather than first checking the `table` field the protocol ships in the `'layout'` message — computing that table's key (`hashRuns`/`labelRunKey`) lives in `@sgl/measure`, which `layout-api` may not import (DD-00 §2 rule 2), so the worker runtime has no way to look it up locally. `table` remains on the message for a future stage to wire a local check through if that import boundary changes.
+
+**Seed.** `LayoutHost.run()`'s frozen signature has no per-call seed parameter, so `ctx.random` is seeded from one fixed constant the host supplies (`SEED = 1` in `host.ts`) on every request. A per-document seed is a future widening of `run()`, not something Stage H's implementation can add unilaterally.
 
 ### Protocol
 
@@ -98,15 +111,21 @@ All payloads are plain objects; `LayoutInput` and `MeasureTable` are already `st
 ```
 1. host assigns id, starts timer (default 10 000 ms; grid 2 000 ms)
 2. posts 'layout'
-3. on 'result'  → clear timer → validate (§5) → quantize → resolve
-   on 'error'   → clear timer → reject with the diagnostic
-   on timer     → worker.terminate(); respawn; reject SGL4001
-4. abort(): post 'abort'; if no 'result'/'error' within 250 ms → terminate + respawn; reject with AbortError
+3. on 'result'  → clear timer → validate (§5) → quantize → resolve { value, diagnostics: [] }
+                  (or resolve { value: null, diagnostics } if §5 rejects it — SGL4002)
+   on 'error'   → clear timer → resolve { value: null, diagnostics: [diagnostic] }  (SGL4011)
+   on timer     → worker.terminate(); respawn; resolve { value: null, diagnostics: [SGL4001] }
+4. abort(): post 'abort'; reject *immediately* with AbortError (the caller stops waiting
+   without needing the worker's cooperation); separately, if no 'result'/'error' for that
+   id arrives within 250 ms → terminate + respawn, so a stuck worker doesn't serve stale
+   engines forever. A late reply for an already-aborted id is discarded, not resolved.
 ```
+
+**Errors as values, except abort.** §1's "a stage never throws" rule says `run()` should resolve `{ value: null, diagnostics }` for everything the caller might need to *display* — timeout, malformed output, an engine throw. Abort is different in kind: it is the host's own bookkeeping reacting to the caller's **own** cancellation (a superseding `run()` call, since "a single in-flight request at a time" below, or the caller's own `AbortSignal` firing), not a condition about the input or the engine. The caller already knows it asked for this, so there is nothing to report as a diagnostic — and DD-08 §3's "the application never queues more than one" means every call site is expected to see this on *every* superseded request, which is exactly the shape `catch`-an-`AbortError` already has for `fetch()` and every other abortable web API. Resolving it instead would force every call site to distinguish "cancelled because I asked" from "the document is broken" by inspecting diagnostics rather than by a `catch`. Kept as the one path that rejects; implemented in `host.ts`'s `makeAbortError()`.
 
 Engines receive `ctx.signal`; `elk` cannot be interrupted mid-run (it is synchronous GWT code), so abort on `elk` is effectively the 250 ms terminate path. This is acceptable: respawn is ~30 ms and the next layout request is already queued.
 
-A single in-flight request at a time; a new request aborts the previous one. The application never queues more than one (DD-08 §3).
+A single in-flight request at a time; a new request aborts the previous one (the same `beginAbort` path — immediate `AbortError`, 250 ms escalation — as an external `AbortSignal`). The application never queues more than one (DD-08 §3).
 
 **Isolation level:** same-origin Worker. Sufficient for bundled engines. **⟶ B17:** the `LayoutHost` interface gets a second implementation that hosts the Worker inside a null-origin iframe; the protocol is identical.
 
@@ -319,10 +338,11 @@ For each corpus graph (empty, one node, one edge, self-loop, parallel edges, 3-d
 
 ## 10. Tests
 
-- Host: timeout → terminate/respawn → `SGL4001`; abort within 250 ms; abort escalation; single in-flight guarantee; measure-miss round trip.
-- Fallbacks: each of §4.1–4.6 against fixture geometry, goldens.
-- Validation: one fixture per row of §5's table.
-- Quantization: values on both sides of a 1/128 boundary.
-- `elk` mapping: input goldens (the `ElkNode` JSON we send) and output goldens; the hierarchy-crossing corpus case.
-- `grid`: goldens; bitwise double-run across Chrome and Firefox in Playwright.
-- Conformance suite on both engines.
+- Host: timeout → terminate/respawn → `SGL4001`; abort within 250 ms; abort escalation; single in-flight guarantee; measure-miss round trip. **Implemented twice** (Stage H): `packages/layout-api/test/host.test.ts` drives `createWorkerHost` under Node with a fake `Worker` + fake timers (15 tests, all five behaviours above plus SGL4002/SGL4011 paths, `dispose()`, and stale-message handling); `packages/layout-api/test/browser/host.browser.test.ts` repeats the same four gate conditions (timeout, abort, SGL4002, measure-miss) against a **real** `Worker`, in Chromium and Firefox, via `fixture.worker.ts`'s synthetic test engines.
+- Worker runtime: `packages/layout-api/test/worker-runtime.test.ts` (12 tests) drives `createWorkerRuntime` under Node with a fake port — engine lookup miss, sync/async throw, abort, the measure round trip, seeded `ctx.random`, `ctx.log`, `ctx.sublayout` rejecting.
+- Fallbacks: each of §4.1–4.6 against fixture geometry, goldens. *(Stage E, unchanged by Stage H.)*
+- Validation: one fixture per row of §5's table. *(Stage E, unchanged by Stage H.)*
+- Quantization: values on both sides of a 1/128 boundary. *(Stage E, unchanged by Stage H.)*
+- `elk` mapping: input goldens (the `ElkNode` JSON we send) and output goldens; the hierarchy-crossing corpus case. *(Stage K.)*
+- `grid`: goldens; bitwise double-run **in Node, over the whole corpus** (Stage E's own gate, `layout-std/test/grid.test.ts`). The cross-browser half of this line — "bitwise double-run across Chrome and Firefox in Playwright" — is **not** implemented: registering the real `gridEngine` package (`@sgl/layout-std`) inside the browser project's shared worker entry made every test in that file fail (every engine, not just grid, started timing out — consistent with the worker script itself failing to finish loading before `EngineRegistry`/`createWorkerRuntime` wire up the message listener). Isolating grid into its own dedicated worker entry to avoid destabilising the required gate tests was judged not "cheap" per Stage H's brief, so this row stays open for whichever stage next touches the browser project; a corpus-free two-node/one-edge fixture (no `node:fs`, since browser-mode test code runs in the browser, not Node) is the shape to reuse once that worker-loading issue is diagnosed.
+- Conformance suite on both engines. *(Stage K for `elk`; `grid`'s half is Stage E's gate.)*

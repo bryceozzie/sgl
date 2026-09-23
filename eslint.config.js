@@ -83,6 +83,6 @@ export default tseslint.config(
   // by tsc -b), so it needs Node's ambient globals declared explicitly.
   {
     files: ['bench/**/*.js'],
-    languageOptions: { globals: { console: 'readonly', URL: 'readonly' } },
+    languageOptions: { globals: { console: 'readonly', URL: 'readonly', AbortController: 'readonly' } },
   },
 );

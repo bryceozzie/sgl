@@ -6,6 +6,7 @@ coverage/
 .vite/
 test-results/
 playwright-report/
+__screenshots__/
 .DS_Store
 .wrangler/
 
@@ -18,3 +19,7 @@ playwright-report/
 /corpus/n50.sgl
 /corpus/n500.sgl
 /corpus/n2000.sgl
+
+# bench/generate-render-fixtures.js output (Stage H, F9) — same reasoning, and it
+# additionally embeds full LayoutResult/StyledGraph JSON, so it is also just big.
+/bench/render-fixtures.json
