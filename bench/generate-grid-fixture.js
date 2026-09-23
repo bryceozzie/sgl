@@ -1,13 +1,24 @@
 #!/usr/bin/env node
-// Precomputes a real `LayoutInput` for `packages/layout-std/test/browser/
-// grid.browser.test.ts` (Stage H fix round 1, item 3): `parse -> resolve ->
-// compile -> resolveTheme -> styleGraph -> premeasure -> buildLayoutInput`,
-// stopping one stage short of `bench/generate-render-fixtures.js`'s own
-// pipeline — a `LayoutInput`, not a `LayoutResult`, because the whole point of
-// that browser test is to run the real `gridEngine` itself, inside a real
-// `Worker`, through `createWorkerHost`. Gate 1's rule ("no stage hand-builds a
-// SemanticGraph") applies here exactly as it does to every other test level,
-// so this reads a real `corpus/` document rather than a literal.
+// Precomputes, for `packages/layout-std/test/browser/grid.browser.test.ts`:
+// (1) a real `LayoutInput` (Stage H fix round 1, item 3) and (2) the
+// **expected** `LayoutResult` for it (Stage H fix round 2, item 1) — computed
+// in Node by exactly the path `host.ts`/`worker-runtime.ts` take for a real
+// request: `gridEngine.layout(input, ctx) -> routeStraight -> placeLabels`
+// (gated by `capabilities.labelPlacement`, same as `worker-runtime.ts`) `->
+// quantize(..., 64)` (`host.ts`'s own constant). Shipping that expected value
+// as data, not just re-running the double-run check per browser, is what lets
+// the browser test assert Node's own output is bitwise-identical to what each
+// browser's real `Worker` produces — proving Node ≡ Chromium ≡ Firefox, which
+// a same-browser double-run alone does not (each browser could self-agree and
+// still disagree with the others, or with Node).
+//
+// `parse -> resolve -> compile -> resolveTheme -> styleGraph -> premeasure ->
+// buildLayoutInput`, same as fix round 1 — stopping one stage short of
+// `bench/generate-render-fixtures.js`'s own pipeline until this point, then
+// continuing through the engine and the fallbacks/quantize instead of
+// `render()`. Gate 1's rule ("no stage hand-builds a SemanticGraph") applies
+// here exactly as it does to every other test level, so this reads a real
+// `corpus/` document rather than a literal.
 //
 // Imports the **built** `@sgl/*` packages by relative path, same reasoning as
 // `generate-render-fixtures.js`: bare `@sgl/*` specifiers don't resolve from
@@ -25,7 +36,8 @@ const corpusDir = fileURLToPath(new URL('../corpus/', import.meta.url));
 const outFile = fileURLToPath(new URL('./grid-fixture.json', import.meta.url));
 
 const { compile, parse, resolve } = await import('../packages/core/dist/index.js');
-const { buildLayoutInput } = await import('../packages/layout-api/dist/index.js');
+const { buildLayoutInput, placeLabels, quantize, routeStraight } = await import('../packages/layout-api/dist/index.js');
+const { gridEngine } = await import('../packages/layout-std/dist/index.js');
 const { labelRunKey, premeasure, StaticMetricsMeasurer } = await import('../packages/measure/dist/index.js');
 const { BUILT_IN, neutralLight, resolveTheme, styleGraph } = await import('../packages/theme/dist/index.js');
 
@@ -36,6 +48,47 @@ const METRICS = {
   spacing: { node: 40, rank: 70, edgeLabel: 4 },
   stroke: { node: 1.5, edge: 1.5, container: 1 },
   arrowSize: 8,
+};
+
+// `host.ts`'s own `SEED` constant — every real request is seeded with it.
+// `grid` never calls `ctx.random` (confirmed: no reference in `grid.ts`), so
+// this makes no difference to `grid`'s own output today, but mirrors the real
+// path exactly rather than assuming that stays true.
+const SEED = 1;
+
+/** Line-for-line the same generator `worker-runtime.ts` uses — mulberry32,
+ *  integer/bitwise arithmetic only (ADR-0004's "reproducible bit for bit"
+ *  bar). Duplicated, not imported: this script runs in Node against built
+ *  `dist/` packages, and `seededRandom` is not exported from
+ *  `@sgl/layout-api` (it is worker-runtime-internal). */
+function seededRandom(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const CTX = {
+  options: {},
+  metrics: METRICS,
+  measure: {
+    layoutRuns() {
+      throw new Error('grid never asks the host to measure a label it created.');
+    },
+    layoutRunsAsync() {
+      throw new Error('grid never asks the host to measure a label it created.');
+    },
+  },
+  random: seededRandom(SEED),
+  signal: new AbortController().signal,
+  log: () => {},
+  sublayout() {
+    throw new Error('sublayout is reserved, not implemented (DD-06 §2).');
+  },
 };
 
 async function main() {
@@ -56,7 +109,13 @@ async function main() {
   }
   const input = buildLayoutInput(styled, labelSizes);
 
-  writeFileSync(outFile, JSON.stringify({ input, metrics: METRICS }), 'utf8');
+  // The exact sequence host.ts/worker-runtime.ts run for a real request.
+  const raw = await gridEngine.layout(input, CTX);
+  const routed = routeStraight(input, raw, METRICS);
+  const withLabels = gridEngine.capabilities.labelPlacement ? routed : placeLabels(input, routed, METRICS);
+  const expected = quantize(withLabels, 64);
+
+  writeFileSync(outFile, JSON.stringify({ input, metrics: METRICS, expected }), 'utf8');
   console.log('bench/generate-grid-fixture.js: wrote bench/grid-fixture.json');
 }
 

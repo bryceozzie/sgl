@@ -3,6 +3,7 @@ import type { LayoutContext } from './contract.js';
 import { placeLabels, routeStraight } from './fallbacks.js';
 import type { HostToWorker, WorkerToHost } from './protocol.js';
 import type { EngineRegistry } from './registry.js';
+import { describeShapeError } from './validate.js';
 
 /**
  * The worker-side half of DD-06 §3's protocol (Stage H, decision D2).
@@ -122,8 +123,23 @@ export function createWorkerRuntime(registry: EngineRegistry, port: WorkerRuntim
       // engine that already routed everything has nothing left for it to
       // fill); `placeLabels` *replaces* `result.labels` outright, so it may
       // only run for an engine that declares it does no placement of its own.
-      const routed = routeStraight(message.input, raw, message.metrics);
-      const result = engine.capabilities.labelPlacement ? routed : placeLabels(message.input, routed, message.metrics);
+      //
+      // Both fallbacks make exactly the same assumptions `validateResult`
+      // does — `result.edges`, `.nodes`, `.labels` all already exist — which
+      // `describeShapeError` (`validate.ts`, reused rather than duplicated
+      // here) is what checks. Skip them for a malformed `raw` and post it
+      // unchanged: `host.ts`'s `validateResult` is what should reject it with
+      // `SGL4002`. Found in review (fix round 2, item 2): without this guard,
+      // an engine resolving `undefined` made `routeStraight` throw inside
+      // *this* `try`, turning a validation-shaped failure into `SGL4011` with
+      // a raw `TypeError` message instead — round 1's shape guard in
+      // `validateResult` was only ever reachable through a fake `Worker` that
+      // skips the fallbacks entirely, never through the real protocol.
+      let result = raw;
+      if (describeShapeError(raw) === null) {
+        const routed = routeStraight(message.input, raw, message.metrics);
+        result = engine.capabilities.labelPlacement ? routed : placeLabels(message.input, routed, message.metrics);
+      }
       port.post({ t: 'result', id: message.id, result, ms: now() - start });
     } catch (err) {
       port.post({

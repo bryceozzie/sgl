@@ -554,11 +554,10 @@ graph never again shares a file with the small synthetic engines DD-06 §10's ga
 depend on), plus a Node-side fixture generator (`bench/generate-grid-fixture.js`, the same
 "precompute in Node off a real corpus document, ship as data" shape `generate-render-fixtures.js`
 already established) prove `createWorkerHost` → real `gridEngine` → a valid, non-null
-`LayoutResult`, and — now that the plumbing demonstrably works — the bitwise double-run DD-06 §10
-asks for turned out to be cheap after all: the same worker/host pair, run twice, byte-identical,
-in both browsers (the browser project already runs every `*.browser.test.ts` file once per
-browser instance, so nothing beyond one more assertion was needed for "across Chrome and
-Firefox"). DD-06 §10's line recording this as left out is corrected in the same change.
+`LayoutResult`. DD-06 §10's line recording this as left out is corrected in the same change; the
+"bitwise double-run across Chrome and Firefox" half of that line is corrected properly in fix
+round 2 below — round 1's own same-browser double-run assertion proved determinism *within* each
+browser only, not across them, which round 1's write-up here overclaimed.
 
 **F9 (§2.1) is measured, not cleared** (decision D4). `bench/generate-render-fixtures.js` runs
 `runPipeline`'s stages up to but excluding `render()` in Node for n50/n500/n2000 under both built-in
@@ -618,6 +617,34 @@ its `description` across the earlier commits — restored byte-for-byte against 
 the intended script/dependency lines differing; `vitest` is now pinned to the same exact `3.2.7`
 `@vitest/browser` already used, and the lockfile regenerated. (14) `WorkerHostOptions.measure`'s
 doc comment now says the returned value must be `structuredClone`-safe plain data.
+
+**Fix round 2** (orchestrator review of `8891f2e`) closed two more items, both confirmed against
+real code, both direct consequences of round 1's own fixes rather than newly-introduced defects.
+(1) **"Across Chrome and Firefox" was overclaimed.** Round 1's `grid.browser.test.ts` asserted only
+a same-browser double-run — proof of determinism *within* each browser, not *across* them or
+against Node, which is what DD-06 §10's phrase actually means. Fixed by having
+`bench/generate-grid-fixture.js` also compute the **expected** `LayoutResult` in Node, via the
+exact sequence `host.ts`/`worker-runtime.ts` run for a real request (`gridEngine.layout ->
+routeStraight -> placeLabels -> quantize(…, 64)`), and asserting in-browser that
+`JSON.stringify(outcome.value) === JSON.stringify(expected)`. It held on the first real run, with
+no loosening: **Node's precomputed result, Chromium's own run and Firefox's own run are all
+byte-identical for `n50.sgl`** — Node ≡ Chromium ≡ Firefox, genuinely proven, not just asserted.
+The same-browser double-run test is kept alongside it (a different property: repeatability, not
+cross-environment agreement). (2) **A non-object engine result through the real worker produced
+`SGL4011`, not `SGL4002`.** Direct fallout from round 1's own item 3 fix: once `routeStraight`/
+`placeLabels` ran unconditionally after `engine.layout()`, they made exactly the same
+shape assumptions `validateResult` does, so an engine resolving `undefined` (or anything else that
+fails that shape check) made `routeStraight` throw *inside the worker's own `try`/`catch`* — the
+caller got a worker-side `SGL4011` with a raw `TypeError` message, and round 1's item 2 shape guard
+in `validateResult` was only ever reachable through a fake `Worker` that skips the fallbacks
+entirely, never through the real protocol. Fixed by exporting `validate.ts`'s `describeShapeError`
+(reused, not duplicated) and having `worker-runtime.ts` skip the fallbacks and post a malformed
+`raw` result through unchanged whenever it fails that check, so `host.ts`'s own `validateResult` is
+what rejects it — restoring the `SGL4002` the design actually calls for. A new
+`host-runtime.integration.test.ts` case proves this through the real host + real runtime: an engine
+resolving `undefined` now gives `{ value: null, diagnostics: [SGL4002] }`, and the next request
+succeeds; a `worker-runtime.test.ts` case proves the narrower claim (the malformed result is posted
+through as `'result'`, unchanged, not `'error'`).
 
 **Operational note, reworded, not a code finding**: the previous round observed `pnpm check`
 hanging intermittently on the browser project on this machine after other pnpm commands had just

@@ -176,6 +176,37 @@ describe('createWorkerHost + createWorkerRuntime, wired through an async in-memo
     }
   });
 
+  it('fix round 2, item 2: an engine resolving undefined gives SGL4002 (not SGL4011), and the host serves the next request', async () => {
+    // Through the real worker, not a fake one that skips the fallbacks
+    // entirely: `routeStraight`/`placeLabels` assume `result.edges` etc.
+    // already exist, so without the worker-side shape guard this made
+    // `routeStraight` throw inside `worker-runtime.ts`'s own try/catch,
+    // turning a validation-shaped failure into a worker-side SGL4011 with a
+    // raw TypeError message. `undefined` posted through unchanged is what
+    // lets host.ts's validateResult produce the right SGL4002.
+    const undefinedResult: LayoutEngine = {
+      id: 'test.undefined-result',
+      name: 'test.undefined-result',
+      version: '0.0.0',
+      apiVersion: LAYOUT_API_VERSION,
+      capabilities: capabilities(),
+      layout: () => Promise.resolve(undefined as never),
+    };
+    const registry = makeRegistry(undefinedResult);
+    const host = createWorkerHost(spawnFor(registry));
+    try {
+      const bad = await run(host, 'test.undefined-result', OK_INPUT);
+      expect(bad.value).toBeNull();
+      expect(bad.diagnostics).toHaveLength(1);
+      expect(bad.diagnostics[0]!.code).toBe('SGL4002');
+
+      const good = await run(host, 'test.ok', OK_INPUT);
+      expect(good.value).not.toBeNull();
+    } finally {
+      host.dispose();
+    }
+  });
+
   it('a table miss round-trips through the measure RPC', async () => {
     const registry = makeRegistry();
     const measure = vi.fn().mockResolvedValue({ size: { w: 33, h: 7 }, lines: [] });

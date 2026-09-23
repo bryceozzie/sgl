@@ -143,6 +143,30 @@ describe('createWorkerRuntime (DD-06 §3, Stage H decision D2)', () => {
     expect(msg.result.edges[asEdgeId('e-ab')]).toBeDefined();
   });
 
+  it('skips the fallbacks and posts a malformed result unchanged (as "result", not "error") — the host, not the worker, rejects it', async () => {
+    // Fix round 2, item 2: `routeStraight`/`placeLabels` make exactly the
+    // same assumptions `validateResult` does (`result.edges` etc. already
+    // exist). Without the shape check, an engine resolving `undefined` made
+    // `routeStraight` throw *inside this module's own try/catch*, so the
+    // caller got `SGL4011` with a raw TypeError message instead of the
+    // `SGL4002` `host.ts`'s `validateResult` is supposed to produce for a
+    // malformed result. Posting `undefined` through unchanged, as a
+    // `'result'` message, is what lets `validateResult` do its job.
+    const registry = new EngineRegistry();
+    registry.register(engine('test.undefined-result', () => Promise.resolve(undefined as never)));
+    const port = fakePort();
+    const runtime = createWorkerRuntime(registry, port);
+
+    runtime.receive(layoutMessage({ engine: 'test.undefined-result' }));
+    await flush();
+
+    expect(port.sent).toHaveLength(1);
+    const msg = port.sent[0]!;
+    expect(msg.t).toBe('result');
+    if (msg.t !== 'result') throw new Error('unreachable');
+    expect(msg.result).toBeUndefined();
+  });
+
   it('SGL4011: an engine that is not registered', async () => {
     const registry = new EngineRegistry();
     const port = fakePort();
