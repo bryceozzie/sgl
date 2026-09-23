@@ -350,8 +350,27 @@ the old value's kind; the last such entry, since later wins. An `@layout` object
 gets the property added inside it. A new `@key.path: "…"` line is inserted at the document's start
 only when nothing sets the key and no parent object exists. The edit is built from the pipeline's
 own `parsed` AST (§4: the app never calls `parse` itself — `apps/web/src/state/picker-actions.ts`,
-enforced by a lint rule on `apps/web/src`). Selecting an engine resets `engineOptions` to `{}`:
-"the engine's defaults" until the options form (F11, Stage K) gives an engine real ones.
+enforced by a lint rule on `apps/web/src`). Selecting an engine resets `engineOptions` to that
+engine's defaults (Stage K; `{}` before F11 gave engines real ones).
+
+**Stage K.** The worker registers `elk` and `grid`, and **`elk` is the default** (ADR-0005),
+ending Stage I's interim `grid` default (I1); a stored document keeps its own `engineId` (boot
+already falls back to the default only for an engine the worker does not register).
+`REGISTERED_ENGINES` (`io/app-boot.ts`) reads `elk` from `@sgl/layout-elk/descriptor` — everything
+but `layout()`, and none of elkjs — so the pickers never pull elkjs into the main thread.
+**The engine options panel (F11) is built**, as one hand-built form per engine (K9):
+`state/engine-options.ts` holds each engine's fields, labels and defaults, normalises the
+untrusted stored bag (a value the field does not allow shows, and is sent, as the default) and
+writes one field at a time (an unusable number is ignored, not written); it is Node-tested,
+including that every default and select choice is one the engine's own `optionsSchema` allows.
+`toolbar/EngineOptions.tsx` renders the *effective* engine's form beside Engine ▾ as a plain
+`<details>` disclosure — the Save ▾ pattern (`toolbar/disclosure.ts`): no menu roles, Escape and
+an outside pointer-down close it, every input has a `<label>`. Values go through the existing
+`engineOptions` signal, persisted on the document record (Stage J). `elk`: direction, node
+spacing, rank spacing, edge routing, node placement. `grid`: columns (an empty box is `auto`),
+gap, align. **⟶ B7** still generates the form from `optionsSchema`. Left as is: when
+`@layout.engine` in the document overrides the picker, the form edits the same `engineOptions`
+bag for the document's engine; there is one bag per document, not one per engine.
 
 ---
 
@@ -450,11 +469,16 @@ chip's "Report" button copies `reportText` (message and source hash, never the s
 8. Font gate: label widths on cold and warm loads are identical.
 
 **Implemented (Stage I part 2), `apps/web/e2e/`, against a production build (`vite build` +
-`vite preview`).** Tests 1–3 and 8: `dd08-14.spec.ts`. Test 4 waits for Stage K (engine switch).
+`vite preview`).** Tests 1–3, 4 (Stage K) and 8: `dd08-14.spec.ts`. Test 4 switches the example
+elk → grid → elk: node, edge and label identity unchanged, geometry different, then exactly
+elk's again.
 **Stage J** added tests 5–7 and the rest of its gate: `files.spec.ts` (test 5 and MVP criterion 4,
 for `.sgl`, `.sgl.json` and `.txt`), `share.spec.ts` (test 6 and criterion 6, with the link opened
 in a fresh browser context; corrupt, not-deflate and oversize fragments), `offline.spec.ts` (test 7
-and criterion 5, single-engine half — the engine-switch half is Stage K's; since fix round 1 the
+and criterion 5 — Stage K added the engine switch: offline, render under elk, switch to grid,
+back to elk, no failed request, and the lazy `elk` chunk must be among the responses served by
+the service worker after the HTTP cache is emptied (K8); requests are read on the browser
+context, since the worker fetches elk; since fix round 1 the
 HTTP cache is emptied before going offline and, in Chromium, every response of the offline reload
 must come from the service worker, so a precache missing `/assets/*` fails it — WebKit's own server
 sends `no-store` instead, and Firefox has neither mechanism), `persistence.spec.ts`
@@ -469,7 +493,12 @@ capped at four workers, for the same kind of contention in context set-up and te
 5 takes the network away by stopping a server of the test's own (`e2e/static-server.ts`), because
 Playwright's WebKit fails an offline navigation (and blocks routed requests) before the service
 worker can answer. `criteria.spec.ts` covers the MVP acceptance criteria
-directly (2, 3, and 1's single-engine half); `f8-style-decode.spec.ts` covers F8;
+directly (2, 3, and — Stage K, K7 — 1 with both engines: `forty-three-level.sgl` under elk, then
+grid; node ids, edge ids, label texts and the pipeline's paint hash (`data-paint-hash`) are
+identical, and a layout geometry hash differs. The pipeline has no layout hash of its own —
+`StyledGraph.geometryHash` is style geometry, the same under both engines — so
+`e2e/helpers.ts`'s `layoutGeometryHash` hashes the rendered shapes, routes, label positions and
+`viewBox`); `f8-style-decode.spec.ts` covers F8;
 `canvas.spec.ts` (fix round 1) covers §6. **Decision: criterion 1's "40 nodes" counts containers**
 (06 §3 does not say either way): `corpus/forty-three-level.sgl` has 2 top-level containers, 4
 second-level containers and 34 leaves, and the test counts rendered `g.n` and `g.c` together.

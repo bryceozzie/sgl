@@ -73,14 +73,14 @@ Circles and other `aspectRatio`-locked shapes get `max(w,h)` applied by the engi
 
 ## 3. Worker host
 
-One long-lived `Worker` (`layout.worker.ts`), respawned on termination. Engines are registered into an `EngineRegistry` at worker startup (Stage H registers `grid`; `elk` joins at Stage K — lazy `import()` inside the worker, once it exists, is still the plan, not yet needed with one built-in engine).
+One long-lived `Worker` (`layout.worker.ts`), respawned on termination. Engines are registered into an `EngineRegistry` at worker startup (Stage H registered `grid`; Stage K registers `elk` too). `elk`'s engine object is imported statically; elkjs itself is loaded by a dynamic `import()` inside `elkEngine.layout()` on the first elk request (§6, decision K1), so a worker that only ever runs `grid` never fetches it.
 
 **Implemented by Stage H** as two modules in `@sgl/layout-api`, split on the Worker boundary itself (not merely documented as a mental split):
 
 - `worker-runtime.ts` — everything that runs *inside* the worker: receive `'layout'`, look up the engine in the registry, run it with `ctx.signal`, then, **only if the engine's raw output passes `validate.ts`'s `describeShapeError` shape check** (fix round 2, item 2 — see below), **apply §4's host fallbacks** (`routeStraight` unconditionally — it only fills an edge the engine left out, so it is a no-op once one is already routed; `placeLabels` only when `capabilities.labelPlacement` is `false`, since it *replaces* `result.labels` outright), post `'result'`/`'error'` (`SGL4011` on a throw — sync or async — **and also on an unregistered engine id**, `{message}` reading "not registered in this worker"), answer `ctx.measure.layoutRunsAsync` via the `'measure'`/`'measure-reply'` RPC, honour `'abort'` by aborting that request's `AbortController`. This is the only place in the pipeline with both the engine's `capabilities` and its `LayoutInput`/`LayoutResult` at hand — `host.ts` never sees either — which is why the fallbacks run here and not there (found missing entirely in fix round 1, item 3: with no fallback applied, `grid` — `edgeRouting: 'straight'`, no edges of its own — could never pass `validateResult` through the real worker/host protocol). The shape check was a second, closely related gap fix round 2 found: `routeStraight`/`placeLabels` assume exactly the same shape `validateResult` does, so once the fallbacks ran unconditionally, an engine resolving something other than a `LayoutResult` made `routeStraight` throw *inside the worker's own `try`/`catch`* — a validation-shaped failure (`SGL4002`) surfaced instead as a worker-side `SGL4011` carrying a raw `TypeError` message. `describeShapeError` is exported from `validate.ts` and reused here rather than duplicated; a malformed `raw` is posted through as `'result'` unchanged, so `host.ts`'s own `validateResult` is what rejects it. Deliberately `Worker`-free — it takes an `EngineRegistry` and a small `{ post(message) }` port, so a Node test drives it with a fake port and no real `Worker` (`worker-runtime.test.ts`).
 - `host.ts`'s `createWorkerHost` — the main-thread half, below.
 
-`apps/web/src/layout.worker.ts` is the thin, real entry that constructs the registry, registers `gridEngine`, and wires `worker-runtime.ts` to the actual worker global scope. It has to live in `apps/web` rather than `@sgl/layout-api`, because `@sgl/layout-api` may not import `@sgl/layout-std` (DD-00 §2 rule 3) but the entry needs `gridEngine` to register it. The browser test project (DD-09 §3.1) uses its own test-fixture worker entry (`packages/layout-api/test/browser/fixture.worker.ts`) registering small synthetic engines instead, so the Stage H gate's four conditions (timeout, abort, malformed output, a measure miss) can each be forced on demand against a real `Worker`, rather than depending on `grid`'s own timing or geometry.
+`apps/web/src/layout.worker.ts` is the thin, real entry that constructs the registry, registers `elkEngine` and `gridEngine` (Stage K), and wires `worker-runtime.ts` to the actual worker global scope. It has to live in `apps/web` rather than `@sgl/layout-api`, because `@sgl/layout-api` may not import `@sgl/layout-std` (DD-00 §2 rule 3) but the entry needs `gridEngine` to register it. The browser test project (DD-09 §3.1) uses its own test-fixture worker entry (`packages/layout-api/test/browser/fixture.worker.ts`) registering small synthetic engines instead, so the Stage H gate's four conditions (timeout, abort, malformed output, a measure miss) can each be forced on demand against a real `Worker`, rather than depending on `grid`'s own timing or geometry.
 
 **`createWorkerHost` takes a factory, not an instance** (`createWorkerHost(spawn: () => Worker, options?)`) — the signature this section originally sketched, `createWorkerHost(worker, timeoutMs)`, cannot respawn after `terminate()`, because a terminated `Worker` stays terminated. `spawn()` runs once up front and again on every respawn (a timeout, or an unanswered abort). `options` (decision D1) carries: the default timeout (`DEFAULT_TIMEOUT_MS = 10 000`), per-engine overrides merged on top of a baked-in default (`DEFAULT_ENGINE_TIMEOUT_MS = { 'sgl.grid': 2 000 }`, this section's own "grid 2 000 ms" made concrete), and `measure` — the main-thread callback that answers a `'measure'` RPC. `measure` is optional: a host whose registered engines never call `ctx.measure.layoutRunsAsync` never needs it, and an unconfigured miss degrades to an empty `TextLayout`-shaped value rather than hanging the request forever.
 
@@ -142,6 +142,8 @@ A single in-flight request at a time; a new request aborts the previous one (the
 
 ## 4. Host fallbacks (`layout-api/fallbacks.ts`)
 
+**One sequence (Stage K).** `applyHostFallbacks(input, raw, capabilities, metrics)` is the whole post-engine sequence, in order: `finishEngineRoutes` (§4.4 and §4.5 for the routes the *engine* returned — see below), then `routeStraight` (the edges it left out), then `placeLabels` only for `labelPlacement: false`. `worker-runtime.ts` and the conformance harness (§8) both call it, so what the suite checks is what a real request gets. The order is load-bearing: `finishEngineRoutes` runs before `routeStraight`, so it only ever sees engine routes, and a route the fallback made (already reserved) is never reserved twice. `grid` returns no edges, so for `grid` the sequence is exactly Stage E's `routeStraight -> placeLabels` and its output is unchanged.
+
 Applied after the engine returns, based on its `capabilities`. Implemented: `placeLabels` (§4.1) and `routeStraight`, which folds together §4.2 (straight routing), §4.3 (shape clipping) and §4.5 (self-loops) into one pass over each un-routed edge, plus §4.4 (arrow reserve) — see that section's own deviation note. **Not implemented: §4.6 (aspect lock)** — Stage E's brief did not name it as a task and no corpus document exercises `aspectRatio`; a node with `@size.aspectRatio` set will not come out square/circular from `grid` alone until a later stage adds it.
 
 ### 4.1 Label placement (`labelPlacement: false`)
@@ -166,9 +168,13 @@ For `directed: forward|both`, shorten the head end by `geometry.arrowSize` along
 
 Stage E's brief (07 §5) named only clipping and self-loops for `routeStraight`, not this subsection — folded in anyway, because without it every directed edge (the large majority of the corpus) would render with its arrowhead straddling the node boundary, and no later stage's task list claims it either. Uses `ctx.metrics.arrowSize`, the one theme-wide constant `ResolvedThemeMetricsView` exposes — not a per-edge `geometry.arrowSize`, despite the registry allowing `arrowSize` to vary by class; `routeStraight`'s signature was extended with a `metrics` parameter to reach it (the DD-06-inherited stub took only `input`/`result`).
 
+**Engine routes (Stage K, `finishEngineRoutes`).** §6.2 says the host applies this to `elk`'s routes too, so the contract is now explicit for every engine: a route an engine returns ends *on* the node (or port) boundary, and the host pulls a directed end back by `arrowSize` along the final segment, moving `end` and the route's last point together (and `start` for `both`). A missing `startNormal`/`endNormal` is taken from the end segment's own direction. An engine must therefore not reserve the arrowhead itself.
+
 ### 4.5 Self-loops
 
 If an engine returns a self-loop route of fewer than two segments (or none), replace it with a loop: exit the node's top-right at 45°, three `C` segments forming a teardrop of radius `max(24, node.h/2)`, re-enter at the right. Label at the loop's apex.
+
+**Engine self-loops (Stage K).** `finishEngineRoutes` also applies this to a self-loop an engine *did* route, when the route has fewer than two segments or is under `MIN_SELF_LOOP_HEIGHT` (16 px) tall — §6.2's rule for ELK, whose unlabelled loops are a 10 px box. Because the host now owns that route, it owns its label too: an engine's label for a replaced loop is re-placed at the apex, as `placeLabels` would. The teardrop reaches outside the engine's `bounds`, so `bounds` is grown to include it and its label plus 16 px (§5). A loop the engine drew at least 16 px tall is kept (and reserved like any engine route), with its label.
 
 ### 4.6 Aspect lock
 
@@ -202,6 +208,8 @@ For nodes with `aspectRatio`, after layout: `w = h = max(w, h)` (ratio 1) or the
 
 `bounds` is recomputed by the host from the quantized frames and routes plus `canvas.margin` (16 px), so engines may leave it approximate.
 
+**Not implemented in general (found in Stage K).** No stage has done this recomputation: `host.ts` passes the engine's `bounds` through, and doing it now for every engine would move `grid`'s existing goldens (its teardrops already reach past its `bounds`). The only place the host grows `bounds` is where it replaces engine geometry: a teardrop swapped in for an engine's self-loop (§4.5). Recomputing `bounds` for all engines — and re-baselining `grid`'s goldens with it — is left for a human decision.
+
 ---
 
 ## 6. `elk` engine (`@sgl/layout-elk`)
@@ -217,7 +225,14 @@ optionsSchema: { direction: enum down|up|left|right (default down),
 hintsSchema: { rank: 'same' (⟶ B13), priority: number, portConstraints: enum }
 ```
 
-Loads `elkjs/lib/elk.bundled.js` (synchronous, single-thread) inside the layout worker — never `elk-worker.js`.
+Loads `elkjs/lib/elk.bundled.js` (synchronous, single-thread) inside the layout worker — never `elk-worker.js`, nor `elk-api.js` with a worker URL (06 §4 pitfall 7).
+
+**Implemented (Stage K), `packages/layout-elk/src/`:**
+
+- **`descriptor.ts`** — id, name, capabilities, `optionsSchema`, `hintsSchema`, option defaults and `normalizeElkOptions`, as their own entry point `@sgl/layout-elk/descriptor`. The main thread's Engine ▾ and options form import it; importing the full engine object on the main thread would make the bundler emit a second, never-loaded copy of elkjs for its dynamic import, which the PWA precache would then carry too.
+- **`load-elk.ts`** (**K1**) — `elk.bundled.js` is loaded by a dynamic `import()` on the first `layout()` call and the `ELK` instance cached; a failed load is not cached. elkjs becomes its own lazy chunk, excluded from the core budget.
+- **`load-elk.ts`** (**K11, a scoped `document` stub**) — elkjs 0.11.1's `elk.bundled.js` (line 6430, its inlined `elk-worker.min.js`) takes its *worker* branch when `typeof document === 'undefined'` and `self` exists: it installs itself as `self.onmessage` on the worker it is loaded into and never exports its in-thread FakeWorker, so `new ELK()` fails ("_Worker is not a constructor"). Inside our layout worker that is exactly the case. So, only when `document` is absent and only for the duration of the dynamic import (and the construction), `globalThis.document = {}` is set and then deleted in a `finally`; a failed import leaves nothing behind; on a page's main thread nothing changes; the cached promise serialises loading, so two loads never race the stub. No DOM API is defined — the stub only hides the *absence* of one from elkjs for one import. `pnpm patch` (a patched copy of a 1.4 MB generated file to maintain) and revisiting ADR-0005 (reopening pitfall 7) were rejected (orchestrator decision). `elk.browser.test.ts`'s worker entry has no shim of its own, so an elkjs upgrade that changes this fails it.
+- **`mapping.ts`** — §6.1 (`toElkGraph`) and §6.2 (`fromElkGraph`) as pure functions, no elkjs import; `index.ts` joins them around the ELK call. ELK is handed a deep copy (it writes its results and GWT bookkeeping into the object it is given).
 
 ### 6.1 Input mapping
 
@@ -228,42 +243,58 @@ root ElkNode:
     'elk.algorithm':                 'layered'
     'elk.direction':                 DOWN|UP|LEFT|RIGHT
     'elk.hierarchyHandling':         'INCLUDE_CHILDREN'
-    'elk.randomSeed':                '1'
+    'elk.randomSeed':                '1'          // ADR-0005 spells it org.eclipse.elk.randomSeed; same option
     'elk.edgeRouting':               options.edgeRouting
     'elk.spacing.nodeNode':          nodeSpacing
     'elk.layered.spacing.nodeNodeBetweenLayers': rankSpacing
     'elk.spacing.edgeLabel':         metrics.spacing.edgeLabel
     'elk.layered.nodePlacement.strategy': options.nodePlacement
-  children: map(rootChildren, toElkNode)
+    'elk.nodeLabels.padding':        '[top=0,left=0,bottom=0,right=0]'   // Stage K
+  children: map(visible rootChildren, toElkNode)
   edges:    map(all edges, toElkEdge)          // ALL edges live on root — valid under INCLUDE_CHILDREN
 
 toElkNode(n):
   id: n.id
   width/height:  sizing.fixed ?? clamp(sizing.intrinsic, min, max)      // leaves
                  (omitted for containers — ELK sizes them from children + padding)
-  labels: [{ text: '', width: label.w, height: label.h,
+  labels: [{ text: labelId,                                  // Stage K: never '' (ELK ignores it)
+             width: label.w + box.l + box.r, height: label.h + box.t + box.b,   // the label box, below
              layoutOptions: leaf ? { 'elk.nodeLabels.placement': '[H_CENTER, V_CENTER, INSIDE]' }
-                                 : { 'elk.nodeLabels.placement': '[H_LEFT, V_TOP, INSIDE]' } }]
-  ports: map(n.ports, p => ({ id: n.id + '#' + p.id, width: portSize*2, height: portSize*2,
+                                 : { 'elk.nodeLabels.placement': '[H_CENTER, V_TOP, INSIDE]' } }]   // Stage K: not H_LEFT
+  ports: map(n.ports, p => ({ id: n.id + '#' + p.id, width: 0, height: 0,          // Stage K: portSize unseen
                               layoutOptions: { 'elk.port.side': NORTH|SOUTH|EAST|WEST } }))
-  layoutOptions (containers): { 'elk.padding': `[top=${padding.t},left=${l},bottom=${b},right=${r}]`,
-                                'elk.portConstraints': ports.length ? 'FIXED_SIDE' : 'FREE',
+  layoutOptions (any node with ports or a portConstraints hint): { 'elk.portConstraints': hint ?? 'FIXED_SIDE' }
+  layoutOptions (containers): { ...the four per-level options of the root (spacings, nodeLabels.padding),
+                                'elk.padding': `[top=${padding.t - labelBox.h},left=${l},bottom=${b},right=${r}]`,
+                                // only when a minimum is set; swapped (h,w) for DOWN/UP:
                                 'elk.nodeSize.constraints': 'MINIMUM_SIZE', 'elk.nodeSize.minimum': `(${min.w},${min.h})` }
-  children: map(n.children, toElkNode)
+  children: map(visible n.children, toElkNode)      // a container whose children are all hidden is a leaf
 
 toElkEdge(e):
   id: e.id
   sources: [ e.from.port ? e.from.node + '#' + e.from.port : e.from.node ]
   targets: [ likewise ]
-  labels: e.labelId ? [{ text: '', width, height, layoutOptions: { 'elk.edgeLabels.placement': 'CENTER' } }] : []
+  labels: e.labelId ? [{ text: labelId, width, height, layoutOptions: { 'elk.edgeLabels.placement': 'CENTER' } }] : []
   layoutOptions: { 'elk.layered.priority.direction': hints.priority }   // when present
 ```
 
 `directed: 'none'` and `'both'` are still passed as directed edges (ELK is layered; direction drives rank). Arrowheads are the renderer's concern.
 
+**What running elkjs 0.11.1 changed (Stage K).** This pseudocode is amended in place above; each change was found by running ELK, and each is pinned by `packages/layout-elk/test/mapping.test.ts` or `elk.test.ts`:
+
+1. **Label text.** A label whose `text` is empty is ignored — ELK neither places it nor reserves room for it. Labels are sent with their `LabelId` as text (ELK never measures text).
+2. **Container title placement.** `[H_LEFT, V_TOP, INSIDE]` on a container makes ELK reserve a *left column* as wide as the title as well as the top band, pushing every child right by the title's width. `[H_CENTER, V_TOP, INSIDE]` reserves the top band only, so container titles are **centred** over the container (an ELK placement, and what "labels come from ELK" then means). See §6.3 for the artefact this allows.
+3. **Title band and padding.** ELK adds the title band itself: a child starts at `elk.padding.top + label height`. `elk.padding.top` is therefore `NodeSizing.padding.top` *minus* the label box's height (the title gap), not all of `padding.top`, or the band is counted twice.
+4. **`elk.nodeLabels.padding` is read from a node's parent**, not the node, and defaults to 5 px on every side. It is zeroed on the root and on every container, so the label boxes below are the only insets in play.
+5. **Spacing options are per level.** Under `INCLUDE_CHILDREN`, `elk.spacing.nodeNode`, `…nodeNodeBetweenLayers` and `elk.spacing.edgeLabel` set on the root do not reach a container's children; they are repeated on every container.
+6. **`elk.nodeSize.minimum` is not transposed** for `DOWN`/`UP`: ELK applies the pair as (height, width) there, so it is sent swapped for those directions. (No document can set a container minimum today — `minWidth`/`minHeight` apply to leaves only in the style registry — but the mapping honours one.)
+7. **`portSize` is unseen.** It is a style (`geometry.portSize`), and engines never see `StyledGraph`; ports are sent zero-sized, so a port's point is on the node boundary and the renderer draws its circle there.
+8. **Label boxes.** §4.1 centres a leaf's title in its *content box* (frame inset by `contentInset`); ELK centres a label in the *frame*. They differ only where insets are asymmetric (a cylinder's cap, a package's tab), so ELK is given the label grown by the asymmetric part of the insets, on the side that needs it — for a container, by the whole `contentInset.top`, since ELK puts a `V_TOP` label at the node's top edge. The `LabelPlacement` frame is that box exactly as ELK placed it; `align`/`baseline` (`start`/`end`, `top`/`bottom`) put the text at its inner edge.
+9. **Seed.** `elk.randomSeed: '1'` (K2). Two runs are identical after quantization in Node and in a Chromium worker, and ELK's quantized output in Chromium equals Node's golden byte for byte (`elk.browser.test.ts`).
+
 ### 6.2 Output mapping
 
-ELK coordinates are **relative to the parent node** (edges relative to their container — here root, so absolute). Walk the tree accumulating offsets:
+ELK coordinates are **relative to the parent node**. Walk the tree accumulating offsets. **Edges (sections and labels) are relative to the node ELK names in the edge's output `container` field** — the lowest common ancestor of the endpoints ELK moves the edge to — *not* always the root they were declared on (corrected by Stage K; the earlier text said "here root, so absolute"). `fromElkGraph` offsets each edge by that node's absolute origin:
 
 ```
 NodeLayout.frame        = { x: abs.x, y: abs.y, w: node.width, h: node.height }
@@ -272,15 +303,18 @@ NodeLayout.ports[p]     = { point: abs(port.x + port.width/2, port.y + port.heig
 EdgeLayout              = sections[0]: start=startPoint, route = bendPoints.map(L) ++ [L endPoint]
                           (multi-section edges — hyperedges — are not produced for simple edges)
                           startNormal/endNormal from the first/last segment direction; clip: 'none' (ELK already stops at the boundary)
-LabelPlacement (node)   = frame at abs(node) + label.x/y, size from label; align per placement; role from LabelSpec
-LabelPlacement (edge)   = frame at label.x/y (absolute), align 'middle', baseline 'top', occlusion 'plate'
+LabelPlacement (node)   = frame at abs(node) + label.x/y, size from label (the label box, §6.1 note 8); align/baseline from the box
+LabelPlacement (edge)   = frame at abs(container) + label.x/y, align 'middle', baseline 'top', occlusion 'plate'
+bounds                  = { 0, 0, root.width, root.height }
+(an edge ELK returns without a section is left out, so routeStraight fills it; an id ELK returns that was never sent throws → SGL4011)
 ```
 
-Then the host applies §4.4 (arrow reserve) and §4.5 (self-loops — ELK routes them but with a tight box; the host's teardrop is used when ELK's loop is under 16 px tall).
+Then the host applies §4.4 (arrow reserve) and §4.5 (self-loops — ELK routes them but with a tight box; the host's teardrop is used when ELK's loop is under 16 px tall). **Implemented (Stage K)** as `finishEngineRoutes` inside `applyHostFallbacks` (§4), in the worker runtime like every engine's fallbacks — not in the adapter. Labels are never touched by the host for `elk` (`labelPlacement: true` skips `placeLabels`), except a replaced self-loop's own label (§4.5).
 
 ### 6.3 Known ELK behaviours to test around (06 §4 pitfall 8)
 
-- Hierarchy-crossing edges with `ORTHOGONAL` occasionally route through a sibling container. The corpus includes this case; the mitigation is the `edgeRouting` option, and the test asserts no route segment intersects an unrelated container's frame — a *warning* in CI, not a failure, until the rate is known.
+- Hierarchy-crossing edges with `ORTHOGONAL` occasionally route through a sibling container. The corpus includes this case; the mitigation is the `edgeRouting` option, and the test asserts no route segment intersects an unrelated container's frame — a *warning* in CI, not a failure, until the rate is known. **Stage K (K4):** `hierarchyCrossings` (`@sgl/layout-api/conformance`) counts, per document, the (edge, container) pairs where a route passes through the frame of a container enclosing neither endpoint (the frame shrunk by 0.5 px, curves sampled). It is logged by `elk.test.ts`, never failed. Measured: **0 on every corpus document** under `ORTHOGONAL`, and 0 for `containers-edges.sgl` under both `ORTHOGONAL` and `POLYLINE`.
+- **An edge entering a container from above can cross its centred title** (Stage K, found by inspection, not by the K4 check — the container is the endpoint's own ancestor, so it is "related"). ELK puts the hierarchical port where the inner target sits, often the container's middle, which is where §6.1 note 2's centred title is. Visible in `checkout.sgl` (`BFF -> api` through "Payments"). Not fixed; for review.
 - Edge labels on very short edges may overlap the node; the host's plate makes this legible, and a later pass may nudge.
 
 ---
@@ -325,6 +359,8 @@ F1 (07 §2.1) is cleared here: `pack()`'s `childrenOf()` filters `.hidden` on ev
 
 Run against both engines in CI; shipped in `@sgl/plugin-sdk` later (**⟶ B18** — the suite exists in MVP; the SDK packaging is what is deferred).
 
+**Implemented (Stage K), `packages/layout-api/src/conformance.ts`.** `runConformance(engine, cases, { metrics, now, timedCase, options?, timeoutMs? })` runs each case through `runHostSequence` — `engine.layout -> applyHostFallbacks -> quantize(…, 64)`, the real request's sequence in one process — and returns a report with every failure of checks 1–5 as text, plus the K4 crossing counts (§6.3) as warnings. Cases are `LayoutInput`s the caller builds (this package may not import `@sgl/theme`/`@sgl/measure`); the clock is injected (`performance.now` is banned below `apps/web`). Check 2 compares the quantized results (and, for `bitwise` engines, the raw ones too) and skips `best-effort`. Check 4's budget defaults to the host's own timeout for that engine. Check 5 reads the engine's *raw* output, before any fallback. The suites: `layout-elk/test/conformance.test.ts` and `layout-std/test/conformance.test.ts`, each over every corpus document plus a 1 000-node graph built in memory from `bench/scale-document.js` (the same generator as `n50`/`n500`/`n2000`). Both pass. Measured (K10): `elk` 1 000 nodes ≈ 0.84 s in Node (host sequence included) and ≈ 1.07 s round trip in a Chromium worker, against its 10 s timeout; `grid` ≈ 13 ms.
+
 For each corpus graph (empty, one node, one edge, self-loop, parallel edges, 3-deep nesting, container-to-container edge, boundary-crossing edge, disconnected components, 1 000 nodes, extreme aspect):
 
 1. Result passes `validateResult`.
@@ -354,6 +390,6 @@ For each corpus graph (empty, one node, one edge, self-loop, parallel edges, 3-d
 - Fallbacks: each of §4.1–4.6 against fixture geometry, goldens. *(Stage E, unchanged by Stage H.)*
 - Validation: one fixture per row of §5's table, plus (fix round 1, item 2) `undefined`/`null`/a number/`{}`/`{nodes: null, ...}` each producing one `SGL4002`, not a throw. *(Stage E's fixtures unchanged; the shape-guard cases are new.)*
 - Quantization: values on both sides of a 1/128 boundary. *(Stage E, unchanged by Stage H.)*
-- `elk` mapping: input goldens (the `ElkNode` JSON we send) and output goldens; the hierarchy-crossing corpus case. *(Stage K.)*
+- `elk` mapping: input goldens (the `ElkNode` JSON we send) and output goldens; the hierarchy-crossing corpus case. **Implemented (Stage K):** `packages/layout-elk/test/mapping.test.ts` (both mappings against the pure functions, the output half placing every label at ELK's own coordinates), `elk.test.ts` (every corpus document validates with no diagnostics; input and output goldens for `CLEAN_DOCS` under `test/__goldens__/{input,result}/`; labels are ELK's end to end and through the real worker runtime; an ELK exception becomes `SGL4011`; K4 counts; every option reaches ELK), and `test/browser/elk.browser.test.ts` (a real Chromium `Worker`: double run, Node ≡ Chromium, labels, repeated requests after load — K11's tripwire — and the 1 000-node time).
 - `grid`: goldens; bitwise double-run **in Node, over the whole corpus** (Stage E's own gate, `layout-std/test/grid.test.ts`) **and, since fix round 1, through a real `Worker`, across Chromium, Firefox and Node itself**: `packages/layout-std/test/browser/grid.browser.test.ts` runs the real `gridEngine` through the real `createWorkerHost`, via its own dedicated worker entry (`grid.worker.ts`, deliberately separate from `layout-api`'s synthetic-engine fixture worker) and a Node-precomputed `LayoutInput` (`bench/generate-grid-fixture.js`, off `n50.sgl`, the same "precompute in Node, ship as data" shape `generate-render-fixtures.js` established). Two tests, both running in Chromium and Firefox (the browser project runs every file once per browser instance): a same-browser double-run, and — **fix round 2, item 1**, correcting round 1's overclaim — a comparison against an **expected** `LayoutResult` the same generator script also computes in Node, by running the exact sequence `host.ts`/`worker-runtime.ts` run for a real request (`gridEngine.layout -> routeStraight -> placeLabels -> quantize(…, 64)`). Round 1 asserted only the same-browser double-run, which proves determinism *within* each browser but never compares one browser's output to another's or to Node's — not what "bitwise double-run across Chrome and Firefox" means. The Node-vs-browser comparison is what actually proves it, and it holds: Node's precomputed `expected`, Chromium's own run and Firefox's own run are all byte-identical (`JSON.stringify` equal) for `n50.sgl`. The earlier claim that registering `gridEngine` in a real worker broke it was traced to an unrelated, intermittent Vite dev-server cache issue (§3's operational note), not a defect — clearing it and re-testing worked cleanly, and surfaced a **real** gap on the way: `worker-runtime.ts` was never applying the host fallbacks at all (§3's "every message is bound to the worker instance" paragraph's sibling fix, documented in §3 above), and — found only once the fallbacks ran unconditionally (**fix round 2, item 2**) — never guarded against a malformed `raw` result either: `routeStraight`/`placeLabels` assume the same shape `validateResult` does, so an engine resolving something other than a `LayoutResult` (e.g. `undefined`) made `routeStraight` throw *inside the worker's own try/catch*, turning a validation-shaped failure (`SGL4002`, host-side) into a worker-side `SGL4011` carrying a raw `TypeError` message. Fixed by reusing `validate.ts`'s shape check (`describeShapeError`, exported for exactly this) to skip the fallbacks and post a malformed `raw` through unchanged, so `host.ts`'s own `validateResult` is what rejects it.
-- Conformance suite on both engines. *(Stage K for `elk`; `grid`'s half is Stage E's gate.)*
+- Conformance suite on both engines. **Implemented (Stage K)** — §8.
