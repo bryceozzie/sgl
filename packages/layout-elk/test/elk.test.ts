@@ -49,7 +49,9 @@ describe('elk over the corpus (DD-06 §6, Stage K gate)', () => {
       const input = layoutInputFor(doc);
       const { result } = await runHostSequence(elkEngine, input, {}, METRICS);
       expect(validateResult(result, input.graph, elkEngine.id)).toEqual([]);
-    });
+      // n2000.sgl takes ~2 s alone and past Vitest's 5 s default under the
+      // full parallel run (fix round 1: seen failing at 5.5 s in a clean run).
+    }, 30_000);
   }
 
   for (const doc of CLEAN_DOCS) {
