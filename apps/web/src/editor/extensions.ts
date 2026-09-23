@@ -2,7 +2,7 @@ import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { bracketMatching, defaultHighlightStyle, foldGutter, syntaxHighlighting, syntaxTree } from '@codemirror/language';
 import { lintGutter } from '@codemirror/lint';
-import { EditorState, type Extension } from '@codemirror/state';
+import { Compartment, EditorState, type Extension } from '@codemirror/state';
 import { EditorView, highlightActiveLine, keymap } from '@codemirror/view';
 import { sgl } from '@sgl/core/editor';
 import type { Tree } from '@lezer/common';
@@ -17,11 +17,15 @@ export interface EditorCallbacks {
 
 /** DD-08 §4's extension list, plus the `updateListener` that keeps `source` (and
  *  the reused tree) current. */
+/** Holds `history()`, so switching documents can start a fresh undo history
+ *  (`loadDocument`). */
+const historySlot = new Compartment();
+
 export function editorExtensions(callbacks: EditorCallbacks): Extension[] {
   return [
     sgl(),
     syntaxHighlighting(defaultHighlightStyle),
-    history(),
+    historySlot.of(history()),
     foldGutter(),
     bracketMatching(),
     closeBrackets(),
@@ -40,11 +44,14 @@ export function createEditorState(doc: string, callbacks: EditorCallbacks): Edit
 }
 
 /**
- * Replace the whole document programmatically (open a file, load a share link —
- * both **⟶ part 2**) through a transaction rather than `EditorState.create`, so
- * undo history survives (DD-08 §4). Exported now, ready for part 2's Open/Save
- * to call; nothing in part 1 does yet.
+ * Load another document into the editor (fix round 2: Open as a new
+ * document, the Documents list). A transaction, so the pipeline gets the text
+ * through the ordinary `updateListener` path; then the undo history starts
+ * empty — undo never crosses from one document into another. Removing the
+ * history field and adding a new one is what resets it: reconfiguring with
+ * `history()` alone would keep the field's old value.
  */
-export function replaceDocument(view: EditorView, text: string): void {
-  view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text }, selection: { anchor: 0 } });
+export function loadDocument(view: EditorView, text: string): void {
+  view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text }, selection: { anchor: 0 }, effects: historySlot.reconfigure([]) });
+  view.dispatch({ effects: historySlot.reconfigure(history()) });
 }

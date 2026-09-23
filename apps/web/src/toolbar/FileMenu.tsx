@@ -6,6 +6,7 @@ import { saveContent } from '../state/files.js';
 import type { Pipeline } from '../state/pipeline.js';
 import { encodeShareFragment, isLongShareLink, shareLink } from '../state/share.js';
 import type { Toasts } from '../state/toasts.js';
+import { useDisclosure } from './disclosure.js';
 
 export interface FileMenuProps {
   readonly pipeline: Pipeline;
@@ -35,7 +36,8 @@ export function FileMenu({ pipeline, session, toasts, onOpen }: FileMenuProps) {
   const shareButtonRef = useRef<HTMLButtonElement | null>(null);
   const shareLinkRef = useRef<HTMLInputElement | null>(null);
   const [share, setShare] = useState<ShareState | null>(null);
-  const [saveOpen, setSaveOpen] = useState(false);
+  const saveMenu = useDisclosure(saveMenuRef, () => closeShare(false));
+  const closeSaveMenu = saveMenu.close;
 
   // The Share dialog takes focus when it opens (the link, selected, ready to
   // copy), so Escape closes it without tabbing in first.
@@ -50,34 +52,6 @@ export function FileMenu({ pipeline, session, toasts, onOpen }: FileMenuProps) {
     setShare(null);
     if (returnFocus) shareButtonRef.current?.focus();
   }
-
-  function closeSaveMenu(returnFocus: boolean): void {
-    const menu = saveMenuRef.current;
-    if (menu === null || !menu.open) return;
-    menu.open = false;
-    if (returnFocus) menu.querySelector('summary')?.focus();
-  }
-
-  // Save ▾ is a disclosure of plain buttons (not an ARIA menu, which would
-  // promise arrow-key navigation it does not have). While open, Escape and a
-  // click anywhere outside it close it.
-  useEffect(() => {
-    if (!saveOpen) return undefined;
-    const onKey = (ev: KeyboardEvent): void => {
-      if (ev.key !== 'Escape') return;
-      ev.preventDefault();
-      closeSaveMenu(saveMenuRef.current?.contains(document.activeElement) ?? false);
-    };
-    const onPointer = (ev: PointerEvent): void => {
-      if (!(ev.target instanceof Node) || saveMenuRef.current?.contains(ev.target) !== true) closeSaveMenu(false);
-    };
-    document.addEventListener('keydown', onKey);
-    document.addEventListener('pointerdown', onPointer);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.removeEventListener('pointerdown', onPointer);
-    };
-  }, [saveOpen]);
 
   // DD-08 §7: Ctrl/⌘+O opens, from anywhere — capture phase, so CodeMirror
   // (which does not bind it) and the browser's own "open file" both lose.
@@ -155,11 +129,7 @@ export function FileMenu({ pipeline, session, toasts, onOpen }: FileMenuProps) {
       <details
         class="save-menu"
         ref={saveMenuRef}
-        onToggle={(e) => {
-          const open = (e.currentTarget as HTMLDetailsElement).open;
-          setSaveOpen(open);
-          if (open) closeShare(false);
-        }}
+        onToggle={saveMenu.onToggle}
       >
         <summary class="toolbar-button">
           Save <span aria-hidden="true">▾</span>

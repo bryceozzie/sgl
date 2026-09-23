@@ -8,8 +8,10 @@ import {
   EXAMPLE_NODE_COUNT,
   nodeGeometry,
   openFile,
+  readStorage,
   saveAs,
   setSource,
+  SMALL_SOURCE,
   storedOpenDocument,
   toastMessages,
   viewBox,
@@ -161,7 +163,7 @@ test.describe('Save ▾ is a disclosure of buttons (fix round 1, item 10)', () =
 });
 
 test.describe('DD-08 §7 Open', () => {
-  test('Ctrl+O opens the file chooser, and the open is undoable', async ({ page }) => {
+  test('Ctrl+O opens the file chooser; the opened document starts its own undo history', async ({ page }) => {
     const small = 'solo: "Solo"\n';
     // Focus the editor first: the shortcut must win over CodeMirror.
     await page.locator('.cm-content').click();
@@ -170,10 +172,48 @@ test.describe('DD-08 §7 Open', () => {
     await (await chooser).setFiles({ name: 'solo.sgl', mimeType: 'text/plain', buffer: Buffer.from(small) });
     await waitForDocument(page, small);
 
-    // A replace-document transaction, so undo history survives (DD-08 §4).
+    // Open makes a new document (human decision, 2026-09-23), so undo does
+    // not reach back into the previous one — that is in Documents instead.
     await page.locator('.cm-content').click();
     await page.keyboard.press('Control+z');
-    await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
+    await page.keyboard.press('Control+z');
+    expect(await editorText(page)).toBe(small);
+    await waitForExactNodeCount(page, 1);
+  });
+
+  test('Open creates a new local document; the previous record is saved and never touched again (fix round 2, R2)', async ({ page }) => {
+    await expect.poll(async () => (await readStorage(page)).documents.length).toBe(1);
+    const previousId = (await readStorage(page)).lastOpenDocId!;
+    // An edit still inside autosave's 500 ms when Open arrives: it is
+    // flushed to the previous record, not carried into the new one.
+    await setSource(page, SMALL_SOURCE);
+    await waitForExactNodeCount(page, visibleNodeCount(SMALL_SOURCE));
+
+    const opened = 'opened: "Opened"\nother: "Other"\nopened -> other\n';
+    await openFile(page, 'other.sgl', opened);
+    await waitForDocument(page, opened);
+    await expect(toastMessages(page)).toContainText(['Opened other.sgl as a new document. Your previous document is in Documents.']);
+
+    await expect.poll(async () => (await readStorage(page)).documents.length).toBe(2);
+    const afterOpen = await readStorage(page);
+    expect(afterOpen.lastOpenDocId).not.toBe(previousId);
+    const previous = afterOpen.documents.find((d) => d.id === previousId)!;
+    expect(previous.source).toBe(SMALL_SOURCE);
+    await expect.poll(async () => (await storedOpenDocument(page))?.source).toBe(opened);
+    expect((await storedOpenDocument(page))?.fileExtension).toBe('.sgl');
+
+    // Edit the new document and let it save: the previous record stays
+    // byte for byte what it was.
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('Control+End');
+    await page.keyboard.insertText('third: "Third"\n');
+    await expect.poll(async () => (await storedOpenDocument(page))?.source).toBe(`${opened}third: "Third"\n`);
+
+    await page.reload();
+    await waitForDocument(page, `${opened}third: "Third"\n`);
+    const afterReload = await readStorage(page);
+    expect(afterReload.documents).toHaveLength(2);
+    expect(JSON.stringify(afterReload.documents.find((d) => d.id === previousId))).toBe(JSON.stringify(previous));
   });
 
   test('a file over 2 MB is refused with a toast and the document is untouched', async ({ page }) => {
@@ -195,7 +235,7 @@ test.describe('DD-08 §7 Open', () => {
     await openFile(page, 'exact.sgl', documentOfSize(twoMb));
     await waitForExactNodeCount(page, 1);
     await expect(page.locator('.cm-content > .cm-line').first()).toHaveText('boundary: "Boundary"');
-    await expect(toastMessages(page)).toHaveCount(0);
+    await expect(toastMessages(page)).toHaveText(['Opened exact.sgl as a new document. Your previous document is in Documents.']);
   });
 
   test('SVG saves lastGood.svg, exactly what the canvas shows', async ({ page }) => {

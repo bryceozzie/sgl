@@ -77,11 +77,12 @@ body {
   gap: 0.4rem;
 }
 
-.save-menu { position: relative; }
-.save-menu > summary { list-style: none; }
-.save-menu > summary::-webkit-details-marker { display: none; }
+.save-menu, .docs-menu { position: relative; }
+.save-menu > summary, .docs-menu > summary { list-style: none; }
+.save-menu > summary::-webkit-details-marker, .docs-menu > summary::-webkit-details-marker { display: none; }
 
 .save-menu .menu,
+.docs-menu .menu,
 .share-dialog {
   position: absolute;
   right: 0;
@@ -94,14 +95,22 @@ body {
   box-shadow: 0 4px 16px light-dark(rgb(0 0 0 / 14%), rgb(0 0 0 / 50%));
 }
 
-.save-menu .menu {
+.docs-menu .menu { right: auto; left: 0; max-height: 60vh; overflow-y: auto; }
+.docs-menu ul { list-style: none; margin: 0.25rem 0 0; padding: 0.25rem 0 0; border-top: 1px solid var(--line); }
+.docs-menu .docs-item { display: flex; width: 100%; justify-content: space-between; gap: 1rem; }
+.docs-menu .docs-item[aria-current='true'] { font-weight: 600; }
+.docs-menu .docs-time { opacity: 0.65; white-space: nowrap; }
+
+.save-menu .menu,
+.docs-menu .menu {
   display: flex;
   flex-direction: column;
   min-width: 11rem;
   padding: 0.25rem;
 }
 
-.save-menu .menu button {
+.save-menu .menu button,
+.docs-menu .menu button {
   font: inherit;
   font-size: 0.78rem;
   text-align: left;
@@ -113,7 +122,8 @@ body {
   cursor: pointer;
 }
 
-.save-menu .menu button:hover { background: var(--line); }
+.save-menu .menu button:hover,
+.docs-menu .menu button:hover { background: var(--line); }
 
 .share-dialog {
   width: min(32rem, 90vw);

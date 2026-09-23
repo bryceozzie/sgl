@@ -1,4 +1,4 @@
-import { effect } from '@preact/signals';
+import { effect, type ReadonlySignal } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
 import type { NodeId } from '@sgl/core';
 import { StatusChip } from '../panels/StatusChip.js';
@@ -13,10 +13,12 @@ export interface CanvasProps {
    *  offer (DD-08 §6, §11) both trigger the same function from outside this
    *  component. */
   readonly onFitReady?: (fit: (() => void) | null) => void;
-  /** DD-08 §5/§9 (J6): the document's stored `lastGoodSvg`, painted at boot
-   *  while `lastGood` is still `null` — before fonts or the worker are
-   *  ready — so a returning user never sees a blank canvas. */
-  readonly bootSvg?: string;
+  /** DD-08 §5/§9 (J6): the open document's stored `lastGoodSvg`, painted
+   *  while `lastGood` is still `null` — at boot, before fonts or the worker
+   *  are ready, and after switching documents (fix round 2), until that
+   *  document's first live render — so a returning user never sees a blank
+   *  canvas. */
+  readonly storedSvg?: ReadonlySignal<string | undefined>;
   /** Bumped when a new document opens (§7 Open): the next render fits, as on
    *  first open (DD-08 §6: "fit on document open"). */
   readonly fitRequest?: number;
@@ -27,7 +29,7 @@ export interface CanvasProps {
  * and the interaction overlay as a sibling `<g>` (DD-08 §6). Hover/click are
  * computed from `lastGood.layout` frames, never the DOM.
  */
-export function Canvas({ pipeline, onFitReady, bootSvg, fitRequest = 0 }: CanvasProps) {
+export function Canvas({ pipeline, onFitReady, storedSvg, fitRequest = 0 }: CanvasProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const wrapperRef = useRef<SVGGElement | null>(null);
   const viewportGRef = useRef<SVGGElement | null>(null);
@@ -57,7 +59,8 @@ export function Canvas({ pipeline, onFitReady, bootSvg, fitRequest = 0 }: Canvas
 
   function fitNow(): void {
     const bounds = pipeline.lastGood.peek()?.layout.bounds;
-    const extent = bounds !== undefined ? { w: bounds.w, h: bounds.h } : showingStoredRef.current && bootSvg !== undefined ? svgExtent(bootSvg) : null;
+    const stored = storedSvg?.peek();
+    const extent = bounds !== undefined ? { w: bounds.w, h: bounds.h } : showingStoredRef.current && stored !== undefined ? svgExtent(stored) : null;
     if (extent === null) return;
     viewportRef.current = fitViewport(extent, viewportSize());
     applyTransform();
@@ -87,6 +90,7 @@ export function Canvas({ pipeline, onFitReady, bootSvg, fitRequest = 0 }: Canvas
   useEffect(() => {
     const disposeRenderEffect = effect(() => {
       const lastGood = pipeline.lastGood.value;
+      const bootSvg = storedSvg?.value;
       const wrapper = wrapperRef.current;
       if (wrapper === null) return;
       if (lastGood === null && bootSvg !== undefined) {

@@ -50,7 +50,7 @@ export interface BootResult {
 /** A record read back from IndexedDB is data from an older build, possibly;
  *  anything without the fields the app reads is treated as missing rather
  *  than trusted. */
-function isDocumentRecord(value: unknown): value is DocumentRecord {
+export function isDocumentRecord(value: unknown): value is DocumentRecord {
   if (typeof value !== 'object' || value === null) return false;
   const r = value as Record<string, unknown>;
   return (
@@ -108,7 +108,7 @@ export function newDocumentId(source: IdSource | undefined, now: () => number): 
   return `doc-${at.toString(36)}-${idCounter.toString(36)}`;
 }
 
-function blankRecord(id: string, source: string, engineId: string, themeId: string, at: number): DocumentRecord {
+export function blankRecord(id: string, source: string, engineId: string, themeId: string, at: number): DocumentRecord {
   return {
     id,
     // Replaced by the session's first save, from the pipeline's own model

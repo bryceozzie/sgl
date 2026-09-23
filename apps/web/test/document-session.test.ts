@@ -95,6 +95,61 @@ describe('document session', () => {
     expect(autosave.requests.at(-1)?.fileExtension).toBe('.txt');
   });
 
+  describe('switching to another record (fix round 2: Open as a new document, the Documents list)', () => {
+    const other = (extra: Partial<DocumentRecord> = {}): DocumentRecord => ({
+      id: 'doc-2',
+      title: 'Other',
+      source: '@title: "Other"\nb: "B"\n',
+      engineId: 'sgl.grid',
+      engineOptions: { columns: 2 },
+      themeId: 'neutral-dark',
+      createdAt: 50,
+      updatedAt: 60,
+      lastGoodSvg: '<svg id="other-stored"/>',
+      fileExtension: '.txt',
+      ...extra,
+    });
+
+    it('the record becomes the other one, with its pickers, extension and stored picture — never the old live SVG', () => {
+      const autosave = fakeAutosave();
+      const pipeline = fakePipeline(initial().source);
+      const session = createDocumentSession(pipeline as unknown as SessionPipeline, initial(), autosave, () => 100);
+      pipeline.lastGood.value = { svg: '<svg id="doc-1-live"/>' } as LastGood;
+      autosave.requests.length = 0;
+
+      session.switchTo(other(), () => {
+        pipeline.source.value = other().source;
+      });
+
+      expect(session.record.value).toEqual(other());
+      expect(pipeline.engineOptions.value).toEqual({ columns: 2 });
+      expect(pipeline.themeId.value).toBe('neutral-dark');
+      expect(pipeline.lastGood.value).toBeNull();
+      // Nothing changed relative to what is stored: no save, so merely
+      // opening a document does not reorder the list.
+      expect(autosave.requests).toEqual([]);
+    });
+
+    it('never requests a record that pairs the new id with the old text (or the old id with the new text)', () => {
+      const autosave = fakeAutosave();
+      const pipeline = fakePipeline(initial().source);
+      const session = createDocumentSession(pipeline as unknown as SessionPipeline, initial(), autosave, () => 100);
+      const fresh = other({ title: 'diagram', lastGoodSvg: undefined });
+      delete (fresh as { lastGoodSvg?: string }).lastGoodSvg;
+      session.switchTo(fresh, () => {
+        pipeline.source.value = fresh.source;
+      });
+      // A new record's placeholder title differs from its computed one: saved.
+      expect(autosave.requests).toHaveLength(1);
+      expect(autosave.requests[0]).toMatchObject({ id: 'doc-2', title: 'Other', source: fresh.source, createdAt: 50, updatedAt: 100 });
+      for (const r of autosave.requests) expect(r.id === 'doc-2').toBe(r.source === fresh.source);
+
+      // Later edits go to the new record.
+      pipeline.source.value = '@title: "Other"\nb: "B"\nc: "C"\n';
+      expect(autosave.requests.at(-1)).toMatchObject({ id: 'doc-2', source: '@title: "Other"\nb: "B"\nc: "C"\n' });
+    });
+  });
+
   it('dispose stops following the pipeline', () => {
     const autosave = fakeAutosave();
     const pipeline = fakePipeline(initial().source);
