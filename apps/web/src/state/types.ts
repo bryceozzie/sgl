@@ -20,6 +20,10 @@ export type Cancel = () => void;
  *  waiting on the clock. Defaults to real `setTimeout`/`clearTimeout`. */
 export type Schedule = (fn: () => void, ms: number) => Cancel;
 
+/** The synchronous stages DD-08 §13's error boundary wraps individually —
+ *  also the argument `PipelineDeps.unsafeInjectStageThrow` receives. */
+export type GuardedStageName = 'parse' | 'resolve' | 'compile' | 'resolveTheme' | 'styleGraph' | 'render';
+
 /** Everything the pipeline needs from the outside world, injected so it stays
  *  DOM-free and Node-testable (I3): the real layout host, the real measurer and
  *  the real debounce clock in the app; fakes in tests. */
@@ -35,18 +39,17 @@ export interface PipelineDeps {
   readonly schedule?: Schedule;
   readonly debounceMs?: number;
   /**
-   * Test-only fault injection for DD-08 §13's error boundary: called once at
-   * the very start of the synchronous `parse -> resolve -> compile ->
-   * resolveTheme -> styleGraph` chain, on every recompute. `parse`/`resolve`/
-   * `compile`/`resolveTheme`/`styleGraph` themselves are plain module-level
-   * imports, not part of this injected-dependency surface (DD-00 §1 says none
-   * of them ever throws on bad *document* input, so there is nothing to fake
-   * by feeding them a crafted document) — this is the one deliberately narrow
-   * seam that lets a test simulate one of them violating that contract
-   * without reaching into `@sgl/core`/`@sgl/theme` internals. Never set outside
-   * a test.
+   * Test-only fault injection for DD-08 §13's error boundary: called at the
+   * start of every recompute of each guarded synchronous stage, with that
+   * stage's name, so a test can make exactly one stage throw. `parse`/
+   * `resolve`/`compile`/`resolveTheme`/`styleGraph`/`render` themselves are
+   * plain module-level imports, not part of this injected-dependency surface
+   * (DD-00 §1 says none of them throws on bad *document* input, so there is
+   * no crafted document that provokes one) — this is the one deliberately
+   * narrow seam that simulates one of them violating that contract without
+   * reaching into `@sgl/*` internals. Never set outside a test.
    */
-  readonly unsafeInjectStageThrow?: () => void;
+  readonly unsafeInjectStageThrow?: (stage: GuardedStageName) => void;
 }
 
 /** What the canvas shows (DD-08 §3, §6). Updated only when `svg` exists **and**

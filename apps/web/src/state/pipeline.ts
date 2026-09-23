@@ -21,7 +21,7 @@ import { deriveChipState, type ChipState } from './chip.js';
 import { distinctTextStyles } from './measure-styles.js';
 import { documentEngineOverride, documentThemeOverride } from './overrides.js';
 import { makePipelineError, type PipelineError } from './pipeline-error.js';
-import type { Cancel, LabelSizes, LastGood, PipelineDeps, Schedule } from './types.js';
+import type { Cancel, GuardedStageName, LabelSizes, LastGood, PipelineDeps, Schedule } from './types.js';
 
 const DEFAULT_DEBOUNCE_MS = 120;
 /** DD-08 §11: the chip shows "laying out…" only after this long in flight, so
@@ -37,31 +37,78 @@ function isAbortError(err: unknown): boolean {
   return err instanceof Error && err.name === 'AbortError';
 }
 
-/** DD-08 §13: "a thrown error **anywhere** in the pipeline... is caught at the
- *  effect boundary." `compute()` is a synchronous stage call (`parse`,
- *  `resolve`, `compile`, `resolveTheme`, `styleGraph`, or `render()` via
- *  `svgOutcome`) — on success, `value` is the fresh result and `error` is
- *  `undefined`; on a throw, `value` is whatever the *last successful* call
- *  produced (so every downstream computed keeps reading a stable, valid
- *  input and the whole chain freezes at last-good, exactly like a document
- *  diagnostic would) and `error` carries what was thrown, for the aggregating
- *  effect below to report. The very first call has no "last successful"
- *  result to fall back to — thrown straight through, since there is nothing
- *  safe to show yet; nothing in this codebase seeds the pipeline with a
- *  document expected to fail on that first pass. */
-function guardedStage<T>(compute: () => T): ReadonlySignal<{ readonly value: T; readonly error: unknown }> {
-  let last: T | undefined;
-  let hasLast = false;
+/** One guarded stage's latest outcome: the value downstream computeds read,
+ *  what (if anything) this recompute threw, and whether the stage is frozen —
+ *  because it threw, or because a stage it reads from is frozen. */
+interface StageOutcome<T> {
+  readonly value: T;
+  readonly error: unknown;
+  readonly blocked: boolean;
+}
+
+/** DD-08 §13: "a thrown error **anywhere** in the pipeline… is caught at the
+ *  effect boundary." `compute()` is one synchronous stage call.
+ *
+ *  - On success, `value` is the fresh result.
+ *  - On a throw, `value` is whatever the *last successful* call produced, and
+ *    `error` carries what was thrown, for the reporting effect to log and
+ *    surface. Downstream computeds keep reading a stable, valid input.
+ *  - While any `upstream` stage is blocked, this one does not run at all and
+ *    holds its last value too — otherwise a fan-in stage (`styleGraph` reads
+ *    `compile`'s graph *and* `resolve`'s classes) would recompute from one
+ *    fresh input and one frozen one, a pairing no real document produces. So
+ *    the chain freezes at last-good from the throwing stage down, exactly as a
+ *    document error freezes `lastGood`.
+ *
+ *  With no successful call yet (a throw on the very first, boot-time pass),
+ *  `value` is `fallback()` — the stage over the empty document — so the
+ *  pipeline still constructs and the editor still mounts; the next edit that
+ *  stops throwing recovers normally. The computed itself never throws. */
+function guardedStage<T>(
+  upstream: readonly ReadonlySignal<StageOutcome<unknown>>[],
+  compute: () => T,
+  fallback: () => T,
+): ReadonlySignal<StageOutcome<T>> {
+  let last: { readonly value: T } | null = null;
+  const held = (): T => (last === null ? fallback() : last.value);
   return computed(() => {
+    // Read every upstream outcome (not `.some`, which would stop at the first
+    // and leave this computed unsubscribed from the rest).
+    const upstreamBlocked = upstream.map((u) => u.value.blocked);
+    if (upstreamBlocked.includes(true)) return { value: held(), error: undefined, blocked: true };
     try {
-      last = compute();
-      hasLast = true;
-      return { value: last, error: undefined };
+      const value = compute();
+      last = { value };
+      return { value, error: undefined, blocked: false };
     } catch (err) {
-      if (hasLast) return { value: last as T, error: err };
-      throw err;
+      return { value: held(), error: err, blocked: true };
     }
   });
+}
+
+/** Every synchronous stage run over the empty document with the default theme —
+ *  `guardedStage`'s boot-time fallback. Built lazily, once, only if a stage
+ *  ever throws before its first success; all real, pure calls on trivial
+ *  input (DD-00 §1: none of them throws on a *document*, and this one is
+ *  empty). */
+interface EmptyStages {
+  readonly parsed: StageResult<SglDocument>;
+  readonly model: ResolveResult;
+  readonly graph: CompileResult;
+  readonly theme: StageResult<ResolvedTheme>;
+  readonly styled: StageResult<StyledGraph>;
+}
+let emptyStagesMemo: EmptyStages | null = null;
+function emptyStages(): EmptyStages {
+  if (emptyStagesMemo === null) {
+    const parsed = buildAst(parse('').tree, '');
+    const model = resolve(parsed.value);
+    const graph = compile(model.model);
+    const theme = resolveTheme(BUILT_IN[DEFAULT_THEME_ID]!, (id) => BUILT_IN[id]);
+    const styled = styleGraph(graph.graph, theme.value, model.model.classes);
+    emptyStagesMemo = { parsed, model, graph, theme, styled };
+  }
+  return emptyStagesMemo;
 }
 
 /** A deterministic key for `engineOptions` equality — sorted so key order never
@@ -163,26 +210,48 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   const source = computed(() => doc.value.source);
   const pipelineError = signal<PipelineError | null>(null);
 
+  /** DD-08 §13's "caught, **logged**, shown": the original error object goes
+   *  to the console (stack preserved — `console.error` keeps an `Error`'s own
+   *  stack, where `describeError`'s message-only string would drop it), and
+   *  `makePipelineError` builds the chip's copy (message + source hash, never
+   *  the source). Every boundary below reports through this one function. */
   function reportPipelineError(err: unknown, srcSnapshot: string): void {
-    // §13: "caught…, logged, shown" — the original error, stack included.
-    console.error('[SGL] pipeline error:', err);
+    console.error('[SGL] pipeline error (DD-08 §13):', err);
     pipelineError.value = makePipelineError(err, srcSnapshot);
   }
 
-  // §13's error boundary, applied to every synchronous stage — DD-08 §13 says
-  // "anywhere in the pipeline," not just `render()`. Each stage is wrapped by
-  // `guardedStage` individually ("catch it at each computed... boundary"), so
-  // a throw in, say, `compile` freezes `graph`/`theme`/`styled` at their last
-  // good values while `parsed`/`model` (upstream of the throw) keep updating
-  // normally. `unsafeInjectStageThrow` (`PipelineDeps`) is the test-only seam
-  // that proves this without reaching into `@sgl/core` internals.
-  const parsedOutcome = guardedStage(() => {
-    deps.unsafeInjectStageThrow?.();
-    return buildAst(doc.value.tree, doc.value.source);
-  });
+  const inject = (stage: GuardedStageName): void => deps.unsafeInjectStageThrow?.(stage);
+
+  // §13's error boundary on every synchronous stage — "anywhere in the
+  // pipeline," not just `render()`. Each stage is its own `guardedStage`, so a
+  // throw in, say, `compile` freezes `graph`/`styled` (and everything below)
+  // at their last good values while `parsed`/`model` upstream of it keep
+  // updating normally. The public `parsed`/`model`/… signals keep DD-08 §3's
+  // shape: each unwraps its outcome's `value`. Every stage reads its signal
+  // inputs *before* the injection point (and so before the stage call itself,
+  // as argument evaluation already guarantees for a real throw): a computed
+  // that throws before reading a dependency never subscribes to it, and could
+  // then never recompute to recover.
+  const parsedOutcome = guardedStage(
+    [],
+    () => {
+      const { tree, source: text } = doc.value;
+      inject('parse');
+      return buildAst(tree, text);
+    },
+    () => emptyStages().parsed,
+  );
   const parsed = computed<StageResult<SglDocument>>(() => parsedOutcome.value.value);
 
-  const modelOutcome = guardedStage(() => resolve(parsed.value.value));
+  const modelOutcome = guardedStage(
+    [parsedOutcome],
+    () => {
+      const ast = parsed.value.value;
+      inject('resolve');
+      return resolve(ast);
+    },
+    () => emptyStages().model,
+  );
   const model = computed<ResolveResult>(() => modelOutcome.value.value);
 
   // DD-08 §10: "@layout.engine / @theme in the document override the pickers."
@@ -191,13 +260,39 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   const effectiveThemeId = computed<string>(() => documentThemeId.value ?? themeId.value);
   const effectiveEngineId = computed<string>(() => documentEngineId.value ?? engineId.value);
 
-  const graphOutcome = guardedStage(() => compile(model.value.model));
+  const graphOutcome = guardedStage(
+    [modelOutcome],
+    () => {
+      const documentModel = model.value.model;
+      inject('compile');
+      return compile(documentModel);
+    },
+    () => emptyStages().graph,
+  );
   const graph = computed<CompileResult>(() => graphOutcome.value.value);
 
-  const themeOutcome = guardedStage(() => resolveTheme(BUILT_IN[effectiveThemeId.value] ?? BUILT_IN[DEFAULT_THEME_ID]!, (id) => BUILT_IN[id]));
+  const themeOutcome = guardedStage(
+    [modelOutcome], // `effectiveThemeId` reads the document's own `@theme`.
+    () => {
+      const themeSpec = BUILT_IN[effectiveThemeId.value] ?? BUILT_IN[DEFAULT_THEME_ID]!;
+      inject('resolveTheme');
+      return resolveTheme(themeSpec, (id) => BUILT_IN[id]);
+    },
+    () => emptyStages().theme,
+  );
   const theme = computed<StageResult<ResolvedTheme>>(() => themeOutcome.value.value);
 
-  const styledOutcome = guardedStage(() => styleGraph(graph.value.graph, theme.value.value, model.value.model.classes));
+  const styledOutcome = guardedStage(
+    [modelOutcome, graphOutcome, themeOutcome],
+    () => {
+      const semanticGraph = graph.value.graph;
+      const resolvedTheme = theme.value.value;
+      const classes = model.value.model.classes;
+      inject('styleGraph');
+      return styleGraph(semanticGraph, resolvedTheme, classes);
+    },
+    () => emptyStages().styled,
+  );
   const styled = computed<StageResult<StyledGraph>>(() => styledOutcome.value.value);
 
   const table = signal<MeasureTable>({});
@@ -205,30 +300,50 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   const layoutDiags = signal<readonly Diagnostic[]>([]);
   const inFlight = signal(false);
 
-  // `render()` is the one synchronous call downstream of the guarded stages
-  // above whose contract does not (yet) promise "never throws on bad input"
-  // the way parse/resolve/compile/resolveTheme/styleGraph do (§1) — guarded
-  // the same way, via the shared `guardedStage` helper.
-  const svgOutcome = guardedStage<RenderResult | null>(() => {
-    const layoutValue = layout.value;
-    if (layoutValue === null) return null;
-    return render(styled.value.value, layoutValue, theme.value.value);
-  });
-  const svg = computed<RenderResult | null>(() => svgOutcome.value.value);
+  // `render()` — the last synchronous stage, guarded the same way. Its
+  // fallback is `null` ("nothing rendered"), which `lastGood`'s effect already
+  // treats as "keep what is on screen". The outcome keeps the exact `styled`
+  // and `layout` it rendered, so `lastGood` pairs an SVG with its own inputs
+  // rather than with whatever `styled` holds by the time the effect runs.
+  interface Rendered {
+    readonly result: RenderResult;
+    readonly styled: StyledGraph;
+    readonly layout: LayoutResult;
+  }
+  const svgOutcome = guardedStage<Rendered | null>(
+    [styledOutcome, themeOutcome],
+    () => {
+      const layoutValue = layout.value;
+      if (layoutValue === null) return null;
+      const styledValue = styled.value.value;
+      const resolvedTheme = theme.value.value;
+      inject('render');
+      return { result: render(styledValue, layoutValue, resolvedTheme), styled: styledValue, layout: layoutValue };
+    },
+    () => null,
+  );
+  const svg = computed<RenderResult | null>(() => svgOutcome.value.value?.result ?? null);
 
-  // One effect aggregates every guarded stage's `error` (kept as `{value,
-  // error}` pairs rather than writing `pipelineError` from inside a computed
-  // — a computed's own callback should stay a pure function of its
-  // dependencies) and reports whichever is currently set. Recomputation only
-  // happens when a dependency actually changes, so a persistent error on an
-  // unedited document does not re-report on every reactive tick. Clearing
+  // One effect reports every guarded stage's `error` — kept as `{ value, error }`
+  // pairs rather than written to `pipelineError` from inside a computed (a
+  // computed's own callback stays a pure function of its dependencies). An
+  // outcome only changes when its stage recomputes, but this effect also
+  // re-runs when an *unrelated* stage recomputes; `lastReported` stops a
+  // still-live error from being logged again on every such re-run. Clearing
   // `pipelineError` back to `null` is `disposeLastGoodEffect`'s job below —
   // "recovered" means a full clean cycle completed, not just "this one stage
   // stopped throwing while another still is."
+  let lastReported: unknown = undefined;
   const disposeStageErrorEffect = effect(() => {
     const outcomes = [parsedOutcome.value, modelOutcome.value, graphOutcome.value, themeOutcome.value, styledOutcome.value, svgOutcome.value];
     const failed = outcomes.find((o) => o.error !== undefined);
-    if (failed !== undefined) reportPipelineError(failed.error, doc.peek().source);
+    if (failed === undefined) {
+      lastReported = undefined;
+      return;
+    }
+    if (failed.error === lastReported) return;
+    lastReported = failed.error;
+    reportPipelineError(failed.error, doc.peek().source);
   });
 
   // DD-08 §3 names parsed/model/graph/layoutDiags; theme's and styled's own
@@ -321,8 +436,6 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     currentAbort = controller;
     const generation = (layoutGeneration += 1);
 
-    const labelSizes = labelSizesOf(styledSnapshot, tableSnapshot);
-    const input: LayoutInput = buildLayoutInput(styledSnapshot, labelSizes);
     const sourceSnapshot = doc.peek().source;
 
     inFlight.value = true;
@@ -331,6 +444,11 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
       if (currentAbort === controller) currentAbort = null;
     };
     try {
+      // Inside the boundary too: this runs from the debounce timer, so a throw
+      // here (a `buildLayoutInput` invariant — e.g. an unknown node id) would
+      // otherwise escape as an uncaught timer exception.
+      const labelSizes = labelSizesOf(styledSnapshot, tableSnapshot);
+      const input: LayoutInput = buildLayoutInput(styledSnapshot, labelSizes);
       void deps.host
         .run(engine, input, options, deps.metrics, tableSnapshot, controller.signal)
         .then((result) => {
@@ -353,8 +471,9 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
         })
         .finally(settle);
     } catch (err) {
-      // A host whose `run()` throws synchronously instead of returning a
-      // rejected promise would otherwise never reach `.catch` above.
+      // Building the input threw, or a host whose `run()` throws synchronously
+      // instead of returning a rejected promise — neither reaches `.catch`
+      // above.
       reportPipelineError(err, sourceSnapshot);
       settle();
     }
@@ -385,14 +504,17 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   // lastGood (FR-E4): updated only when `svg` exists and `diags` carries no
   // error.
   // -------------------------------------------------------------------------
+  // `adopted` is the render already on screen: `diags` changing on its own (a
+  // new edit whose render is frozen by a §13 stage throw, or a layout-only
+  // warning) must not rebuild `lastGood` around the same SVG.
+  let adopted: Rendered | null = null;
   const disposeLastGoodEffect = effect(() => {
-    const svgResult = svg.value;
+    const rendered = svgOutcome.value.value;
     const diagnostics = diags.value;
-    if (svgResult === null) return;
+    if (rendered === null || rendered === adopted) return;
     if (diagnostics.some((d) => d.severity === 'error')) return;
-    const layoutValue = layout.value;
-    if (layoutValue === null) return; // svg is only non-null when layout is; guards the type.
-    lastGood.value = { styled: styled.value.value, layout: layoutValue, svg: svgResult.svg, styleBlock: svgResult.styleBlock };
+    adopted = rendered;
+    lastGood.value = { styled: rendered.styled, layout: rendered.layout, svg: rendered.result.svg, styleBlock: rendered.result.styleBlock };
     // "Recovered" (§13): a full clean cycle just completed — every guarded
     // stage succeeded and produced no error diagnostic. Clearing here, not
     // wherever an error was set, is what stops a fresh layout success from

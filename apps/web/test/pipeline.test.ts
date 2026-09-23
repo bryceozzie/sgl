@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { asNodeId, diagnostic, NO_SPAN, parse, type Diagnostic } from '@sgl/core';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { asNodeId, diagnostic, NO_SPAN, parse, type Diagnostic, type LabelId } from '@sgl/core';
 import type { LayoutHost, LayoutInput, LayoutResult, ResolvedThemeMetricsView } from '@sgl/layout-api';
 import type { StageResult } from '@sgl/core';
-import { StaticMetricsMeasurer } from '@sgl/measure';
+import { labelRunKey, StaticMetricsMeasurer } from '@sgl/measure';
 import { createPipeline } from '../src/state/pipeline.js';
 import type { AppMeasurer, Cancel, Schedule } from '../src/state/types.js';
 
@@ -209,52 +209,62 @@ describe('pipeline (DD-08 §3)', () => {
     expect(env.pipeline.layoutDiags.value).toEqual([]);
   });
 
-  it('a late-arriving *fulfilled* result for a superseded request never reaches layout/layoutDiags/lastGood', async () => {
-    // The default fake host rejects on `'abort'` immediately, so a superseded
-    // request's own promise is always already-settled by the time a test
-    // calls `.resolve()` on it — Promise semantics make that resolve a no-op,
-    // so the `generation !== layoutGeneration` guard at `pipeline.ts`'s
-    // `runLayout().then(...)` was never actually exercised by a *fulfilled*
-    // late reply. `ignoreAbort` leaves the promise genuinely pending past the
-    // abort, matching a real worker/engine that has not noticed `ctx.signal`
-    // yet (DD-06 §3 explicitly allows for this).
+  it('a superseded request whose *fulfilled* result arrives late never touches layout/layoutDiags/lastGood; the newer one does', async () => {
+    // The default fake host rejects on `'abort'` at once, so a superseded
+    // request's promise is already settled by the time a test resolves it —
+    // that resolve is a no-op, and the `generation !== layoutGeneration` guard
+    // in `runLayout`'s `.then` never sees a fulfilled late reply. `ignoreAbort`
+    // leaves the promise open past the abort, as a real worker that has not yet
+    // noticed `ctx.signal` would (DD-06 §3 allows for it), so the *pipeline's*
+    // guard is the only thing standing between a stale result and the canvas.
     const env = setup('a: "A"', {}, { ignoreAbort: true });
-    await completeOneLayout(env, 'a'); // pending[0] — resolved, the baseline; not "superseded."
+    await completeOneLayout(env, 'a'); // pending[0]: the baseline.
+    const baselineLayout = env.pipeline.layout.value;
 
-    const parsedB = parse('a: "A"\nb: "B"');
-    env.pipeline.setDocument(parsedB.tree, 'a: "A"\nb: "B"');
-    await flush();
-    env.fireLatest();
-    await flush();
-    expect(env.pending.length).toBe(2); // pending[1] — about to be superseded.
+    // Three edits, each fired: pending[1] and pending[2] are superseded by
+    // pending[3], and none of the three has answered yet.
+    for (const src of ['a: "A"\nb: "B"', 'a: "A"\nb: "B"\nc: "C"', 'a: "A"\nb: "B"\nc: "C"\nd: "D"']) {
+      env.pipeline.setDocument(parse(src).tree, src);
+      await flush();
+      env.fireLatest();
+      await flush();
+    }
+    expect(env.pending).toHaveLength(4);
+    const [, staleEarly, staleLate, current] = env.pending as [PendingRun, PendingRun, PendingRun, PendingRun];
+    expect(staleEarly.signal.aborted).toBe(true);
+    expect(staleLate.signal.aborted).toBe(true);
+    expect(current.signal.aborted).toBe(false);
+    // Each edit already re-rendered against the baseline layout (a new
+    // `styled`, the old frames) — this is what is on screen while all three
+    // requests are out.
+    expect(env.pipeline.layout.value).toBe(baselineLayout);
+    const lastGoodBeforeReplies = env.pipeline.lastGood.value;
+    expect(lastGoodBeforeReplies?.layout).toBe(baselineLayout);
 
-    const parsedC = parse('a: "A"\nb: "B"\nc: "C"');
-    env.pipeline.setDocument(parsedC.tree, 'a: "A"\nb: "B"\nc: "C"');
+    // 1. A stale reply lands while the current request is still in flight.
+    staleEarly.resolve({ value: fakeLayoutResult('b'), diagnostics: [diagnostic('SGL4003', NO_SPAN, { node: 'b' })] });
     await flush();
-    env.fireLatest();
+    expect(env.pipeline.layout.value).toBe(baselineLayout);
+    expect(env.pipeline.layoutDiags.value).toEqual([]);
+    expect(env.pipeline.lastGood.value).toBe(lastGoodBeforeReplies);
+    expect(env.pipeline.inFlight.value).toBe(true); // still waiting on `current`.
+
+    // 2. The current reply lands and is adopted.
+    const currentResult = fakeLayoutResult('d');
+    current.resolve({ value: currentResult, diagnostics: [] });
     await flush();
-    expect(env.pending.length).toBe(3); // pending[2] — issuing it aborts pending[1].
+    expect(env.pipeline.layout.value).toBe(currentResult);
+    expect(env.pipeline.lastGood.value).not.toBe(lastGoodBeforeReplies);
+    expect(env.pipeline.lastGood.value?.layout).toBe(currentResult);
+    expect(env.pipeline.inFlight.value).toBe(false);
+    const adoptedLastGood = env.pipeline.lastGood.value;
 
-    const superseded = env.pending[1]!;
-    const current = env.pending[2]!;
-    expect(superseded.signal.aborted).toBe(true); // abort was requested...
-    // ...but the fake host did not reject on it: the promise is still open.
-
-    current.resolve({ value: fakeLayoutResult('both'), diagnostics: [] });
+    // 3. Another stale reply lands after the current one: still ignored.
+    staleLate.resolve({ value: fakeLayoutResult('c'), diagnostics: [diagnostic('SGL4003', NO_SPAN, { node: 'c' })] });
     await flush();
-    expect(env.pipeline.layout.value?.nodes[asNodeId('both')]).toBeDefined();
-    const layoutAfterCurrent = env.pipeline.layout.value;
-    const lastGoodAfterCurrent = env.pipeline.lastGood.value;
-
-    // The superseded request's own result finally arrives — a different,
-    // bogus layout plus a diagnostic that must never surface.
-    superseded.resolve({ value: fakeLayoutResult('a'), diagnostics: [diagnostic('SGL4003', NO_SPAN, { node: 'a' })] });
-    await flush();
-
-    expect(env.pipeline.layout.value).toBe(layoutAfterCurrent); // untouched by the stale reply.
-    expect(env.pipeline.layout.value?.nodes[asNodeId('a')]).toBeUndefined();
-    expect(env.pipeline.layoutDiags.value).toEqual([]); // the stale SGL4003 never lands.
-    expect(env.pipeline.lastGood.value).toBe(lastGoodAfterCurrent);
+    expect(env.pipeline.layout.value).toBe(currentResult);
+    expect(env.pipeline.layoutDiags.value).toEqual([]);
+    expect(env.pipeline.lastGood.value).toBe(adoptedLastGood);
   });
 
   it('a theme-only change skips layout but re-renders', async () => {
@@ -346,39 +356,50 @@ describe('pipeline (DD-08 §3)', () => {
     expect(env.pending[0]!.engineId).toBe('sgl.grid');
   });
 
-  it('boot: exactly one layout request ever runs, and it carries real (non-zero) label sizes from premeasure', async () => {
-    // Regression test for the `hasMeasuredOnce` guard (pipeline.ts:227-243,
-    // 319-328): without it, the layout effect fires once immediately on boot
-    // with `table` still `{}`, scheduling (and, once fired, running) a first
-    // layout request whose label sizes are all `labelSizesOf`'s `{ w: 0, h: 0
-    // }` fallback — before a *second*, correctly-sized request follows once
-    // premeasure actually completes. A long label makes the difference
-    // unmistakable: a zero-size label still gets *some* width from the
-    // shape's own theme padding/minWidth floor (`neutral-light`'s node rule:
-    // `minWidth: 72`), but nowhere near what a real 60-character label
-    // measures to.
-    const longLabel = 'A very long label so its measured width is unmistakably larger than the 72px minWidth floor';
-    const env = setup(`a: "${longLabel}"`);
-    await flushUntil(() => env.calls.some((c) => !c.cancelled));
-    env.fireLatest();
+  it('boot: the first and only layout request carries the real premeasure table (hasMeasuredOnce)', async () => {
+    // Regression test for the `hasMeasuredOnce` guard on the layout effect.
+    // Without it the effect fires at construction with `table` still `{}`, and
+    // that request lays every label out at `labelSizesOf`'s zero-size fallback
+    // before a second, correctly-sized one follows. `fireLatest()` alone cannot
+    // see that — the real table usually lands and re-schedules before a test
+    // fires anything, coalescing the wasted request away — so this fires every
+    // debounce *the moment it is scheduled*, starting synchronously after
+    // construction, before the measure effect's async chain can have finished.
+    const env = setup('a: "A very long label, measured far wider than any padding floor"\nb: "B"\na -> b: "edge label"');
+    const fired = new Set<unknown>();
+    const fireNewDebounces = (): void => {
+      for (const call of env.calls) {
+        if (call.ms !== 120 || call.cancelled || fired.has(call)) continue;
+        fired.add(call);
+        call.fn();
+      }
+    };
+
+    fireNewDebounces(); // synchronously after construction: premeasure cannot have landed.
+    await flushUntil(() => Object.keys(env.pipeline.table.value).length > 0);
+    expect(Object.keys(env.pipeline.table.value).length).toBeGreaterThan(0);
+    await flush();
+    fireNewDebounces();
     await flush();
 
-    // `env.calls` records *every* scheduling ever made on the shared clock,
-    // cancelled or not, including the unrelated 300 ms "laying out…" timer
-    // `runLayout` starts once it sets `inFlight = true` — filtered to the
-    // 120 ms debounce alone. A wasted zero-size first pass shows up here (two
-    // 120 ms schedulings, the first cancelled by the second) even though
-    // `fireLatest()` always resolves to the *latest* live one, so
-    // `env.pending.length` alone cannot tell the two cases apart (microtask
-    // ordering means the correctly-sized table often lands and supersedes
-    // the empty one before the test ever fires anything, whether or not the
-    // guard exists).
-    const debounceSchedulings = env.calls.filter((c) => c.ms === 120);
-    expect(debounceSchedulings).toHaveLength(1); // exactly one scheduling, ever — no wasted empty-table pass.
-    expect(env.pending.length).toBe(1);
-    const sizing = env.pending[0]!.input.sizing[asNodeId('a')];
-    expect(sizing).toBeDefined();
-    expect(sizing!.intrinsic.w).toBeGreaterThan(150); // real text measurement, not the padding floor alone.
+    // Exactly one layout ran, and exactly one was ever scheduled.
+    expect(env.pending).toHaveLength(1);
+    expect(env.calls.filter((c) => c.ms === 120)).toHaveLength(1);
+
+    // Its label sizes are the real premeasure table's, for every label.
+    const { input } = env.pending[0]!;
+    const styled = env.pipeline.styled.value.value;
+    const table = env.pipeline.table.value;
+    const labelIds = Object.keys(styled.graph.labels).sort() as LabelId[];
+    expect(labelIds.length).toBeGreaterThanOrEqual(3); // two node labels and the edge label.
+    expect((Object.keys(input.labelSizes) as LabelId[]).sort()).toEqual(labelIds);
+    for (const id of labelIds) {
+      const measured = table[labelRunKey(styled, id)];
+      expect(measured, `premeasure entry for ${id}`).toBeDefined();
+      expect(input.labelSizes[id]).toEqual({ w: measured!.width, h: measured!.height });
+      expect(input.labelSizes[id]!.w).toBeGreaterThan(0);
+      expect(input.labelSizes[id]!.h).toBeGreaterThan(0);
+    }
   });
 });
 
@@ -411,7 +432,21 @@ describe('document overrides (DD-08 §10)', () => {
 });
 
 describe('error boundary (DD-08 §13)', () => {
-  it('a host.run() rejection other than AbortError is caught, not left unhandled, and surfaces on the chip', async () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** §13: "caught, **logged**, shown" — every boundary logs the original error
+   *  object (stack intact), not a stringified copy. */
+  function spyConsoleError() {
+    return vi.spyOn(console, 'error').mockImplementation(() => {});
+  }
+  function loggedErrors(spy: ReturnType<typeof spyConsoleError>): unknown[] {
+    return spy.mock.calls.map((args) => args[args.length - 1]);
+  }
+
+  it('a host.run() rejection other than AbortError is caught, not left unhandled, logged, and surfaces on the chip', async () => {
+    const consoleError = spyConsoleError();
     const env = setup('a: "A"');
     await completeOneLayout(env, 'a');
     const layoutBefore = env.pipeline.layout.value;
@@ -423,8 +458,11 @@ describe('error boundary (DD-08 §13)', () => {
     await flush();
 
     const call = env.pending[env.pending.length - 1]!;
-    call.reject(new Error('engine module failed to load'));
+    const thrown = new Error('engine module failed to load');
+    call.reject(thrown);
     await flush();
+
+    expect(loggedErrors(consoleError)).toEqual([thrown]); // logged once, the original object.
 
     expect(env.pipeline.pipelineError.value?.message).toContain('engine module failed to load');
     expect(env.pipeline.pipelineError.value?.sourceHash).toBeTruthy();
@@ -435,6 +473,7 @@ describe('error boundary (DD-08 §13)', () => {
   });
 
   it('the crash clears once a later render succeeds', async () => {
+    spyConsoleError();
     const env = setup('a: "A"');
     await completeOneLayout(env, 'a');
 
@@ -459,72 +498,187 @@ describe('error boundary (DD-08 §13)', () => {
     expect(env.pipeline.chip.value.kind).not.toBe('crashed');
   });
 
-  it('a throw from measurer.ready() is caught, not left as an unhandled rejection', async () => {
+  it.each([
+    ['measurer.ready()', 'ready'],
+    ['premeasure (the measurer itself)', 'layoutRuns'],
+  ] as const)('the measure effect: a throw from %s is caught, logged and surfaced, not left as an unhandled rejection', async (_label, where) => {
+    const consoleError = spyConsoleError();
+    const thrown = new Error(`${where} failed`);
     const host: LayoutHost = { run: () => new Promise(() => {}), dispose: () => {} };
+    const measurer = new TestMeasurer();
     const throwingMeasurer: AppMeasurer = {
-      layoutRuns: () => ({ width: 0, height: 0, lines: [], ascent: 0 }),
-      layoutRunsAsync: async () => ({ width: 0, height: 0, lines: [], ascent: 0 }),
-      has: () => true,
+      layoutRuns: (...args) => {
+        if (where === 'layoutRuns') throw thrown;
+        return measurer.layoutRuns(...args);
+      },
+      layoutRunsAsync: (...args) => measurer.layoutRunsAsync(...args),
+      has: (...args) => measurer.has(...args),
       ready: () => {
-        throw new Error('fonts API unavailable');
+        if (where === 'ready') throw thrown;
+        return Promise.resolve();
       },
     };
     const pipeline = createPipeline({ measurer: throwingMeasurer, host, metrics: METRICS, defaultEngineId: 'sgl.grid' }, 'a: "A"');
-    await flush();
-    expect(pipeline.pipelineError.value?.message).toContain('fonts API unavailable');
+    await flushUntil(() => pipeline.pipelineError.value !== null);
+    expect(pipeline.pipelineError.value?.message).toBe(`${where} failed`);
+    expect(pipeline.chip.value.kind).toBe('crashed');
+    expect(loggedErrors(consoleError)).toEqual([thrown]);
     pipeline.dispose();
   });
 
-  it('a throwing synchronous stage (K1: DD-08 §13 "anywhere in the pipeline") is caught, keeps parsed/model/graph/theme/styled and lastGood at their last-good values, and never crashes the app', async () => {
-    let calls = 0;
-    // `unsafeInjectStageThrow` runs once per synchronous recompute of the
-    // guarded chain (`parsedOutcome`'s `compute()`) — call 1 is the
-    // pipeline's own construction-time pass, call 2 is the first edit below
-    // (left to succeed normally, so there is a real "last good" snapshot to
-    // assert against), call 3 (the second edit) throws — simulating
-    // `parse`/`resolve`/`compile`/`resolveTheme`/`styleGraph` violating their
-    // own "never throws on document input" contract (§1), which nothing in
-    // this codebase can otherwise provoke on purpose.
-    const env = setup('a: "A"', { unsafeInjectStageThrow: () => {
-      calls += 1;
-      if (calls > 2) throw new Error('simulated stage invariant violation');
-    } });
-    await completeOneLayout(env, 'a'); // call 1.
+  it('a throwing parse stage is caught and freezes the whole chain at last-good; the editor keeps working', async () => {
+    const consoleError = spyConsoleError();
+    let parseCalls = 0;
+    const thrown = new Error('simulated parse invariant violation');
+    // Call 1 is construction, call 2 the first edit (left to succeed, so there
+    // is a real last-good snapshot), call 3 the second edit, which throws.
+    const env = setup('a: "A"', {
+      unsafeInjectStageThrow: (stage) => {
+        if (stage !== 'parse') return;
+        parseCalls += 1;
+        if (parseCalls > 2) throw thrown;
+      },
+    });
+    await completeOneLayout(env, 'a');
 
-    const parsedB = parse('a: "A"\nb: "B"');
-    env.pipeline.setDocument(parsedB.tree, 'a: "A"\nb: "B"'); // call 2 — succeeds.
+    env.pipeline.setDocument(parse('a: "A"\nb: "B"').tree, 'a: "A"\nb: "B"');
     await flush();
 
-    const parsedBefore = env.pipeline.parsed.value;
+    const before = {
+      parsed: env.pipeline.parsed.value,
+      model: env.pipeline.model.value,
+      graph: env.pipeline.graph.value,
+      theme: env.pipeline.theme.value,
+      styled: env.pipeline.styled.value,
+      layout: env.pipeline.layout.value,
+      lastGood: env.pipeline.lastGood.value,
+    };
+    expect(before.parsed.value.entries).toHaveLength(2); // really the post-edit state.
+
+    expect(() => env.pipeline.setDocument(parse('a: "A"\nb: "B"\nc: "C"').tree, 'a: "A"\nb: "B"\nc: "C"')).not.toThrow();
+    await flush();
+
+    expect(env.pipeline.parsed.value).toBe(before.parsed);
+    expect(env.pipeline.model.value).toBe(before.model);
+    expect(env.pipeline.graph.value).toBe(before.graph);
+    expect(env.pipeline.theme.value).toBe(before.theme);
+    expect(env.pipeline.styled.value).toBe(before.styled);
+    expect(env.pipeline.layout.value).toBe(before.layout);
+    expect(env.pipeline.lastGood.value).toBe(before.lastGood); // "the last good render stays."
+    expect(env.pipeline.pipelineError.value?.message).toBe('simulated parse invariant violation');
+    expect(env.pipeline.chip.value.kind).toBe('crashed');
+    expect(loggedErrors(consoleError)).toEqual([thrown]);
+    // The editor keeps working: its text still reaches `source`…
+    expect(env.pipeline.source.value).toBe('a: "A"\nb: "B"\nc: "C"');
+
+    // …and once parsing stops throwing, the next edit recomputes the chain.
+    parseCalls = Number.NEGATIVE_INFINITY;
+    env.pipeline.setDocument(parse('a: "A"\nb: "B"\nc: "C"\nd: "D"').tree, 'a: "A"\nb: "B"\nc: "C"\nd: "D"');
+    await flush();
+    expect(env.pipeline.parsed.value.value.entries).toHaveLength(4);
+    expect(env.pipeline.styled.value.value.graph.order).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('a throwing compile stage freezes compile and everything below it, while parse and resolve keep updating; it recovers', async () => {
+    const consoleError = spyConsoleError();
+    let armed = false;
+    const thrown = new Error('simulated compile invariant violation');
+    const env = setup('a: "A"', {
+      unsafeInjectStageThrow: (stage) => {
+        if (armed && stage === 'compile') throw thrown;
+      },
+    });
+    await completeOneLayout(env, 'a');
     const modelBefore = env.pipeline.model.value;
     const graphBefore = env.pipeline.graph.value;
-    const themeBefore = env.pipeline.theme.value;
     const styledBefore = env.pipeline.styled.value;
-    const layoutBefore = env.pipeline.layout.value;
     const lastGoodBefore = env.pipeline.lastGood.value;
-    expect(parsedBefore.value.entries).toHaveLength(2); // sanity: this really is the post-edit ('a', 'b') state.
+    const requestsBefore = env.pending.length;
 
-    const parsedC = parse('a: "A"\nb: "B"\nc: "C"');
-    expect(() => env.pipeline.setDocument(parsedC.tree, 'a: "A"\nb: "B"\nc: "C"')).not.toThrow(); // call 3 — throws internally, caught.
+    armed = true;
+    env.pipeline.setDocument(parse('a: "A"\nb: "B"').tree, 'a: "A"\nb: "B"');
     await flush();
 
-    // Every guarded stage stayed frozen at its last successful value — the
-    // whole chain, not just the one that happened to throw first.
-    expect(env.pipeline.parsed.value).toBe(parsedBefore);
-    expect(env.pipeline.model.value).toBe(modelBefore);
+    // Upstream of the throw: fresh.
+    expect(env.pipeline.parsed.value.value.entries).toHaveLength(2);
+    expect(env.pipeline.model.value).not.toBe(modelBefore);
+    // The throwing stage and everything downstream: frozen at last-good.
     expect(env.pipeline.graph.value).toBe(graphBefore);
-    expect(env.pipeline.theme.value).toBe(themeBefore);
     expect(env.pipeline.styled.value).toBe(styledBefore);
-    expect(env.pipeline.layout.value).toBe(layoutBefore);
-    expect(env.pipeline.lastGood.value).toBe(lastGoodBefore); // "the last good render stays" (§13).
-
-    expect(env.pipeline.pipelineError.value?.message).toContain('simulated stage invariant violation');
+    expect(env.pipeline.lastGood.value).toBe(lastGoodBefore);
+    env.fireLatest();
+    await flush();
+    expect(env.pending).toHaveLength(requestsBefore); // no layout for a frozen graph.
+    expect(env.pipeline.pipelineError.value?.message).toBe('simulated compile invariant violation');
     expect(env.pipeline.chip.value.kind).toBe('crashed');
 
-    // The editor keeps working: a document change still reaches `source`
-    // (CodeMirror's own state, not gated by the pipeline crash) even though
-    // the derived signals above are frozen.
-    expect(env.pipeline.source.value).toBe('a: "A"\nb: "B"\nc: "C"');
+    // An unrelated recompute (a theme switch) re-runs the reporting effect but
+    // does not log the same live error a second time.
+    env.pipeline.themeId.value = 'neutral-dark';
+    await flush();
+    expect(loggedErrors(consoleError)).toEqual([thrown]);
+
+    // Recovery: the next edit compiles, lays out and renders cleanly.
+    armed = false;
+    env.pipeline.setDocument(parse('a: "A"\nb: "B"\nc: "C"').tree, 'a: "A"\nb: "B"\nc: "C"');
+    await flush();
+    expect(env.pipeline.graph.value.graph.order).toContain('c');
+    await completeOneLayout(env, 'c');
+    expect(env.pipeline.pipelineError.value).toBeNull();
+    expect(env.pipeline.chip.value.kind).not.toBe('crashed');
+    expect(env.pipeline.lastGood.value).not.toBe(lastGoodBefore);
+  });
+
+  it('a stage that throws on the very first (boot) pass still constructs the pipeline, surfaces the error, and recovers', async () => {
+    const consoleError = spyConsoleError();
+    let armed = true;
+    const thrown = new Error('simulated styleGraph invariant violation');
+    let env: ReturnType<typeof setup> | undefined;
+    expect(() => {
+      env = setup('a: "A"', {
+        unsafeInjectStageThrow: (stage) => {
+          if (armed && stage === 'styleGraph') throw thrown;
+        },
+      });
+    }).not.toThrow();
+    const e = env!;
+    // No last-good value exists yet, so `styled` falls back to the empty
+    // document's styling rather than throwing out of the computed.
+    expect(e.pipeline.styled.value.value.graph.order).toEqual([]);
+    expect(e.pipeline.pipelineError.value?.message).toBe('simulated styleGraph invariant violation');
+    expect(e.pipeline.chip.value.kind).toBe('crashed');
+    expect(loggedErrors(consoleError)).toEqual([thrown]);
+
+    armed = false;
+    e.pipeline.setDocument(parse('a: "A"\nb: "B"').tree, 'a: "A"\nb: "B"');
+    await flush();
+    expect(e.pipeline.styled.value.value.graph.order).toEqual(['a', 'b']);
+    await completeOneLayout(e, 'a');
+    expect(e.pipeline.lastGood.value).not.toBeNull();
+    expect(e.pipeline.pipelineError.value).toBeNull();
+  });
+
+  it('a throwing render() is caught, logged, and keeps the last good render', async () => {
+    const consoleError = spyConsoleError();
+    let armed = false;
+    const thrown = new Error('simulated render invariant violation');
+    const env = setup('a: "A"', {
+      unsafeInjectStageThrow: (stage) => {
+        if (armed && stage === 'render') throw thrown;
+      },
+    });
+    await completeOneLayout(env, 'a');
+    const lastGoodBefore = env.pipeline.lastGood.value;
+    expect(lastGoodBefore).not.toBeNull();
+
+    armed = true;
+    env.pipeline.setDocument(parse('a: "A"\nb: "B"').tree, 'a: "A"\nb: "B"');
+    await flush();
+    await completeOneLayout(env, 'b');
+
+    expect(env.pipeline.lastGood.value).toBe(lastGoodBefore);
+    expect(env.pipeline.pipelineError.value?.message).toBe('simulated render invariant violation');
+    expect(loggedErrors(consoleError)).toEqual([thrown]);
   });
 });
 
