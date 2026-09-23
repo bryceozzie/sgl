@@ -37,7 +37,7 @@ const NO_PREACT = { group: ['preact', 'preact/*', '@preact/*'], message: 'DD-00 
 const NO_DOM_PKG = { group: ['@sgl/render-svg', '@sgl/layout-*', '@sgl/measure', '@sgl/theme'], message: 'DD-00 §2 rule 1: core imports nothing from the workspace.' };
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', '**/*.parser.js', '**/*.parser.terms.js'] },
+  { ignores: ['.claude/worktrees/**', '**/dist/**', '**/node_modules/**', '**/*.parser.js', '**/*.parser.terms.js'] },
 
   js.configs.recommended,
   ...tseslint.configs.recommended,

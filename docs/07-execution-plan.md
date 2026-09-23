@@ -129,8 +129,8 @@ A stage is not done because the code is written. It is done when its gate passes
 | `@sgl/layout-api` — `buildLayoutInput`, shape content insets + anchors, host fallbacks, `validateResult`/`quantize` | **Done**, T1+T2 gate green (Stage E) | `main` |
 | `@sgl/layout-std` — `grid` | **Done**, T1+T2 gate green, bitwise double-run over the whole corpus (Stage E) | `main` |
 | End-to-end pipeline (`source -> RenderResult`), `bench/generate.js` | **Done**, T3 gate green (Stage G) | `main` |
-| `@sgl/layout-api` — `createWorkerHost`, `worker-runtime.ts` (worker-side message handling) | **Done**, T1 gate green; the gate's four conditions also proven against a real `Worker` (browser project, Chromium + Firefox) (Stage H) | `feat/layout-host` (unmerged) |
-| `apps/web` | **Not started**, except `layout.worker.ts` — the one real worker entry Stage H needed (registers `gridEngine`) | `feat/layout-host` (unmerged) |
+| `@sgl/layout-api` — `createWorkerHost`, `worker-runtime.ts` (worker-side message handling) | **Done**, T1 gate green; the gate's four conditions also proven against a real `Worker` (browser project, Chromium + Firefox) (Stage H) | `main` |
+| `apps/web` | **Not started**, except `layout.worker.ts` — the one real worker entry Stage H needed (registers `gridEngine`) | `main` |
 
 **Gate 1 is cleared.** `feat/compiler` merged to `main` at `a46c72b`; `pnpm check` green there
 (496 tests). `.sgl` text in, `SemanticGraph` out, for every document in the corpus, with goldens
@@ -152,12 +152,13 @@ criterion), asserted directly rather than inferred. A handful of tests keep hand
 no corpus document contains an invalid `@style`/`@size` value, an inline `@style.fontSize`, or a
 single-`Critical`-class node without its own inline override — each noted in place.
 
-**Gate 2 is cleared. No branch is now unmerged.** `feat/pipeline` cleared its review and merged to
-`main` at `ffff7de`; `pnpm check` is green there (1553 tests, unchanged from the branch), so **Stages
-A–G are all on `main` and Stage H's stated dependency is satisfied**. `feat/renderer` merged at
-`6d76e2c` before it (1453 tests), and `feat/grid-engine` at `fdff204` before that (757 tests). Each sat unmerged on their branch through review first, which is the documented
+**Gate 2 is cleared. No branch is now unmerged.** `feat/layout-host` cleared two review-fix rounds
+and merged to `main` at `279d84b`; `pnpm check` is green there (1625 tests, unchanged from the
+branch), so **Stages A–H are all on `main` and Stage I's stated dependency is satisfied**.
+`feat/pipeline` merged at `ffff7de` before it (1553 tests), `feat/renderer` at `6d76e2c` (1453
+tests), and `feat/grid-engine` at `fdff204` (757 tests). Each sat unmerged on their branch through review first, which is the documented
 pattern, not the merge-gap failure mode — but it is worth noting for the next stage that this has now
-happened four times in a row (Stages C, E, F, G), so **check `git branch -vv` before briefing stage
+happened five times in a row (Stages C, E, F, G, H), so **check `git branch -vv` before briefing stage
 N+1** rather than trusting a §5 entry that says "Depends on. Stage X merged." `main` must be green at
 every commit.
 
@@ -500,8 +501,7 @@ LayoutResult` helper, also called `runPipeline`, is now `runHostPipeline`, disti
 `pipeline.ts`'s exported `source -> RenderResult` one; and `eslint.config.js`'s
 `bench/**/*.js` globals block no longer declares `process`, which `bench/generate.js` never uses.
 
-**Stage H is in progress on `feat/layout-host`** (not yet merged — do not treat as done until a
-merge commit lands and this line is updated). Branched from `main` at `38ab324` (Stage G, 1580
+**Stage H is done**, merged to `main` at `279d84b` from `feat/layout-host` (1625 tests). Branched from `main` at `38ab324` (Stage G, 1580
 tests after this stage's own additions). `createWorkerHost` (decision D1) now takes a
 `spawn: () => Worker` factory rather than a fixed instance, so it can `terminate()` and respawn;
 `options` carries the default/per-engine timeouts (`DEFAULT_ENGINE_TIMEOUT_MS = { 'sgl.grid': 2000
