@@ -37,6 +37,33 @@ function isAbortError(err: unknown): boolean {
   return err instanceof Error && err.name === 'AbortError';
 }
 
+/** DD-08 §13: "a thrown error **anywhere** in the pipeline... is caught at the
+ *  effect boundary." `compute()` is a synchronous stage call (`parse`,
+ *  `resolve`, `compile`, `resolveTheme`, `styleGraph`, or `render()` via
+ *  `svgOutcome`) — on success, `value` is the fresh result and `error` is
+ *  `undefined`; on a throw, `value` is whatever the *last successful* call
+ *  produced (so every downstream computed keeps reading a stable, valid
+ *  input and the whole chain freezes at last-good, exactly like a document
+ *  diagnostic would) and `error` carries what was thrown, for the aggregating
+ *  effect below to report. The very first call has no "last successful"
+ *  result to fall back to — thrown straight through, since there is nothing
+ *  safe to show yet; nothing in this codebase seeds the pipeline with a
+ *  document expected to fail on that first pass. */
+function guardedStage<T>(compute: () => T): ReadonlySignal<{ readonly value: T; readonly error: unknown }> {
+  let last: T | undefined;
+  let hasLast = false;
+  return computed(() => {
+    try {
+      last = compute();
+      hasLast = true;
+      return { value: last, error: undefined };
+    } catch (err) {
+      if (hasLast) return { value: last as T, error: err };
+      throw err;
+    }
+  });
+}
+
 /** A deterministic key for `engineOptions` equality — sorted so key order never
  *  matters (DD-00 §3's spirit, even though apps/web sits outside that lint ban). */
 function optionsKey(options: Readonly<Record<string, unknown>>): string {
@@ -134,9 +161,29 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   const docId = signal('');
 
   const source = computed(() => doc.value.source);
+  const pipelineError = signal<PipelineError | null>(null);
 
-  const parsed = computed<StageResult<SglDocument>>(() => buildAst(doc.value.tree, doc.value.source));
-  const model = computed<ResolveResult>(() => resolve(parsed.value.value));
+  function reportPipelineError(err: unknown, srcSnapshot: string): void {
+    // §13: "caught…, logged, shown" — the original error, stack included.
+    console.error('[SGL] pipeline error:', err);
+    pipelineError.value = makePipelineError(err, srcSnapshot);
+  }
+
+  // §13's error boundary, applied to every synchronous stage — DD-08 §13 says
+  // "anywhere in the pipeline," not just `render()`. Each stage is wrapped by
+  // `guardedStage` individually ("catch it at each computed... boundary"), so
+  // a throw in, say, `compile` freezes `graph`/`theme`/`styled` at their last
+  // good values while `parsed`/`model` (upstream of the throw) keep updating
+  // normally. `unsafeInjectStageThrow` (`PipelineDeps`) is the test-only seam
+  // that proves this without reaching into `@sgl/core` internals.
+  const parsedOutcome = guardedStage(() => {
+    deps.unsafeInjectStageThrow?.();
+    return buildAst(doc.value.tree, doc.value.source);
+  });
+  const parsed = computed<StageResult<SglDocument>>(() => parsedOutcome.value.value);
+
+  const modelOutcome = guardedStage(() => resolve(parsed.value.value));
+  const model = computed<ResolveResult>(() => modelOutcome.value.value);
 
   // DD-08 §10: "@layout.engine / @theme in the document override the pickers."
   const documentThemeId = computed<string | undefined>(() => documentThemeOverride(model.value.model));
@@ -144,47 +191,44 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   const effectiveThemeId = computed<string>(() => documentThemeId.value ?? themeId.value);
   const effectiveEngineId = computed<string>(() => documentEngineId.value ?? engineId.value);
 
-  const graph = computed<CompileResult>(() => compile(model.value.model));
-  const theme = computed<StageResult<ResolvedTheme>>(() =>
-    resolveTheme(BUILT_IN[effectiveThemeId.value] ?? BUILT_IN[DEFAULT_THEME_ID]!, (id) => BUILT_IN[id]),
-  );
-  const styled = computed<StageResult<StyledGraph>>(() => styleGraph(graph.value.graph, theme.value.value, model.value.model.classes));
+  const graphOutcome = guardedStage(() => compile(model.value.model));
+  const graph = computed<CompileResult>(() => graphOutcome.value.value);
+
+  const themeOutcome = guardedStage(() => resolveTheme(BUILT_IN[effectiveThemeId.value] ?? BUILT_IN[DEFAULT_THEME_ID]!, (id) => BUILT_IN[id]));
+  const theme = computed<StageResult<ResolvedTheme>>(() => themeOutcome.value.value);
+
+  const styledOutcome = guardedStage(() => styleGraph(graph.value.graph, theme.value.value, model.value.model.classes));
+  const styled = computed<StageResult<StyledGraph>>(() => styledOutcome.value.value);
 
   const table = signal<MeasureTable>({});
   const layout = signal<LayoutResult | null>(null);
   const layoutDiags = signal<readonly Diagnostic[]>([]);
   const inFlight = signal(false);
-  const pipelineError = signal<PipelineError | null>(null);
 
-  // §13's error boundary: `render()` is the one synchronous call in this
-  // chain whose contract does not (yet) promise "never throws on bad input"
-  // the way parse/resolve/compile/resolveTheme/styleGraph do (§1) — so it is
-  // the one this stage guards directly. Kept as a pure `{ result, error }`
-  // pair rather than writing `pipelineError` from inside the computed itself
-  // (a computed's own callback should stay a pure function of its
-  // dependencies); a dedicated effect below turns `error` into the signal.
-  interface SvgOutcome {
-    readonly result: RenderResult | null;
-    readonly error: unknown;
-  }
-  const svgOutcome = computed<SvgOutcome>(() => {
+  // `render()` is the one synchronous call downstream of the guarded stages
+  // above whose contract does not (yet) promise "never throws on bad input"
+  // the way parse/resolve/compile/resolveTheme/styleGraph do (§1) — guarded
+  // the same way, via the shared `guardedStage` helper.
+  const svgOutcome = guardedStage<RenderResult | null>(() => {
     const layoutValue = layout.value;
-    if (layoutValue === null) return { result: null, error: undefined };
-    try {
-      return { result: render(styled.value.value, layoutValue, theme.value.value), error: undefined };
-    } catch (err) {
-      return { result: null, error: err };
-    }
+    if (layoutValue === null) return null;
+    return render(styled.value.value, layoutValue, theme.value.value);
   });
-  const svg = computed<RenderResult | null>(() => svgOutcome.value.result);
+  const svg = computed<RenderResult | null>(() => svgOutcome.value.value);
 
-  const disposeRenderErrorEffect = effect(() => {
-    const { error } = svgOutcome.value;
-    if (error !== undefined) {
-      pipelineError.value = makePipelineError(error, doc.peek().source);
-    } else if (pipelineError.peek() !== null) {
-      pipelineError.value = null; // recovered — a later render succeeded.
-    }
+  // One effect aggregates every guarded stage's `error` (kept as `{value,
+  // error}` pairs rather than writing `pipelineError` from inside a computed
+  // — a computed's own callback should stay a pure function of its
+  // dependencies) and reports whichever is currently set. Recomputation only
+  // happens when a dependency actually changes, so a persistent error on an
+  // unedited document does not re-report on every reactive tick. Clearing
+  // `pipelineError` back to `null` is `disposeLastGoodEffect`'s job below —
+  // "recovered" means a full clean cycle completed, not just "this one stage
+  // stopped throwing while another still is."
+  const disposeStageErrorEffect = effect(() => {
+    const outcomes = [parsedOutcome.value, modelOutcome.value, graphOutcome.value, themeOutcome.value, styledOutcome.value, svgOutcome.value];
+    const failed = outcomes.find((o) => o.error !== undefined);
+    if (failed !== undefined) reportPipelineError(failed.error, doc.peek().source);
   });
 
   // DD-08 §3 names parsed/model/graph/layoutDiags; theme's and styled's own
@@ -244,7 +288,7 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
         table.value = premeasure(styledSnapshot, deps.measurer);
       } catch (err) {
         if (generation !== measureGeneration) return;
-        pipelineError.value = makePipelineError(err, sourceSnapshot); // §13 effect boundary
+        reportPipelineError(err, sourceSnapshot); // §13 effect boundary
       }
     })();
   });
@@ -305,13 +349,13 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
           // it only ever rejects with `AbortError` — a different rejection is a
           // violated invariant, caught here rather than left as an unhandled
           // promise rejection.
-          if (generation === layoutGeneration) pipelineError.value = makePipelineError(err, sourceSnapshot);
+          if (generation === layoutGeneration) reportPipelineError(err, sourceSnapshot);
         })
         .finally(settle);
     } catch (err) {
       // A host whose `run()` throws synchronously instead of returning a
       // rejected promise would otherwise never reach `.catch` above.
-      pipelineError.value = makePipelineError(err, sourceSnapshot);
+      reportPipelineError(err, sourceSnapshot);
       settle();
     }
   }
@@ -349,6 +393,11 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     const layoutValue = layout.value;
     if (layoutValue === null) return; // svg is only non-null when layout is; guards the type.
     lastGood.value = { styled: styled.value.value, layout: layoutValue, svg: svgResult.svg, styleBlock: svgResult.styleBlock };
+    // "Recovered" (§13): a full clean cycle just completed — every guarded
+    // stage succeeded and produced no error diagnostic. Clearing here, not
+    // wherever an error was set, is what stops a fresh layout success from
+    // wiping out a *stage* error that is still live, and vice versa.
+    if (pipelineError.peek() !== null) pipelineError.value = null;
   });
 
   // -------------------------------------------------------------------------
@@ -434,7 +483,7 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
       disposeMeasureEffect();
       disposeLayoutEffect();
       disposeLastGoodEffect();
-      disposeRenderErrorEffect();
+      disposeStageErrorEffect();
       disposeLayingOutEffect();
       disposeFitOfferEffect();
       if (layingOutTimer !== null) layingOutTimer();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { asNodeId, diagnostic, NO_SPAN, parse, type Diagnostic } from '@sgl/core';
-import type { LayoutHost, LayoutResult, ResolvedThemeMetricsView } from '@sgl/layout-api';
+import type { LayoutHost, LayoutInput, LayoutResult, ResolvedThemeMetricsView } from '@sgl/layout-api';
 import type { StageResult } from '@sgl/core';
 import { StaticMetricsMeasurer } from '@sgl/measure';
 import { createPipeline } from '../src/state/pipeline.js';
@@ -30,6 +30,7 @@ class TestMeasurer extends StaticMetricsMeasurer implements AppMeasurer {
 
 interface PendingRun {
   readonly engineId: string;
+  readonly input: LayoutInput;
   readonly signal: AbortSignal;
   readonly resolve: (result: StageResult<LayoutResult | null>) => void;
   /** Not part of the real `LayoutHost` contract (DD-06 §3: `run()` only ever
@@ -42,14 +43,21 @@ interface PendingRun {
 /** A `LayoutHost` whose `run()` promises are settled by hand from the test, so
  *  the exact moment a result (or a rejection) lands is under test control —
  *  mirroring the real `host.ts` contract (`run()` never rejects except
- *  `AbortError`; DD-06 §3) without a real worker behind it. */
-function createFakeHost(): { readonly host: LayoutHost; readonly pending: PendingRun[] } {
+ *  `AbortError`; DD-06 §3) without a real worker behind it.
+ *
+ *  `ignoreAbort` leaves the promise pending on `'abort'` instead of the real
+ *  host's own reject-on-abort behaviour — needed to test the *other* half of
+ *  DD-06 §3's contract, "a late reply for an already-aborted id is
+ *  discarded": a real worker can still answer a superseded request after the
+ *  host has already moved on, and `pipeline.ts:runLayout`'s own generation
+ *  check (not the host) is what has to discard it. */
+function createFakeHost(options: { readonly ignoreAbort?: boolean } = {}): { readonly host: LayoutHost; readonly pending: PendingRun[] } {
   const pending: PendingRun[] = [];
   const host: LayoutHost = {
-    run(engineId, _input, _options, _metrics, _table, signal) {
+    run(engineId, input, _options, _metrics, _table, signal) {
       return new Promise<StageResult<LayoutResult | null>>((resolve, reject) => {
-        pending.push({ engineId, signal, resolve, reject });
-        signal.addEventListener('abort', () => reject(makeAbortError()), { once: true });
+        pending.push({ engineId, input, signal, resolve, reject });
+        if (!options.ignoreAbort) signal.addEventListener('abort', () => reject(makeAbortError()), { once: true });
       });
     },
     dispose() {
@@ -129,11 +137,15 @@ async function flushUntil(predicate: () => boolean, maxTicks = 20): Promise<void
   for (let i = 0; i < maxTicks && !predicate(); i += 1) await Promise.resolve();
 }
 
-function setup(source: string) {
-  const { host, pending } = createFakeHost();
+function setup(
+  source: string,
+  extraDeps: Partial<Parameters<typeof createPipeline>[0]> = {},
+  hostOptions: { readonly ignoreAbort?: boolean } = {},
+) {
+  const { host, pending } = createFakeHost(hostOptions);
   const { schedule, calls, fireLatest, fireByMs } = createManualSchedule();
   const measurer = new TestMeasurer();
-  const pipeline = createPipeline({ measurer, host, metrics: METRICS, defaultEngineId: 'sgl.grid', schedule }, source);
+  const pipeline = createPipeline({ measurer, host, metrics: METRICS, defaultEngineId: 'sgl.grid', schedule, ...extraDeps }, source);
   return { pipeline, host, pending, schedule, calls, fireLatest, fireByMs };
 }
 
@@ -195,6 +207,54 @@ describe('pipeline (DD-08 §3)', () => {
     expect(env.pipeline.layout.value?.nodes[asNodeId('b')]).toBeDefined();
     expect(env.pipeline.layout.value?.nodes[asNodeId('a')]).toBeUndefined();
     expect(env.pipeline.layoutDiags.value).toEqual([]);
+  });
+
+  it('a late-arriving *fulfilled* result for a superseded request never reaches layout/layoutDiags/lastGood', async () => {
+    // The default fake host rejects on `'abort'` immediately, so a superseded
+    // request's own promise is always already-settled by the time a test
+    // calls `.resolve()` on it — Promise semantics make that resolve a no-op,
+    // so the `generation !== layoutGeneration` guard at `pipeline.ts`'s
+    // `runLayout().then(...)` was never actually exercised by a *fulfilled*
+    // late reply. `ignoreAbort` leaves the promise genuinely pending past the
+    // abort, matching a real worker/engine that has not noticed `ctx.signal`
+    // yet (DD-06 §3 explicitly allows for this).
+    const env = setup('a: "A"', {}, { ignoreAbort: true });
+    await completeOneLayout(env, 'a'); // pending[0] — resolved, the baseline; not "superseded."
+
+    const parsedB = parse('a: "A"\nb: "B"');
+    env.pipeline.setDocument(parsedB.tree, 'a: "A"\nb: "B"');
+    await flush();
+    env.fireLatest();
+    await flush();
+    expect(env.pending.length).toBe(2); // pending[1] — about to be superseded.
+
+    const parsedC = parse('a: "A"\nb: "B"\nc: "C"');
+    env.pipeline.setDocument(parsedC.tree, 'a: "A"\nb: "B"\nc: "C"');
+    await flush();
+    env.fireLatest();
+    await flush();
+    expect(env.pending.length).toBe(3); // pending[2] — issuing it aborts pending[1].
+
+    const superseded = env.pending[1]!;
+    const current = env.pending[2]!;
+    expect(superseded.signal.aborted).toBe(true); // abort was requested...
+    // ...but the fake host did not reject on it: the promise is still open.
+
+    current.resolve({ value: fakeLayoutResult('both'), diagnostics: [] });
+    await flush();
+    expect(env.pipeline.layout.value?.nodes[asNodeId('both')]).toBeDefined();
+    const layoutAfterCurrent = env.pipeline.layout.value;
+    const lastGoodAfterCurrent = env.pipeline.lastGood.value;
+
+    // The superseded request's own result finally arrives — a different,
+    // bogus layout plus a diagnostic that must never surface.
+    superseded.resolve({ value: fakeLayoutResult('a'), diagnostics: [diagnostic('SGL4003', NO_SPAN, { node: 'a' })] });
+    await flush();
+
+    expect(env.pipeline.layout.value).toBe(layoutAfterCurrent); // untouched by the stale reply.
+    expect(env.pipeline.layout.value?.nodes[asNodeId('a')]).toBeUndefined();
+    expect(env.pipeline.layoutDiags.value).toEqual([]); // the stale SGL4003 never lands.
+    expect(env.pipeline.lastGood.value).toBe(lastGoodAfterCurrent);
   });
 
   it('a theme-only change skips layout but re-renders', async () => {
@@ -284,6 +344,41 @@ describe('pipeline (DD-08 §3)', () => {
     await flush();
     expect(env.pending.length).toBe(1); // only the latest edit's request ran.
     expect(env.pending[0]!.engineId).toBe('sgl.grid');
+  });
+
+  it('boot: exactly one layout request ever runs, and it carries real (non-zero) label sizes from premeasure', async () => {
+    // Regression test for the `hasMeasuredOnce` guard (pipeline.ts:227-243,
+    // 319-328): without it, the layout effect fires once immediately on boot
+    // with `table` still `{}`, scheduling (and, once fired, running) a first
+    // layout request whose label sizes are all `labelSizesOf`'s `{ w: 0, h: 0
+    // }` fallback — before a *second*, correctly-sized request follows once
+    // premeasure actually completes. A long label makes the difference
+    // unmistakable: a zero-size label still gets *some* width from the
+    // shape's own theme padding/minWidth floor (`neutral-light`'s node rule:
+    // `minWidth: 72`), but nowhere near what a real 60-character label
+    // measures to.
+    const longLabel = 'A very long label so its measured width is unmistakably larger than the 72px minWidth floor';
+    const env = setup(`a: "${longLabel}"`);
+    await flushUntil(() => env.calls.some((c) => !c.cancelled));
+    env.fireLatest();
+    await flush();
+
+    // `env.calls` records *every* scheduling ever made on the shared clock,
+    // cancelled or not, including the unrelated 300 ms "laying out…" timer
+    // `runLayout` starts once it sets `inFlight = true` — filtered to the
+    // 120 ms debounce alone. A wasted zero-size first pass shows up here (two
+    // 120 ms schedulings, the first cancelled by the second) even though
+    // `fireLatest()` always resolves to the *latest* live one, so
+    // `env.pending.length` alone cannot tell the two cases apart (microtask
+    // ordering means the correctly-sized table often lands and supersedes
+    // the empty one before the test ever fires anything, whether or not the
+    // guard exists).
+    const debounceSchedulings = env.calls.filter((c) => c.ms === 120);
+    expect(debounceSchedulings).toHaveLength(1); // exactly one scheduling, ever — no wasted empty-table pass.
+    expect(env.pending.length).toBe(1);
+    const sizing = env.pending[0]!.input.sizing[asNodeId('a')];
+    expect(sizing).toBeDefined();
+    expect(sizing!.intrinsic.w).toBeGreaterThan(150); // real text measurement, not the padding floor alone.
   });
 });
 
@@ -378,6 +473,58 @@ describe('error boundary (DD-08 §13)', () => {
     await flush();
     expect(pipeline.pipelineError.value?.message).toContain('fonts API unavailable');
     pipeline.dispose();
+  });
+
+  it('a throwing synchronous stage (K1: DD-08 §13 "anywhere in the pipeline") is caught, keeps parsed/model/graph/theme/styled and lastGood at their last-good values, and never crashes the app', async () => {
+    let calls = 0;
+    // `unsafeInjectStageThrow` runs once per synchronous recompute of the
+    // guarded chain (`parsedOutcome`'s `compute()`) — call 1 is the
+    // pipeline's own construction-time pass, call 2 is the first edit below
+    // (left to succeed normally, so there is a real "last good" snapshot to
+    // assert against), call 3 (the second edit) throws — simulating
+    // `parse`/`resolve`/`compile`/`resolveTheme`/`styleGraph` violating their
+    // own "never throws on document input" contract (§1), which nothing in
+    // this codebase can otherwise provoke on purpose.
+    const env = setup('a: "A"', { unsafeInjectStageThrow: () => {
+      calls += 1;
+      if (calls > 2) throw new Error('simulated stage invariant violation');
+    } });
+    await completeOneLayout(env, 'a'); // call 1.
+
+    const parsedB = parse('a: "A"\nb: "B"');
+    env.pipeline.setDocument(parsedB.tree, 'a: "A"\nb: "B"'); // call 2 — succeeds.
+    await flush();
+
+    const parsedBefore = env.pipeline.parsed.value;
+    const modelBefore = env.pipeline.model.value;
+    const graphBefore = env.pipeline.graph.value;
+    const themeBefore = env.pipeline.theme.value;
+    const styledBefore = env.pipeline.styled.value;
+    const layoutBefore = env.pipeline.layout.value;
+    const lastGoodBefore = env.pipeline.lastGood.value;
+    expect(parsedBefore.value.entries).toHaveLength(2); // sanity: this really is the post-edit ('a', 'b') state.
+
+    const parsedC = parse('a: "A"\nb: "B"\nc: "C"');
+    expect(() => env.pipeline.setDocument(parsedC.tree, 'a: "A"\nb: "B"\nc: "C"')).not.toThrow(); // call 3 — throws internally, caught.
+    await flush();
+
+    // Every guarded stage stayed frozen at its last successful value — the
+    // whole chain, not just the one that happened to throw first.
+    expect(env.pipeline.parsed.value).toBe(parsedBefore);
+    expect(env.pipeline.model.value).toBe(modelBefore);
+    expect(env.pipeline.graph.value).toBe(graphBefore);
+    expect(env.pipeline.theme.value).toBe(themeBefore);
+    expect(env.pipeline.styled.value).toBe(styledBefore);
+    expect(env.pipeline.layout.value).toBe(layoutBefore);
+    expect(env.pipeline.lastGood.value).toBe(lastGoodBefore); // "the last good render stays" (§13).
+
+    expect(env.pipeline.pipelineError.value?.message).toContain('simulated stage invariant violation');
+    expect(env.pipeline.chip.value.kind).toBe('crashed');
+
+    // The editor keeps working: a document change still reaches `source`
+    // (CodeMirror's own state, not gated by the pipeline crash) even though
+    // the derived signals above are frozen.
+    expect(env.pipeline.source.value).toBe('a: "A"\nb: "B"\nc: "C"');
   });
 });
 

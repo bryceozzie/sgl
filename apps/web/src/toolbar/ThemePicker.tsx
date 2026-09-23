@@ -1,5 +1,4 @@
 import type { EditorView } from '@codemirror/view';
-import { parse } from '@sgl/core';
 import { dispatchTextChange } from '../editor/editor-actions.js';
 import type { Pipeline } from '../state/pipeline.js';
 import { themeOptions } from '../state/pickers.js';
@@ -20,8 +19,9 @@ export function ThemePicker({ pipeline, view }: ThemePickerProps) {
   function select(id: string): void {
     pipeline.themeId.value = id;
     if (view === null) return;
-    const { ast } = parse(pipeline.source.value);
-    dispatchTextChange(view, setRootConfigString(ast, ['theme'], id));
+    // DD-08 §4: "the app never calls `parse` on its own" — reuse the
+    // pipeline's own already-parsed AST rather than re-parsing `source` here.
+    dispatchTextChange(view, setRootConfigString(pipeline.parsed.value.value, ['theme'], id));
   }
 
   return (

@@ -1,7 +1,18 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { edgePaths, nodeGeometry, renderedSvg, setSource, viewBox, waitForNodeCount } from './helpers.js';
+import {
+  assertErrorSpans,
+  diagnosticRows,
+  edgePaths,
+  nodeGeometry,
+  renderedSvg,
+  setSource,
+  sourceDiagnostics,
+  viewBox,
+  waitForNodeCount,
+  waitForTheme,
+} from './helpers.js';
 
 const corpusDoc = (name: string): string => readFileSync(fileURLToPath(new URL(`../../../corpus/${name}`, import.meta.url)), 'utf8');
 
@@ -20,9 +31,11 @@ test.describe('MVP acceptance', () => {
 
     await page.locator('.theme-picker select').selectOption('neutral-dark');
     await expect(page.locator('.theme-picker .picker-label')).toContainText('set by document');
-    // The swap itself is synchronous once the document reparses; give the
-    // debounced pipeline a moment even though this path skips layout.
-    await page.waitForTimeout(200);
+    // `data-theme` on the rendered wrapper only changes once `lastGood`
+    // itself has the new theme (Canvas.tsx) — waiting on it, rather than a
+    // fixed delay, means this can never read stale pre-switch geometry on a
+    // slow runner.
+    await waitForTheme(page, 'neutral-dark');
 
     const geomAfter = await nodeGeometry(page);
     const edgesAfter = await edgePaths(page);
@@ -38,10 +51,18 @@ test.describe('MVP acceptance', () => {
     expect(svgTextAfter).not.toBe(svgTextBefore); // paint changed.
   });
 
-  test('criterion 3: a syntax error mid-edit shows a squiggle and keeps the last diagram', async ({ page }) => {
+  test('criterion 3: a syntax error mid-edit shows a squiggle at the right span and keeps the last diagram', async ({ page }) => {
     await page.goto('/');
     await waitForNodeCount(page, 2);
     const svgBefore = await renderedSvg(page).innerHTML();
+
+    const initialSource = 'checkout: {\n  web: "Web App"\n  api: "API"\n  web -> api\n}\n';
+    const addition = '\nbroken: "unterminated';
+    const finalSource = initialSource + addition;
+    // Ground truth from the real parse -> resolve pipeline, not a guess —
+    // also what "the right span" is checked against below.
+    const expected = sourceDiagnostics(finalSource);
+    expect(expected.map((d) => d.code)).toEqual(['SGL1003', 'SGL2002']);
 
     await page.locator('.cm-content').click();
     await page.keyboard.press('Control+End');
@@ -54,11 +75,13 @@ test.describe('MVP acceptance', () => {
     // pick up as the new last-good render before the "delete the closing
     // quote" edit ever lands. That is correct FR-E4 behaviour for that
     // sequence of edits, just not the sequence this test means to make.
-    await page.keyboard.insertText('\nbroken: "unterminated');
+    await page.keyboard.insertText(addition);
 
     await expect(page.locator('.cm-lint-marker-error').first()).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('.cm-lintRange-error').first()).toBeVisible();
-    await expect(page.locator('.diagnostics-panel .diag')).toHaveCount(2); // SGL1003 + SGL2002.
+    const rows = await diagnosticRows(page);
+    expect(rows.map((r) => r.code)).toEqual(['SGL1003', 'SGL2002']); // exact codes, sorted by offset.
+    await assertErrorSpans(page, finalSource, expected); // "at the right span," checked against the real parser's own spans.
+
     expect(await renderedSvg(page).innerHTML()).toBe(svgBefore); // FR-E4.
   });
 

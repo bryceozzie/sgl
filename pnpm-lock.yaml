@@ -68,6 +68,9 @@ importers:
       '@lezer/common':
         specifier: ^1.2.3
         version: 1.5.2
+      '@lezer/highlight':
+        specifier: ^1.2.1
+        version: 1.2.3
       '@preact/signals':
         specifier: ^2.0.0
         version: 2.11.2(preact@10.29.8)
@@ -108,22 +111,22 @@ importers:
 
   packages/core:
     dependencies:
-      '@codemirror/language':
-        specifier: ^6.10.8
-        version: 6.12.4
       '@lezer/common':
         specifier: ^1.2.3
         version: 1.5.2
-      '@lezer/highlight':
-        specifier: ^1.2.1
-        version: 1.2.3
       '@lezer/lr':
         specifier: ^1.4.2
         version: 1.4.10
     devDependencies:
+      '@codemirror/language':
+        specifier: ^6.10.8
+        version: 6.12.4
       '@lezer/generator':
         specifier: ^1.8.0
         version: 1.8.0
+      '@lezer/highlight':
+        specifier: ^1.2.1
+        version: 1.2.3
       fast-check:
         specifier: ^4.3.0
         version: 4.10.0

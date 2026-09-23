@@ -1,14 +1,10 @@
 import { effect } from '@preact/signals';
-import { setDiagnostics, type Diagnostic as CmDiagnostic } from '@codemirror/lint';
+import { setDiagnostics } from '@codemirror/lint';
 import { EditorView } from '@codemirror/view';
 import { useEffect, useRef } from 'preact/hooks';
-import type { Diagnostic } from '@sgl/core';
 import type { Pipeline } from '../state/pipeline.js';
+import { toCmDiagnostic } from './diagnostics.js';
 import { createEditorState } from './extensions.js';
-
-function toCmDiagnostic(d: Diagnostic): CmDiagnostic {
-  return { from: d.span.from, to: d.span.to, severity: d.severity, message: d.message };
-}
 
 export interface EditorProps {
   readonly pipeline: Pipeline;

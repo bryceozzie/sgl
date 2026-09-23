@@ -1,5 +1,4 @@
 import type { EditorView } from '@codemirror/view';
-import { parse } from '@sgl/core';
 import { dispatchTextChange } from '../editor/editor-actions.js';
 import type { Pipeline } from '../state/pipeline.js';
 import { engineOptionsFor, type EngineDescriptor } from '../state/pickers.js';
@@ -23,9 +22,17 @@ export function EnginePicker({ pipeline, view, registered }: EnginePickerProps) 
 
   function select(id: string): void {
     pipeline.engineId.value = id;
+    // DD-08 §10: "selecting an engine resets `engineOptions` to that engine's
+    // defaults." No engine has a real options schema wired up yet (F11,
+    // Stage K), so the only defaults available today are the empty bag —
+    // still a real reset, not a no-op: it clears whatever the *previous*
+    // engine's options happened to be, rather than leaking them across a
+    // switch.
+    pipeline.engineOptions.value = {};
     if (view === null) return;
-    const { ast } = parse(pipeline.source.value);
-    dispatchTextChange(view, setRootConfigString(ast, ['layout', 'engine'], id));
+    // DD-08 §4: "the app never calls `parse` on its own" — reuse the
+    // pipeline's own already-parsed AST rather than re-parsing `source` here.
+    dispatchTextChange(view, setRootConfigString(pipeline.parsed.value.value, ['layout', 'engine'], id));
   }
 
   return (

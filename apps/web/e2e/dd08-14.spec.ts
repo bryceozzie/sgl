@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { nodeGeometry, renderedSvg, waitForNodeCount } from './helpers.js';
+import { assertErrorSpans, diagnosticRows, nodeGeometry, renderedSvg, sourceDiagnostics, waitForNodeCount, waitForTheme } from './helpers.js';
 
 /** DD-08 §14's Playwright list, tests 1, 2, 3 (corrected by I2) and 8 — the
  *  rest (4: engine switch, 5–7: files/share/offline) wait for Stage J/K. */
@@ -24,6 +24,12 @@ test.describe('DD-08 §14', () => {
     await waitForNodeCount(page, 2);
     const svgBefore = await renderedSvg(page).innerHTML();
 
+    const initialSource = 'checkout: {\n  web: "Web App"\n  api: "API"\n  web -> api\n}\n';
+    const finalSource = initialSource.slice(0, -2); // the trailing "}\n" removed.
+    const expected = sourceDiagnostics(finalSource);
+    expect(expected.length).toBeGreaterThan(0);
+    expect(expected[0]!.severity).toBe('error');
+
     const content = page.locator('.cm-content');
     await content.click();
     await page.keyboard.press('Control+End');
@@ -35,6 +41,10 @@ test.describe('DD-08 §14', () => {
     await page.keyboard.press('Backspace');
 
     await expect(page.locator('.cm-lint-marker-error').first()).toBeVisible({ timeout: 5000 });
+    const rows = await diagnosticRows(page);
+    expect(rows.map((r) => r.code)).toEqual(expected.map((d) => d.code));
+    await assertErrorSpans(page, finalSource, expected);
+
     expect(await renderedSvg(page).innerHTML()).toBe(svgBefore);
   });
 
@@ -50,7 +60,7 @@ test.describe('DD-08 §14', () => {
     );
 
     await page.locator('.theme-picker select').selectOption('neutral-dark');
-    await page.waitForTimeout(200);
+    await waitForTheme(page, 'neutral-dark');
 
     const framesAfter = await renderedSvg(page).evaluate((svg) =>
       [...svg.querySelectorAll('g.L-nodes > g.n, g.L-containers > g.c')].map((g) => {

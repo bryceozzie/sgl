@@ -79,6 +79,15 @@ export function Canvas({ pipeline, onFitReady }: CanvasProps) {
       const wrapper = wrapperRef.current;
       if (wrapper === null) return;
       wrapper.innerHTML = lastGood === null ? '' : lastGood.svg;
+      // Test hook (e2e, DD-08 §14 item 8's decision): a paint-only theme
+      // switch changes `lastGood.styled.paintHash`/`.themeId` without
+      // necessarily changing the DOM subtree's *size* in any way a
+      // `waitForSelector` could key on — a fixed attribute a test can await
+      // avoids `waitForTimeout`'s race against a slow CI runner.
+      if (lastGood !== null) {
+        wrapper.setAttribute('data-paint-hash', lastGood.styled.paintHash);
+        wrapper.setAttribute('data-theme', lastGood.styled.themeId);
+      }
 
       if (!hasFittedRef.current && lastGood !== null) {
         hasFittedRef.current = true;

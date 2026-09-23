@@ -52,4 +52,13 @@ describe('canvas viewport (DD-08 §6)', () => {
     expect(boundsChangedSignificantly({ w: 100, h: 100 }, { w: 120, h: 100 })).toBe(false);
     expect(boundsChangedSignificantly(null, { w: 999, h: 999 })).toBe(false);
   });
+
+  it('a change of exactly 40% is not "more than 40%" (strict >)', () => {
+    // DD-08 §6: "changes size by more than 40%" — the boundary itself is not
+    // an offer, only what exceeds it.
+    expect(boundsChangedSignificantly({ w: 100, h: 100 }, { w: 140, h: 100 })).toBe(false);
+    expect(boundsChangedSignificantly({ w: 100, h: 100 }, { w: 100, h: 140 })).toBe(false);
+    // One tick over the boundary does flip it.
+    expect(boundsChangedSignificantly({ w: 100, h: 100 }, { w: 140.001, h: 100 })).toBe(true);
+  });
 });
