@@ -32,8 +32,8 @@ export interface PipelineDeps {
   readonly host: LayoutHost;
   readonly metrics: ResolvedThemeMetricsView;
   /** The engine the app starts with. Chosen by the caller from what is actually
-   *  registered in the worker (I1) — `@sgl/layout-api`'s frozen
-   *  `DEFAULT_ENGINE_ID` names `sgl.elk`, which is not registered until Stage K. */
+   *  registered in the worker — `sgl.elk` since Stage K (ADR-0005), which is
+   *  also `@sgl/layout-api`'s `DEFAULT_ENGINE_ID`. */
   readonly defaultEngineId: string;
   readonly defaultThemeId?: string;
   readonly schedule?: Schedule;

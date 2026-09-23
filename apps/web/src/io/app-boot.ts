@@ -1,3 +1,4 @@
+import { elkDescriptor } from '@sgl/layout-elk/descriptor';
 import { gridEngine } from '@sgl/layout-std';
 import { BUILT_IN, DEFAULT_THEME_ID } from '@sgl/theme';
 import EXAMPLE_SOURCE from '../examples/checkout.sgl?raw';
@@ -6,14 +7,19 @@ import { decodeShareFragment } from '../state/share.js';
 import { createMemoryStore, type DocumentStore } from '../state/storage.js';
 import { openIdbStore } from '../state/storage-idb.js';
 
-/** The engines actually registered in `apps/web/src/layout.worker.ts` — only
- *  `gridEngine` until Stage K adds `elk`. Read from the same object the
- *  worker registers, rather than duplicated by hand, so the picker cannot
+/** The engines actually registered in `apps/web/src/layout.worker.ts`: `elk`
+ *  and `grid`. Read from the same objects the worker registers — `elk`'s
+ *  descriptor entry, which carries everything but `layout()` and so none of
+ *  elkjs (Stage K, K1) — rather than duplicated by hand, so the picker cannot
  *  list something the worker does not actually run. */
-export const REGISTERED_ENGINES = [{ id: gridEngine.id, name: gridEngine.name, determinism: gridEngine.capabilities.determinism }];
+export const REGISTERED_ENGINES = [
+  { id: elkDescriptor.id, name: elkDescriptor.name, determinism: elkDescriptor.capabilities.determinism },
+  { id: gridEngine.id, name: gridEngine.name, determinism: gridEngine.capabilities.determinism },
+];
 
-/** I1: the app's default engine is whichever engine the worker registers. */
-export const DEFAULT_ENGINE_ID = gridEngine.id;
+/** ADR-0005: `elk` is the default engine (Stage K undoes Stage I's interim
+ *  `grid` default, decision I1). A stored document keeps its own `engineId`. */
+export const DEFAULT_ENGINE_ID = elkDescriptor.id;
 
 export interface AppBoot extends BootResult {
   readonly store: DocumentStore;

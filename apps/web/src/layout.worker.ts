@@ -1,4 +1,5 @@
 import { createWorkerRuntime, EngineRegistry, type HostToWorker, type WorkerToHost } from '@sgl/layout-api';
+import { elkEngine } from '@sgl/layout-elk';
 import { gridEngine } from '@sgl/layout-std';
 
 /**
@@ -11,10 +12,15 @@ import { gridEngine } from '@sgl/layout-std';
  * package may import `@sgl/layout-api` and `@sgl/core`, not the other way round,
  * so the registry has to be assembled somewhere both are visible — here).
  *
- * `elk` joins this registration once Stage K lands (out of scope here).
+ * Stage K registers `elk` (ADR-0005's default engine). Importing it costs only
+ * its mapping code: elkjs itself is a dynamic `import()` inside
+ * `elkEngine.layout()`, emitted as its own `elk` chunk (`vite.config.ts`) and
+ * fetched on the first elk request, with elkjs's scoped `document` stub
+ * (decision K11) inside `@sgl/layout-elk`, not here.
  */
 
 const registry = new EngineRegistry();
+registry.register(elkEngine);
 registry.register(gridEngine);
 
 /** `self` in a module worker is typed as `Window & typeof globalThis` by this
