@@ -15,7 +15,11 @@ export default defineConfig({
         test: {
           name: 'unit',
           environment: 'node',
-          include: ['packages/*/test/**/*.test.ts'],
+          // apps/web/test (Stage I, I3): the signal graph and pipeline
+          // orchestration are plain TypeScript with the layout host, measurer and
+          // debounce clock injected, so they run here too — DOM-free and fast —
+          // rather than only under Playwright.
+          include: ['packages/*/test/**/*.test.ts', 'apps/*/test/**/*.test.ts'],
           // `*.browser.test.ts` needs a real `Worker`/DOM and belongs to the
           // `browser` project below; without this it also matches `*.test.ts`
           // and fails under Node with `Worker is not defined`.

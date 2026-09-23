@@ -43,23 +43,51 @@ body {
   min-height: 0;
 }
 
-.pane {
+.editor-host {
   background: var(--chrome);
   min-height: 0;
-  overflow: auto;
-  padding: 0.9rem;
+  overflow: hidden;
 }
 
-.pane h2 {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  opacity: 0.55;
-  margin: 0 0 0.6rem;
+.editor-host .cm-editor {
+  height: 100%;
 }
 
-.pane p { font-size: 0.85rem; line-height: 1.5; max-width: 44ch; opacity: 0.8; }
-.pane code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8em; }
+.canvas-host {
+  position: relative;
+  background: var(--chrome);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.canvas-host svg.host {
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+
+.node-outline {
+  stroke: light-dark(#2563eb, #60a5fa);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.node-outline.selected { stroke: light-dark(#dc2626, #f87171); }
+
+.canvas-host .fit-button {
+  position: absolute;
+  right: 0.6rem;
+  bottom: 0.6rem;
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--line);
+  background: var(--chrome);
+  color: var(--ink);
+  cursor: pointer;
+}
 
 @media (max-width: 48rem) {
   .panes { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }

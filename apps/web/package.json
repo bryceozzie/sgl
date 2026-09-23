@@ -12,6 +12,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.19.2",
+    "@codemirror/commands": "^6.9.1",
+    "@codemirror/language": "^6.11.4",
+    "@codemirror/lint": "^6.9.2",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.39.4",
+    "@lezer/common": "^1.2.3",
     "@preact/signals": "^2.0.0",
     "@sgl/core": "workspace:*",
     "@sgl/layout-api": "workspace:*",

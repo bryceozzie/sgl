@@ -130,7 +130,7 @@ A stage is not done because the code is written. It is done when its gate passes
 | `@sgl/layout-std` — `grid` | **Done**, T1+T2 gate green, bitwise double-run over the whole corpus (Stage E) | `main` |
 | End-to-end pipeline (`source -> RenderResult`), `bench/generate.js` | **Done**, T3 gate green (Stage G) | `main` |
 | `@sgl/layout-api` — `createWorkerHost`, `worker-runtime.ts` (worker-side message handling) | **Done**, T1 gate green; the gate's four conditions also proven against a real `Worker` (browser project, Chromium + Firefox) (Stage H) | `main` |
-| `apps/web` | **Not started**, except `layout.worker.ts` — the one real worker entry Stage H needed (registers `gridEngine`) | `main` |
+| `apps/web` | **Stage I part 1 in progress** — the editor loop (signal graph, CodeMirror, canvas) works end to end; pickers, diagnostics panel, fonts and the Playwright gate are part 2 | `feat/app-editor`, unmerged |
 
 **Gate 1 is cleared.** `feat/compiler` merged to `main` at `a46c72b`; `pnpm check` green there
 (496 tests). `.sgl` text in, `SemanticGraph` out, for every document in the corpus, with goldens
@@ -656,6 +656,56 @@ front of the browser provider, not a reliably reproducible property of this repo
 defect in the host/runtime code. Recorded as an observation for whoever next hits it, not as
 something this stage could fix.
 
+**Stage I part 1 is in progress on `feat/app-editor`** (branched from `main` at `af09d48`,
+Stages A–H, 1625 tests). `pnpm check` is green (1653 tests, up from 1625). Only what part 1's
+brief scoped: `@sgl/core/editor` (`packages/core/src/editor.ts`) — the `LRLanguage` over the
+shared Lezer parser, DD-01 §6's tag/fold/indent mapping, filled out for four tokens the table
+didn't name (`ConfigString`, `Bool`, `Null`, `Variable`); the DOM-free signal graph and pipeline
+orchestration (`apps/web/src/state/pipeline.ts`, `types.ts`, `metrics.ts`, `measure-styles.ts`,
+`worker-host.ts`), with the layout host, measurer and debounce clock injected (I3) and driven by
+fakes in `apps/web/test/pipeline.test.ts` — last-good survives a syntax error, a superseded
+layout is aborted and ignored, a theme-only change skips layout but re-renders, `SGL4001`/
+`SGL4002` keep the previous layout, and the 120 ms debounce coalesces rapid edits; the real
+worker wired through `createAppWorkerHost` (`apps/web/src/state/worker-host.ts`); the CodeMirror
+editor (`apps/web/src/editor/`) with DD-08 §4's extension list, `setDiagnostics` on every `diags`
+change, and a transaction-based `replaceDocument` ready for part 2's Open/Save; the canvas
+(`apps/web/src/canvas/`) with the host `<svg>`, pan/zoom (`k ∈ [0.1, 8]`), fit on open and on the
+button only, the `innerHTML` swap of a wrapper `<g>`, and hover/click computed from
+`lastGood.layout` frames via a pure `hitTestNode` (`apps/web/test/hit-test.test.ts`,
+`viewport.test.ts`); `App.tsx` wiring all of it into DD-08 §2's editor-left/canvas-right shell.
+Verified in a real browser via `pnpm dev`: typing renders and updates the diagram live, and an
+unterminated string shows a squiggle at the right offset while the previous diagram stays on
+screen (FR-E4) — `App.tsx`'s `EXAMPLE` default document is `checkout: { web: "Web App" ... }`,
+a colon after the container key, per DD-01's `NodeDecl` grammar (`NodeKey (":" NodeValue)?` —
+the colon is not optional before a block). Pickers, the
+diagnostics panel, the status chip, Inter/font bundling, the §13 error boundary and the
+Playwright gate are **explicitly part 2**, not started. F2 (a class-sourced diagnostic's
+`related` span) is also part 2's, not this change's.
+
+A **build-tool finding, fixed in the same change**: `packages/core/tsdown.config.ts` already listed
+`src/editor.ts` as a second entry (Stage A/D-era scaffolding, before this stage gave it real
+content); once `editor.ts` actually imported the same generated, non-TS grammar module
+(`src/grammar/sgl.parser.js`) that `index.ts` already does via `parse.ts`, tsdown's default
+unbundle mode extracted that shared file into one hashed chunk but did not rewrite the relative
+import specifier in either entry's own output — both `dist/parse.js` and `dist/editor.js` kept the
+literal, now-nonexistent `./grammar/sgl.parser.js` path, breaking `@sgl/core` at import time for
+every consumer, not just the editor entry. Not caught by `pnpm build` (which only reports success
+per file written), only by `pnpm test`, which is why §1's "`check` builds before testing" rule
+exists. Fixed with `unbundle: false` in `tsdown.config.ts`, which bundles the ~4 kB grammar
+directly into both `index.js` and `editor.js` instead of sharing a chunk between them — a fine
+trade at this size, and it keeps the two entry points fully independent, which is what DD-01 §7
+already wants for a different reason (CodeMirror never reaching the pipeline's bundle).
+
+**Deviations from DD-08 §3's pseudocode, all recorded in DD-08 §3 itself in the same change**:
+`premeasure`'s real signature has no `previousTable` parameter to pass one through (the
+measurer's own per-run cache delivers the same reuse in practice); `ctx.metrics` has no
+`ResolvedTheme` field to derive "theme-derived numbers" from, so the app reuses the same static
+constant `packages/render-svg/test/pipeline.ts`'s reference harness already established;
+`diags` also folds in `theme`'s, `styled`'s and `render()`'s own diagnostics, which the
+pseudocode's list omits; and the paint-only skip condition's "engine/options unchanged" half is
+tracked in a small piece of state alongside `lastGood`, since `lastGood`'s own documented shape
+has nowhere to carry an engine id or an options bag.
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
@@ -672,6 +722,7 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F8** | `<style>` content is XML-escaped by `render()` (every golden carries `&apos;Segoe UI&apos;` in the font stack). For a standalone `.svg` this is verified correct — XML parses style content as character data and decodes entities, confirmed by the injection suite. For DD-08 §6's `innerHTML` path it should *also* be correct — `style` is not in HTML's foreign-content breakout list, so inside `<svg>` the parser treats it as a foreign element and never enters the RAWTEXT state, meaning entities decode there too — but that is spec reading, not a live-browser result, and no browser target exists yet (`apps/web` is not started) to prove it. If the reading is wrong, every multi-word font family silently degrades in the live view only, not in exports. | Stage I, to verify once `apps/web` runs |
 | **F9** | DD-09 §2's **`< 16 ms` paint-only theme switch** budget has lost its justification (F7: a theme toggle is a full `render()` plus an `innerHTML` replacement, not a `<style>`-only swap). **Measured** by Stage H once the browser project existed (`packages/render-svg/test/browser/render.bench.browser.test.ts`, fixtures precomputed in Node by `bench/generate-render-fixtures.js` off `runPipeline`'s stages up to but excluding `render()`, per D4): median of 15 runs, `render()` alone, Chromium / Firefox — <br>n50: **1.1 / 0.8 ms** (light/dark) Chromium, **2.0 / 2.0 ms** Firefox — inside budget.<br>n500: **8.9 / 7.7 ms** Chromium, **15–16 ms** Firefox — borderline.<br>n2000: **33.8 / 41.3 ms** Chromium, **54 / 54 ms** Firefox — **well over** 16 ms.<br>So the budget holds only for the small end of the corpus; a 500-node document is already borderline in Firefox, and 2 000 nodes is 2–3× over everywhere. **Not cleared** — confirming `< 16 ms` isn't an option given these numbers, so renegotiating it in DD-09 §2 and [01 §4.1](01-requirements.md) (or narrowing which node counts the budget applies to) is the remaining, human, decision. | Renegotiation with Stage I |
 | **F10** | `ctx.random`'s seed (`host.ts`'s `SEED = 1`) is one fixed constant, shared by every request for every document — `LayoutHost.run()`'s frozen signature has no per-call seed parameter, so Stage H could not add one unilaterally (DD-06 §3). Where a per-document seed should come from — a new `run()` parameter, or something content-addressed from a graph hash so the same document always seeds the same way without threading a value through every call site — is undecided, and is an orchestrator/design decision to make, not Stage H's to settle unilaterally. No engine shipped so far reads `ctx.random` at all (`grid` is fully deterministic; `elk` is unbuilt), so nothing depends on the answer yet. | Stage L (B5 `radial`/`force`, the first seed-consuming engines) |
+| **F11** | DD-08 §10's engine options panel — "MVP is a hand-built form per engine" — is not built. With one registered engine (`grid`) there is nothing to switch *between*, so a form whose whole point is per-engine variation has no second case to prove it against; building it now risks shaping it around `grid`'s own three options (`columns`, `gap`, `align`) in a way that does not generalise to `elk`'s different set (direction, node/rank spacing, edge routing, node placement). `engineOptions` itself is wired end to end (the signal, `buildLayoutInput`, the worker protocol) — only the settings UI is missing. | Stage K (the second engine makes the form's generality checkable) |
 
 ---
 

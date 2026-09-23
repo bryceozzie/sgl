@@ -15,7 +15,9 @@
     "build": "tsdown"
   },
   "dependencies": {
+    "@codemirror/language": "^6.10.8",
     "@lezer/common": "^1.2.3",
+    "@lezer/highlight": "^1.2.1",
     "@lezer/lr": "^1.4.2"
   },
   "devDependencies": {

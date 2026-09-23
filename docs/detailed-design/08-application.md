@@ -63,6 +63,28 @@ inFlight    = signal<boolean>
 lastGood = signal<{ styled, layout, svg, styleBlock } | null>
 ```
 
+**Stage I part 1 implementation notes**, against the pseudocode above:
+
+- **I1, default engine.** `engineId`'s starting value is not a literal `'sgl.elk'`
+  default — `elk` is not registered until Stage K, so starting there would mean
+  every first layout fails with "unregistered engine" (`SGL4011`). The app reads
+  the default from whatever `apps/web/src/layout.worker.ts` actually registers
+  (`gridEngine.id`, i.e. `'sgl.grid'`) rather than from `@sgl/layout-api`'s frozen
+  `DEFAULT_ENGINE_ID` constant (`'sgl.elk'`, ADR-0005's eventual default), so the
+  two cannot drift out of sync as engines are added.
+- **Each derivation signal holds the whole `StageResult`**, not the unwrapped
+  value the pseudocode above elides (e.g. `theme.value` is
+  `StageResult<ResolvedTheme>`, and `styleGraph` is called with `theme.value.value`)
+  — needed because `diags` reads every stage's own `.diagnostics`, not just the
+  last one's.
+- **`diags` also folds in `theme`'s, `styled`'s and `render()`'s own
+  diagnostics** (a malformed theme token, an unknown style property, a disallowed
+  link scheme), which the list above omits. These are real, user-visible
+  diagnostics — DD-00 §1's "errors are values" only works if every
+  diagnostic-producing stage's output actually reaches the UI — so the
+  implementation's `diags` computed is
+  `[...parsed, ...model, ...graph, ...theme, ...styled, ...layoutDiags, ...(svg?.diagnostics ?? [])]`.
+
 ### Measure effect
 
 Runs when `styled.value.geometryHash` or `themeId` changes:
@@ -71,6 +93,18 @@ Runs when `styled.value.geometryHash` or `themeId` changes:
 await measurer.ready(distinctTextStyles(styled))          // DD-05 §4 — fonts first
 table.value = premeasure(styled, measurer, previousTable)  // reuses unchanged keys
 ```
+
+**Deviation.** `premeasure`'s real, frozen signature (`packages/measure/src/premeasure.ts`)
+is `premeasure(styled, measurer)` — no `previousTable` parameter. "Reuses unchanged
+keys" is delivered a different way than this pseudocode's third argument implies:
+`CanvasMeasurer` (and any `AppMeasurer`) already keeps its own per-run cache keyed
+by the same run key `premeasure` uses, so calling `premeasure(styled, measurer)`
+fresh on every measure-effect run is cheap for every label whose text and style
+did not change — the cache serves those without touching a canvas — without the
+app needing to thread a previous table through a call `@sgl/measure` does not
+accept. `distinctTextStyles` (DD-05 §4's "fonts first") is not exported by
+`@sgl/measure` either — built in the app from the same `labelRuns` helper
+`premeasure` itself uses, so the two never disagree about what a label's style is.
 
 ### Layout effect
 
@@ -96,6 +130,27 @@ else:
     finally
         inFlight = false
 ```
+
+**Two more deviations, both filling gaps the frozen types below `apps/web` leave
+open rather than contradicting them:**
+
+- **`metrics`.** DD-06 §2 calls `ctx.metrics` "the small set of theme-derived
+  numbers an engine may want for defaults," but `ResolvedTheme`
+  (`packages/theme/src/types.ts`) has no `metrics` field to derive them *from* —
+  `packages/theme` is out of this stage's reach. `packages/render-svg/test/pipeline.ts`'s
+  `runPipeline`, the one place the whole pipeline already existed end to end
+  before this stage, hits the same gap and resolves it with one constant
+  (`spacing: { node: 40, rank: 70, edgeLabel: 4 }`, `stroke`, `arrowSize` — this
+  section's own worked example), independent of `themeId`. The app reuses that
+  same constant (`apps/web/src/state/metrics.ts`) rather than inventing a second
+  one. Actually wiring per-theme metrics is an open gap for whichever stage next
+  touches `ResolvedTheme`.
+- **The paint-only skip condition's "engine/options unchanged" half.** `lastGood`'s
+  shape (`{ styled, layout, svg, styleBlock }`, above) has no field to compare
+  `engineId`/`engineOptions` against, so the app tracks the engine id and a
+  stable-stringified options key of the *last issued* layout request separately,
+  alongside the `styled.geometryHash === lastGood?.styled.geometryHash` check
+  this section names.
 
 ### Render (computed)
 
@@ -242,7 +297,7 @@ A thrown error anywhere in the pipeline (a violated invariant — not a document
 
 1. Type a document; assert the canvas updates and the viewport does not reset.
 2. Delete a closing brace; assert a squiggle at the right offset and the previous SVG still in the DOM.
-3. Switch theme; assert the `<g class="viewport">` inner tree node count is unchanged and only `<style>` text differs.
+3. Switch theme; assert *geometry* is untouched — the same node frames, the same edge route `d` attributes, the same `viewBox` — while paint changes. **Not** "the tree is untouched and only `<style>` text differs": F7 (execution plan §2.1) shows that does not hold — paint class names embed `paintHash` and a directed edge's marker id embeds its stroke colour, so a theme switch is a full re-render, not a `<style>`-only swap (§3, §11).
 4. Switch engine; assert geometry differs, IDs identical.
 5. Open `.sgl`, `.sgl.json`, `.txt` fixtures; save each; assert round-trip.
 6. Share: encode in one context, open in a fresh one; assert identical source. Oversize and corrupt fragments produce the toast.
