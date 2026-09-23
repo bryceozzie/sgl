@@ -49,7 +49,7 @@ docId         = signal<string>
 parsed   = computed(() => buildAst(editorTree(), source.value))        // DD-01 §5 — reuses the editor's tree
 model    = computed(() => resolve(parsed.value.ast))                   // DD-02
 graph    = computed(() => compile(model.value.model))                  // DD-03
-theme    = computed(() => resolveTheme(builtin[themeId.value]))        // DD-04
+theme    = computed(() => resolveTheme(builtin[effectiveThemeId.value])) // DD-04 — see "effective ids" below
 styled   = computed(() => styleGraph(graph.value.graph, theme.value))  // DD-04
 diags    = computed(() => [...parsed.diagnostics, ...model.diagnostics, ...graph.diagnostics, ...layoutDiags.value])
 
@@ -65,6 +65,12 @@ lastGood = signal<{ styled, layout, svg, styleBlock } | null>
 
 **Stage I part 1 implementation notes**, against the pseudocode above:
 
+- **Effective ids (fix round 1).** Everything downstream of the pickers reads
+  `effectiveThemeId`/`effectiveEngineId` — the document's own `@theme` /
+  `@layout.engine` when it sets one (§10), else the picker's `themeId` /
+  `engineId`. The `theme` computed and the measure and layout effects below
+  depend on those two computeds, **not** on the raw picker signals, so a
+  picker change the document overrides triggers nothing.
 - **I1, default engine.** `engineId`'s starting value is not a literal `'sgl.elk'`
   default — `elk` is not registered until Stage K, so starting there would mean
   every first layout fails with "unregistered engine" (`SGL4011`). The app reads
@@ -87,7 +93,7 @@ lastGood = signal<{ styled, layout, svg, styleBlock } | null>
 
 ### Measure effect
 
-Runs when `styled.value.geometryHash` or `themeId` changes:
+Runs when `styled.value.geometryHash` or `effectiveThemeId` changes (not the raw `themeId` — see "effective ids" above):
 
 ```
 await measurer.ready(distinctTextStyles(styled))          // DD-05 §4 — fonts first
@@ -119,7 +125,7 @@ very next (correct) run still sees it false.
 
 ### Layout effect
 
-Runs when `styled.geometryHash`, `table`, `engineId` or `engineOptions` changes. Debounced 120 ms after the last change; aborts any in-flight request first.
+Runs when `styled.geometryHash`, `table`, `effectiveEngineId` or `engineOptions` changes (`effectiveEngineId`, not the raw `engineId` — see "effective ids" above). Debounced 120 ms after the last change; aborts any in-flight request first.
 
 ```
 if styled.geometryHash === lastGood?.styled.geometryHash && engine/options unchanged:
@@ -129,7 +135,7 @@ else:
     try
         // LayoutHost.run() resolves a StageResult, never throws except for
         // AbortError (DD-06 §3) — errors are values here, not exceptions.
-        result = await host.run(engineId, input, options, metrics, table, signal)
+        result = await host.run(effectiveEngineId, input, options, metrics, table, signal)
         layoutDiags = result.diagnostics
         if result.value !== null:
             layout.value = result.value   // may still carry warnings (e.g. SGL4003)
@@ -203,7 +209,7 @@ Nothing on the keystroke path awaits the worker. Typing stays responsive even wh
 
 Inter (Regular 400, Medium 500, SemiBold 600) is bundled as WOFF2 and declared via `@font-face` in the app CSS with `font-display: block` — block, not swap, so the first measurement is never against a fallback. `measurer.ready()` (DD-05 §4) is awaited before the first pre-measure; the boot sequence shows the last-good SVG from storage (if any) while fonts load, so there is no blank canvas.
 
-**Implemented (Stage I part 2), `apps/web/src/fonts.css`.** Hand-written `@font-face` rules — Latin subset only, `font-display: block` — pointing at `@fontsource/inter`'s own WOFF2 files, rather than importing that package's `400.css`/`500.css`/`600.css` directly: those ship every Unicode subset (cyrillic, greek, vietnamese, …) at `font-display: swap`, which is the one thing this section specifically rules out. "The boot sequence shows the last-good SVG from storage while fonts load" needs persistence (Stage J) and is not built yet; today's boot sequence shows nothing until the first render completes, which given `font-display: block` and the awaited `ready()` is at worst a brief blank canvas, never a wrongly-sized one.
+**Implemented (Stage I part 2), `apps/web/src/fonts.css`.** Hand-written `@font-face` rules — Latin subset only, `font-display: block` — pointing at `@fontsource/inter`'s own WOFF2 files, rather than importing that package's `400.css`/`500.css`/`600.css` directly: those ship every Unicode subset (cyrillic, greek, vietnamese, …) at `font-display: swap`, which is the one thing this section specifically rules out. The font's SIL Open Font License ships with the build: `apps/web/public/fonts/OFL.txt` (the `@fontsource/inter` package's own `LICENSE`, verbatim) lands at `dist/fonts/OFL.txt`, with a one-line attribution in the root `README.md` (fix round 1). "The boot sequence shows the last-good SVG from storage while fonts load" needs persistence (Stage J) and is not built yet; today's boot sequence shows nothing until the first render completes, which given `font-display: block` and the awaited `ready()` is at worst a brief blank canvas, never a wrongly-sized one.
 
 **A real, unrelated bug surfaced and fixed while proving this**: the layout effect (§3) fired once on boot with `table` still at its initial `{}`, laying every label out at zero size before the real premeasure table landed and produced a second, correctly-sized layout — a genuine "wrong size, briefly" flash on every cold load, nothing to do with fonts (`document.fonts` already reported every face loaded by the time either layout ran). Fixed with a `hasMeasuredOnce` guard on the layout effect; see §3's own update and execution plan §2.
 
@@ -214,11 +220,24 @@ Inter (Regular 400, Medium 500, SemiBold 600) is bundled as WOFF2 and declared v
 ```svg
 <svg class="host" width="100%" height="100%">
   <g class="viewport" transform="translate(tx ty) scale(k)">
-    <!-- lastGood.svg, inserted via innerHTML of a wrapper <g> -->
+    <g class="rendered" data-theme="…" data-paint-hash="…">  <!-- the wrapper -->
+      <!-- lastGood.svg — the exported tree — inserted via the wrapper's innerHTML -->
+    </g>
   </g>
-  <g class="overlay"> <!-- selection outline, hover highlight; never exported --> </g>
+  <!-- a sibling of g.viewport, never inside g.rendered: never exported -->
+  <g class="overlay" transform="(same as g.viewport)">
+    <rect class="node-outline hover"/> <rect class="node-outline selected"/>
+  </g>
 </svg>
 ```
+
+The wrapper `<g class="rendered">` is what `innerHTML` replaces; its only child
+is `lastGood.svg`'s own `<svg>`, which is exactly what Save ▾ SVG exports
+(§7). The overlay carries the same transform as the viewport but sits beside
+it, so no outline can ever end up in the exported markup
+(`apps/web/e2e/canvas.spec.ts` asserts both). `data-theme`/`data-paint-hash`
+name the render currently on screen (fix round 1): the e2e suite waits on
+them after a theme switch instead of sleeping.
 
 - **Pan**: pointer drag on empty space; **zoom**: wheel (ctrl/⌘ + wheel or pinch on trackpads) centred on the cursor; `k ∈ [0.1, 8]`.
 - **Fit**: on document open and on the toolbar button — `k = min(vw / bounds.w, vh / bounds.h) × 0.94`, centred. **Not** on every render: the viewport is preserved across re-renders so the diagram does not jump while typing. When `bounds` changes size by more than 40 % the chip offers "Fit".
@@ -288,13 +307,16 @@ same object `layout.worker.ts` registers) rather than from a shared registry obj
 own `EngineRegistry` lives inside the worker, with no synchronous view from the main thread. The
 engine options panel (this section's second bullet) is **not** built — F11 (execution plan §2.1),
 owned by Stage K, which is when a second engine exists to prove the form's generality against.
-Overriding writes through `apps/web/src/state/root-config-edit.ts`'s `setRootConfigString`, which
-finds an existing top-level `@theme`/`@layout.engine` entry's value span in the already-parsed AST
-and replaces just that, or inserts a new line at the document's start if neither exists; it does
-not look inside an existing `@layout: { engine: ... }` object literal for an `engine` property,
-so a document written that way gets a second, dotted `@layout.engine` entry alongside it (merged
-per DD-02 §2's redeclaration rule, one harmless `SGL2005` info diagnostic) rather than a precise
-in-object edit — a known simplification, not a correctness gap.
+Overriding writes through `apps/web/src/state/root-config-edit.ts`'s `setRootConfigString`
+(fix round 1). The picker's own write must never make the document emit a diagnostic or grow a
+second entry for the key, so it edits whatever already sets the key, in place: an exact
+`@theme`/`@layout.engine` entry, or the `engine` property of an `@layout: { … }` object, whatever
+the old value's kind; the last such entry, since later wins. An `@layout` object without `engine`
+gets the property added inside it. A new `@key.path: "…"` line is inserted at the document's start
+only when nothing sets the key and no parent object exists. The edit is built from the pipeline's
+own `parsed` AST (§4: the app never calls `parse` itself — `apps/web/src/state/picker-actions.ts`,
+enforced by a lint rule on `apps/web/src`). Selecting an engine resets `engineOptions` to `{}`:
+"the engine's defaults" until the options form (F11, Stage K) gives an engine real ones.
 
 ---
 
@@ -315,6 +337,13 @@ canvas calls after every fit (on open, or the toolbar button — DD-08 §6's `�
 floating canvas button to the toolbar in part 2 to match this section's own screen sketch, §2).
 Toasts are not built (file/share outcomes are Stage J).
 
+**Decision (fix round 1): chip priority.** When several states hold at once, the chip shows the
+highest of **crashed > timeout > errors > laying out > idle** (`deriveChipState`). A crash (§13)
+wins because nothing else is safe to claim once the pipeline itself has thrown. `SGL4001` is more
+specific than the generic error count. The error count beats "laying out…" because a retry in
+flight after an error is still showing last-good-with-errors until it lands. The "Fit" offer is
+independent of all five.
+
 ---
 
 ## 12. PWA
@@ -332,22 +361,30 @@ Toasts are not built (file/share outcomes are Stage J).
 
 A thrown error anywhere in the pipeline (a violated invariant — not a document problem, which is a diagnostic) is caught at the effect boundary, logged, shown as a single "Something went wrong rendering — your text is safe" chip with a "Report" link that copies the error and the current source hash (never the source) to the clipboard. The editor keeps working; the last good render stays.
 
-**Implemented (Stage I part 2), `apps/web/src/state/pipeline-error.ts` + `pipeline.ts`.** Three
-boundaries, not one generic try/catch around "the pipeline": the layout effect's `host.run()`
-rejection path (a rejection other than `AbortError` violates DD-06 §3's own contract), a
-synchronous throw from `host.run()` itself, and `render()` inside the `svg` computed (wrapped as a
-pure `{ result, error }` pair, with a separate effect turning `error` into the `pipelineError`
-signal — a computed's own callback stays a pure function of its dependencies, so it does not write
-`pipelineError` directly). **Not covered**: a throw from `parse`/`resolve`/`compile`/
-`resolveTheme`/`styleGraph` themselves. Every one of those is documented as never throwing on bad
-*document* input (§1), so a throw there is already an extremely rare invariant violation; catching
-it would mean restructuring `parsed`/`model`/`graph`/`theme`/`styled` away from the separate public
-signals DD-08 §3 asks for (and part 1 already shipped and tested) into one combined try/catch'd
-computed. Left as a gap, not silently assumed safe: if one of those five ever does throw, it
-surfaces exactly as an uncaught error would have before this stage existed. `pipelineError` clears
-itself the next time `render()` succeeds (a later effect run reads `svgOutcome.value.error ===
-undefined` and nulls it out) — not stated in this section but a reasonable reading of "the editor
-keeps working": once it demonstrably is working again, the stale crash banner should not linger.
+**Implemented (Stage I part 2, completed in fix round 1), `apps/web/src/state/pipeline-error.ts` +
+`pipeline.ts`.** Every boundary logs the original error with `console.error` (stack intact) and
+sets `pipelineError` (`makePipelineError`: `describeError`'s message plus the source hash) for the
+chip. The boundaries:
+
+- **Each synchronous stage** — `parse`/`buildAst`, `resolve`, `compile`, `resolveTheme`,
+  `styleGraph` and `render()` — is its own guarded computed. On a throw it keeps its last good
+  value, and any stage downstream of a frozen one does not run either, so the chain freezes at
+  last-good from the throwing stage down. That second rule matters at the fan-in stages:
+  `styleGraph` reads `compile`'s graph and `resolve`'s classes, and must never pair a fresh one with
+  a frozen one. `parsed`/`model`/`graph`/`theme`/`styled` stay separate public signals, as above.
+  A throw on the very first pass, before any good value exists, falls back to that stage's result
+  for the empty document. The pipeline still constructs, the editor still mounts, and the next
+  edit that stops throwing recovers.
+- **The measure effect** — `measurer.ready()` or `premeasure()` throwing.
+- **The layout effect** — building the `LayoutInput`, a synchronous throw from `host.run()`, and a
+  rejection other than `AbortError`, which violates DD-06 §3's own contract.
+
+`lastGood` is built from the render outcome's own `styled`/`layout`, not from whatever `styled`
+holds when the effect runs, so a frozen render is never re-paired with a newer graph. A still-live
+error is not logged again when an unrelated stage recomputes. `pipelineError` clears the next time
+a render completes cleanly and becomes `lastGood`. That is a reasonable reading of "the editor
+keeps working": once it demonstrably is working again, the crash chip should not linger. The
+chip's "Report" button copies `reportText` (message and source hash, never the source).
 
 ---
 
@@ -365,7 +402,13 @@ keeps working": once it demonstrably is working again, the stale crash banner sh
 **Implemented (Stage I part 2), `apps/web/e2e/`, against a production build (`vite build` +
 `vite preview`).** Tests 1–3 and 8: `dd08-14.spec.ts`. Tests 4–7 wait for Stage K (engine switch)
 and Stage J (files, share, offline). `criteria.spec.ts` covers the MVP acceptance criteria
-directly (2, 3, and 1's single-engine half); `f8-style-decode.spec.ts` covers F8. Two things worth
+directly (2, 3, and 1's single-engine half); `f8-style-decode.spec.ts` covers F8;
+`canvas.spec.ts` (fix round 1) covers §6. **Decision: criterion 1's "40 nodes" counts containers**
+(06 §3 does not say either way): `corpus/forty-three-level.sgl` has 2 top-level containers, 4
+second-level containers and 34 leaves, and the test counts rendered `g.n` and `g.c` together.
+"At the right span" (test 2, criterion 3) is checked as document offsets. The test reads back
+where CodeMirror drew every error decoration and compares that with the parser's own spans for the
+text read back from the editor. It also compares the panel's diagnostic codes exactly. Two things worth
 knowing before extending this suite: `closeBrackets` (§4) auto-pairs a typed opening `"`/`{`, so
 per-character `page.keyboard.type()` of anything containing one can pass through a momentarily
 *valid* intermediate document a debounced layout may legitimately adopt as `lastGood` before the
