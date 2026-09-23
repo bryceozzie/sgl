@@ -37,6 +37,9 @@ export function createAutosave(deps: AutosaveDeps): Autosave {
   // is the exception (see `write(true)`).
   let chain: Promise<void> = Promise.resolve();
   let failing = false;
+  /** Records taken from `pending`, and the highest number issued so far. */
+  let taken = 0;
+  let issuedSeq = 0;
 
   async function put(record: DocumentRecord): Promise<void> {
     try {
@@ -64,11 +67,22 @@ export function createAutosave(deps: AutosaveDeps): Autosave {
     const record = pending;
     pending = null;
     if (record === null) return chain;
+    // Each record is numbered when it leaves `pending`. A queued timer write
+    // whose number is below one already issued is skipped: a flush may have
+    // issued a newer record while it waited on the chain, and issuing it
+    // afterwards would overwrite that newer record (fix round 2, R1).
+    taken += 1;
+    const seq = taken;
+    const issue = (): Promise<void> => {
+      if (seq < issuedSeq) return Promise.resolve();
+      issuedSeq = seq;
+      return put(record);
+    };
     if (now) {
-      const issued = put(record); // runs synchronously up to the store call
+      const issued = issue(); // runs synchronously up to the store call
       chain = Promise.all([chain, issued]).then(() => undefined);
     } else {
-      chain = chain.then(() => put(record));
+      chain = chain.then(issue);
     }
     return chain;
   }

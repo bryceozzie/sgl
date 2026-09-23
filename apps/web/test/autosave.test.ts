@@ -130,6 +130,43 @@ describe('autosave', () => {
     expect(landed).toEqual(['new', 'old']); // (this fake store does not keep issue order; IndexedDB does)
   });
 
+  it('a timer write still queued when flush issues a newer one is skipped, never issued after it (fix round 2, R1)', async () => {
+    // A is in flight, B (a timer write) is queued behind it, then flush
+    // issues C at once. B must not be issued after C: in a store that keeps
+    // issue order (IndexedDB), it would overwrite the newer C.
+    const clock = createFakeClock();
+    const issued: string[] = [];
+    let current: string | undefined;
+    let releaseA: () => void = () => undefined;
+    const slowA = new Promise<void>((resolve) => {
+      releaseA = resolve;
+    });
+    const store: DocumentStore = {
+      ...createMemoryStore(),
+      async putDocument(r) {
+        issued.push(r.source);
+        current = r.source; // applied in issue order, as IndexedDB does
+        if (r.source === 'A') await slowA;
+      },
+    };
+    const autosave = createAutosave({ store, schedule: clock.schedule, onQuotaExceeded: vi.fn(), onError: vi.fn() });
+    autosave.request(record('A'));
+    clock.advance(AUTOSAVE_DELAY_MS);
+    await settle();
+    autosave.request(record('B'));
+    clock.advance(AUTOSAVE_DELAY_MS); // B queued behind A, not yet issued
+    await settle();
+    expect(issued).toEqual(['A']);
+    autosave.request(record('C'));
+    const flushed = autosave.flush();
+    expect(issued).toEqual(['A', 'C']);
+    releaseA();
+    await flushed;
+    await settle();
+    expect(issued).toEqual(['A', 'C']); // B skipped: C is newer
+    expect(current).toBe('C');
+  });
+
   it('QuotaExceededError is reported once per run of failures, and editing continues', async () => {
     const clock = createFakeClock();
     const store = createMemoryStore();
