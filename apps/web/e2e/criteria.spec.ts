@@ -1,11 +1,11 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import {
+  corpusDoc,
   diagnosticCodes,
   edgePaths,
   editorText,
   errorDecorations,
+  EXAMPLE_NODE_COUNT,
   EXAMPLE_SOURCE,
   expectedErrorDecorations,
   nodeGeometry,
@@ -18,15 +18,13 @@ import {
   waitForTheme,
 } from './helpers.js';
 
-const corpusDoc = (name: string): string => readFileSync(fileURLToPath(new URL(`../../../corpus/${name}`, import.meta.url)), 'utf8');
-
 /** MVP acceptance criteria (06 §3), Stage I's slice: criteria 2 and 3 in full,
  *  criterion 1's single-engine half (I1 — the engine-switch half waits for
  *  `elk`, Stage K). */
 test.describe('MVP acceptance', () => {
   test('criterion 2: switching theme changes paint only — geometry and viewBox untouched', async ({ page }) => {
     await page.goto('/');
-    await waitForNodeCount(page, 2);
+    await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
     await waitForTheme(page, 'neutral-light');
 
     const geomBefore = await nodeGeometry(page);
@@ -58,7 +56,7 @@ test.describe('MVP acceptance', () => {
 
   test('criterion 3: a syntax error mid-edit shows a squiggle at the right span and keeps the last diagram', async ({ page }) => {
     await page.goto('/');
-    await waitForNodeCount(page, 2);
+    await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
     const svgBefore = await renderedSvg(page).innerHTML();
 
     const addition = 'broken: "unterminated';

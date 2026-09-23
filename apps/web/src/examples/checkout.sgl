@@ -1,0 +1,38 @@
+// Welcome to SGL. Edit the text; the diagram follows.
+@sgl: "1.0"
+@title: "Checkout Flow"
+
+@classes: {
+  Service:   { @shape: round }
+  Store:     { @shape: cylinder }
+  External:  { @style.strokeDash: "3 3" }
+}
+
+edge: { @label: "CDN", @type: External }
+
+storefront: {
+  @label: "Storefront"
+
+  web:  Service
+  bff:  { @type: Service, @label: "BFF" }
+
+  web -> bff: "GraphQL"
+}
+
+payments: {
+  @label: "Payments"
+  @layout: { engine: grid, columns: 2 }
+
+  api:     { @type: Service, @style.stroke: "#DC2626" }
+  ledger:  Store
+  outbox:  Store
+
+  api -> ledger
+  api -> outbox: { @label: "async", @style: dashed }
+}
+
+psp: { @label: "Stripe", @type: External }
+
+edge -> storefront.web
+storefront.bff -> payments.api: "POST /charge"
+payments.api -> psp: "authorise"

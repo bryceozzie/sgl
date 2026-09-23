@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { expect, type Locator, type Page } from '@playwright/test';
 import { compile, parse, resolve, type Diagnostic } from '@sgl/core';
 
@@ -12,9 +14,26 @@ export function sourceDiagnostics(source: string): readonly Diagnostic[] {
   return [...parsed.diagnostics, ...resolved.diagnostics, ...compiled.diagnostics].sort((a, b) => a.span.from - b.span.from);
 }
 
-/** The document the app opens with (`App.tsx`'s `EXAMPLE`) — note the
+/** A `corpus/` document's text. */
+export const corpusDoc = (name: string): string => readFileSync(fileURLToPath(new URL(`../../../corpus/${name}`, import.meta.url)), 'utf8');
+
+/** The document a first visit opens with (DD-08 §9: "create a document from
+ *  the example" — `src/examples/checkout.sgl`, Stage J). Every Playwright
+ *  test starts in a fresh browser context, so a fresh IndexedDB, so this. */
+export const EXAMPLE_SOURCE = readFileSync(fileURLToPath(new URL('../src/examples/checkout.sgl', import.meta.url)), 'utf8');
+
+export function visibleNodeCount(source: string): number {
+  const { graph } = compile(resolve(parse(source).ast).model);
+  return graph.order.filter((id) => graph.nodes[id]?.hidden === false).length;
+}
+
+/** How many nodes and containers the example renders — computed, not
+ *  hard-coded, so editing the example cannot silently weaken a wait. */
+export const EXAMPLE_NODE_COUNT = visibleNodeCount(EXAMPLE_SOURCE);
+
+/** A small document for tests that edit at a known offset — note the
  *  trailing newline: `Control+End` lands on an empty final line. */
-export const EXAMPLE_SOURCE = 'checkout: {\n  web: "Web App"\n  api: "API"\n  web -> api\n}\n';
+export const SMALL_SOURCE = 'checkout: {\n  web: "Web App"\n  api: "API"\n  web -> api\n}\n';
 
 /** Replaces the whole editor document — CodeMirror's content is
  *  `contenteditable`, so `fill()` does not work. Uses `insertText` (one bulk
@@ -35,14 +54,31 @@ export function renderedSvg(page: Page): Locator {
   // `lastGood.svg` is inserted whole into `<g class="rendered">` (DD-08 §6) —
   // the nested `<svg>` this selects is the actual exported/golden-comparable
   // tree, distinct from the host `<svg class="host">` that owns pan/zoom.
-  return page.locator('.canvas-host g.rendered > svg');
+  // `data-origin="live"`: a render of the running pipeline, never the stored
+  // picture a reload paints first (J6, `storedSvg` below).
+  return page.locator('.canvas-host g.rendered[data-origin="live"] > svg');
 }
 
+/** The last-good SVG painted from IndexedDB at boot, before a live render
+ *  replaces it (DD-08 §5, §9). */
+export function storedSvg(page: Page): Locator {
+  return page.locator('.canvas-host g.rendered[data-origin="stored"] > svg');
+}
+
+const NODES = 'g.L-nodes > g.n, g.L-containers > g.c';
+
+/** At least `count` nodes and containers rendered live. */
 export async function waitForNodeCount(page: Page, count: number): Promise<void> {
   await renderedSvg(page)
-    .locator('g.L-nodes > g.n, g.L-containers > g.c')
+    .locator(NODES)
     .nth(count - 1)
     .waitFor({ state: 'attached' });
+}
+
+/** Exactly `count` nodes and containers rendered live — for waiting on a
+ *  *particular* document's render, where "at least" would already hold. */
+export async function waitForExactNodeCount(page: Page, count: number): Promise<void> {
+  await expect(renderedSvg(page).locator(NODES)).toHaveCount(count);
 }
 
 /** Every node/container's own shape `d` (DD-07 §4) — geometry, keyed by id so
@@ -155,4 +191,69 @@ export async function waitForTheme(page: Page, themeId: string): Promise<void> {
 /** The rendered wrapper's current paint hash (see `waitForTheme`). */
 export async function paintHash(page: Page): Promise<string | null> {
   return page.locator('.canvas-host g.rendered').getAttribute('data-paint-hash');
+}
+
+/** A document record as `state/storage.ts` stores it (DD-08 §9). */
+export interface StoredDocument {
+  readonly id: string;
+  readonly title: string;
+  readonly source: string;
+  readonly engineId: string;
+  readonly themeId: string;
+  readonly lastGoodSvg?: string;
+  readonly fileExtension?: string;
+}
+
+/** Every record in IndexedDB `sgl` and the `lastOpenDocId` setting, read
+ *  straight from the browser's own store — the real persisted state, not an
+ *  app-provided hook. Empty before the app has created the database. */
+export async function readStorage(page: Page): Promise<{ readonly documents: StoredDocument[]; readonly lastOpenDocId: string | undefined }> {
+  return page.evaluate(() =>
+    new Promise<{ documents: StoredDocument[]; lastOpenDocId: string | undefined }>((resolve, reject) => {
+      const open = indexedDB.open('sgl');
+      open.onerror = () => reject(open.error);
+      // Not created yet: abort rather than create an empty database the app
+      // would then open without its stores.
+      open.onupgradeneeded = () => open.transaction?.abort();
+      open.onsuccess = () => {
+        const db = open.result;
+        const tx = db.transaction(['documents', 'settings'], 'readonly');
+        const docs = tx.objectStore('documents').getAll();
+        const last = tx.objectStore('settings').get('lastOpenDocId');
+        tx.oncomplete = () => {
+          db.close();
+          resolve({ documents: docs.result as StoredDocument[], lastOpenDocId: (last.result as { value?: string } | undefined)?.value });
+        };
+        tx.onerror = () => reject(tx.error);
+      };
+    }).catch(() => ({ documents: [] as StoredDocument[], lastOpenDocId: undefined })),
+  );
+}
+
+/** The open document's stored record (`lastOpenDocId`'s), or `undefined`. */
+export async function storedOpenDocument(page: Page): Promise<StoredDocument | undefined> {
+  const { documents, lastOpenDocId } = await readStorage(page);
+  return documents.find((d) => d.id === lastOpenDocId);
+}
+
+/** Opens `text` as file `name` through the toolbar's Open button — the real
+ *  `<input type=file>` path (DD-08 §7). */
+export async function openFile(page: Page, name: string, text: string | Buffer): Promise<void> {
+  const chooser = page.waitForEvent('filechooser');
+  await page.locator('.file-open').click();
+  await (await chooser).setFiles({ name, mimeType: 'text/plain', buffer: typeof text === 'string' ? Buffer.from(text, 'utf8') : text });
+}
+
+/** Clicks a Save ▾ item and returns the download's file name and text. */
+export async function saveAs(page: Page, kind: 'sgl' | 'json' | 'svg'): Promise<{ readonly name: string; readonly text: string }> {
+  await page.locator('.save-menu > summary').click();
+  const download = page.waitForEvent('download');
+  await page.locator(`.save-menu .save-${kind}`).click();
+  const file = await download;
+  return { name: file.suggestedFilename(), text: readFileSync(await file.path(), 'utf8') };
+}
+
+/** The toast region's messages. */
+export function toastMessages(page: Page): Locator {
+  return page.locator('.toasts .toast-message');
 }

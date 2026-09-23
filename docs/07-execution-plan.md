@@ -117,6 +117,10 @@ three (DD-10 §4), which needs WebKit fetched once per machine too:
 pnpm exec playwright install webkit
 ```
 
+The e2e server is `vite preview` on port 4173 and is **never reused** (Stage J): if the port is
+taken, the run fails instead of testing whatever build is already listening there. Set
+`SGL_E2E_PORT` to use another port, e.g. when a second checkout is running its own suite.
+
 `check` builds before testing because a workspace package's cross-package `import`s resolve
 through its published `exports`, which point at `dist/`. `tsc -b` (the typecheck step) only
 compiles `.ts` files, so a package that re-exports a hand-generated `.js` asset — `@sgl/core`'s
@@ -143,7 +147,8 @@ A stage is not done because the code is written. It is done when its gate passes
 | `@sgl/layout-std` — `grid` | **Done**, T1+T2 gate green, bitwise double-run over the whole corpus (Stage E) | `main` |
 | End-to-end pipeline (`source -> RenderResult`), `bench/generate.js` | **Done**, T3 gate green (Stage G) | `main` |
 | `@sgl/layout-api` — `createWorkerHost`, `worker-runtime.ts` (worker-side message handling) | **Done**, T1 gate green; the gate's four conditions also proven against a real `Worker` (browser project, Chromium + Firefox) (Stage H) | `main` |
-| `apps/web` | **Stage I done** — the editor loop, pickers, diagnostics panel, status chip, fonts, the §13 error boundary and the Playwright e2e gate (DD-08 §14 tests 1/2/3/8, MVP criteria 2/3/1-single-engine) all work end to end. Open/save, share, autosave and the PWA shell are Stage J; `elk`/engine-switch and the per-engine options form are Stage K. Fix round 1 done (below) | `main` |
+| `apps/web` | **Stage I done** — the editor loop, pickers, diagnostics panel, status chip, fonts, the §13 error boundary and the Playwright e2e gate (DD-08 §14 tests 1/2/3/8, MVP criteria 2/3/1-single-engine) all work end to end. Fix round 1 done (below). `elk`/engine-switch and the per-engine options form are Stage K | `main` |
+| `apps/web` — files, share, persistence, PWA, `_headers` | **Stage J implemented, review fix rounds 1 and 2 applied, not yet merged** — Open/Save (`.sgl`, `.sgl.json`, `.svg`), share by URL with the 2 MB inflate cap, IndexedDB autosave and boot, the stored-SVG boot paint (J6), `vite-plugin-pwa` precache + manifest + update chip, the `_headers` CSP; e2e gate MVP criteria 2–6 single-engine plus DD-08 §14 tests 5–7 green in Chromium, Firefox and WebKit (fix rounds 1 and 2 re-verified in Chromium only); Open makes a new local document and a minimal Documents ▾ list reaches every stored one (fix round 2, human decision 2026-09-23) | `feat/app-files` |
 
 **Gate 1 is cleared.** `feat/compiler` merged to `main` at `a46c72b`; `pnpm check` green there
 (496 tests). `.sgl` text in, `SemanticGraph` out, for every document in the corpus, with goldens
@@ -870,6 +875,150 @@ orchestrator's triage of the part 2 review. An interrupted implementer left a WI
   Firefox and WebKit (`test:e2e:all-browsers`, 42/42). One earlier all-browser run hit three
   Firefox 30 s timeouts under three-browser parallel load; Firefox alone passed 14/14.
 
+**Stage J is implemented on `feat/app-files`** (branched from `main` at `9645992`), not yet
+reviewed or merged. `pnpm check` from clean is green twice in a row: Vitest 1847 passed + 6 skipped
+by design (1803 unit, 44 browser; up from 1772), and the e2e suite 34/34 in Chromium. The
+all-browser run (`test:e2e:all-browsers`) passes 102/102 across Chromium, Firefox and WebKit. No
+golden changed. What landed, by file:
+
+- **The DOM-free state layer** (`apps/web/src/state/`), each piece behind an injected interface and
+  Node-tested in `apps/web/test/`: `share.ts` + `base64url.ts` (DD-08 §8: `deflate-raw` +
+  base64url, the 2 MB cap that stops *reading* — reader cancelled, input fed in 512-byte slices —
+  and every refusal a value), `filename.ts` + `files.ts` (§7: the title chain, sanitising, the
+  remembered extension, the 2 MB Open cap checked before reading, what each Save item writes),
+  `storage.ts` + `storage-idb.ts` (§9: IndexedDB `sgl` v1 via `idb`, `documents` and `settings`,
+  and an in-memory store for tests and as the fallback), `autosave.ts` (500 ms, chained writes,
+  quota toast once per run), `boot.ts` (share link → new document; invalid → toast and the last
+  document; `lastOpenDocId`; else the example), `document-session.ts` (the whole record follows the
+  pipeline) and `toasts.ts`.
+- **The DOM around it**: `toolbar/FileMenu.tsx` (Open, `Ctrl/⌘+O`, Save ▾, the Share dialog),
+  `panels/Toasts.tsx`, `io/{app-boot,download,pwa,launch-queue}.ts`, `App.tsx`/`main.tsx` (boot from
+  storage before the first render), `canvas/Canvas.tsx` (J6's stored-SVG paint, `data-origin`,
+  fit on Open), `app.css`.
+- **The build**: `vite.config.ts` (`vite-plugin-pwa` `generateSW`; the `_headers` plugin),
+  `build/headers.ts` (DD-09 §1.2's CSP and DD-10 §5's `_headers` from one definition, held to both
+  documents' text by `test/headers.test.ts`), placeholder icons (`public/icons/`, from
+  `scripts/generate-icons.mjs`), the example (`src/examples/checkout.sgl`). New dependencies are the
+  two the design names (J3): `idb` (runtime) and `vite-plugin-pwa` (dev; it brings `workbox-build`,
+  and the app registers the service worker by hand so `workbox-window` stays out of the bundle).
+- **The e2e gate** (`apps/web/e2e/`): `files.spec.ts` (criterion 4, §14 test 5), `share.spec.ts`
+  (criterion 6 in a fresh browser context, §14 test 6), `offline.spec.ts` (criterion 5 and §14 test
+  7, single-engine), `persistence.spec.ts` (autosave across a reload, the J6 boot paint),
+  `pwa.spec.ts` (every emitted file is precached; the manifest), `csp.spec.ts` (the build served
+  under its own `_headers`, with no CSP violation). Stage I's specs now wait on the example's
+  computed node count; `canvas.spec.ts` opens Stage I's small document through Open first (the
+  larger example made WebKit's repaint at 8x zoom slow enough to time its wheel test out once).
+
+**Decisions the brief and the documents left open, all recorded in DD-08 §5/§7–§9/§11/§12/§14**:
+the first-run example is an adapted copy of `corpus/checkout.sgl`, because that file pins
+`engine: "layered"` (roadmap, unregistered) and would boot every new user into `SGL4011` and a
+blank canvas; canonical JSON is refused while the document has a parse/resolve error; an
+unaccepted extension is refused like an oversize file; Open replaces the current document's text
+(Share, not Open, creates a document); the 8 000-character guard measures the whole link; an invalid
+link clears the hash too; `e`/`t` carry the effective engine/theme and fall back to the default
+when unknown; only `lastOpenDocId` is written to `settings`.
+
+**Three test-infrastructure findings, fixed at the root rather than retried** (J5's CI-only
+`retries: 1` was already in `playwright.config.ts`; it is now commented): (1) every Playwright
+context installed the service worker and filled a ~560 KB precache, and with ten parallel Firefox
+workers that alone pushed unrelated tests past their timeouts in set-up and teardown — the suite
+now blocks service workers except in `offline.spec.ts` and `csp.spec.ts`, and the same Firefox run
+is then clean; (2) with that fixed, an all-browser run could still hang several Firefox instances
+launching together in context set-up and teardown (`browserContext.close: Test ended`, juggler
+errors, test steps already finished), so the Firefox project is capped at four workers; (3)
+Playwright's WebKit fails an offline navigation, and blocks routed requests,
+before the service worker can answer, so in WebKit criterion 5 takes the network away by stopping a
+server of the test's own (`e2e/static-server.ts`). Separately, `playwright.config.ts` no longer
+reuses an existing server and takes `SGL_E2E_PORT`: another checkout's `vite preview` was found
+listening on a neighbouring port serving a different build, which a reused server would have tested
+silently. Two bugs in Stage I's e2e surfaced on the way: DD-08 §14 test 1 typed an edge from an
+undeclared node (an error, so the document never rendered) and its "at least 3 nodes" wait was
+already satisfied before typing, so the test passed without testing anything; it now adds a real
+node and waits for exactly one more.
+
+**Left out**: `elk`, engine switching and F11 (Stage K); PNG (D6), drag-and-drop (F2),
+`showSaveFilePicker` (F3), short links (F6), the document drawer (E17), the SVG export-options UI (D10, Stage L);
+deploying and `wrangler.toml` (J4). No automated test covers the update chip (it needs two
+successive builds) or `launchQueue` (it needs an installed app); both belong to the T5 manual gate.
+
+**Stage J fix round 1** (three reviews, each finding confirmed by the orchestrator; on
+`feat/app-files`, not merged). Verified in **Chromium only** — Firefox and WebKit were not available
+to this round, so the all-browser figure above predates it. Item by item:
+
+1. **The offline gate is falsifiable.** `offline.spec.ts` empties the HTTP cache before going
+   offline (Chromium: CDP `Network.clearBrowserCache`) and requires every response of the offline
+   reload to be `fromServiceWorker()`, plus a response for each kind of file the app needs. With
+   `globPatterns: ['**/*.html']` it now fails (it passed before). WebKit's own server
+   (`static-server.ts`) sends `no-store`; Firefox has neither mechanism and stays unfalsifiable.
+2. **Edits in the last 500 ms before leaving the page were lost** (every time). The `pagehide`
+   flush did issue the IndexedDB `put`, but the transaction was left to auto-commit, which needs a
+   later task that Chromium never runs for a page being unloaded; it aborted instead.
+   `storage-idb.ts` now calls `IDBTransaction.commit()` after each `put`, and `autosave.flush()`
+   issues its write synchronously rather than behind a write in flight (IndexedDB keeps issue
+   order). e2e and unit tests; a no-op flush fails both.
+3. **Criterion 6's theme half**: `t=` is pinned exactly, and a source with no `@theme` must render
+   the link's theme in a fresh (light-default) context.
+4. **Criterion 6 outside the app**: the produced link is decoded with Node's `inflateRawSync`, and a
+   link built with `deflateRawSync` opens with exactly its source.
+5. **The 512-byte inflate slice** is held by a test that records every write to the decompressor
+   (fails with the slice at `1 << 30`; the older 64 MB bomb test did not).
+6. **The 2 MB share cap** is pinned (`SHARE_INFLATED_CAP === 2 * 1024 * 1024`) and exercised at
+   exactly 2 MB and 2 MB + 1 with the default cap.
+7. **Criterion 4's JSON oracle** is a checked-in file (`e2e/fixtures/json-form-edited.expected.sgl.json`),
+   not `toJson`; Open's 2 MB boundary is tested both sides.
+8. **Boot never rejects**: ids fall back from `crypto.randomUUID` (absent on insecure origins) to
+   `getRandomValues`, then to time + counter; any boot failure opens the example in memory with a
+   toast, in `bootApp` and again in `main.tsx`'s new `catch` (before: a blank page).
+9. **Share dialog focus**: focus moves to the link on open; Escape works at once; Escape/Close
+   return focus to Share.
+10. **Save ▾** is a plain disclosure (no `menu`/`menuitem` roles) that closes on Escape and outside
+    click; the `▾`/`⟳` glyphs are `aria-hidden`; error toasts are `role="alert"` and stay until
+    closed.
+11. **Share where `CompressionStream` is missing** toasts instead of failing silently
+    (`encodeShareFragment` returns a value).
+12. **File names**: the reserved-device check uses the stem before the first dot and knows
+    `CONIN$`/`CONOUT$`/`COM¹²³`/`LPT¹²³`; the cap counts code points; bidi and zero-width
+    characters are stripped.
+13. **An Open read before the editor exists** is held and applied when it arrives
+    (`state/open-queue.ts`); a fake-`launchQueue` e2e now covers that path in-page (it also passed
+    before — today's timing never drops it — so this one is defensive).
+14. **A share link pasted into an open tab** (`hashchange`) is imported: invalid → toast, stay;
+    valid → flush autosave, then reload so boot imports it exactly as on load.
+15. **Service-worker updates**: `registration.update()` when the page becomes visible, at most
+    hourly.
+16. **CI**: `retries: 1` stays, with `failOnFlakyTests: true`, so a retry cannot hide a race.
+17. DD-08 §7–§9, §11, §12, §14 and this section updated to match; D10 added to Stage L.
+
+After the round, `pnpm check`-equivalent from clean is green twice: Vitest 1866 passed (the unit and `browser (chromium)` projects), e2e
+45/45 in Chromium.
+
+**Stage J fix round 2** (the last round; on `feat/app-files`, not merged; Chromium only). Item by
+item:
+
+- **R1: autosave ordering.** Round 1's synchronous flush could be overtaken. With write A in flight,
+  a timer write B queued behind it was issued *after* a flush's newer C, and overwrote it. Each
+  record is now numbered when it leaves `pending`, and a queued write older than one already
+  issued is skipped (`autosave.ts`; unit test failed first with `['A','C','B']`).
+- **R2: Open creates a new local document** (human decision, 2026-09-23, on held item H). One
+  path for the toolbar, `Ctrl/⌘+O` and the launch queue. It flushes the open document, stores a
+  new record (new id, the opened text, the remembered extension, the current engine and theme),
+  sets `lastOpenDocId`, and loads it with an empty undo history (undo never crosses documents).
+  The previous record is left byte-identical. Toast: "Opened {filename} as a new document. Your
+  previous document is in Documents." (`state/documents.ts`, `DocumentSession.switchTo`,
+  `editor/extensions.ts`'s `loadDocument`.)
+- **R3: Documents ▾**, the minimal slice of E17 (same decision). At DD-08 §2's `[≡ docs]`, the
+  Save ▾ disclosure pattern (now `toolbar/disclosure.ts`): every stored document by title and
+  updated time, most recent first, the open one marked. Picking one flushes, switches, sets
+  `lastOpenDocId`, paints the stored picture and fits. "New document" is empty. The share-import
+  toast names Documents. Delete, rename, search and tabs stay E17 (Stage L).
+- **R4:** DD-09 §1.1's first threat row now names the one other thing `innerHTML` may take: the
+  renderer's own earlier output for the same document, read back from this origin's IndexedDB
+  (the J6 boot paint). This is its only DD-09 edit (human-approved).
+- **R5:** this paragraph, the Stage J row, and the E17 row in Stage L.
+
+After round 2, the clean `pnpm check`-equivalent run is green twice: Vitest 1881 passed (unit and `browser (chromium)`), e2e
+50/50 in Chromium.
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
@@ -1331,7 +1480,8 @@ complete the Playwright suite's engine-switch cases (DD-08 §14 test 4).
 | C5 `high-contrast`, `print` themes | Tokens only. |
 | D6/D7 PNG and clipboard export | Canvas `drawImage` of the SVG blob. |
 | F2 drag-and-drop, F5 `.sglpack` | Conveniences on F1. |
-| E17 multiple documents | Storage is already a list; this is UI. |
+| E17 multiple documents | Storage is already a list; this is UI. **Partly pulled into Stage J by human decision (2026-09-23):** Open creating a new local document, and a minimal Documents ▾ list (switch to any stored document, New document). **Remaining here:** delete, rename, search, tabs and multi-select. |
+| D10 SVG export options UI | Background on/off and scale for Save ▾ SVG (DD-08 §7); today it saves the defaults, `render()`'s own output. |
 | **F9 — `morphdom` live-view swap** | **Required before Gate 4** (human decision, 2026-09-23; §2.1 **F9**). Patch the canvas's wrapper `<g class="rendered">` with `morphdom` instead of replacing its `innerHTML` wholesale (DD-08 §6, DD-09 §2's planned response). The overlay stays a sibling of the exported tree, never inside the patched wrapper. Measured by the F9 bench (`packages/render-svg/test/browser/render.bench.browser.test.ts`, forced-layout variant): done when n500 < 16 ms **and** n2000 < 50 ms in Chromium. **Measure before committing to morphdom alone:** a theme switch changes every element's `class` (F7), so style recalculation and layout (the larger share of the forced-layout time) may remain after patching. Keying paint classes on something theme-invariant (F7's lever (1)) may be the bigger win, but it re-baselines every golden, so that choice goes back to a human. `morphdom` is a new runtime dependency, approved by that decision. |
 
 **Gate 4 — v1.0.** Every Must in [04](04-feature-backlog.md) done, all gates green, bench inside the

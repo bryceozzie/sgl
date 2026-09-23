@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boundsChangedSignificantly, clampScale, fitViewport, MAX_SCALE, MIN_SCALE, panBy, screenToDiagram, zoomAt } from '../src/canvas/viewport.js';
+import { boundsChangedSignificantly, clampScale, fitViewport, MAX_SCALE, MIN_SCALE, panBy, screenToDiagram, svgExtent, zoomAt } from '../src/canvas/viewport.js';
 
 describe('canvas viewport (DD-08 §6)', () => {
   it('clamps scale to [0.1, 8]', () => {
@@ -60,5 +60,20 @@ describe('canvas viewport (DD-08 §6)', () => {
     expect(boundsChangedSignificantly({ w: 100, h: 100 }, { w: 100, h: 140 })).toBe(false);
     // One tick over the boundary does flip it.
     expect(boundsChangedSignificantly({ w: 100, h: 100 }, { w: 140.001, h: 100 })).toBe(true);
+  });
+});
+
+describe('svgExtent (J6: fitting the stored boot picture)', () => {
+  it("reads a render()'s root viewBox", () => {
+    expect(svgExtent('<svg xmlns="http://www.w3.org/2000/svg" class="sgl" width="310" height="120" viewBox="0 0 310 120" role="img"><g viewBox="1 1 1 1"/></svg>')).toEqual({ w: 310, h: 120 });
+    expect(svgExtent('<svg viewBox="-4.5 -4.5 80.25 40"></svg>')).toEqual({ w: 80.25, h: 40 });
+  });
+
+  it('null for anything without a usable root viewBox', () => {
+    expect(svgExtent('')).toBeNull();
+    expect(svgExtent('<svg width="10" height="10"></svg>')).toBeNull();
+    expect(svgExtent('<g><svg viewBox="0 0 10 10"/></g>')).toBeNull();
+    expect(svgExtent('<svg viewBox="0 0 0 10"></svg>')).toBeNull();
+    expect(svgExtent('<svg viewBox="0 0 ten 10"></svg>')).toBeNull();
   });
 });

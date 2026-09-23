@@ -31,7 +31,7 @@
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-Split is draggable; layout stacks vertically under 900 px. The diagnostics panel is collapsed when empty.
+`[≡ docs]` is built as **Documents ▾** (fix round 2, §9); `Title ▾` is not built. Split is draggable; layout stacks vertically under 900 px. The diagnostics panel is collapsed when empty.
 
 ---
 
@@ -199,7 +199,7 @@ Nothing on the keystroke path awaits the worker. Typing stays responsive even wh
 
 - `EditorState` with `LRLanguage` from `@sgl/core/editor` (DD-01 §6), `history`, `foldGutter`, `bracketMatching`, `closeBrackets`, `highlightActiveLine`, `lintGutter`.
 - **Diagnostics** → `setDiagnostics(state, diags.map(toCmDiagnostic))` on every `diags` change; severity maps `error → error`, `warning → warning`, `info → info`. Spans are already offsets, so no conversion.
-- **Source of truth is the editor state.** `source` is updated from `EditorView.updateListener`; programmatic changes (open file, load share) dispatch a transaction replacing the document, so undo history survives.
+- **Source of truth is the editor state.** `source` is updated from `EditorView.updateListener`; programmatic changes (open file, load share) dispatch a transaction replacing the document, so undo history survives. *Superseded for Open and for switching documents (human decision, 2026-09-23; §7, §9):* those load a **different** document, so the text is still replaced by a transaction (the pipeline hears it through `updateListener`) but the undo history then starts empty (`loadDocument`) — undo never crosses from one document into another.
 - **Tree reuse**: `syntaxTree(view.state)` is read inside `parsed`; the app never calls `parser.parse` on its own.
 - Autocomplete **⟶ E6**; source mapping **⟶ E7** — both hook here with no other changes.
 
@@ -209,7 +209,9 @@ Nothing on the keystroke path awaits the worker. Typing stays responsive even wh
 
 Inter (Regular 400, Medium 500, SemiBold 600) is bundled as WOFF2 and declared via `@font-face` in the app CSS with `font-display: block` — block, not swap, so the first measurement is never against a fallback. `measurer.ready()` (DD-05 §4) is awaited before the first pre-measure; the boot sequence shows the last-good SVG from storage (if any) while fonts load, so there is no blank canvas.
 
-**Implemented (Stage I part 2), `apps/web/src/fonts.css`.** Hand-written `@font-face` rules — Latin subset only, `font-display: block` — pointing at `@fontsource/inter`'s own WOFF2 files, rather than importing that package's `400.css`/`500.css`/`600.css` directly: those ship every Unicode subset (cyrillic, greek, vietnamese, …) at `font-display: swap`, which is the one thing this section specifically rules out. The font's SIL Open Font License ships with the build: `apps/web/public/fonts/OFL.txt` (the `@fontsource/inter` package's own `LICENSE`, verbatim) lands at `dist/fonts/OFL.txt`, with a one-line attribution in the root `README.md` (fix round 1). "The boot sequence shows the last-good SVG from storage while fonts load" needs persistence (Stage J) and is not built yet; today's boot sequence shows nothing until the first render completes, which given `font-display: block` and the awaited `ready()` is at worst a brief blank canvas, never a wrongly-sized one.
+**Implemented (Stage I part 2), `apps/web/src/fonts.css`.** Hand-written `@font-face` rules — Latin subset only, `font-display: block` — pointing at `@fontsource/inter`'s own WOFF2 files, rather than importing that package's `400.css`/`500.css`/`600.css` directly: those ship every Unicode subset (cyrillic, greek, vietnamese, …) at `font-display: swap`, which is the one thing this section specifically rules out. The font's SIL Open Font License ships with the build: `apps/web/public/fonts/OFL.txt` (the `@fontsource/inter` package's own `LICENSE`, verbatim) lands at `dist/fonts/OFL.txt`, with a one-line attribution in the root `README.md` (fix round 1).
+
+**Implemented (Stage J, decision J6): the boot paint.** `main.tsx` opens IndexedDB before the first render (`io/app-boot.ts`, milliseconds), and the canvas paints the open document's stored `lastGoodSvg` into the wrapper `<g>` while `lastGood` is still `null` — before `measurer.ready()` or the worker has answered — fitted to the stored SVG's own `viewBox` (`svgExtent`, `canvas/viewport.ts`). The wrapper carries `data-origin="stored"` until the first live render replaces it (`data-origin="live"`), which fits again: for the same document that lands on the same transform, and it records §6's fit baseline against real bounds. The stored picture is this document's own `render()` output from our own origin's storage, so it gets the same trust as `lastGood.svg`. A first visit (nothing stored) still shows a blank canvas until the first render, as before. `apps/web/e2e/persistence.spec.ts` holds the worker script and every font and asserts the stored picture is on screen and nothing live is.
 
 **A real, unrelated bug surfaced and fixed while proving this**: the layout effect (§3) fired once on boot with `table` still at its initial `{}`, laying every label out at zero size before the real premeasure table landed and produced a second, correctly-sized layout — a genuine "wrong size, briefly" flash on every cold load, nothing to do with fonts (`document.fonts` already reported every face loaded by the time either layout ran). Fixed with a `hasMeasuredOnce` guard on the layout effect; see §3's own update and execution plan §2.
 
@@ -256,10 +258,21 @@ them after a theme switch instead of sleeping.
 |---|---|---|
 | SGL | `{title}.sgl` | `source` verbatim |
 | Canonical JSON | `{title}.sgl.json` | `toJson(model)` |
-| SVG | `{title}.svg` | `lastGood.svg` with export options (background, scale) |
+| SVG | `{title}.svg` | `lastGood.svg` with export options (background, scale) — the options UI is deferred to **⟶ D10** (Stage L); today the default options (background on, scale 1), which are `render()`'s own output |
 | PNG **⟶ D6** | `{title}.png` | rasterise `lastGood.svg` via `<img>` → canvas → `toBlob` |
 
 `title` = `@title` or the first node key or "diagram", sanitised for filenames. **⟶ F3** File System Access `showSaveFilePicker` replaces the download when available, same call site.
+
+**Implemented (Stage J).** The decisions are DOM-free and Node-tested — `apps/web/src/state/filename.ts`, `state/files.ts` (`apps/web/test/files.test.ts`); the DOM around them is `toolbar/FileMenu.tsx` and `io/download.ts`. What this section left open, settled:
+
+- **One Open path.** The toolbar button, `Ctrl/⌘+O` (a capture-phase `keydown` listener, so it wins over CodeMirror and the browser) and the launch queue (§12) all call the same function: size check → `file.text()` → a new local document (next bullet) → fit on the next render (§6's "fit on document open"). The 2 MB check runs on `file.size` *before* anything is read; exactly 2 MB opens, one byte more is refused. An Open that has been read before the editor view exists (the launch queue can deliver during the first render) is held — the latest one — and applied once the view is up, never dropped (fix round 1; `state/open-queue.ts`).
+- **Save ▾ is a disclosure** (`<details>`) of plain buttons, not an ARIA menu — it does not implement a menu's arrow-key model, so it does not claim the role. Escape closes it (focus back on its summary), and so does a pointer-down outside it (fix round 1).
+- **An extension Open does not accept** (the `accept` list is advisory in every file chooser, and the launch queue bypasses it) is refused with a toast, like an oversize file, rather than opened as text.
+- **Open creates a new local document** (human decision, 2026-09-23; it replaces Stage J's first rule, "Open replaces the current document's text", under which the previous stored document was overwritten 500 ms later). The open document's pending autosave is flushed first, so its last edits land in its own record, which is otherwise left exactly as it was. The new record gets a new id, the opened text, the remembered extension and the current engine, theme and options; it becomes `lastOpenDocId` and is loaded into the editor with a fresh undo history (§4). A toast says "Opened {filename} as a new document. Your previous document is in Documents." — which is where it is (§9). Share does the same (§8). DOM-free part: `state/documents.ts` (`switchDocument`) and `DocumentSession.switchTo` (`state/document-session.ts`).
+- **"The extension is remembered … for the default save name"** is read as: each Save ▾ item keeps the remembered extension when it is one of its own — a document opened from `.txt` saves its source as `{title}.txt`, one opened from `.json` saves canonical JSON as `{title}.json` — and otherwise uses its own default (`.sgl`, `.sgl.json`). The extension is stored on the document record (§9, `fileExtension`).
+- **Canonical JSON is refused while the document has a parse or resolve error**, with a toast pointing at the SGL item: the model is partial then, and `toJson` of it would quietly drop whatever did not parse. The SGL item always saves the text exactly as it is.
+- **SVG** is `lastGood.svg` unchanged: the default export options (background on, scale 1) are `render()`'s own output (DD-07 §9: the `.canvas` rect *is* the background; scale multiplies `width`/`height`). Before the first live render it is the stored `lastGoodSvg` (§9) — the same document's last good picture. The export-options UI is not built: it is **D10**, scheduled in Stage L (execution plan §5).
+- **Title fallback.** A blank `@title` falls through to the first node key, which is the first top-level key in declaration order (`model.root.children[0]`). **Sanitising**: bidi controls (U+202A–U+202E, U+2066–U+2069, U+200E/U+200F — they can make `evil\u202Egpj.svg` display as `evilsvg.jpg`) and zero-width characters (U+200B–U+200D, U+FEFF) are removed; whitespace runs become one space; `<>:"/\|?*` and control characters become `-`; leading and trailing dots, dashes and spaces are stripped (Windows drops a trailing dot; a leading one hides the file on Unix); the stem is capped at 120 **code points** (never splitting a surrogate pair); a Windows device name as the part before the **first** dot (`CON`, `PRN`, `AUX`, `NUL`, `CONIN$`, `CONOUT$`, `COM0`–`COM9`, `LPT0`–`LPT9`, and `COM`/`LPT` with a superscript `¹` `²` `³` — `con.backup` is as reserved as `con`) gets a `_` after it; an empty result is `diagram` (fix round 1 added the invisibles, the first-dot rule, the extra device names and the code-point cap).
 
 ---
 
@@ -271,9 +284,19 @@ https://…/#s={base64url(deflate-raw(utf8(source)))}&e={engineId}&t={themeId}
 
 - Encode: `new CompressionStream('deflate-raw')` → `Uint8Array` → base64url (no padding).
 - Decode on load: if `location.hash` has `s=`, inflate with a **hard cap of 2 MB inflated** (decompression bomb guard); on failure toast "This share link is not valid" and open the last document instead.
-- Size guard: if the encoded fragment exceeds 8 000 characters, the Share dialog warns that some chats and browsers truncate long URLs and offers the file save instead.
+- Size guard: if the whole link (origin, path and fragment — what actually gets pasted and truncated) exceeds 8 000 characters, the Share dialog warns that some chats and browsers truncate long URLs and offers the file save instead.
 - Opening a share link creates a **new local document** (never overwrites the current one) and clears the hash so a reload does not re-import.
 - The fragment never reaches a server. **⟶ F6** short links are a separate button that *does* upload; that distinction is shown in the dialog.
+
+**Implemented (Stage J), `apps/web/src/state/share.ts` + `base64url.ts`** (Node-tested with Node's own `CompressionStream`, `apps/web/test/share.test.ts`; boot's handling in `state/boot.ts`, `test/boot.test.ts`). Settled here:
+
+- **The cap stops reading, not checking.** The reader is cancelled the moment output passes 2 MB, and the compressed input is fed to the `DecompressionStream` in 512-byte slices: a `TransformStream` inflates each *written* chunk in full whatever the reader does, so the slice size is what bounds the overshoot (deflate's maximum ratio is about 1032:1, so about 0.5 MB). A fragment whose compressed payload alone could not inflate to under the cap is refused before its base64 is decoded.
+- **Invalid** means: not canonical unpadded base64url (padding, `+`/`/`, an impossible length or non-zero trailing bits are all refused), a malformed or truncated deflate stream, output that is not UTF-8 (`TextDecoder` with `fatal: true`), or output past the cap. Every case gives the same toast, "This share link is not valid", and every one is a value, never a throw.
+- **Invalid link → the hash is cleared too**, not only on success, so a reload does not repeat the toast; then boot carries on as if there were no link (`lastOpenDocId`, else the example).
+- **`e`/`t`** carry the *effective* engine and theme (what the sharer sees). A receiver that does not know one — an engine not registered, a theme not built in — uses its default instead; the document's own `@layout.engine`/`@theme`, if any, travel in the source anyway.
+- The dialog (`toolbar/FileMenu.tsx`) says the diagram is inside the link and nothing is uploaded; it offers Copy (falling back to selecting the text, with a toast, where the clipboard API is refused) and, for a long link, "Save as a file instead" (the SGL item). A successful open says so in a toast ("Opened the shared diagram as a new document. Your previous document is in Documents.") — §11's "toasts for share outcomes". Opening the dialog moves focus to the link (selected); Escape closes it without tabbing in first, and Escape or Close returns focus to the Share button (fix round 1).
+- **Encoding never rejects** (fix round 1): where `CompressionStream` is missing or fails, `encodeShareFragment` returns `{ ok: false }` and the Share button toasts, pointing at Save ▾ → SGL source instead of doing nothing.
+- **A link pasted into an already-open tab** (fix round 1). A same-document fragment change fires `hashchange` and never reloads, so "decode on load" alone would ignore it. The app decodes the new hash (`io/app-boot.ts`, `watchShareLinks`): an invalid link toasts, clears the hash and leaves the open document alone; a valid one flushes the open document's pending autosave (§9) and reloads with the hash in place, so boot imports it exactly as above — a new local document, the toast, the hash cleared. One import path, not a second in-page one.
 
 ---
 
@@ -283,13 +306,25 @@ IndexedDB `sgl`, version 1, via `idb`:
 
 | Store | Key | Value |
 |---|---|---|
-| `documents` | `id` (nanoid) | `{ id, title, source, engineId, engineOptions, themeId, createdAt, updatedAt, lastGoodSvg? }` |
+| `documents` | `id` (`crypto.randomUUID()`) | `{ id, title, source, engineId, engineOptions, themeId, createdAt, updatedAt, lastGoodSvg?, fileExtension? }` |
 | `settings` | `key` | `{ key, value }` — `lastOpenDocId`, `splitRatio`, `themePreference` |
 
-- Autosave 500 ms after the last change (source or settings) — `put`, whole record. `lastGoodSvg` is stored so the next open paints instantly before fonts and the worker are ready.
+- Autosave 500 ms after the last change (source or settings) — `put`, whole record. `lastGoodSvg` is stored so the next open paints instantly before fonts and the worker are ready. `lastGoodSvg` must only ever hold `render()` output: boot paints it through `innerHTML` (§5, J6), so anything else written there would be markup the renderer never escaped.
 - Boot: read `lastOpenDocId` → open it; else create a document from `examples/checkout.sgl`. A crash mid-edit loses at most 500 ms of typing.
-- Multiple documents **⟶ E17**: the store is already a list; the deferred part is only the "≡ docs" drawer UI.
+- Multiple documents **⟶ E17**: the store is already a list; the deferred part is only the "≡ docs" drawer UI. *Partly pulled forward (human decision, 2026-09-23):* see "Documents ▾" below; the rest stays E17.
 - Quota/`QuotaExceededError` → toast, editing continues in memory.
+
+**Implemented (Stage J).** `apps/web/src/state/storage.ts` (the record types, the `DocumentStore` interface, an in-memory store), `state/storage-idb.ts` (the `idb` implementation), `state/autosave.ts`, `state/boot.ts`, `state/document-session.ts` — all but the `idb` adapter Node-tested against the in-memory store (`apps/web/test/{autosave,boot,document-session}.test.ts`); the adapter itself is exercised by the e2e suite against real IndexedDB. Settled here:
+
+- **Ids are `crypto.randomUUID()`** (decision J2; this table said nanoid, which would have been a new dependency for no gain), with the fallbacks under "Boot never rejects" below. `apps/web` is outside the determinism ban; nothing below it generates ids.
+- **`fileExtension`** joins the record: §7's remembered extension needs somewhere to live, and this table predates it. Additive and optional.
+- **The record's `engineId`/`themeId` are the pickers' values.** A document's own `@layout.engine`/`@theme` already lives in its `source`. A stored engine or theme that is no longer registered/built in falls back to the default on open, and a stored record missing the fields the app reads is treated as missing.
+- **Settings**: only `lastOpenDocId` is written. `splitRatio` has nothing to record (§2's draggable split is not built) and `themePreference` has no UI distinct from the per-document theme.
+- **Autosave** writes the whole record 500 ms after the last change to the source, the pickers, the options or `lastGood`, so the stored `lastGoodSvg` follows the render. Writes are chained, never concurrent (a slow write of an older record can never land after a newer one). A quota error toasts once per run of failures — not every 500 ms — and again only after a save has succeeded in between; any other write error does the same with its own toast. A pending write is flushed on `pagehide`, on `visibilitychange` to hidden, and before an update reload (§12). **The flush must reach the disk while the page is being torn down** (fix round 1): the flush issues its `put` synchronously from the event handler — not queued behind a write still in flight, which is safe because IndexedDB runs `readwrite` transactions on one store in creation order — and every IndexedDB write calls `IDBTransaction.commit()` straight after its `put`. Left to auto-commit, a transaction commits only after its request's success event has been dispatched, a later task that Chromium never runs for a page being unloaded; it aborts the transaction instead, and an edit made in the last 500 ms before a reload or tab close was lost every time.
+- **Boot** (`io/app-boot.ts` + `state/boot.ts`) runs before the first render, so the stored `lastGoodSvg` paints immediately (§5). If IndexedDB will not open at all, the app runs on the in-memory store with a toast ("changes are kept in this tab only"); a storage failure at any later boot step does the same and never stops the boot.
+- **Boot never rejects** (fix round 1). A new id comes from `crypto.randomUUID()` where it exists — only in a secure context, so not on plain http to a LAN address — else a v4 UUID from `crypto.getRandomValues`, else the time and a counter (`newDocumentId`, never a throw, no dependency). Anything else that throws during boot gives the example document on the in-memory store, with a toast ("Something went wrong opening your documents…"), and `main.tsx` catches a rejection the same way — never a blank page.
+- **Documents ▾** (fix round 2; `toolbar/DocumentsMenu.tsx`, `state/documents.ts`): the minimal slice of E17, built now so a document left behind by Open (§7) or a share link (§8) can always be reached. A disclosure at §2's `[≡ docs]` position, with the same pattern as Save ▾ (plain buttons, no menu roles; Escape and an outside click close it). It lists every stored document by title and updated time ("5 min ago", a date after a week), most recent first, the open one marked (`aria-current`, "open now", shown as it is now rather than as last saved). Picking one flushes the open document's autosave, makes the picked one `lastOpenDocId`, loads it with a fresh undo history, paints its stored `lastGoodSvg` until its live render (§5's J6 paint, now after every switch too) and fits. "New document" starts an **empty** one (the example is only for a first visit). Merely opening a document does not save it again, so viewing never reorders the list. **Still E17 (Stage L):** delete, rename, search, tabs and multi-select.
+- **The example document** is `apps/web/src/examples/checkout.sgl`, imported as text into the app chunk (so it is precached with it, §12). It is `corpus/checkout.sgl` — the spec's worked example — adapted so it renders with no diagnostics today: no `@layout: { engine: "layered" }` (the corpus file pins `layered`, which is roadmap and not registered, so every new user would have booted into `SGL4011` and a blank canvas), no `@vars`/`$hot` (A8), no `cloud` shape (not drawn yet), and no `@theme` pin, so the theme picker governs. The corpus file itself is unchanged: its goldens depend on its exact text.
 
 ---
 
@@ -335,7 +370,13 @@ as an independent boolean (it can co-occur with any of the four named states), t
 `pipeline.ts`'s own bounds-vs-last-fit comparison, cleared by `Pipeline.fitDone()`, which the
 canvas calls after every fit (on open, or the toolbar button — DD-08 §6's `⟳fit` moved from a
 floating canvas button to the toolbar in part 2 to match this section's own screen sketch, §2).
-Toasts are not built (file/share outcomes are Stage J).
+**Toasts (Stage J; fix round 1)**: `apps/web/src/state/toasts.ts` (Node-tested) and `panels/Toasts.tsx`.
+An `info` toast sits in a polite `role="status"` region and dismisses itself after 8 s or on its ×.
+An `error` toast sits in a `role="alert"` region and is **never dismissed by time** — it stays until
+its × is clicked, so a failure that appeared while the user looked elsewhere is still there to read.
+Both regions are always in the DOM, so assistive technology is already watching them. Used for Open/Save
+refusals, share-link outcomes, storage failures and the Share dialog's copy result — never for
+diagnostics.
 
 **Decision (fix round 1): chip priority.** When several states hold at once, the chip shows the
 highest of **crashed > timeout > errors > laying out > idle** (`deriveChipState`). A crash (§13)
@@ -354,6 +395,15 @@ independent of all five.
 - `navigateFallback: 'index.html'`; `skipWaiting` gated behind an "Update available — reload" chip so an in-progress edit is never lost.
 - `manifest.webmanifest`: name, icons (192/512, maskable), `display: standalone`, `file_handlers: [{ action: '/', accept: { 'text/plain': ['.sgl'], 'application/json': ['.sgl.json'] } }]` — with `launchQueue` consumer in the app that routes to §7 Open.
 - Offline is the full experience: nothing in MVP fetches after the shell loads.
+
+**Implemented (Stage J), `apps/web/vite.config.ts` + `src/io/pwa.ts` + `src/io/launch-queue.ts`.** Settled here:
+
+- **Only registered engines are precached (decision J1), by construction.** The precache is every file the build emits that `globPatterns` matches (`**/*.{js,css,html,woff2,png,svg,txt}`, plus the manifest). An engine chunk is only emitted once something imports it — today the worker bundle, which registers `grid`, is the only engine code — so Stage K's `elk` joins the precache by being registered in `layout.worker.ts`, with no change here. The "both engine chunks" wording above assumed `elk` would already exist. Workbox *skips* a file over its size cap with only a build warning, so the cap is raised to 8 MiB and `apps/web/e2e/pwa.spec.ts` fails if any emitted file is ever missing from the precache — that is what will catch an oversize `elk` chunk.
+- **What the list above names, concretely**: the shell (`index.html`, the app, editor and grid chunks, CSS), the worker, the three Inter WOFF2 files and `fonts/OFL.txt`, the icons and the manifest. **Both themes and the example document** are compiled into the app chunk (`@sgl/theme`'s built-ins; `examples/checkout.sgl` imported as text), so they are precached with it rather than as files of their own.
+- **Registration is hand-written** (`io/pwa.ts`, production builds only) instead of `vite-plugin-pwa`'s `virtual:pwa-register`, which would put `workbox-window` in the app bundle. `generateSW` runs with `skipWaiting: false` and `clientsClaim: false`, so the generated `sw.js` only calls `skipWaiting()` on a `{ type: 'SKIP_WAITING' }` message. A worker that installs behind an existing controller shows the toolbar's "Update available — reload" chip; clicking it flushes autosave (§9), then messages the worker, and the page reloads on `controllerchange` — only for an update the user accepted, never for the first install. The browser re-checks `sw.js` on navigation (and on its own about daily), so an installed app left open would never notice an update: the page calls `registration.update()` when it becomes visible again, at most hourly (`createUpdateCheck`, fix round 1).
+- **Icons are placeholders** (a full-bleed dark square with three boxes and two connectors inside the maskable safe zone), 192 and 512 px, each listed as `any` and `maskable`. Generated by `apps/web/scripts/generate-icons.mjs` (Node's own zlib, no image library) and committed under `public/icons/`. A designed mark is still to come.
+- **`launchQueue`** routes the first launched file into §7's Open path. Chromium only, and only for an installed app, so it has no automated test; the T5 manual gate ("a `.sgl` opened from the OS") covers it.
+- **`_headers`** (DD-10 §5, with DD-09 §1.2's CSP) is emitted into `dist/` by the build, from one definition in `apps/web/build/headers.ts`, which also mirrors the CSP into the built `index.html` as a `<meta>` (minus `frame-ancestors`, which a `<meta>` policy cannot carry) and makes `vite preview` serve the build with those headers. Deploying it is a human step (decision J4).
 
 ---
 
@@ -400,8 +450,25 @@ chip's "Report" button copies `reportText` (message and source hash, never the s
 8. Font gate: label widths on cold and warm loads are identical.
 
 **Implemented (Stage I part 2), `apps/web/e2e/`, against a production build (`vite build` +
-`vite preview`).** Tests 1–3 and 8: `dd08-14.spec.ts`. Tests 4–7 wait for Stage K (engine switch)
-and Stage J (files, share, offline). `criteria.spec.ts` covers the MVP acceptance criteria
+`vite preview`).** Tests 1–3 and 8: `dd08-14.spec.ts`. Test 4 waits for Stage K (engine switch).
+**Stage J** added tests 5–7 and the rest of its gate: `files.spec.ts` (test 5 and MVP criterion 4,
+for `.sgl`, `.sgl.json` and `.txt`), `share.spec.ts` (test 6 and criterion 6, with the link opened
+in a fresh browser context; corrupt, not-deflate and oversize fragments), `offline.spec.ts` (test 7
+and criterion 5, single-engine half — the engine-switch half is Stage K's; since fix round 1 the
+HTTP cache is emptied before going offline and, in Chromium, every response of the offline reload
+must come from the service worker, so a precache missing `/assets/*` fails it — WebKit's own server
+sends `no-store` instead, and Firefox has neither mechanism), `persistence.spec.ts`
+(autosave across a reload; §5's boot paint), `pwa.spec.ts` (the precache and the manifest) and
+`csp.spec.ts` (the build under its own `_headers`, with no CSP violation). The first-run document is
+now the example (§9), so the older tests wait on its computed node count. Two more things worth
+knowing: the suite **blocks service workers** (`playwright.config.ts`) except in the two specs about
+them — every context otherwise installs one and fills a ~560 KB precache, and with ten parallel
+Firefox workers that alone pushed unrelated tests past their timeouts (the Firefox project is also
+capped at four workers, for the same kind of contention in context set-up and teardown); and in
+**WebKit**, criterion
+5 takes the network away by stopping a server of the test's own (`e2e/static-server.ts`), because
+Playwright's WebKit fails an offline navigation (and blocks routed requests) before the service
+worker can answer. `criteria.spec.ts` covers the MVP acceptance criteria
 directly (2, 3, and 1's single-engine half); `f8-style-decode.spec.ts` covers F8;
 `canvas.spec.ts` (fix round 1) covers §6. **Decision: criterion 1's "40 nodes" counts containers**
 (06 §3 does not say either way): `corpus/forty-three-level.sgl` has 2 top-level containers, 4
