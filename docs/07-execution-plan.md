@@ -148,7 +148,7 @@ A stage is not done because the code is written. It is done when its gate passes
 | End-to-end pipeline (`source -> RenderResult`), `bench/generate.js` | **Done**, T3 gate green (Stage G) | `main` |
 | `@sgl/layout-api` — `createWorkerHost`, `worker-runtime.ts` (worker-side message handling) | **Done**, T1 gate green; the gate's four conditions also proven against a real `Worker` (browser project, Chromium + Firefox) (Stage H) | `main` |
 | `apps/web` | **Stage I done** — the editor loop, pickers, diagnostics panel, status chip, fonts, the §13 error boundary and the Playwright e2e gate (DD-08 §14 tests 1/2/3/8, MVP criteria 2/3/1-single-engine) all work end to end. Fix round 1 done (below). `elk`/engine-switch and the per-engine options form are Stage K | `main` |
-| `apps/web` — files, share, persistence, PWA, `_headers` | **Stage J implemented, review fix round 1 applied, not yet merged** — Open/Save (`.sgl`, `.sgl.json`, `.svg`), share by URL with the 2 MB inflate cap, IndexedDB autosave and boot, the stored-SVG boot paint (J6), `vite-plugin-pwa` precache + manifest + update chip, the `_headers` CSP; e2e gate MVP criteria 2–6 single-engine plus DD-08 §14 tests 5–7 green in Chromium, Firefox and WebKit (fix round 1 re-verified in Chromium only) | `feat/app-files` |
+| `apps/web` — files, share, persistence, PWA, `_headers` | **Stage J implemented, review fix rounds 1 and 2 applied, not yet merged** — Open/Save (`.sgl`, `.sgl.json`, `.svg`), share by URL with the 2 MB inflate cap, IndexedDB autosave and boot, the stored-SVG boot paint (J6), `vite-plugin-pwa` precache + manifest + update chip, the `_headers` CSP; e2e gate MVP criteria 2–6 single-engine plus DD-08 §14 tests 5–7 green in Chromium, Firefox and WebKit (fix rounds 1 and 2 re-verified in Chromium only); Open makes a new local document and a minimal Documents ▾ list reaches every stored one (fix round 2, human decision 2026-09-23) | `feat/app-files` |
 
 **Gate 1 is cleared.** `feat/compiler` merged to `main` at `a46c72b`; `pnpm check` green there
 (496 tests). `.sgl` text in, `SemanticGraph` out, for every document in the corpus, with goldens
@@ -992,6 +992,33 @@ to this round, so the all-browser figure above predates it. Item by item:
 After the round, `pnpm check`-equivalent from clean is green twice: Vitest 1866 passed (the unit and `browser (chromium)` projects), e2e
 45/45 in Chromium.
 
+**Stage J fix round 2** (the last round; on `feat/app-files`, not merged; Chromium only). Item by
+item:
+
+- **R1: autosave ordering.** Round 1's synchronous flush could be overtaken. With write A in flight,
+  a timer write B queued behind it was issued *after* a flush's newer C, and overwrote it. Each
+  record is now numbered when it leaves `pending`, and a queued write older than one already
+  issued is skipped (`autosave.ts`; unit test failed first with `['A','C','B']`).
+- **R2: Open creates a new local document** (human decision, 2026-09-23, on held item H). One
+  path for the toolbar, `Ctrl/⌘+O` and the launch queue. It flushes the open document, stores a
+  new record (new id, the opened text, the remembered extension, the current engine and theme),
+  sets `lastOpenDocId`, and loads it with an empty undo history (undo never crosses documents).
+  The previous record is left byte-identical. Toast: "Opened {filename} as a new document. Your
+  previous document is in Documents." (`state/documents.ts`, `DocumentSession.switchTo`,
+  `editor/extensions.ts`'s `loadDocument`.)
+- **R3: Documents ▾**, the minimal slice of E17 (same decision). At DD-08 §2's `[≡ docs]`, the
+  Save ▾ disclosure pattern (now `toolbar/disclosure.ts`): every stored document by title and
+  updated time, most recent first, the open one marked. Picking one flushes, switches, sets
+  `lastOpenDocId`, paints the stored picture and fits. "New document" is empty. The share-import
+  toast names Documents. Delete, rename, search and tabs stay E17 (Stage L).
+- **R4:** DD-09 §1.1's first threat row now names the one other thing `innerHTML` may take: the
+  renderer's own earlier output for the same document, read back from this origin's IndexedDB
+  (the J6 boot paint). This is its only DD-09 edit (human-approved).
+- **R5:** this paragraph, the Stage J row, and the E17 row in Stage L.
+
+After round 2, the clean `pnpm check`-equivalent run is green twice: Vitest 1881 passed (unit and `browser (chromium)`), e2e
+50/50 in Chromium.
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
@@ -1453,7 +1480,7 @@ complete the Playwright suite's engine-switch cases (DD-08 §14 test 4).
 | C5 `high-contrast`, `print` themes | Tokens only. |
 | D6/D7 PNG and clipboard export | Canvas `drawImage` of the SVG blob. |
 | F2 drag-and-drop, F5 `.sglpack` | Conveniences on F1. |
-| E17 multiple documents | Storage is already a list; this is UI. |
+| E17 multiple documents | Storage is already a list; this is UI. **Partly pulled into Stage J by human decision (2026-09-23):** Open creating a new local document, and a minimal Documents ▾ list (switch to any stored document, New document). **Remaining here:** delete, rename, search, tabs and multi-select. |
 | D10 SVG export options UI | Background on/off and scale for Save ▾ SVG (DD-08 §7); today it saves the defaults, `render()`'s own output. |
 | **F9 — `morphdom` live-view swap** | **Required before Gate 4** (human decision, 2026-09-23; §2.1 **F9**). Patch the canvas's wrapper `<g class="rendered">` with `morphdom` instead of replacing its `innerHTML` wholesale (DD-08 §6, DD-09 §2's planned response). The overlay stays a sibling of the exported tree, never inside the patched wrapper. Measured by the F9 bench (`packages/render-svg/test/browser/render.bench.browser.test.ts`, forced-layout variant): done when n500 < 16 ms **and** n2000 < 50 ms in Chromium. **Measure before committing to morphdom alone:** a theme switch changes every element's `class` (F7), so style recalculation and layout (the larger share of the forced-layout time) may remain after patching. Keying paint classes on something theme-invariant (F7's lever (1)) may be the bigger win, but it re-baselines every golden, so that choice goes back to a human. `morphdom` is a new runtime dependency, approved by that decision. |
 

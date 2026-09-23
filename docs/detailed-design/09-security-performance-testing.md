@@ -12,7 +12,7 @@ The MVP has no server, no accounts and no third-party code. The attack surface i
 
 | Asset | Threat | Mitigation | Where | Verified by |
 |---|---|---|---|---|
-| Viewer's browser session | Script execution from document text (labels, keys, links, tooltips, class names) in the live view or in an exported SVG opened elsewhere | Every string reaches markup through exactly one escaping function per context; no `<foreignObject>`; no `innerHTML` of anything but renderer output | DD-07 §8 | injection corpus, XML-parsed |
+| Viewer's browser session | Script execution from document text (labels, keys, links, tooltips, class names) in the live view or in an exported SVG opened elsewhere | Every string reaches markup through exactly one escaping function per context; no `<foreignObject>`; no `innerHTML` of anything but renderer output — including the renderer's own earlier output for the same document, read back from this origin's IndexedDB (DD-08 §5 J6 boot paint; §9 requires `lastGoodSvg` to hold only `render()` output) | DD-07 §8 | injection corpus, XML-parsed |
 | Viewer's browser session | `javascript:` / `data:` links | Scheme allowlist; disallowed links removed with `SGL6001` | DD-07 §8 | injection corpus |
 | Viewer's browser session | CSS injection via style values (`fill: url(...)`, `expression()`) | Colours and lengths validated by type in the property registry before they exist; font families quoted; anything else rejected `SGL5004` | DD-04 §3 | registry type tests |
 | Viewer's CPU / memory | Decompression bomb in a share link | Hard 2 MB inflated cap; abort and toast | DD-08 §8 | unit test with a crafted payload |
