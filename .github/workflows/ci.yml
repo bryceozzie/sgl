@@ -50,6 +50,8 @@ jobs:
         # DD-10 §4, Stage K (K6): size-limit on the core chunk — the entry, its
         # static imports and the layout worker, gzipped, excluding the lazy elk
         # chunk (.size-limit.js). Limit 180 kB; raising it is a human decision.
+        # Then check-core-chunks.mjs: no chunk the page loads at boot reaches
+        # elkjs (fix round 1, item 17).
         run: pnpm size
 
       - name: Unit and golden tests

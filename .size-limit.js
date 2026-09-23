@@ -8,8 +8,14 @@
 // definition (ADR-0005). Fonts and icons are not JS/CSS and are not counted.
 //
 // The globs take every emitted JS/CSS file but `elk-*.js`, so a new lazy
-// chunk would be counted too (conservatively) until it is named here;
-// `apps/web/e2e/pwa.spec.ts` checks that elk is imported only by the worker.
+// chunk would be counted too (conservatively) until it is named here. A glob
+// cannot see elkjs creeping into the boot path, so root `pnpm size` also
+// runs `apps/web/scripts/check-core-chunks.mjs` (fix round 1, item 17), which
+// walks the entry's static imports and fails if any reaches elk.
+//
+// size-limit is pinned to 12.1.0 (fix round 1, item 20): 13+ require Node
+// ≥ 22.18 (14 uses `fs/promises` `glob`), and CI runs Node 20.19.0
+// (`.nvmrc`) with `engine-strict=true`.
 // Needs `pnpm --filter @sgl/web build` first (root `pnpm build` does it).
 //
 // The limit is a human decision: do not raise it to make a change pass.

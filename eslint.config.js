@@ -115,6 +115,6 @@ export default tseslint.config(
   // Node script: it writes the PWA's placeholder icons.
   {
     files: ['apps/web/scripts/**/*.mjs'],
-    languageOptions: { globals: { URL: 'readonly', Buffer: 'readonly' } },
+    languageOptions: { globals: { URL: 'readonly', Buffer: 'readonly', console: 'readonly', process: 'readonly' } },
   },
 );
