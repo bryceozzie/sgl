@@ -5,12 +5,22 @@ import tseslint from 'typescript-eslint';
 
 /** DD-00 §3 — "no Math.random, no Date.now" in any package below apps/web.
  *  Stands in for the named `sgl/no-nondeterminism` rule until it is packaged
- *  as a plugin; the banned surface is identical. */
+ *  as a plugin; the banned surface is identical. `performance.now` joined the
+ *  ban in Stage H's fix round (item 9): DD-06 §3 has exactly one sanctioned
+ *  read of it (the worker protocol's `ms` telemetry field, never fed back into
+ *  anything an engine produces) — banning it too, with one inline
+ *  `eslint-disable-next-line` at that call site, makes "there is only one
+ *  exception" mechanical instead of a convention someone has to remember. */
 const noNondeterminism = {
   'no-restricted-properties': [
     'error',
     { object: 'Math', property: 'random', message: 'Non-deterministic. Use ctx.random() (DD-00 §3).' },
     { object: 'Date', property: 'now', message: 'Non-deterministic. Time must be injected (DD-00 §3).' },
+    {
+      object: 'performance',
+      property: 'now',
+      message: 'Non-deterministic (DD-00 §3). The one sanctioned exception is worker-runtime.ts\'s ms telemetry — disable inline with a reason if this really is that call site.',
+    },
   ],
   'no-restricted-globals': [
     'error',
@@ -83,6 +93,6 @@ export default tseslint.config(
   // by tsc -b), so it needs Node's ambient globals declared explicitly.
   {
     files: ['bench/**/*.js'],
-    languageOptions: { globals: { console: 'readonly', URL: 'readonly' } },
+    languageOptions: { globals: { console: 'readonly', URL: 'readonly', AbortController: 'readonly' } },
   },
 );

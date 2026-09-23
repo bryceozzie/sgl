@@ -45,7 +45,11 @@ everything  ←  apps/web
 ### Determinism (DD-00 §3)
 
 No `Math.random`, no `Date.now`, no iteration over object keys without sorting, no `Map` iteration
-order dependence, anywhere below `apps/web`. Lint bans the first two. **Every stage that produces
+order dependence, anywhere below `apps/web`. Lint bans the first two, plus `performance.now`
+(Stage H fix round 1) — DD-06 §3 has exactly one sanctioned exception, the worker protocol's `ms`
+telemetry field (`worker-runtime.ts`'s `now()`), which never feeds back into engine or renderer
+output; that one call site carries an inline `eslint-disable-next-line` with the reason, so the
+exception is mechanical rather than a convention to remember. **Every stage that produces
 output adds a double-run test**: run twice, assert byte-identical `JSON.stringify` or string output.
 
 A corollary that has already surprised one review: a record keyed by author-supplied strings —
@@ -91,6 +95,16 @@ pnpm build        # every package, then the app
 pnpm grammar      # regenerate the Lezer parser; the output is committed
 ```
 
+`pnpm check`/`pnpm test` also run the `browser` project (Chromium + Firefox, Stage H decision
+D3), which needs Playwright's own browser binaries — not npm packages, so `pnpm install` alone
+does not fetch them. One-time per machine:
+
+```bash
+pnpm exec playwright install chromium firefox
+```
+
+CI does this itself, before its own browser-test step (`.github/workflows/ci.yml`).
+
 `check` builds before testing because a workspace package's cross-package `import`s resolve
 through its published `exports`, which point at `dist/`. `tsc -b` (the typecheck step) only
 compiles `.ts` files, so a package that re-exports a hand-generated `.js` asset — `@sgl/core`'s
@@ -115,7 +129,8 @@ A stage is not done because the code is written. It is done when its gate passes
 | `@sgl/layout-api` — `buildLayoutInput`, shape content insets + anchors, host fallbacks, `validateResult`/`quantize` | **Done**, T1+T2 gate green (Stage E) | `main` |
 | `@sgl/layout-std` — `grid` | **Done**, T1+T2 gate green, bitwise double-run over the whole corpus (Stage E) | `main` |
 | End-to-end pipeline (`source -> RenderResult`), `bench/generate.js` | **Done**, T3 gate green (Stage G) | `main` |
-| Worker host, `apps/web` | **Not started** | — |
+| `@sgl/layout-api` — `createWorkerHost`, `worker-runtime.ts` (worker-side message handling) | **Done**, T1 gate green; the gate's four conditions also proven against a real `Worker` (browser project, Chromium + Firefox) (Stage H) | `feat/layout-host` (unmerged) |
+| `apps/web` | **Not started**, except `layout.worker.ts` — the one real worker entry Stage H needed (registers `gridEngine`) | `feat/layout-host` (unmerged) |
 
 **Gate 1 is cleared.** `feat/compiler` merged to `main` at `a46c72b`; `pnpm check` green there
 (496 tests). `.sgl` text in, `SemanticGraph` out, for every document in the corpus, with goldens
@@ -485,6 +500,162 @@ LayoutResult` helper, also called `runPipeline`, is now `runHostPipeline`, disti
 `pipeline.ts`'s exported `source -> RenderResult` one; and `eslint.config.js`'s
 `bench/**/*.js` globals block no longer declares `process`, which `bench/generate.js` never uses.
 
+**Stage H is in progress on `feat/layout-host`** (not yet merged — do not treat as done until a
+merge commit lands and this line is updated). Branched from `main` at `38ab324` (Stage G, 1580
+tests after this stage's own additions). `createWorkerHost` (decision D1) now takes a
+`spawn: () => Worker` factory rather than a fixed instance, so it can `terminate()` and respawn;
+`options` carries the default/per-engine timeouts (`DEFAULT_ENGINE_TIMEOUT_MS = { 'sgl.grid': 2000
+}`, DD-06 §3's own number made concrete) and the main-thread `measure` callback. The worker-side
+logic is a second module, `worker-runtime.ts` (decision D2) — deliberately `Worker`-free, taking a
+registry and a `{ post }` port, so `worker-runtime.test.ts` drives it with a fake port and no real
+`Worker` at all; `apps/web/src/layout.worker.ts` is the one real file this stage adds to `apps/web`,
+wiring that runtime to the actual worker global scope with `gridEngine` registered (it has to live
+there, not in `@sgl/layout-api`, because DD-00 §2 rule 3 forbids the reverse import). `contract.ts`'s
+`MeasurerView` gained `layoutRunsAsync` — the design's own `'measure'`/`'measure-reply'` RPC had
+nothing to call it from without an async member, and Architecture §6's full `Measurer` interface
+already specified one; the reduced structural view in `contract.ts` had simply dropped it. All of
+this is written up in DD-06 §3 in the same change, including the decision that `run()` rejects with
+`AbortError` on abort rather than resolving `{ value: null, diagnostics }` like every other failure
+path — the one deliberate exception to §1's errors-are-values rule, reasoned through against DD-08
+§3 at `host.ts`'s `makeAbortError`.
+
+**The browser project (decision D3) exists now**: `vitest.config.ts` gained a `browser` project
+(Chromium + Firefox via `@vitest/browser`'s Playwright provider, both pinned to the installed vitest
+version, 3.2.7), matching `*.browser.test.ts` files; `pnpm test:unit` stays Node-only via an explicit
+`exclude` on the `unit` project (without it, `*.browser.test.ts` also matches `*.test.ts` and fails
+under Node with `Worker is not defined`). The Stage H gate's four conditions — timeout to
+`SGL4001`, abort, `SGL4002` on malformed output, the measure RPC — are proven twice: `host.test.ts`
+against a fake `Worker` under Node, `host.browser.test.ts` against a real one in both
+browsers via a small test-fixture worker (`fixture.worker.ts`, decision D2's "browser tests use
+their own test-fixture worker entry" — synthetic `test.ok`/`test.slow`/`test.throws`/
+`test.malformed`/`test.measuring` engines, not `gridEngine`, so each condition can be forced on
+demand).
+
+**The real `gridEngine`, in a real `Worker`, is now proven too** (fix round 1, item 3 —
+superseding this paragraph's earlier claim that adding `gridEngine` to the shared fixture worker
+broke it): that failure was re-diagnosed and turned out to be the same intermittent Vite
+dev-server cache issue this section's operational note already describes, not a defect in
+registering the real engine — two standalone diagnostic workers (one importing only `gridEngine`,
+one mixing it with the `src`-imported `EngineRegistry`, the exact combination the original fixture
+worker used) both loaded and ran cleanly once `node_modules/.vite` was cleared first. Proving it
+properly surfaced a **real** gap while re-testing it, though: `worker-runtime.ts` never applied
+DD-06 §4's host fallbacks (`routeStraight`/`placeLabels`) after `engine.layout()` returned, so
+`grid` — which declares `edgeRouting: 'straight'` and returns no edges of its own — could never
+pass `validateResult` through the real worker/host protocol; every edge came back `SGL4002`
+"missing EdgeLayout". Fixed by applying `routeStraight` unconditionally (it only fills an edge the
+engine left out, so it is a no-op for an engine that already routed everything) and `placeLabels`
+only when `capabilities.labelPlacement` is `false` (it *replaces* `result.labels` outright, so
+running it unconditionally would destroy a future `labelPlacement: true` engine's own output) —
+this is the one place in the pipeline with both the engine's `capabilities` and its
+`LayoutInput`/`LayoutResult` in hand, so it belongs in the worker, not `host.ts`. A dedicated
+worker entry, `packages/layout-std/test/browser/grid.worker.ts` (deliberately a *second* worker
+entry, not `gridEngine` added back into the shared fixture worker, so a real engine's own import
+graph never again shares a file with the small synthetic engines DD-06 §10's gate conditions
+depend on), plus a Node-side fixture generator (`bench/generate-grid-fixture.js`, the same
+"precompute in Node off a real corpus document, ship as data" shape `generate-render-fixtures.js`
+already established) prove `createWorkerHost` → real `gridEngine` → a valid, non-null
+`LayoutResult`. DD-06 §10's line recording this as left out is corrected in the same change; the
+"bitwise double-run across Chrome and Firefox" half of that line is corrected properly in fix
+round 2 below — round 1's own same-browser double-run assertion proved determinism *within* each
+browser only, not across them, which round 1's write-up here overclaimed.
+
+**F9 (§2.1) is measured, not cleared** (decision D4). `bench/generate-render-fixtures.js` runs
+`runPipeline`'s stages up to but excluding `render()` in Node for n50/n500/n2000 under both built-in
+themes and ships the result as a gitignored JSON file; `render.bench.browser.test.ts` times
+`render()` alone against it, in-browser, printing median-of-15 rather than asserting a threshold —
+timing asserts are flaky in CI, per the brief. n50 stays under the 16 ms budget in both browsers;
+n500 is borderline in Firefox; n2000 is 2–3x over it everywhere. The numbers are recorded in
+the F9 row below and in `bench/README.md`; confirming or renegotiating DD-09 §2's figure is left as
+the human decision the brief said it was, not decided here.
+
+**Fix round 1** (orchestrator review of `ec84684`) closed five blockers, three should-fixes and
+three nits, all against real code, none against a hypothetical. **Blockers**: (1) `onMessage`'s
+`'measure'` branch never checked whether the message was still for the current request — a late
+reply from a superseded (but not-yet-respawned) request, or from a worker already replaced by a
+respawn, could resolve an unrelated `layoutRunsAsync` call with stale data, since a fresh worker's
+own `'measure'` `req` counter restarts at 0. Fixed by binding each worker's message listener to
+that worker instance (`worker !== w` inside the listener discards anything from an
+already-replaced worker, of any message type) plus an explicit `message.id === current?.id` check
+in the `'measure'` branch specifically, for the same-worker-superseded case the instance check
+doesn't reach. (2) `validateResult` dereferenced `result.nodes`/`.edges`/`.labels`/`.bounds` with
+no guard that `result` — an untrusted, `structuredClone`d value from a third-party engine — was
+even an object; `undefined`/`null`/a number/`{}` threw a `TypeError` from inside `host.ts`'s
+message listener *after* the request's timer had already been cleared, leaving `run()` unsettled
+forever. Fixed with an upfront shape check, one `SGL4002` and an early return, same as any other
+malformed result. (3) the real `gridEngine`-in-a-real-`Worker` gap, above. (4) `host.browser.test.ts`'s
+timeout test used a host-wide `timeoutMs`, which also (mis)applied to the follow-up `test.ok`
+request — flaky under load (the orchestrator caught a real failure in Firefox under a full
+`pnpm check` run). Fixed with a per-engine override on `test.slow` alone; DD-06 §3 also now notes
+that the timeout clock starts at `run()`, covering a respawned worker's cold boot and its engine's
+import, not just the `layout()` call. (5) DD-08 §3's layout-effect pseudocode still modelled
+`host.run()` as throwing a diagnostic on every failure, which cannot happen under this stage's own
+contract; rewritten for "resolves a `StageResult`, rejects only with `AbortError`."
+
+**Should-fix**: (6) `run()` called after `dispose()` posted to a terminated worker and hung until
+timeout, spawning an orphan worker nothing would ever use — now rejects immediately (a programming
+error, §1's "throwing is reserved for a violated invariant," except this rejects a promise rather
+than throwing synchronously, to keep every `await host.run(...)` call site's contract uniform). (7)
+a new `host-runtime.integration.test.ts` wires the real `createWorkerHost` to a real
+`createWorkerRuntime` through an in-memory channel with `queueMicrotask`-based (genuinely
+asynchronous) delivery, covering the four gate conditions plus item 1's stale-measure case at Node
+speed, so protocol drift between the two halves is caught by `pnpm test:unit`, not only by the
+slower browser project against a real `Worker`. (8) a new `worker-runtime.test.ts` case sends two
+concurrent `layoutRunsAsync` calls and delivers their replies in reverse order, confirming
+`measure-reply` really does route by `req` rather than by delivery order. (9) `performance.now`
+(the worker protocol's `ms` telemetry) joined the determinism ban in `eslint.config.js`, with a
+single sanctioned call site (`worker-runtime.ts`'s `now()`, one inline
+`eslint-disable-next-line`) rather than being an unbanned exception nobody had written down; §1
+above and DD-06 §3 both name it. (10) DD-06 §3's lifecycle said a successful `'result'` always
+resolves `diagnostics: []` — wrong, `validateResult`'s own warnings (e.g. `SGL4003`) pass through
+on a success too; a `host.test.ts` case now pins a non-null value carrying a warning.
+
+**Nits**: (11) the unregistered-engine `SGL4011` message no longer repeats the engine id `{id}`
+already names in the template (`"not registered in this worker"`, not `"engine 'x' is not
+registered..."`), and DD-06 §3 now says this code covers that case too, not only an engine throw.
+(12) `package.json` had picked up CRLF→LF line-ending normalisation and a decoded `\u`-escape in
+its `description` across the earlier commits — restored byte-for-byte against `main`, with only
+the intended script/dependency lines differing; `vitest` is now pinned to the same exact `3.2.7`
+`@vitest/browser` already used, and the lockfile regenerated. (14) `WorkerHostOptions.measure`'s
+doc comment now says the returned value must be `structuredClone`-safe plain data.
+
+**Fix round 2** (orchestrator review of `8891f2e`) closed two more items, both confirmed against
+real code, both direct consequences of round 1's own fixes rather than newly-introduced defects.
+(1) **"Across Chrome and Firefox" was overclaimed.** Round 1's `grid.browser.test.ts` asserted only
+a same-browser double-run — proof of determinism *within* each browser, not *across* them or
+against Node, which is what DD-06 §10's phrase actually means. Fixed by having
+`bench/generate-grid-fixture.js` also compute the **expected** `LayoutResult` in Node, via the
+exact sequence `host.ts`/`worker-runtime.ts` run for a real request (`gridEngine.layout ->
+routeStraight -> placeLabels -> quantize(…, 64)`), and asserting in-browser that
+`JSON.stringify(outcome.value) === JSON.stringify(expected)`. It held on the first real run, with
+no loosening: **Node's precomputed result, Chromium's own run and Firefox's own run are all
+byte-identical for `n50.sgl`** — Node ≡ Chromium ≡ Firefox, genuinely proven, not just asserted.
+The same-browser double-run test is kept alongside it (a different property: repeatability, not
+cross-environment agreement). (2) **A non-object engine result through the real worker produced
+`SGL4011`, not `SGL4002`.** Direct fallout from round 1's own item 3 fix: once `routeStraight`/
+`placeLabels` ran unconditionally after `engine.layout()`, they made exactly the same
+shape assumptions `validateResult` does, so an engine resolving `undefined` (or anything else that
+fails that shape check) made `routeStraight` throw *inside the worker's own `try`/`catch`* — the
+caller got a worker-side `SGL4011` with a raw `TypeError` message, and round 1's item 2 shape guard
+in `validateResult` was only ever reachable through a fake `Worker` that skips the fallbacks
+entirely, never through the real protocol. Fixed by exporting `validate.ts`'s `describeShapeError`
+(reused, not duplicated) and having `worker-runtime.ts` skip the fallbacks and post a malformed
+`raw` result through unchanged whenever it fails that check, so `host.ts`'s own `validateResult` is
+what rejects it — restoring the `SGL4002` the design actually calls for. A new
+`host-runtime.integration.test.ts` case proves this through the real host + real runtime: an engine
+resolving `undefined` now gives `{ value: null, diagnostics: [SGL4002] }`, and the next request
+succeeds; a `worker-runtime.test.ts` case proves the narrower claim (the malformed result is posted
+through as `'result'`, unchanged, not `'error'`).
+
+**Operational note, reworded, not a code finding**: the previous round observed `pnpm check`
+hanging intermittently on the browser project on this machine after other pnpm commands had just
+run; the orchestrator's own clean, combined `pnpm check` run on `ec84684` did **not** reproduce it
+(~30 s, one real failure — item 4's flaky timeout test, not a hang). This stage's own reruns during
+this fix round saw the hang recur once more, always fixed by clearing `node_modules/.vite` first —
+so it reads as a genuine but intermittent Windows-specific Vite dependency-optimisation race in
+front of the browser provider, not a reliably reproducible property of this repository and not a
+defect in the host/runtime code. Recorded as an observation for whoever next hits it, not as
+something this stage could fix.
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
@@ -499,7 +670,8 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F6** | `renderNode`'s port-circle template (DD-07 §3) is live, correctly `aria-hidden`, and unit-tested directly — but unreachable through the real pipeline: `grid` declares `capabilities.ports: false` and no host fallback places ports (DD-06 §4 covers labels and routing, not ports), so `LayoutResult.nodes[id].ports` is never populated end to end. Found during Stage F's accessibility pass. | unassigned — whichever stage next reconsiders `ports: false` for `grid`, or ships a port-aware engine |
 | **F7** | The paint-only `<style>`-swap property (DD-07 §11, DD-08 §3) does not hold, for two independent reasons verified against the committed goldens. (a) `s-`/`t-`/`p-{paintHash}` class names (`style.ts`) embed the paint hash, so a paint change changes every referencing element's `class` attribute, not just the `<style>` block — fixable by keying the class name on something theme-invariant instead, which is a DD-07 §6 class-naming-scheme change (would churn every golden), not pulled here. (b) independently, a directed edge's arrowhead marker bakes its stroke colour into a `<defs>` `fill` and into the marker's own `id` (`markers.ts`), so `marker-end`/`marker-start` references change too — this needs a different marker strategy or a `context-stroke` rewrite (both currently rejected: resvg lacks `context-stroke`, Safari support arrived late), not just a class rename. DD-08 §3 is corrected to describe a full re-render instead of a `<style>`-only swap; the code is unchanged. | Stage I |
 | **F8** | `<style>` content is XML-escaped by `render()` (every golden carries `&apos;Segoe UI&apos;` in the font stack). For a standalone `.svg` this is verified correct — XML parses style content as character data and decodes entities, confirmed by the injection suite. For DD-08 §6's `innerHTML` path it should *also* be correct — `style` is not in HTML's foreign-content breakout list, so inside `<svg>` the parser treats it as a foreign element and never enters the RAWTEXT state, meaning entities decode there too — but that is spec reading, not a live-browser result, and no browser target exists yet (`apps/web` is not started) to prove it. If the reading is wrong, every multi-word font family silently degrades in the live view only, not in exports. | Stage I, to verify once `apps/web` runs |
-| **F9** | DD-09 §2's **`< 16 ms` paint-only theme switch** budget has lost its justification. It was underwritten by "`<style>` text swap, no tree replacement" — which **F7** shows is not implementable, so a theme toggle is a full `render()` plus an `innerHTML` replacement. Stage G's `bench/generate.js` now produces `corpus/n50.sgl`/`n500.sgl`/`n2000.sgl` (generated, not committed — `pnpm test`/`pnpm check` regenerate them first), so the fixtures a bench needs exist, but nothing runs them yet: DD-09 §3.1 puts this measurement in headless Chromium, and Vitest browser mode doesn't start until Stage H, so a Node-only number was deliberately not substituted (bench/README.md). The budget is therefore still unmeasured, and MVP acceptance criterion 2 rests on it. **Clear it by measuring** `render()` alone at 50/500/2 000 nodes once a browser bench target exists, then either confirm `< 16 ms` or renegotiate it in DD-09 §2 and [01 §4.1](01-requirements.md) together. | Stage H (browser target) or later; renegotiation with Stage I |
+| **F9** | DD-09 §2's **`< 16 ms` paint-only theme switch** budget has lost its justification (F7: a theme toggle is a full `render()` plus an `innerHTML` replacement, not a `<style>`-only swap). **Measured** by Stage H once the browser project existed (`packages/render-svg/test/browser/render.bench.browser.test.ts`, fixtures precomputed in Node by `bench/generate-render-fixtures.js` off `runPipeline`'s stages up to but excluding `render()`, per D4): median of 15 runs, `render()` alone, Chromium / Firefox — <br>n50: **1.1 / 0.8 ms** (light/dark) Chromium, **2.0 / 2.0 ms** Firefox — inside budget.<br>n500: **8.9 / 7.7 ms** Chromium, **15–16 ms** Firefox — borderline.<br>n2000: **33.8 / 41.3 ms** Chromium, **54 / 54 ms** Firefox — **well over** 16 ms.<br>So the budget holds only for the small end of the corpus; a 500-node document is already borderline in Firefox, and 2 000 nodes is 2–3× over everywhere. **Not cleared** — confirming `< 16 ms` isn't an option given these numbers, so renegotiating it in DD-09 §2 and [01 §4.1](01-requirements.md) (or narrowing which node counts the budget applies to) is the remaining, human, decision. | Renegotiation with Stage I |
+| **F10** | `ctx.random`'s seed (`host.ts`'s `SEED = 1`) is one fixed constant, shared by every request for every document — `LayoutHost.run()`'s frozen signature has no per-call seed parameter, so Stage H could not add one unilaterally (DD-06 §3). Where a per-document seed should come from — a new `run()` parameter, or something content-addressed from a graph hash so the same document always seeds the same way without threading a value through every call site — is undecided, and is an orchestrator/design decision to make, not Stage H's to settle unilaterally. No engine shipped so far reads `ctx.random` at all (`grid` is fully deterministic; `elk` is unbuilt), so nothing depends on the answer yet. | Stage L (B5 `radial`/`force`, the first seed-consuming engines) |
 
 ---
 

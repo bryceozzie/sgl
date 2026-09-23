@@ -47,14 +47,23 @@ jobs:
         run: pnpm build
 
       - name: Unit and golden tests
-        run: pnpm test
+        run: pnpm test:unit
+
+      - name: Install Playwright browsers
+        # Only Chromium and Firefox — WebKit joins with test:e2e (Stage I/K).
+        run: pnpm exec playwright install --with-deps chromium firefox
+
+      - name: Browser tests
+        # vitest browser mode (Chromium, Firefox) — the worker host and worker
+        # runtime against a real Worker (DD-06 §10), plus the F9 bench
+        # (bench/README.md; prints, does not gate on timing).
+        run: pnpm test:browser
 
       - name: Audit
         run: pnpm audit --prod --audit-level high
 
   # ⟶ Steps from DD-10 §4 that arrive with the code they test:
   #
-  #   test:browser  vitest browser mode (Chromium, Firefox) — measure, layout-elk, host
   #   test:e2e      playwright (Chromium, Firefox, WebKit) — apps/web
   #   size          size-limit on the core chunk (< 180 kB gz, hard 300)
   #

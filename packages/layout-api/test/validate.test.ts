@@ -63,6 +63,30 @@ describe('validateResult (DD-06 §5)', () => {
     expect(validateResult(OK_RESULT(), twoNodeGraph(), 'sgl.grid')).toEqual([]);
   });
 
+  // A buggy engine's `layout()` can resolve anything, not just a malformed
+  // LayoutResult — these must produce one SGL4002 each, not throw (the review
+  // finding: an unguarded `result.nodes` access threw a TypeError from inside
+  // host.ts's message listener, after the timer was already cleared, leaving
+  // run() unsettled forever).
+  it.each([
+    ['undefined', undefined],
+    ['null', null],
+    ['a number', 42],
+    ['an empty object', {}],
+  ])('SGL4002, not a throw: the engine result is %s', (_label, bad) => {
+    const diags = validateResult(bad as unknown as LayoutResult, twoNodeGraph(), 'sgl.grid');
+    expect(diags).toHaveLength(1);
+    expect(diags[0]!.code).toBe('SGL4002');
+  });
+
+  it('SGL4002, not a throw: LayoutResult.nodes is null', () => {
+    const bad = { ...OK_RESULT(), nodes: null };
+    const diags = validateResult(bad as unknown as LayoutResult, twoNodeGraph(), 'sgl.grid');
+    expect(diags).toHaveLength(1);
+    expect(diags[0]!.code).toBe('SGL4002');
+    expect(diags[0]!.message).toContain('nodes');
+  });
+
   it('SGL4002: a missing NodeLayout for a visible node', () => {
     const result = OK_RESULT();
     const { [B]: _drop, ...rest } = result.nodes;

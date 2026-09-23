@@ -15,3 +15,4 @@ export * from './protocol.js';
 export * from './registry.js';
 export * from './sizing.js';
 export * from './validate.js';
+export * from './worker-runtime.js';

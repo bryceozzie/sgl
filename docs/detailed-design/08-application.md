@@ -81,10 +81,20 @@ if styled.geometryHash === lastGood?.styled.geometryHash && engine/options uncha
     skip — a paint-only change; fall through to render
 else:
     inFlight = true
-    try   layout.value = await host.layout(engineId, styled, table, options, signal)
-    catch AbortError → return (a newer request superseded us)
-    catch diag       → layoutDiags = [diag]; keep layout.value as is
-    finally inFlight = false
+    try
+        // LayoutHost.run() resolves a StageResult, never throws except for
+        // AbortError (DD-06 §3) — errors are values here, not exceptions.
+        result = await host.run(engineId, input, options, metrics, table, signal)
+        layoutDiags = result.diagnostics
+        if result.value !== null:
+            layout.value = result.value   // may still carry warnings (e.g. SGL4003)
+        // else: keep layout.value as is — FR-E4, the last good layout stays on
+        // screen; layoutDiags already carries what to show for it (SGL4001/
+        // SGL4002/SGL4011)
+    catch AbortError
+        return  // a newer request superseded us; that request owns layoutDiags now
+    finally
+        inFlight = false
 ```
 
 ### Render (computed)

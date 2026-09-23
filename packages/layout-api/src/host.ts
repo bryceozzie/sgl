@@ -1,9 +1,52 @@
-import { NotImplemented, type StageResult } from '@sgl/core';
+import { diagnostic, NO_SPAN, type StageResult } from '@sgl/core';
 import type { LayoutInput, LayoutResult, ResolvedThemeMetricsView } from './contract.js';
+import type { WorkerToHost } from './protocol.js';
+import { quantize, validateResult } from './validate.js';
 
 /** Default hard timeout. On expiry the host terminates the worker, respawns it,
  *  surfaces SGL4001 and keeps the previous layout (Architecture §4.4). */
 export const DEFAULT_TIMEOUT_MS = 10_000;
+
+/** How long the host waits for a worker to acknowledge an `'abort'` (a `'result'`
+ *  or `'error'` for that id) before concluding it is unresponsive and forcing a
+ *  terminate + respawn (DD-06 §3). */
+export const ABORT_ESCALATION_MS = 250;
+
+/** Per-engine timeout overrides baked into the host (DD-06 §3: "default 10 000 ms;
+ *  grid 2 000 ms"). `WorkerHostOptions.engineTimeoutMs` is merged on top, so a
+ *  caller can override any of these without having to repeat the rest. */
+export const DEFAULT_ENGINE_TIMEOUT_MS: Readonly<Record<string, number>> = {
+  'sgl.grid': 2_000,
+};
+
+/** The MVP's seed for `ctx.random` (DD-00 §3, ADR-0004). `LayoutHost.run()` is a
+ *  frozen signature with no slot for a per-call seed, so the host supplies one
+ *  fixed, documented constant; a later stage that wants a per-document seed has
+ *  to widen the interface, not this function. */
+const SEED = 1;
+
+/** The main-thread callback that answers a `'measure'` table-miss RPC (DD-06 §3),
+ *  and the per-engine timeout overrides layered on top of `DEFAULT_ENGINE_TIMEOUT_MS`
+ *  (decision D1). */
+export interface WorkerHostOptions {
+  /** Default hard timeout for an engine with no entry in `engineTimeoutMs`
+   *  (including no `DEFAULT_ENGINE_TIMEOUT_MS` entry). Default `DEFAULT_TIMEOUT_MS`. */
+  readonly timeoutMs?: number;
+  /** Overrides/extends `DEFAULT_ENGINE_TIMEOUT_MS`, keyed by `LayoutEngine.id`. */
+  readonly engineTimeoutMs?: Readonly<Record<string, number>>;
+  /**
+   * Answers a worker's `'measure'` RPC (a label an engine created during layout;
+   * see `contract.ts`'s `MeasurerView.layoutRunsAsync`). May be sync or async.
+   * Optional: a host whose registered engines never call `ctx.measure.layoutRunsAsync`
+   * never needs it — omitting it degrades a real miss to an empty `TextLayout`-shaped
+   * value rather than hanging forever. The returned value crosses back to the
+   * worker via `postMessage`, so it must be `structuredClone`-safe plain data
+   * (DD-00 §3) — no class instance, no function, no `Map`/`Set`.
+   */
+  readonly measure?: (runs: readonly unknown[], box: Readonly<Record<string, unknown>>) => unknown | Promise<unknown>;
+}
+
+const DEGENERATE_MEASURE = (): unknown => ({ size: { w: 0, h: 0 }, lines: [] });
 
 /**
  * Runs an engine off the main thread.
@@ -26,8 +69,243 @@ export interface LayoutHost {
   dispose(): void;
 }
 
-export function createWorkerHost(worker: Worker, timeoutMs = DEFAULT_TIMEOUT_MS): LayoutHost {
-  void worker;
-  void timeoutMs;
-  throw new NotImplemented('createWorkerHost()', 'DD-06 §3');
+interface InFlight {
+  readonly id: number;
+  readonly engineId: string;
+  readonly input: LayoutInput;
+  readonly timer: ReturnType<typeof setTimeout>;
+  readonly signal: AbortSignal;
+  readonly onAbort: () => void;
+  readonly resolve: (result: StageResult<LayoutResult | null>) => void;
+  readonly reject: (reason: unknown) => void;
+}
+
+/**
+ * Decision D1: `createWorkerHost` takes a **factory**, not a `Worker` instance —
+ * the original `createWorkerHost(worker, timeoutMs)` signature this stage
+ * inherited cannot respawn after `terminate()`, since a terminated `Worker` stays
+ * terminated. `spawn()` is called once up front and again every time the host
+ * needs a fresh worker (timeout, or a 250 ms abort escalation). A Node unit test
+ * supplies a fake conforming to the same `Worker` shape (`as unknown as Worker`);
+ * the browser project (D3) exercises this against a real one.
+ */
+export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions = {}): LayoutHost {
+  const engineTimeoutMs: Readonly<Record<string, number>> = { ...DEFAULT_ENGINE_TIMEOUT_MS, ...options.engineTimeoutMs };
+  const defaultTimeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const measureCallback = options.measure ?? DEGENERATE_MEASURE;
+
+  let worker = spawn();
+  let current: InFlight | null = null;
+  // Requests that were aborted/superseded/timed-out and are waiting (up to
+  // ABORT_ESCALATION_MS) to see whether the worker still answers for that id —
+  // if it does, the escalation is cancelled and the answer discarded; if it
+  // doesn't, the worker is presumed stuck and gets terminated + respawned.
+  const pendingAborts = new Map<number, { readonly timer: ReturnType<typeof setTimeout> }>();
+  let nextId = 0;
+  let disposed = false;
+
+  wireWorker(worker);
+
+  /**
+   * `w` is the specific worker instance this listener was attached to,
+   * captured at registration time — not read from the mutable `worker`
+   * variable, whose whole purpose is to be reassigned on respawn. `worker !==
+   * w` inside the listener is therefore "this worker has already been
+   * replaced": a message from a killed-or-superseded worker is ignored
+   * outright, closing the gap a review round found — after a respawn, the new
+   * worker's own `'measure'` `req` counter restarts at 0 (worker-side state,
+   * `worker-runtime.ts`), so a late generation-0 `'measure'` reaching an
+   * un-gated listener could resolve an unrelated `layoutRunsAsync` call in
+   * generation 1 with the wrong data. DD-06 §3: "a late reply for an
+   * already-aborted id is discarded" generalises to "a late reply from an
+   * already-replaced worker is discarded," which this one check gives every
+   * message type at once, not just `'result'`/`'error'`.
+   */
+  function wireWorker(w: Worker): void {
+    w.addEventListener('message', (ev: MessageEvent) => {
+      if (worker !== w) return; // stale — this worker was already replaced.
+      onMessage(ev.data as WorkerToHost);
+    });
+  }
+
+  function timeoutFor(engineId: string): number {
+    return engineTimeoutMs[engineId] ?? defaultTimeoutMs;
+  }
+
+  function respawn(): void {
+    try {
+      worker.terminate();
+    } catch {
+      // A worker that failed to terminate cleanly is still being replaced below;
+      // nothing more to do with the reference being discarded.
+    }
+    for (const pending of pendingAborts.values()) clearTimeout(pending.timer);
+    pendingAborts.clear();
+    worker = spawn();
+    wireWorker(worker);
+  }
+
+  /** Detaches `id`'s timer/abort-listener and hands back its state, but only if
+   *  `id` is still the active request — a stale message for an id that already
+   *  settled (or was never `current`) is a no-op. */
+  function takeCurrent(id: number): InFlight | null {
+    if (current === null || current.id !== id) return null;
+    const state = current;
+    current = null;
+    clearTimeout(state.timer);
+    state.signal.removeEventListener('abort', state.onAbort);
+    return state;
+  }
+
+  /** Posts `'abort'`, starts the 250 ms escalation, and rejects `state`'s promise
+   *  immediately with `AbortError` — "AbortSignal fires on user edit so a
+   *  superseded layout stops immediately" (Architecture §4.4); the escalation
+   *  only decides whether the *worker* needs replacing, never how long the
+   *  caller waits. */
+  function beginAbort(state: InFlight): void {
+    worker.postMessage({ t: 'abort', id: state.id });
+    const timer = setTimeout(() => {
+      pendingAborts.delete(state.id);
+      respawn();
+    }, ABORT_ESCALATION_MS);
+    pendingAborts.set(state.id, { timer });
+    state.reject(makeAbortError());
+  }
+
+  function onMessage(message: WorkerToHost): void {
+    switch (message.t) {
+      case 'result': {
+        const pending = pendingAborts.get(message.id);
+        if (pending !== undefined) {
+          clearTimeout(pending.timer);
+          pendingAborts.delete(message.id);
+          return; // superseded — the caller already saw an AbortError.
+        }
+        const state = takeCurrent(message.id);
+        if (state === null) return;
+        const diagnostics = validateResult(message.result, state.input.graph, state.engineId);
+        const hasError = diagnostics.some((d) => d.severity === 'error');
+        state.resolve(hasError ? { value: null, diagnostics } : { value: quantize(message.result, 64), diagnostics });
+        return;
+      }
+      case 'error': {
+        const pending = pendingAborts.get(message.id);
+        if (pending !== undefined) {
+          clearTimeout(pending.timer);
+          pendingAborts.delete(message.id);
+          return;
+        }
+        const state = takeCurrent(message.id);
+        if (state === null) return;
+        state.resolve({ value: null, diagnostics: [message.diagnostic] });
+        return;
+      }
+      case 'measure': {
+        // The worker-identity check above already discards a `'measure'` from
+        // an already-*respawned* worker; this catches the narrower case of a
+        // live, not-yet-respawned worker whose in-flight request was
+        // *superseded* (a new `run()` posts `'abort'` and a new `'layout'` to
+        // the same worker instance without respawning it — respawn only
+        // follows a 250 ms unanswered escalation or a hard timeout). An
+        // engine that doesn't notice `ctx.signal` right away can still post a
+        // `'measure'` for the request it no longer owns; answering it would
+        // both leak the callback's work on dead output and risk colliding
+        // with the *new* request's own `req` numbering.
+        if (message.id !== current?.id) return;
+        void Promise.resolve(measureCallback(message.runs, message.box)).then((layout) => {
+          if (disposed || message.id !== current?.id) return;
+          worker.postMessage({ t: 'measure-reply', id: message.id, req: message.req, layout });
+        });
+        return;
+      }
+      case 'log':
+        // Nothing surfaces worker-side `ctx.log` calls yet (out of Stage H's
+        // scope); dropped here rather than thrown so a chatty engine cannot
+        // break the host.
+        return;
+    }
+  }
+
+  return {
+    run(engineId, input, options, metrics, table, signal) {
+      // Calling `run()` on a disposed host is a programming error, not a
+      // runtime condition about the input or the engine — §1's "throwing is
+      // reserved for a violated invariant." Rejecting a *fresh* `Promise`
+      // (rather than throwing synchronously) keeps `run()`'s return type
+      // honest for every caller that already does `await host.run(...)`; a
+      // review round found this path previously posted to a terminated
+      // worker, which never replies, so the request hung until timeout and
+      // then spawned an orphan worker nothing would ever use.
+      if (disposed) return Promise.reject(new Error('createWorkerHost: run() called after dispose().'));
+      if (signal.aborted) return Promise.reject(makeAbortError());
+
+      if (current !== null) {
+        // "A single in-flight request at a time; a new request aborts the
+        // previous one" (DD-06 §3) — the application never queues more than one
+        // (DD-08 §3), so a second `run()` call means the first is superseded.
+        const previous = takeCurrent(current.id);
+        if (previous !== null) beginAbort(previous);
+      }
+
+      const id = nextId;
+      nextId += 1;
+
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          const state = takeCurrent(id);
+          if (state === null) return;
+          respawn();
+          state.resolve({
+            value: null,
+            diagnostics: [diagnostic('SGL4001', NO_SPAN, { id: state.engineId, ms: timeoutFor(state.engineId) })],
+          });
+        }, timeoutFor(engineId));
+
+        const onAbort = (): void => {
+          const state = takeCurrent(id);
+          if (state === null) return;
+          beginAbort(state);
+        };
+        signal.addEventListener('abort', onAbort, { once: true });
+
+        current = { id, engineId, input, timer, signal, onAbort, resolve, reject };
+        worker.postMessage({ t: 'layout', id, engine: engineId, input, options, metrics, table, seed: SEED });
+      });
+    },
+
+    dispose() {
+      disposed = true;
+      const state = current !== null ? takeCurrent(current.id) : null;
+      state?.reject(makeAbortError());
+      for (const pending of pendingAborts.values()) clearTimeout(pending.timer);
+      pendingAborts.clear();
+      try {
+        worker.terminate();
+      } catch {
+        // Already gone; nothing left to clean up.
+      }
+    },
+  };
+}
+
+/**
+ * DD-06 §3's lifecycle says abort() "reject[s] with AbortError" — kept literally
+ * rather than folded into the errors-are-values `{ value: null, diagnostics }`
+ * shape every other failure path uses. Timeout, malformed output and an engine
+ * throw are all conditions *about the input or the engine* that the caller needs
+ * to see and can display; an abort is the host's own bookkeeping reacting to the
+ * caller's **own** cancellation (a superseding `run()` call, or the caller's
+ * `AbortSignal` firing) — the caller already knows it asked for this, so there is
+ * nothing new to report as a diagnostic, and DD-08 §3's "the application never
+ * queues more than one" means every call site is expected to `catch` exactly this
+ * on every superseded request, the same idiom `fetch()` and every other abortable
+ * web API already use. Resolving it instead would force every call site to
+ * distinguish "cancelled because I asked" from "the document is broken" by
+ * inspecting diagnostics rather than by a `catch`. Documented in DD-06 §3.
+ */
+function makeAbortError(): Error {
+  if (typeof DOMException !== 'undefined') return new DOMException('The operation was aborted.', 'AbortError');
+  const err = new Error('The operation was aborted.');
+  err.name = 'AbortError';
+  return err;
 }
