@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "SGL \u00e2\u20ac\u201d Structured Graphing Language. Text-first diagramming: JSON-esque source in, SVG out.",
+  "description": "SGL â€” Structured Graphing Language. Text-first diagramming: JSON-esque source in, SVG out.",
   "license": "MIT",
   "packageManager": "pnpm@10.34.5",
   "engines": {
@@ -26,8 +26,10 @@
   "devDependencies": {
     "@changesets/cli": "^2.29.7",
     "@eslint/js": "^9.39.0",
+    "@vitest/browser": "3.2.7",
     "eslint": "^9.39.0",
     "fast-check": "^4.3.0",
+    "playwright": "^1.63.0",
     "rimraf": "^6.0.1",
     "tsdown": "^0.15.6",
     "typescript": "^5.9.3",

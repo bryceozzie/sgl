@@ -31,6 +31,9 @@ const CTX: LayoutContext = {
     layoutRuns(): never {
       throw new Error('grid never asks the host to measure a label it created.');
     },
+    layoutRunsAsync(): never {
+      throw new Error('grid never asks the host to measure a label it created.');
+    },
   },
   random: () => 0,
   signal: new AbortController().signal,

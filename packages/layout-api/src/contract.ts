@@ -145,6 +145,19 @@ export interface ResolvedThemeMetricsView {
 
 export interface MeasurerView {
   layoutRuns(runs: readonly unknown[], box: { readonly maxWidth?: number }): unknown;
+  /**
+   * The async path for a label an engine creates *during* layout — i.e. one that,
+   * by construction, cannot be in the pre-measured table the host built before
+   * layout started (Architecture §4.2: "for labels created during layout"). Added
+   * by Stage H: `contract.ts`'s reduced structural view of `@sgl/measure`'s
+   * `Measurer` originally carried only the sync `layoutRuns`, but DD-06 §3's
+   * worker protocol has a `'measure'`/`'measure-reply'` RPC with nothing to call
+   * it — Architecture §6's full `Measurer` interface already specifies both a sync
+   * and an async member (`layoutRuns`/`layoutRunsAsync`) for exactly this reason.
+   * This is that member, restored onto the reduced view because the design cannot
+   * work without it. See `worker-runtime.ts`.
+   */
+  layoutRunsAsync(runs: readonly unknown[], box: { readonly maxWidth?: number }): Promise<unknown>;
 }
 
 export interface LayoutResult {
