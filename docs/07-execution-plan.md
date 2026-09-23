@@ -148,7 +148,7 @@ A stage is not done because the code is written. It is done when its gate passes
 | End-to-end pipeline (`source -> RenderResult`), `bench/generate.js` | **Done**, T3 gate green (Stage G) | `main` |
 | `@sgl/layout-api` — `createWorkerHost`, `worker-runtime.ts` (worker-side message handling) | **Done**, T1 gate green; the gate's four conditions also proven against a real `Worker` (browser project, Chromium + Firefox) (Stage H) | `main` |
 | `apps/web` | **Stage I done** — the editor loop, pickers, diagnostics panel, status chip, fonts, the §13 error boundary and the Playwright e2e gate (DD-08 §14 tests 1/2/3/8, MVP criteria 2/3/1-single-engine) all work end to end. Fix round 1 done (below). `elk`/engine-switch and the per-engine options form are Stage K | `main` |
-| `@sgl/layout-elk` — the elk adapter (lazy elkjs, K11 `document` stub), `@sgl/layout-api/conformance`, `applyHostFallbacks`; `apps/web` — elk registered and the default, F11 options form, engine-switch e2e, `size-limit` | **Stage K implemented on `feat/layout-elk`, not merged** — T2 + T3 + size check + T4 (Chromium only) green, twice from clean; awaiting review | `feat/layout-elk` |
+| `@sgl/layout-elk` — the elk adapter (lazy elkjs, K11 `document` stub), `@sgl/layout-api/conformance`, `applyHostFallbacks`; `apps/web` — elk registered and the default, F11 options form, engine-switch e2e, `size-limit` | **Stage K + fix round 1 on `feat/layout-elk`, not merged** — T2 + T3 + size check (177.22 kB) + T4 (Chromium only) green, twice from clean after fix round 1 (23 items incl. SGL4010, human decision 2026-09-23); H2/H3 held | `feat/layout-elk` |
 | `apps/web` — files, share, persistence, PWA, `_headers` | **Stage J done, merged at `0a32679`** — Open/Save (`.sgl`, `.sgl.json`, `.svg`), share by URL with the 2 MB inflate cap, IndexedDB autosave and boot, the stored-SVG boot paint (J6), `vite-plugin-pwa` precache + manifest + update chip, the `_headers` CSP; e2e gate MVP criteria 2–6 single-engine plus DD-08 §14 tests 5–7 green in Chromium, Firefox and WebKit (fix rounds 1 and 2 re-verified in Chromium only); Open makes a new local document and a minimal Documents ▾ list reaches every stored one (fix round 2, human decision 2026-09-23) | `main` |
 
 **Gate 1 is cleared.** `feat/compiler` merged to `main` at `a46c72b`; `pnpm check` green there
@@ -1089,6 +1089,72 @@ landed, by decision:
   (`bench/scale-document.js`, shared with `bench/generate.js`). **K10**: elk's 1 000-node graph
   takes ≈ 0.8 s in Node and ≈ 1.1 s round trip in a Chromium worker run alone (≈ 2.3 s inside
   the full parallel test run), against its 10 s timeout, which is not raised.
+
+**Stage K fix round 1** (22 review items plus item 23, SGL4010, from the human decision of
+2026-09-23 on held item H1; on `feat/layout-elk`, not merged). H2 (DD-06 §5's bounds
+recomputation) and H3 (an elk performance budget) stay held. Chromium only. The brief's gate
+command, run from clean twice, is green both times: Vitest 2139 passed (the `unit` and
+`browser (chromium)` projects), e2e 55/55, `pnpm size` 177.22 kB of 180 kB, with the new
+boot-path check passing. The first attempt at the first run failed one test on a Vitest timeout
+(`n2000.sgl` under elk at 5.5 s against the 5 s default under the full parallel run); that
+test now has 30 s. Item by item:
+
+- **1. Container titles are top-left again** (DD-06 §4.1/§6.1): `start`/`top`, at ELK's
+  container frame inset by `contentInset`, as `grid` places them — pinned per `CLEAN_DOCS`
+  document. The reviewer's `[H_LEFT, V_TOP, INSIDE, V_PRIORITY]` works only because
+  `V_PRIORITY` is not an ELK placement and ELK rejects the whole value; the title is instead
+  not sent to ELK at all (byte-identical layouts, pinned), with `elk.padding.top` covering the
+  band once and the title's width a minimum container width. Elk goldens regenerated (12
+  files: titles `middle`/`bottom` → `start`/`top`); no other golden changed.
+- **2. Edges through a title**, counted by `titleCrossings`. Centred titles (before item 1):
+  `checkout` 2, `containers-edges` 1, `forty-three-level` 1, `nesting-3` 2, `wildcards` 1,
+  `n50` 4, `n500` 49, `n2000` 199. Top-left titles (after): `checkout` 2, `containers-edges` 1,
+  `nesting-3` 1, `wildcards` 4. No ELK mitigation removed the rest (`considerModelOrder` makes
+  ELK throw on 8 documents; `mergeHierarchyEdges` and `spacing.labelNode` change nothing;
+  `FIXED_SIDE` on containers moves them), so they are a pinned, counted warning.
+- **3.** The pipeline sends `optionsForEngine(engine, bag)`, what the form shows; a stored
+  `columns: "x"` no longer reaches grid raw (it threw `SGL4011`). Unit and e2e tests.
+- **4.** `portConstraints` is ELK's enum in `hintsSchema` and the mapping; unknown values
+  skipped. **5.** A missing ELK coordinate is `NaN` (→ `SGL4002`), never 0.
+  **6.** The arrow reserve on an engine route is clamped: never reverses or zeroes a short end
+  segment. **7.** `elkEngine.layout()` honours an abort once elkjs has loaded, so the worker
+  and its loaded elkjs survive; DD-06 §3's "respawn ~30 ms" premise amended. **8.** The
+  redundant deep copy is gone (the graph is built per call; nothing re-reads it).
+  **9.** DD-06 §6.2 (every section is concatenated), §8 (check 1 fails on errors only),
+  DD-08 §10 (item 3's sentence).
+- **10.** The K4 tests assert: hierarchy crossings equal the recorded `{}`,
+  `containers-edges.sgl` is `{ORTHOGONAL: 0, POLYLINE: 0}`, title counts pinned; new corpus
+  document `nested-crossing.sgl` puts an edge in a non-root ELK `container`.
+- **11.** Conformance check 6: every edge end within `arrowSize` of its node (or port) — grid
+  and elk pass. **12.** Per directed edge, the end sits `arrowSize` ± 0.5 px off its node,
+  failing with the reserve skipped and with it doubled. **18.** Check 3 compares all siblings,
+  containers included. **16.** A non-root-container edge label is placed absolutely.
+  **19.** The Chromium worker has no `document` after elk loads.
+- **13.** F11 end to end (`e2e/engine-options.spec.ts`): Direction → Right re-lays out,
+  persists across a reload, and an engine switch resets it; fails with the form's write made
+  inert. **14.** Criterion 1 also compares the rendered paint (`<style>` plus every element's
+  `class`/`fill`/`stroke`/`stroke-dasharray`). **15.** Criterion 6 with `e=sgl.grid`: grid on
+  the picker, in the record, and geometry different from elk's; boot unit test.
+- **17.** `pnpm size` also runs `apps/web/scripts/check-core-chunks.mjs`: no chunk reachable
+  from `index.html`'s entry by static imports may reference an `elk` chunk or contain elkjs,
+  and elkjs is emitted once. Importing `@sgl/layout-elk` into `App.tsx` passed size-limit
+  (178.71 kB) and failed this check.
+- **20.** `size-limit` + `@size-limit/file` pinned to **12.1.0** (engines `^20 || ^22 || >=24`),
+  the newest that runs on CI's Node: run under Node 20.19.0 itself (`npx -y node@20.19.0`) it
+  passes; 14.0.0 there fails with "does not provide an export named 'glob'".
+  **21.** Root `check` runs `pnpm size` after `build`.
+- **22.** F11 number fields have maxima (spacing 0–500 px, grid gap 0–200 px, columns 1–50); a
+  refused value gets `aria-invalid`, a visible message, and the box shows the value in use.
+- **23. SGL4010 is live** (human decision 2026-09-23). `layoutConfigDiagnostics` in
+  `@sgl/layout-api` warns, at the key, for (a) a container-level `@layout.engine` naming
+  another engine — **until B8/B9 (per-container engines), a nested engine warns and is
+  ignored** — and (b) any `@layout` key the effective engine declares neither as an option nor
+  as a hint. The app's pipeline runs it with the effective engine's descriptor; the panel shows
+  it with a warning squiggle and the diagram stays. Corpus fixtures `layout/nested-engine.sgl`
+  and `layout/unknown-key.sgl`; SGL4010 moves to the whole-pipeline coverage half. The welcome
+  example drops `payments`' nested `@layout`, so a first visit shows no warning. One test table
+  (not a golden) changed: corpus `checkout.sgl`'s audited diagnostics gain SGL4010 (its root
+  `direction` under grid).
 
 ### 2.1 Open findings
 
