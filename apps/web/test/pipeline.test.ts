@@ -164,6 +164,28 @@ async function completeOneLayout(env: ReturnType<typeof setup>, nodeId: string):
 }
 
 describe('pipeline (DD-08 §3)', () => {
+  it('warns SGL4010 for a container engine and an undeclared @layout key (fix round 1, item 23; the e2e test checks the diagram stays)', async () => {
+    const source = 'box: {\n  @layout: { engine: sgl.elk, columns: 2, gap: 4 }\n  a: "A"\n}\n';
+    const env = setup(source, {
+      engineSchemas: (id) => (id === 'sgl.grid' ? { id, optionsSchema: { properties: { columns: {}, gap: {}, align: {} } } } : undefined),
+    });
+    await completeOneLayout(env, 'box');
+    const warnings = env.pipeline.diags.value.filter((d) => d.code === 'SGL4010');
+    expect(warnings.map((d) => [source.slice(d.span.from, d.span.to), d.severity])).toEqual([['engine', 'warning']]);
+
+    // Under an engine that does not declare `columns`/`gap`, those warn too.
+    const env2 = setup(source.replace('sgl.elk', 'sgl.grid'), {
+      defaultEngineId: 'sgl.elk',
+      engineSchemas: (id) => (id === 'sgl.elk' ? { id, optionsSchema: { properties: { direction: {} } } } : undefined),
+    });
+    await flush();
+    expect(env2.pipeline.diags.value.filter((d) => d.code === 'SGL4010').map((d) => source.replace('sgl.elk', 'sgl.grid').slice(d.span.from, d.span.to))).toEqual([
+      'engine',
+      'columns',
+      'gap',
+    ]);
+  });
+
   it("sends the engine exactly the options its form shows, not the stored bag raw (fix round 1, item 3)", async () => {
     const env = setup('a: "A"');
     // A stored record's bag the grid form cannot show: it shows `auto`, 24, center.

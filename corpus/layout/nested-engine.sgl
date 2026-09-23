@@ -1,0 +1,11 @@
+// expects: SGL4010
+// A container naming its own layout engine. Per-container engines are B8/B9,
+// so the whole document is laid out by the root's engine (grid, in the
+// pipeline harness) and this key is warned about and ignored (DD-06 §9).
+box: {
+  @label: "Box"
+  @layout: { engine: "sgl.elk" }
+  a: "A"
+  b: "B"
+  a -> b
+}

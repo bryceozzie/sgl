@@ -20,7 +20,10 @@ import { CATALOGUE, type DiagnosticCode } from '../src/diagnostics.js';
  * `RENDER_SVG_OWNED_CODES` directly rather than re-deriving the predicate.
  */
 export function isRenderSvgOwned(code: DiagnosticCode): boolean {
-  return code.startsWith('SGL5') || code === 'SGL6001';
+  // SGL4010 (Stage K fix round 1): emitted by `@sgl/layout-api`'s
+  // `layoutConfigDiagnostics` against the effective engine's schemas — out of
+  // core's reach, so the whole-pipeline gate owns it.
+  return code.startsWith('SGL5') || code === 'SGL6001' || code === 'SGL4010';
 }
 
 export const ALL_DIAGNOSTIC_CODES: readonly DiagnosticCode[] = Object.keys(CATALOGUE) as DiagnosticCode[];

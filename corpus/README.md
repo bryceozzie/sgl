@@ -26,6 +26,7 @@ single purpose, so a failure names what broke.
 | `n50.sgl` `n500.sgl` `n2000.sgl` | **generated** by `bench/generate.js`; perf and scale |
 | `malformed/*.sgl` | one syntax error each, with the expected diagnostic and a partial AST |
 | `injection/*.sgl` | one hostile string per context |
+| `layout/*.sgl` | one `SGL4010` each (Stage K fix round 1): a container naming its own engine, and a root `@layout` key the engine does not declare |
 | `unresolved/*.sgl` | one resolution error each, including `edge-expansion-limit.sgl` — a 32 x 32 wildcard cross product, over the 1 000-edge expansion ceiling, the only way to reach `SGL3005` |
 
 `n50.sgl`/`n500.sgl`/`n2000.sgl` are **not committed** — `bench/generate.js`

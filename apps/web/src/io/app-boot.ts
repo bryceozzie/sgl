@@ -12,10 +12,14 @@ import { openIdbStore } from '../state/storage-idb.js';
  *  descriptor entry, which carries everything but `layout()` and so none of
  *  elkjs (Stage K, K1) — rather than duplicated by hand, so the picker cannot
  *  list something the worker does not actually run. */
-export const REGISTERED_ENGINES = [
-  { id: elkDescriptor.id, name: elkDescriptor.name, determinism: elkDescriptor.capabilities.determinism },
-  { id: gridEngine.id, name: gridEngine.name, determinism: gridEngine.capabilities.determinism },
-];
+export const REGISTERED_ENGINES = [elkDescriptor, gridEngine].map((e) => ({
+  id: e.id,
+  name: e.name,
+  determinism: e.capabilities.determinism,
+  // What SGL4010 checks `@layout` keys against (fix round 1, item 23).
+  ...(e.optionsSchema !== undefined && { optionsSchema: e.optionsSchema }),
+  ...(e.hintsSchema !== undefined && { hintsSchema: e.hintsSchema }),
+}));
 
 /** ADR-0005: `elk` is the default engine (Stage K undoes Stage I's interim
  *  `grid` default, decision I1). A stored document keeps its own `engineId`. */

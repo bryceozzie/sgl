@@ -21,7 +21,6 @@ storefront: {
 
 payments: {
   @label: "Payments"
-  @layout: { engine: grid, columns: 2 }
 
   api:     { @type: Service, @style.stroke: "#DC2626" }
   ledger:  Store

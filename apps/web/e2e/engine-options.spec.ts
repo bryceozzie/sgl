@@ -1,10 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
+  diagnosticCodes,
   EXAMPLE_NODE_COUNT,
   layoutGeometryHash,
   patchStoredOpenDocument,
+  setSource,
   storedOpenDocument,
   switchEngine,
+  visibleNodeCount,
   waitForExactNodeCount,
 } from './helpers.js';
 
@@ -72,6 +75,26 @@ test('3: a stored record whose options the engine cannot use renders with what t
   await openOptions(page);
   await expect(page.getByLabel('Columns')).toHaveValue(''); // automatic …
   await expect(page.getByLabel('Gap')).toHaveValue('24'); // … and the default gap: what grid was sent.
+});
+
+test('23: a container asking for its own engine under elk gets an SGL4010 warning with a squiggle; the diagram stays (human decision 2026-09-23)', async ({ page }) => {
+  await page.goto('/');
+  await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
+  // The welcome example no longer nests an engine: a first visit shows no warning.
+  await expect(page.locator('.diagnostics-panel')).toHaveCount(0);
+
+  const source = 'box: {\n  @label: "Box"\n  @layout: { engine: grid }\n  a: "A"\n  b: "B"\n  a -> b\n}\n';
+  await setSource(page, source);
+  await waitForExactNodeCount(page, visibleNodeCount(source));
+  await expect.poll(() => diagnosticCodes(page)).toEqual(['SGL4010']);
+  await expect(page.locator('.diagnostics-panel')).toContainText('`@layout.engine` is not an option of engine `sgl.elk`; ignored.');
+  // A warning squiggle, exactly over the key.
+  const warned = page.locator('.cm-content .cm-lintRange-warning');
+  await expect(warned).toHaveCount(1);
+  await expect(warned).toHaveText('engine');
+  // Still laid out by elk, and on screen.
+  await expect(page.locator('.engine-picker select')).toHaveValue('sgl.elk');
+  await waitForExactNodeCount(page, visibleNodeCount(source));
 });
 
 test('22: a refused value is marked invalid, explained, and not left showing', async ({ page }) => {

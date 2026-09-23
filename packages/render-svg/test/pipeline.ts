@@ -3,6 +3,7 @@ import { compile, parse, resolve } from '@sgl/core';
 import {
   applyHostFallbacks,
   buildLayoutInput,
+  layoutConfigDiagnostics,
   quantize,
   validateResult,
   type LayoutContext,
@@ -116,6 +117,9 @@ export async function runPipeline(
   const { ast, diagnostics: d1 } = parse(source);
   const { model, diagnostics: d2 } = resolve(ast);
   const { graph, diagnostics: d3 } = compile(model);
+  // SGL4010 (Stage K fix round 1, item 23), as the app's pipeline emits it:
+  // the document's `@layout` keys against the engine laying it out.
+  const d3b = layoutConfigDiagnostics(ast, { id: engine.id, ...(engine.optionsSchema && { optionsSchema: engine.optionsSchema }), ...(engine.hintsSchema && { hintsSchema: engine.hintsSchema }) });
   const { value: theme, diagnostics: d4 } = resolveTheme(themeDoc, (id) => BUILT_IN[id]);
   const { value: styled, diagnostics: d5 } = styleGraph(graph, theme, model.classes);
   const { input, result, diagnostics: d6 } = await layOut(styled, engine, options);
@@ -126,7 +130,7 @@ export async function runPipeline(
     result,
     theme,
     rendered,
-    diagnostics: [...d1, ...d2, ...d3, ...d4, ...d5, ...d6, ...rendered.diagnostics],
+    diagnostics: [...d1, ...d2, ...d3, ...d3b, ...d4, ...d5, ...d6, ...rendered.diagnostics],
   };
 }
 

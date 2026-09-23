@@ -1,0 +1,8 @@
+// expects: SGL4010
+// A root `@layout` key the effective engine does not declare: `nodeSpacing`
+// is elk's, and the pipeline harness lays this out under grid, so it is
+// warned about and ignored (DD-06 §9).
+@layout: { nodeSpacing: 30 }
+a: "A"
+b: "B"
+a -> b

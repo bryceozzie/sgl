@@ -29,7 +29,10 @@ const EXPECTED_DIAGNOSTICS: Readonly<Record<string, readonly DiagnosticCode[]>> 
   // x2 (the `Service`/`Store` classes' `round`/... shapes not drawn this
   // version — see corpus/README.md's "A note on checkout.sgl"), SGL5004 ($hot
   // is not a valid colour once kept as literal text).
-  'checkout.sgl': ['SGL2009', 'SGL2010', 'SGL3006', 'SGL3006', 'SGL5004'],
+  // SGL4010 (Stage K fix round 1, item 23): the root's `@layout: { …,
+  // direction: right }` under grid, which does not declare `direction`. The
+  // nested `engine: grid` names the harness's own engine, so it is not one.
+  'checkout.sgl': ['SGL2009', 'SGL2010', 'SGL3006', 'SGL3006', 'SGL4010', 'SGL5004'],
   // Three portless nodes attach to their node instead of a named port (SGL2003
   // x3) and one wildcard matches nothing (SGL3003) — both documented in the
   // file's own comments as intentional near-misses, not defects.

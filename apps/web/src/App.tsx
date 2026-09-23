@@ -62,6 +62,7 @@ export function App({ boot }: { readonly boot: AppBoot }) {
         metrics: APP_METRICS,
         defaultEngineId: boot.record.engineId,
         defaultThemeId: boot.record.themeId,
+        engineSchemas: (id) => REGISTERED_ENGINES.find((e) => e.id === id),
       },
       boot.record.source,
     );

@@ -12,7 +12,7 @@ import {
   type ResolveResult,
   type StageResult,
 } from '@sgl/core';
-import { buildLayoutInput, type LayoutInput, type LayoutResult } from '@sgl/layout-api';
+import { buildLayoutInput, layoutConfigDiagnostics, type LayoutInput, type LayoutResult } from '@sgl/layout-api';
 import { labelRunKey, premeasure, type MeasureTable } from '@sgl/measure';
 import { BUILT_IN, DEFAULT_THEME_ID, resolveTheme, styleGraph, type ResolvedTheme, type StyledGraph } from '@sgl/theme';
 import { render, type RenderResult } from '@sgl/render-svg';
@@ -352,10 +352,20 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   // renderer's (a disallowed link scheme) are real, user-visible diagnostics the
   // pseudocode's list simply omits — filled in per §1's "if a document is merely
   // incomplete, fill the gap the way the surrounding design implies."
+  // SGL4010 (fix round 1, item 23; human decision 2026-09-23): the
+  // document's `@layout` keys against the effective engine — a container's
+  // own engine (B8/B9) and keys the engine does not declare are warned about
+  // and ignored. From the parsed AST, where each key has its own span.
+  const layoutConfigDiags = computed<readonly Diagnostic[]>(() => {
+    const engineId = effectiveEngineId.value;
+    return layoutConfigDiagnostics(parsed.value.value, deps.engineSchemas?.(engineId) ?? { id: engineId });
+  });
+
   const diags = computed<readonly Diagnostic[]>(() => [
     ...parsed.value.diagnostics,
     ...model.value.diagnostics,
     ...graph.value.diagnostics,
+    ...layoutConfigDiags.value,
     ...theme.value.diagnostics,
     ...styled.value.diagnostics,
     ...layoutDiags.value,
