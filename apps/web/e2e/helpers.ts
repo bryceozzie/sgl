@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, type Locator, type Page } from '@playwright/test';
@@ -256,4 +257,40 @@ export async function saveAs(page: Page, kind: 'sgl' | 'json' | 'svg'): Promise<
 /** The toast region's messages. */
 export function toastMessages(page: Page): Locator {
   return page.locator('.toasts .toast-message');
+}
+
+/** What must survive an engine switch (MVP criterion 1, DD-08 §14 test 4):
+ *  every rendered node/container id, every edge id, and every label's text,
+ *  each sorted. */
+export async function renderedIdentity(page: Page): Promise<{ readonly nodes: string[]; readonly edges: string[]; readonly labels: string[] }> {
+  return renderedSvg(page).evaluate((svg) => {
+    const ids = (sel: string) => [...svg.querySelectorAll(sel)].map((g) => g.getAttribute('id') ?? '').sort();
+    return {
+      nodes: ids('g.L-nodes > g.n, g.L-containers > g.c'),
+      edges: ids('g.L-edges > g.e'),
+      labels: [...svg.querySelectorAll('text')].map((t) => t.textContent ?? '').sort(),
+    };
+  });
+}
+
+/** A hash of everything the layout decides, as rendered: node and container
+ *  shapes, edge routes, label positions and the `viewBox`. The pipeline has
+ *  no layout hash of its own (`StyledGraph.geometryHash` is the *style*
+ *  geometry, the same under every engine), so it is computed here. */
+export async function layoutGeometryHash(page: Page): Promise<string> {
+  const labels = await renderedSvg(page).evaluate((svg) =>
+    [...svg.querySelectorAll('text')].map((t) => `${t.getAttribute('x')},${t.getAttribute('y')},${t.getAttribute('text-anchor')}`),
+  );
+  const geometry = { nodes: await nodeGeometry(page), edges: await edgePaths(page), labels, viewBox: await viewBox(page) };
+  return createHash('sha256').update(JSON.stringify(geometry)).digest('hex');
+}
+
+/** Selects `engineId` in Engine ▾ and waits until the canvas shows a layout
+ *  whose geometry differs from `before` — the switch's own render. The
+ *  switch is one debounced layout request, so the first changed geometry is
+ *  the new engine's. */
+export async function switchEngine(page: Page, engineId: string, before: string): Promise<void> {
+  await page.locator('.engine-picker select').selectOption(engineId);
+  await expect(page.locator('.engine-picker select')).toHaveValue(engineId);
+  await expect.poll(() => layoutGeometryHash(page), { timeout: 20_000 }).not.toBe(before);
 }

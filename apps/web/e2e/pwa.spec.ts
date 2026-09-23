@@ -40,9 +40,20 @@ test.describe('PWA (DD-08 §12)', () => {
     // No duplicates (Workbox rejects a URL listed twice with two revisions).
     expect(precacheUrls().length).toBe(precached.size);
 
-    // The engine the worker registers is inside what is precached.
+    // Both engines the worker registers are inside what is precached (Stage K).
     const worker = [...precached].find((u) => u.startsWith('assets/layout.worker-'))!;
-    expect(readFileSync(`${DIST}${worker}`, 'utf8')).toContain('sgl.grid');
+    const workerSource = readFileSync(`${DIST}${worker}`, 'utf8');
+    expect(workerSource).toContain('sgl.grid');
+    expect(workerSource).toContain('sgl.elk');
+    // elkjs is its own lazy chunk (K1): precached, imported only by the
+    // worker, and only dynamically — never by the page's entry.
+    const elk = [...precached].find((u) => /^assets\/elk-[\w-]+\.js$/.test(u));
+    expect(elk).toBeDefined();
+    const elkFile = elk!.slice('assets/'.length);
+    expect(workerSource).toContain(`import("./${elkFile}")`);
+    for (const f of filesUnder(`${DIST}assets/`).filter((n) => n.endsWith('.js') && !n.startsWith('layout.worker-') && n !== elkFile)) {
+      expect(readFileSync(`${DIST}assets/${f}`, 'utf8'), f).not.toContain(elkFile);
+    }
   });
 
   test('skipWaiting is gated: the worker waits for the "reload" chip to message it', () => {

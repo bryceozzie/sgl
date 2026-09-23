@@ -27,13 +27,14 @@ async function diagram(page: Page) {
 }
 
 /** Opens the Share dialog and returns its link, whose `e=`/`t=` must be
- *  exactly `sgl.grid` and `themeId` — the effective theme the sharer sees. */
+ *  exactly `sgl.elk` (the default engine, Stage K) and `themeId` — the
+ *  effective engine and theme the sharer sees. */
 async function shareLinkFor(page: Page, themeId: string): Promise<string> {
   await page.locator('.share-open').click();
   const link = await page.locator('.share-link').inputValue();
   expect(link).toMatch(/#s=[A-Za-z0-9_-]+&e=[^&]+&t=[^&]+$/);
   const params = new URLSearchParams(new URL(link).hash.slice(1));
-  expect(params.get('e')).toBe('sgl.grid');
+  expect(params.get('e')).toBe('sgl.elk');
   expect(params.get('t')).toBe(themeId);
   return link;
 }

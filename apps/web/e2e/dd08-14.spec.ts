@@ -5,21 +5,24 @@ import {
   errorDecorations,
   EXAMPLE_NODE_COUNT,
   expectedErrorDecorations,
+  layoutGeometryHash,
   nodeGeometry,
+  renderedIdentity,
   renderedSvg,
   setSource,
   SMALL_SOURCE,
   sourceDiagnostics,
+  switchEngine,
   visibleNodeCount,
   waitForExactNodeCount,
   waitForNodeCount,
   waitForTheme,
 } from './helpers.js';
 
-/** DD-08 §14's Playwright list, tests 1, 2, 3 (corrected by I2) and 8.
- *  Tests 5–7 (files, share, offline) are `files.spec.ts`, `share.spec.ts`
- *  and `offline.spec.ts` (Stage J); test 4 (engine switch) waits for `elk`
- *  (Stage K). */
+/** DD-08 §14's Playwright list, tests 1, 2, 3 (corrected by I2), 4 (Stage K)
+ *  and 8. Tests 5–7 (files, share, offline) are `files.spec.ts`,
+ *  `share.spec.ts` and `offline.spec.ts` (Stage J; the offline engine switch
+ *  is Stage K's). */
 test.describe('DD-08 §14', () => {
   test('1. typing updates the canvas and does not reset the viewport', async ({ page }) => {
     await page.goto('/');
@@ -90,6 +93,24 @@ test.describe('DD-08 §14', () => {
     await waitForTheme(page, 'neutral-dark'); // the swap has landed; not a sleep.
 
     expect(await frames()).toEqual(framesBefore);
+  });
+
+  test('4. switching engine changes geometry and keeps every id (Stage K)', async ({ page }) => {
+    await page.goto('/');
+    await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
+    await expect(page.locator('.engine-picker select')).toHaveValue('sgl.elk');
+    const elkIdentity = await renderedIdentity(page);
+    const elkGeometry = await layoutGeometryHash(page);
+
+    await switchEngine(page, 'sgl.grid', elkGeometry);
+    const gridGeometry = await layoutGeometryHash(page);
+    expect(await renderedIdentity(page)).toEqual(elkIdentity);
+    expect(gridGeometry).not.toBe(elkGeometry);
+
+    // And back: elk's geometry again, exactly (quantized, deterministic).
+    await switchEngine(page, 'sgl.elk', gridGeometry);
+    expect(await layoutGeometryHash(page)).toBe(elkGeometry);
+    expect(await renderedIdentity(page)).toEqual(elkIdentity);
   });
 
   test('8. font gate: label geometry is identical on a cold load and a warm (reloaded) one', async ({ page }) => {

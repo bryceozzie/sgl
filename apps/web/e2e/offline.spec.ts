@@ -1,13 +1,16 @@
 import { expect, test, type BrowserContext, type Page, type Response } from '@playwright/test';
-import { EXAMPLE_NODE_COUNT, nodeGeometry, openFile, waitForExactNodeCount, waitForNodeCount } from './helpers.js';
+import { EXAMPLE_NODE_COUNT, layoutGeometryHash, nodeGeometry, openFile, switchEngine, waitForExactNodeCount, waitForNodeCount } from './helpers.js';
 import { serveDist, type StaticServer } from './static-server.js';
 
 /**
- * MVP acceptance criterion 5 (06 §3), DD-08 §14 test 7, single-engine half:
- * after the first load, with the network gone, a reload still gives the whole
- * app — shell, editor, fonts, the layout worker and `grid` — from the service
- * worker's precache (DD-08 §12). The engine-switch half waits for `elk`
- * (Stage K).
+ * MVP acceptance criterion 5 (06 §3) and DD-08 §14 test 7: after the first
+ * load, with the network gone, a reload still gives the whole app — shell,
+ * editor, fonts, the layout worker and **both engines** — from the service
+ * worker's precache (DD-08 §12). Stage K (K8): `elk` is the default, so its
+ * lazy chunk loads online at boot; after the offline reload (HTTP cache
+ * emptied first) the elk chunk must come from the service worker, and
+ * rendering under elk, switching to grid and back to elk all work offline,
+ * with no failed request.
  *
  * "The network gone" is `context.setOffline(true)` in Chromium and Firefox.
  * Playwright's WebKit fails an offline navigation itself ("WebKit encountered
@@ -59,7 +62,7 @@ async function clearHttpCache(page: Page, context: BrowserContext, browserName: 
 function assertAllFromServiceWorker(responses: readonly Response[], browserName: string): void {
   const urls = responses.map((r) => new URL(r.url()).pathname);
   expect(urls).toContain('/');
-  for (const kind of [/\/assets\/index-.*\.js$/, /\/assets\/editor-.*\.js$/, /\/assets\/grid-.*\.js$/, /\.css$/, /\.woff2$/, /layout\.worker-.*\.js$/]) {
+  for (const kind of [/\/assets\/index-.*\.js$/, /\/assets\/editor-.*\.js$/, /\/assets\/grid-.*\.js$/, /\/assets\/elk-.*\.js$/, /\.css$/, /\.woff2$/, /layout\.worker-.*\.js$/]) {
     expect(urls.some((u) => kind.test(u)), `a response matching ${String(kind)}`).toBe(true);
   }
   if (browserName !== 'chromium') return;
@@ -73,7 +76,14 @@ async function exerciseOffline(page: Page, online: Record<string, string>): Prom
   // A live render (the pipeline with its worker), not just a stored picture.
   await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
   expect(await nodeGeometry(page)).toEqual(online); // fonts too: same label metrics
-  await expect(page.locator('.engine-picker select')).toHaveValue('sgl.grid');
+  await expect(page.locator('.engine-picker select')).toHaveValue('sgl.elk');
+
+  // Both engines, offline (K8): elk → grid → elk, each a real render.
+  const elkGeometry = await layoutGeometryHash(page);
+  await switchEngine(page, 'sgl.grid', elkGeometry);
+  await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
+  await switchEngine(page, 'sgl.elk', await layoutGeometryHash(page));
+  expect(await layoutGeometryHash(page)).toBe(elkGeometry);
 
   // Editing still lays out.
   await page.locator('.cm-content').click();
@@ -86,7 +96,7 @@ async function exerciseOffline(page: Page, online: Record<string, string>): Prom
   await waitForExactNodeCount(page, 2);
 }
 
-test('criterion 5: reload offline — the app and grid work fully', async ({ page, context, browserName }) => {
+test('criterion 5: reload offline — the app and both engines work fully, switching included', async ({ page, context, browserName }) => {
   const server = browserName === 'webkit' ? await serveDist({ noStore: true }) : null;
   try {
     await page.goto(server === null ? '/' : `${server.origin}/`);
@@ -98,14 +108,19 @@ test('criterion 5: reload offline — the app and grid work fully', async ({ pag
 
     await clearHttpCache(page, context, browserName);
     await goOffline(context, server);
+    // The context, not the page: the elk chunk is fetched by the layout
+    // worker, whose requests Playwright reports on the context.
     const responses: Response[] = [];
-    page.on('response', (r) => {
+    const failed: string[] = [];
+    context.on('response', (r) => {
       if (r.url().startsWith('http')) responses.push(r);
     });
+    context.on('requestfailed', (r) => failed.push(`${r.url()} ${r.failure()?.errorText ?? ''}`));
     try {
       await page.reload();
       await exerciseOffline(page, online);
       assertAllFromServiceWorker(responses, browserName);
+      expect(failed).toEqual([]);
     } finally {
       if (server === null) await context.setOffline(false);
     }
