@@ -1,5 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { parse, resolve, toJson } from '@sgl/core';
 import {
   corpusDoc,
   edgePaths,
@@ -23,6 +24,27 @@ import {
  * "Identical" is checked on both halves: the text the editor holds, and the
  * diagram it renders (node geometry, edge routes, viewBox).
  */
+
+/** The canonical JSON the edited `json-form.sgl.json` must save as — checked
+ *  in and reviewed against DD-02 §9's serialisation rules (`@sgl` first, root
+ *  config, `@classes`, children in declaration order, `@edges` last with
+ *  `ordinal`; labels always `@label`, `@type` always an array; two-space
+ *  indent, trailing newline), rather than recomputed by `@sgl/core`'s
+ *  `toJson`, the function under test. */
+const EXPECTED_JSON = readFileSync(fileURLToPath(new URL('./fixtures/json-form-edited.expected.sgl.json', import.meta.url)), 'utf8');
+
+/** A valid document of exactly `bytes` bytes: one node, padded with comment
+ *  lines (short ones, so the editor is not handed one 2 MB line). */
+function documentOfSize(bytes: number): string {
+  const head = 'boundary: "Boundary"\n';
+  const line = `// ${'x'.repeat(996)}\n`; // 1 000 bytes
+  let text = head;
+  while (text.length + line.length <= bytes) text += line;
+  const rest = bytes - text.length;
+  text += rest < 3 ? '\n'.repeat(rest) : `//${'x'.repeat(rest - 3)}\n`;
+  expect(Buffer.byteLength(text, 'utf8')).toBe(bytes);
+  return text;
+}
 
 async function diagram(page: import('@playwright/test').Page) {
   return { nodes: await nodeGeometry(page), edges: await edgePaths(page), viewBox: await viewBox(page) };
@@ -83,7 +105,7 @@ test.describe('MVP acceptance criterion 4 / DD-08 §14 test 5', () => {
 
     const saved = await saveAs(page, 'json');
     expect(saved.name).toBe('JSON subset.sgl.json'); // @title, and the remembered extension.
-    expect(saved.text).toBe(toJson(resolve(parse(edited).ast).model)); // `toJson(model)`.
+    expect(saved.text).toBe(EXPECTED_JSON); // canonical JSON (DD-02 §9), byte for byte.
 
     await setSource(page, 'placeholder: "P"\n');
     await waitForDocument(page, 'placeholder: "P"\n');
@@ -159,6 +181,21 @@ test.describe('DD-08 §7 Open', () => {
     await openFile(page, 'huge.sgl', Buffer.alloc(2 * 1024 * 1024 + 1, 0x20));
     await expect(toastMessages(page)).toContainText(['over 2 MB']);
     expect(await diagram(page)).toEqual(before);
+  });
+
+  test('the 2 MB boundary: exactly 2 MB opens, 2 MB + 1 byte is refused', async ({ page }) => {
+    const twoMb = 2 * 1024 * 1024;
+    const over = documentOfSize(twoMb + 1);
+    const before = await diagram(page);
+    await openFile(page, 'over.sgl', over);
+    await expect(toastMessages(page)).toContainText(['over 2 MB']);
+    expect(await diagram(page)).toEqual(before);
+
+    await page.locator('.toast-dismiss').click();
+    await openFile(page, 'exact.sgl', documentOfSize(twoMb));
+    await waitForExactNodeCount(page, 1);
+    await expect(page.locator('.cm-content > .cm-line').first()).toHaveText('boundary: "Boundary"');
+    await expect(toastMessages(page)).toHaveCount(0);
   });
 
   test('SVG saves lastGood.svg, exactly what the canvas shows', async ({ page }) => {

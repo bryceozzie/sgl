@@ -5,7 +5,7 @@ import { CanvasMeasurer } from '@sgl/measure';
 import { Canvas } from './canvas/Canvas.js';
 import { Editor } from './editor/Editor.js';
 import { replaceDocument } from './editor/extensions.js';
-import { REGISTERED_ENGINES, type AppBoot } from './io/app-boot.js';
+import { REGISTERED_ENGINES, watchShareLinks, type AppBoot } from './io/app-boot.js';
 import { consumeLaunchQueue } from './io/launch-queue.js';
 import { registerServiceWorker, type ApplyUpdate } from './io/pwa.js';
 import { DiagnosticsPanel } from './panels/DiagnosticsPanel.js';
@@ -114,11 +114,17 @@ export function App({ boot }: { readonly boot: AppBoot }) {
     };
     window.addEventListener('pagehide', flush);
     document.addEventListener('visibilitychange', onVisibility);
+    // A share link pasted into this already-open tab (§8, fix round 1).
+    const unwatchShare = watchShareLinks({
+      flush: () => autosave.flush(),
+      onInvalid: () => toasts.push(NOTICE_TOASTS['share-invalid'].message, NOTICE_TOASTS['share-invalid'].kind),
+    });
     registerServiceWorker((apply) => setApplyUpdate(() => apply));
     consumeLaunchQueue(open);
     return () => {
       window.removeEventListener('pagehide', flush);
       document.removeEventListener('visibilitychange', onVisibility);
+      unwatchShare();
     };
   }, []);
 

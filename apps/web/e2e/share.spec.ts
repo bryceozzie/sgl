@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
-import { deflateRawSync } from 'node:zlib';
+import { deflateRawSync, inflateRawSync } from 'node:zlib';
 import { expect, test, type Page } from '@playwright/test';
 import {
   edgePaths,
+  editorText,
   EXAMPLE_NODE_COUNT,
   EXAMPLE_SOURCE,
   nodeGeometry,
@@ -25,11 +26,29 @@ async function diagram(page: Page) {
   return { nodes: await nodeGeometry(page), edges: await edgePaths(page), viewBox: await viewBox(page) };
 }
 
-async function shareLinkFor(page: Page): Promise<string> {
+/** Opens the Share dialog and returns its link, whose `e=`/`t=` must be
+ *  exactly `sgl.grid` and `themeId` — the effective theme the sharer sees. */
+async function shareLinkFor(page: Page, themeId: string): Promise<string> {
   await page.locator('.share-open').click();
   const link = await page.locator('.share-link').inputValue();
-  expect(link).toMatch(/#s=[A-Za-z0-9_-]+&e=sgl\.grid&t=neutral-(light|dark)$/);
+  expect(link).toMatch(/#s=[A-Za-z0-9_-]+&e=[^&]+&t=[^&]+$/);
+  const params = new URLSearchParams(new URL(link).hash.slice(1));
+  expect(params.get('e')).toBe('sgl.grid');
+  expect(params.get('t')).toBe(themeId);
   return link;
+}
+
+/** The source inside a link, decoded independently of the app: Node's own
+ *  base64url and raw inflate (DD-08 §8's format), not `state/share.ts`. */
+function sourceInLink(link: string): string {
+  const s = new URLSearchParams(new URL(link).hash.slice(1)).get('s')!;
+  expect(s).toMatch(/^[A-Za-z0-9_-]+$/); // base64url, unpadded
+  return inflateRawSync(Buffer.from(s, 'base64url')).toString('utf8');
+}
+
+/** A link built by Node's own zlib, not by the app's encoder. */
+function nodeBuiltHash(source: string, extra = ''): string {
+  return `#s=${deflateRawSync(Buffer.from(source, 'utf8')).toString('base64url')}${extra}`;
 }
 
 /** A document the example is not, so arriving at it proves the link opened. */
@@ -45,7 +64,8 @@ test('criterion 6: a share link opens identically in a fresh browser context', a
   await expect.poll(async () => (await storedOpenDocument(page))?.source).toContain('@theme');
   const source = (await storedOpenDocument(page))!.source;
   const sharedDiagram = await diagram(page);
-  const link = await shareLinkFor(page);
+  const link = await shareLinkFor(page, 'neutral-dark');
+  expect(sourceInLink(link)).toBe(source); // the link carries exactly the source, in DD-08 §8's format
 
   const fresh = await browser.newContext();
   try {
@@ -63,6 +83,49 @@ test('criterion 6: a share link opens identically in a fresh browser context', a
   }
 });
 
+test('criterion 6, theme half: with no @theme in the source, the receiver renders the t= theme', async ({ page, browser }) => {
+  await page.goto('/');
+  await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+  // The picker writes @theme into the source (DD-08 §10); replacing the text
+  // afterwards takes it out again while the picker keeps its choice, so the
+  // effective theme is the picker's alone.
+  await page.locator('.theme-picker select').selectOption('neutral-dark');
+  await waitForTheme(page, 'neutral-dark');
+  await setSource(page, SHARED);
+  await waitForExactNodeCount(page, visibleNodeCount(SHARED));
+  await waitForTheme(page, 'neutral-dark');
+  const link = await shareLinkFor(page, 'neutral-dark');
+  expect(sourceInLink(link)).toBe(SHARED);
+  expect(SHARED).not.toContain('@theme');
+
+  const fresh = await browser.newContext(); // its own default theme is neutral-light
+  try {
+    const other = await fresh.newPage();
+    await other.goto(link);
+    await waitForExactNodeCount(other, visibleNodeCount(SHARED));
+    await waitForTheme(other, 'neutral-dark'); // only t= can have said so
+    await expect(other.locator('.theme-picker select')).toHaveValue('neutral-dark');
+    await expect(other.locator('.theme-picker .picker-label')).toHaveText('Theme'); // not "(set by document)"
+    await expect.poll(async () => (await storedOpenDocument(other))?.themeId).toBe('neutral-dark');
+  } finally {
+    await fresh.close();
+  }
+});
+
+test('criterion 6: a link made outside the app (Node zlib) opens with exactly its source', async ({ browser }) => {
+  const fresh = await browser.newContext();
+  try {
+    const page = await fresh.newPage();
+    await page.goto(`/${nodeBuiltHash(SHARED, '&e=sgl.grid&t=neutral-dark')}`);
+    await waitForExactNodeCount(page, visibleNodeCount(SHARED));
+    await waitForTheme(page, 'neutral-dark');
+    expect(await editorText(page)).toBe(SHARED);
+    await expect.poll(async () => (await storedOpenDocument(page))?.source).toBe(SHARED);
+  } finally {
+    await fresh.close();
+  }
+});
+
 test('opening a share link makes a new document and never overwrites the current one', async ({ page, browser }) => {
   // The link, made elsewhere.
   const maker = await browser.newContext();
@@ -73,7 +136,7 @@ test('opening a share link makes a new document and never overwrites the current
     await waitForNodeCount(other, EXAMPLE_NODE_COUNT);
     await setSource(other, SHARED);
     await waitForExactNodeCount(other, visibleNodeCount(SHARED));
-    link = await shareLinkFor(other);
+    link = await shareLinkFor(other, 'neutral-light');
   } finally {
     await maker.close();
   }
@@ -135,6 +198,47 @@ test.describe('DD-08 §14 test 6: invalid links toast and open the last document
     await withLastDocument(page);
     const bomb = deflateRawSync(Buffer.alloc(3 * 1024 * 1024, 0x61)).toString('base64url');
     await expectRefused(page, `#s=${bomb}`);
+  });
+});
+
+test.describe('a share link pasted into an already-open tab (a same-document hash change)', () => {
+  test('imports it as a new document, after saving the current one', async ({ page }) => {
+    await page.goto('/');
+    await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+    await expect.poll(async () => (await readStorage(page)).documents.length).toBe(1);
+    const mine = (await storedOpenDocument(page))!;
+    // An edit still inside autosave's 500 ms when the link arrives.
+    await setSource(page, SMALL_SOURCE);
+    await waitForExactNodeCount(page, visibleNodeCount(SMALL_SOURCE));
+
+    await page.evaluate((hash) => {
+      window.location.hash = hash;
+    }, nodeBuiltHash(SHARED, '&e=sgl.grid&t=neutral-dark'));
+
+    await waitForExactNodeCount(page, visibleNodeCount(SHARED));
+    expect(await editorText(page)).toBe(SHARED);
+    await expect(toastMessages(page)).toContainText(['Opened the shared diagram']);
+    expect(new URL(page.url()).hash).toBe('');
+    const after = await readStorage(page);
+    expect(after.documents).toHaveLength(2);
+    expect(after.documents.find((d) => d.id === mine.id)?.source).toBe(SMALL_SOURCE); // flushed first, not lost
+    expect(after.lastOpenDocId).not.toBe(mine.id);
+    expect(after.documents.find((d) => d.id === after.lastOpenDocId)?.source).toBe(SHARED);
+  });
+
+  test('an invalid one toasts and leaves the open document alone', async ({ page }) => {
+    await page.goto('/');
+    await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+    await setSource(page, SMALL_SOURCE);
+    await waitForExactNodeCount(page, visibleNodeCount(SMALL_SOURCE));
+    await page.evaluate(() => {
+      window.location.hash = '#s=this*is*not*base64url';
+    });
+    await expect(toastMessages(page)).toContainText(['This share link is not valid']);
+    expect(new URL(page.url()).hash).toBe('');
+    expect(await editorText(page)).toBe(SMALL_SOURCE);
+    await expect.poll(async () => (await readStorage(page)).documents.length).toBe(1);
+    await expect.poll(async () => (await storedOpenDocument(page))?.source).toBe(SMALL_SOURCE);
   });
 });
 
