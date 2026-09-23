@@ -79,12 +79,15 @@ export function Canvas({ pipeline, onFitReady }: CanvasProps) {
       const wrapper = wrapperRef.current;
       if (wrapper === null) return;
       wrapper.innerHTML = lastGood === null ? '' : lastGood.svg;
-      // Test hook (e2e, DD-08 §14 item 8's decision): a paint-only theme
-      // switch changes `lastGood.styled.paintHash`/`.themeId` without
-      // necessarily changing the DOM subtree's *size* in any way a
-      // `waitForSelector` could key on — a fixed attribute a test can await
-      // avoids `waitForTimeout`'s race against a slow CI runner.
-      if (lastGood !== null) {
+      // Which render is on screen, stamped from the same `lastGood` just
+      // swapped in: a theme switch changes neither the node count nor any
+      // geometry a test could wait on, so the e2e suite awaits `data-theme`
+      // reaching the new theme instead of sleeping (Stage I fix round 1,
+      // item 8). Not part of the exported SVG — it sits on the wrapper `<g>`.
+      if (lastGood === null) {
+        wrapper.removeAttribute('data-paint-hash');
+        wrapper.removeAttribute('data-theme');
+      } else {
         wrapper.setAttribute('data-paint-hash', lastGood.styled.paintHash);
         wrapper.setAttribute('data-theme', lastGood.styled.themeId);
       }

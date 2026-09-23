@@ -1,5 +1,16 @@
 import { expect, test } from '@playwright/test';
-import { assertErrorSpans, diagnosticRows, nodeGeometry, renderedSvg, sourceDiagnostics, waitForNodeCount, waitForTheme } from './helpers.js';
+import {
+  diagnosticCodes,
+  editorText,
+  errorDecorations,
+  EXAMPLE_SOURCE,
+  expectedErrorDecorations,
+  nodeGeometry,
+  renderedSvg,
+  sourceDiagnostics,
+  waitForNodeCount,
+  waitForTheme,
+} from './helpers.js';
 
 /** DD-08 §14's Playwright list, tests 1, 2, 3 (corrected by I2) and 8 — the
  *  rest (4: engine switch, 5–7: files/share/offline) wait for Stage J/K. */
@@ -24,11 +35,12 @@ test.describe('DD-08 §14', () => {
     await waitForNodeCount(page, 2);
     const svgBefore = await renderedSvg(page).innerHTML();
 
-    const initialSource = 'checkout: {\n  web: "Web App"\n  api: "API"\n  web -> api\n}\n';
-    const finalSource = initialSource.slice(0, -2); // the trailing "}\n" removed.
-    const expected = sourceDiagnostics(finalSource);
-    expect(expected.length).toBeGreaterThan(0);
-    expect(expected[0]!.severity).toBe('error');
+    const finalSource = EXAMPLE_SOURCE.slice(0, -2); // the trailing "}\n" removed.
+    // What "the right offset" means here, pinned independently of the
+    // parser: one zero-width "expected `}`" marker at the very end of the
+    // document, and no ranged squiggle.
+    const expected = expectedErrorDecorations(finalSource);
+    expect(expected).toEqual({ ranges: [], points: [finalSource.length] });
 
     const content = page.locator('.cm-content');
     await content.click();
@@ -40,10 +52,10 @@ test.describe('DD-08 §14', () => {
     await page.keyboard.press('Backspace');
     await page.keyboard.press('Backspace');
 
-    await expect(page.locator('.cm-lint-marker-error').first()).toBeVisible({ timeout: 5000 });
-    const rows = await diagnosticRows(page);
-    expect(rows.map((r) => r.code)).toEqual(expected.map((d) => d.code));
-    await assertErrorSpans(page, finalSource, expected);
+    await expect.poll(() => diagnosticCodes(page)).toEqual(['SGL1001']);
+    expect(sourceDiagnostics(finalSource).map((d) => d.code)).toEqual(['SGL1001']);
+    expect(await editorText(page)).toBe(finalSource);
+    await expect.poll(() => errorDecorations(page)).toEqual(expected);
 
     expect(await renderedSvg(page).innerHTML()).toBe(svgBefore);
   });
@@ -51,25 +63,21 @@ test.describe('DD-08 §14', () => {
   test("3 (corrected by I2): theme switch leaves every node's frame geometry untouched", async ({ page }) => {
     await page.goto('/');
     await waitForNodeCount(page, 2);
+    await waitForTheme(page, 'neutral-light');
 
-    const framesBefore = await renderedSvg(page).evaluate((svg) =>
-      [...svg.querySelectorAll('g.L-nodes > g.n, g.L-containers > g.c')].map((g) => {
-        const r = (g as SVGGElement).getBBox();
-        return { id: g.getAttribute('id'), x: r.x, y: r.y, w: r.width, h: r.height };
-      }),
-    );
+    const frames = () =>
+      renderedSvg(page).evaluate((svg) =>
+        [...svg.querySelectorAll('g.L-nodes > g.n, g.L-containers > g.c')].map((g) => {
+          const r = (g as SVGGElement).getBBox();
+          return { id: g.getAttribute('id'), x: r.x, y: r.y, w: r.width, h: r.height };
+        }),
+      );
+    const framesBefore = await frames();
 
     await page.locator('.theme-picker select').selectOption('neutral-dark');
-    await waitForTheme(page, 'neutral-dark');
+    await waitForTheme(page, 'neutral-dark'); // the swap has landed; not a sleep.
 
-    const framesAfter = await renderedSvg(page).evaluate((svg) =>
-      [...svg.querySelectorAll('g.L-nodes > g.n, g.L-containers > g.c')].map((g) => {
-        const r = (g as SVGGElement).getBBox();
-        return { id: g.getAttribute('id'), x: r.x, y: r.y, w: r.width, h: r.height };
-      }),
-    );
-
-    expect(framesAfter).toEqual(framesBefore);
+    expect(await frames()).toEqual(framesBefore);
   });
 
   test('8. font gate: label geometry is identical on a cold load and a warm (reloaded) one', async ({ page }) => {
