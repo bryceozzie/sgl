@@ -718,6 +718,26 @@ pseudocode's list omits; and the paint-only skip condition's "engine/options unc
 tracked in a small piece of state alongside `lastGood`, since `lastGood`'s own documented shape
 has nowhere to carry an engine id or an options bag.
 
+**Bug fix, `fix/arrowhead-gap`, merged to `main` at `b16ad27`.** A user-reported
+rendering bug, not a stage: every directed edge's arrowhead stopped `arrowSize` short of the node
+it pointed at. Root cause was a double application, not a missing one — `fallbacks.ts`'s
+`applyArrowReserve` (DD-06 §4.4) correctly shortens the path by `arrowSize` so the marker's *tip*
+lands on the boundary, but `render-svg/src/markers.ts`'s `markerElement` anchored the marker's
+`refX` at the tip itself (`start ? 0 : w`), which put the tip at the already-shortened path end
+instead of `arrowSize` beyond it. Fixed by anchoring `refX` at the shape's *base* instead
+(`start ? w : 0` for `triangle`/`open`/`diamond`, whose point falls exactly at the marker box's far
+edge; `circle` gets its own offset, since it is capped to `min(w, h) / 2` to fit inside
+`markerHeight` and so falls short of that far edge by `(w - h) / 2`) — DD-06 §4.4 itself needed no
+change. DD-07's markers paragraph now states the anchoring rule. Every corpus golden with a
+directed edge changed, by exactly its marker's `refX` value and nothing else (confirmed by a
+word-diff across all 28 changed files). Added the seam test the original bug slipped through:
+`pipeline.test.ts` now reads a rendered edge's own path and marker geometry back out of the SVG
+string (not the `EdgeLayout` that produced them) for every `forward`/`both` edge with a
+box-anchored endpoint across `CLEAN_DOCS`, and asserts the reconstructed tip lands on the target
+node's `LayoutResult` frame boundary within 0.05 px — confirmed failing (short by `arrowSize` on
+every checked edge) against the pre-fix `refX`, passing after. `markers.test.ts` gained a matching
+direct unit assertion pinning the anchor per arrowhead kind.
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
