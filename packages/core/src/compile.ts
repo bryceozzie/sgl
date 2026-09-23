@@ -37,7 +37,7 @@ import type {
 import { LANGUAGE_SHAPES } from './config-registry.js';
 import { fnv1a64 } from './hash.js';
 import { asEdgeId, asLabelId, asNodeId, asPortId, DRAWABLE_SHAPES, nodeIdFromPath, type NodeId, type ShapeId } from './ids.js';
-import type { ClassModel, ConfigBag, ConfigValue, ContainerModel, DocumentModel, EdgeModel } from './model.js';
+import type { ClassModel, ConfigBag, ConfigValue, ContainerModel, DocumentModel, EdgeModel, SpanTable } from './model.js';
 import { NO_SPAN, type SourceSpan } from './span.js';
 
 export interface CompileResult {
@@ -96,6 +96,24 @@ function linearizeClasses(typeNames: readonly string[], classes: Readonly<Record
 // Shape and ports (DD-03 §4)
 // ---------------------------------------------------------------------------
 
+/** F2 (execution plan §2.1): a value that came from a class — not the node's own
+ *  inline `@`-key — carries a `related` span pointing at that class's
+ *  declaration (`model.spans.get('c:<name>')`, populated by `resolve()`'s
+ *  `buildClasses`), so three nodes extending one bad class produce three
+ *  diagnostics that all point back at the one place to fix, instead of three
+ *  that point nowhere useful. `undefined` (an inline value, or a class whose
+ *  span was somehow missing — never in practice, defensive only) omits
+ *  `related` entirely rather than passing an empty array, matching
+ *  `diagnostic()`'s own optional-parameter contract. */
+function classDeclarationRelated(
+  sourceClass: string | undefined,
+  spans: SpanTable,
+): readonly { readonly span: SourceSpan; readonly message: string }[] | undefined {
+  if (sourceClass === undefined) return undefined;
+  const span = spans.get(`c:${sourceClass}`);
+  return span === undefined ? undefined : [{ span, message: `Class '${sourceClass}' declared here.` }];
+}
+
 /** Inline `config.shape` wins; otherwise the first class in reverse linearised
  *  order (highest precedence first) that defines one. A name in neither list
  *  (`SGL3001`, "unknown") or a name the language recognises but this version's
@@ -108,26 +126,38 @@ function resolveShape(
   classes: readonly string[],
   classTable: Readonly<Record<string, ClassModel>>,
   span: SourceSpan,
+  spans: SpanTable,
   diags: Diagnostic[],
 ): ShapeId {
   let raw: string | undefined = typeof config.shape === 'string' ? config.shape : undefined;
+  let sourceClass: string | undefined;
   if (raw === undefined) {
     for (let i = classes.length - 1; i >= 0; i -= 1) {
-      const clsShape = classTable[classes[i] as string]?.config.shape;
+      const clsName = classes[i] as string;
+      const clsShape = classTable[clsName]?.config.shape;
       if (typeof clsShape === 'string') {
         raw = clsShape;
+        sourceClass = clsName;
         break;
       }
     }
   }
   if (raw === undefined) return 'rect';
   if (DRAWABLE_SHAPES.has(raw)) return raw;
+  const related = classDeclarationRelated(sourceClass, spans);
   if (LANGUAGE_SHAPES.has(raw)) {
-    diags.push(diagnostic('SGL3006', span, { name: raw }));
+    diags.push(diagnostic('SGL3006', span, { name: raw }, related));
     return 'rect';
   }
-  diags.push(diagnostic('SGL3001', span, { name: raw }));
+  diags.push(diagnostic('SGL3001', span, { name: raw }, related));
   return 'rect';
+}
+
+/** A port's merged value plus which class (if any — `undefined` means the
+ *  node's own inline `@ports`) last contributed it, for F2's `related` span. */
+interface PortSource {
+  readonly side: ConfigValue;
+  readonly sourceClass: string | undefined;
 }
 
 /** Ports merge across the linearised class chain (low → high precedence, same
@@ -138,13 +168,18 @@ function mergePorts(
   config: ConfigBag,
   classes: readonly string[],
   classTable: Readonly<Record<string, ClassModel>>,
-): ConfigBag | undefined {
-  let merged: Record<string, ConfigValue> | undefined;
+): Record<string, PortSource> | undefined {
+  let merged: Record<string, PortSource> | undefined;
   for (const cls of classes) {
     const clsPorts = classTable[cls]?.config.ports;
-    if (isConfigBag(clsPorts)) merged = { ...merged, ...clsPorts };
+    if (!isConfigBag(clsPorts)) continue;
+    merged = merged ?? {};
+    for (const [id, side] of Object.entries(clsPorts)) merged[id] = { side, sourceClass: cls };
   }
-  if (isConfigBag(config.ports)) merged = { ...merged, ...config.ports };
+  if (isConfigBag(config.ports)) {
+    merged = merged ?? {};
+    for (const [id, side] of Object.entries(config.ports)) merged[id] = { side, sourceClass: undefined };
+  }
   return merged;
 }
 
@@ -154,11 +189,18 @@ const PORT_SIDES: ReadonlySet<string> = new Set(['north', 'south', 'east', 'west
  *  back to `east` — the compiler's job, exactly as it owns `shape` (DD-02 §7's
  *  registry deliberately doesn't validate enum *values*). Covers a non-string
  *  value too, which used to be coerced to `east` in silence. */
-function buildPorts(nodeId: NodeId, ports: ConfigBag | undefined, span: SourceSpan, diags: Diagnostic[]): readonly PortSpec[] {
+function buildPorts(
+  nodeId: NodeId,
+  ports: Record<string, PortSource> | undefined,
+  span: SourceSpan,
+  spans: SpanTable,
+  diags: Diagnostic[],
+): readonly PortSpec[] {
   if (ports === undefined) return [];
-  return Object.entries(ports).map(([id, side]) => {
+  return Object.entries(ports).map(([id, { side, sourceClass }]) => {
     if (typeof side === 'string' && PORT_SIDES.has(side)) return { id: asPortId(id), side: side as PortSpec['side'] };
-    diags.push(diagnostic('SGL3007', span, { node: nodeId, port: id, side: typeof side === 'string' ? side : JSON.stringify(side) }));
+    const related = classDeclarationRelated(sourceClass, spans);
+    diags.push(diagnostic('SGL3007', span, { node: nodeId, port: id, side: typeof side === 'string' ? side : JSON.stringify(side) }, related));
     return { id: asPortId(id), side: 'east' as const };
   });
 }
@@ -191,11 +233,11 @@ function buildNodeMap(model: DocumentModel, diags: Diagnostic[]): NodeMap {
 
     const classes = linearizeClasses(typeNamesOf(container.config), model.classes);
     const span = model.spans.get(`n:${pathKey}`) ?? NO_SPAN;
-    const shape = resolveShape(container.config, classes, model.classes, span, diags);
+    const shape = resolveShape(container.config, classes, model.classes, span, model.spans, diags);
     const hidden = parentHidden || container.config.hidden === true;
     const noLabel = hidden || container.config.label === '';
     const labelId = noLabel ? null : asLabelId(`l:${pathKey}`);
-    const ports = buildPorts(id, mergePorts(container.config, classes, model.classes), span, diags);
+    const ports = buildPorts(id, mergePorts(container.config, classes, model.classes), span, model.spans, diags);
 
     nodes[id] = {
       id,

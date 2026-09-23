@@ -37,6 +37,15 @@ suite, which needs Playwright's browser binaries fetched once per machine (not b
 pnpm exec playwright install chromium firefox
 ```
 
+`pnpm check` also runs `apps/web`'s Playwright e2e suite (DD-08 §14), in Chromium only, against
+a production build (`vite build` + `vite preview`) — the same `chromium` binary above covers it.
+CI additionally runs `pnpm test:e2e:all-browsers` (Firefox + WebKit too, DD-10 §4), which needs
+WebKit fetched once per machine as well:
+
+```bash
+pnpm exec playwright install webkit
+```
+
 | Command | Does |
 |---|---|
 | `pnpm dev` | Vite dev server for `apps/web` |

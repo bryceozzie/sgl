@@ -16,10 +16,17 @@ import { buildLayoutInput, type LayoutInput, type LayoutResult } from '@sgl/layo
 import { labelRunKey, premeasure, type MeasureTable } from '@sgl/measure';
 import { BUILT_IN, DEFAULT_THEME_ID, resolveTheme, styleGraph, type ResolvedTheme, type StyledGraph } from '@sgl/theme';
 import { render, type RenderResult } from '@sgl/render-svg';
+import { boundsChangedSignificantly, type Extent } from '../canvas/viewport.js';
+import { deriveChipState, type ChipState } from './chip.js';
 import { distinctTextStyles } from './measure-styles.js';
+import { documentEngineOverride, documentThemeOverride } from './overrides.js';
+import { makePipelineError, type PipelineError } from './pipeline-error.js';
 import type { Cancel, LabelSizes, LastGood, PipelineDeps, Schedule } from './types.js';
 
 const DEFAULT_DEBOUNCE_MS = 120;
+/** DD-08 §11: the chip shows "laying out…" only after this long in flight, so
+ *  a fast layout never flashes it. */
+const LAYING_OUT_DELAY_MS = 300;
 
 function defaultSchedule(fn: () => void, ms: number): Cancel {
   const id = setTimeout(fn, ms);
@@ -75,6 +82,16 @@ export interface Pipeline {
   readonly styled: ReadonlySignal<StageResult<StyledGraph>>;
   readonly diags: ReadonlySignal<readonly Diagnostic[]>;
 
+  // ---- document overrides (DD-08 §10) ----------------------------------------
+  // `@theme` / `@layout.engine` in the document win over the pickers; `undefined`
+  // means "no override, the picker's own signal above applies."
+  readonly documentThemeId: ReadonlySignal<string | undefined>;
+  readonly documentEngineId: ReadonlySignal<string | undefined>;
+  /** What the pipeline actually runs under — the override if there is one,
+   *  else the picker signal. */
+  readonly effectiveThemeId: ReadonlySignal<string>;
+  readonly effectiveEngineId: ReadonlySignal<string>;
+
   // ---- async stage state ----------------------------------------------------
   readonly table: Signal<MeasureTable>;
   readonly layout: Signal<LayoutResult | null>;
@@ -84,6 +101,16 @@ export interface Pipeline {
   // ---- what the canvas shows -------------------------------------------------
   readonly svg: ReadonlySignal<RenderResult | null>;
   readonly lastGood: Signal<LastGood | null>;
+
+  // ---- DD-08 §11 status chip, §13 error boundary -----------------------------
+  /** Caught at the effect boundary (§13); `null` when nothing has thrown. */
+  readonly pipelineError: Signal<PipelineError | null>;
+  /** DD-08 §6: offered when `lastGood.layout.bounds` changes by more than 40%
+   *  since the last fit. The canvas clears it by calling `fitDone()`. */
+  readonly chip: ReadonlySignal<ChipState>;
+  /** Called by the canvas once it has fit the viewport (on open, or on the
+   *  toolbar button), clearing the chip's "Fit" offer. */
+  fitDone(): void;
 
   dispose(): void;
 }
@@ -110,19 +137,54 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
 
   const parsed = computed<StageResult<SglDocument>>(() => buildAst(doc.value.tree, doc.value.source));
   const model = computed<ResolveResult>(() => resolve(parsed.value.value));
+
+  // DD-08 §10: "@layout.engine / @theme in the document override the pickers."
+  const documentThemeId = computed<string | undefined>(() => documentThemeOverride(model.value.model));
+  const documentEngineId = computed<string | undefined>(() => documentEngineOverride(model.value.model));
+  const effectiveThemeId = computed<string>(() => documentThemeId.value ?? themeId.value);
+  const effectiveEngineId = computed<string>(() => documentEngineId.value ?? engineId.value);
+
   const graph = computed<CompileResult>(() => compile(model.value.model));
-  const theme = computed<StageResult<ResolvedTheme>>(() => resolveTheme(BUILT_IN[themeId.value] ?? BUILT_IN[DEFAULT_THEME_ID]!, (id) => BUILT_IN[id]));
+  const theme = computed<StageResult<ResolvedTheme>>(() =>
+    resolveTheme(BUILT_IN[effectiveThemeId.value] ?? BUILT_IN[DEFAULT_THEME_ID]!, (id) => BUILT_IN[id]),
+  );
   const styled = computed<StageResult<StyledGraph>>(() => styleGraph(graph.value.graph, theme.value.value, model.value.model.classes));
 
   const table = signal<MeasureTable>({});
   const layout = signal<LayoutResult | null>(null);
   const layoutDiags = signal<readonly Diagnostic[]>([]);
   const inFlight = signal(false);
+  const pipelineError = signal<PipelineError | null>(null);
 
-  const svg = computed<RenderResult | null>(() => {
+  // §13's error boundary: `render()` is the one synchronous call in this
+  // chain whose contract does not (yet) promise "never throws on bad input"
+  // the way parse/resolve/compile/resolveTheme/styleGraph do (§1) — so it is
+  // the one this stage guards directly. Kept as a pure `{ result, error }`
+  // pair rather than writing `pipelineError` from inside the computed itself
+  // (a computed's own callback should stay a pure function of its
+  // dependencies); a dedicated effect below turns `error` into the signal.
+  interface SvgOutcome {
+    readonly result: RenderResult | null;
+    readonly error: unknown;
+  }
+  const svgOutcome = computed<SvgOutcome>(() => {
     const layoutValue = layout.value;
-    if (layoutValue === null) return null;
-    return render(styled.value.value, layoutValue, theme.value.value);
+    if (layoutValue === null) return { result: null, error: undefined };
+    try {
+      return { result: render(styled.value.value, layoutValue, theme.value.value), error: undefined };
+    } catch (err) {
+      return { result: null, error: err };
+    }
+  });
+  const svg = computed<RenderResult | null>(() => svgOutcome.value.result);
+
+  const disposeRenderErrorEffect = effect(() => {
+    const { error } = svgOutcome.value;
+    if (error !== undefined) {
+      pipelineError.value = makePipelineError(error, doc.peek().source);
+    } else if (pipelineError.peek() !== null) {
+      pipelineError.value = null; // recovered — a later render succeeded.
+    }
   });
 
   // DD-08 §3 names parsed/model/graph/layoutDiags; theme's and styled's own
@@ -153,13 +215,19 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   let measureGeneration = 0;
   const disposeMeasureEffect = effect(() => {
     const styledSnapshot = styled.value.value;
-    void themeId.value; // explicit dependency per DD-08 §3, alongside geometryHash below
+    void effectiveThemeId.value; // explicit dependency per DD-08 §3, alongside geometryHash below
     void styledSnapshot.geometryHash;
     const generation = (measureGeneration += 1);
+    const sourceSnapshot = doc.peek().source;
     void (async () => {
-      await deps.measurer.ready(distinctTextStyles(styledSnapshot));
-      if (generation !== measureGeneration) return; // superseded by a newer edit
-      table.value = premeasure(styledSnapshot, deps.measurer);
+      try {
+        await deps.measurer.ready(distinctTextStyles(styledSnapshot));
+        if (generation !== measureGeneration) return; // superseded by a newer edit
+        table.value = premeasure(styledSnapshot, deps.measurer);
+      } catch (err) {
+        if (generation !== measureGeneration) return;
+        pipelineError.value = makePipelineError(err, sourceSnapshot); // §13 effect boundary
+      }
     })();
   });
 
@@ -193,34 +261,47 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
 
     const labelSizes = labelSizesOf(styledSnapshot, tableSnapshot);
     const input: LayoutInput = buildLayoutInput(styledSnapshot, labelSizes);
+    const sourceSnapshot = doc.peek().source;
 
     inFlight.value = true;
-    void deps.host
-      .run(engine, input, options, deps.metrics, tableSnapshot, controller.signal)
-      .then((result) => {
-        if (generation !== layoutGeneration) return; // superseded; the new request owns layoutDiags now
-        layoutDiags.value = result.diagnostics;
-        if (result.value !== null) {
-          layout.value = result.value;
-          lastRequest = { geometryHash, engineId: engine, optionsKey: key };
-        }
-        // else: keep layout.value as is (FR-E4) — layoutDiags already carries
-        // SGL4001/SGL4002/SGL4011.
-      })
-      .catch((err: unknown) => {
-        if (isAbortError(err)) return; // a newer request superseded us.
-        throw err; // a violated invariant, not a document problem (§1).
-      })
-      .finally(() => {
-        if (generation === layoutGeneration) inFlight.value = false;
-        if (currentAbort === controller) currentAbort = null;
-      });
+    const settle = (): void => {
+      if (generation === layoutGeneration) inFlight.value = false;
+      if (currentAbort === controller) currentAbort = null;
+    };
+    try {
+      void deps.host
+        .run(engine, input, options, deps.metrics, tableSnapshot, controller.signal)
+        .then((result) => {
+          if (generation !== layoutGeneration) return; // superseded; the new request owns layoutDiags now
+          layoutDiags.value = result.diagnostics;
+          if (result.value !== null) {
+            layout.value = result.value;
+            lastRequest = { geometryHash, engineId: engine, optionsKey: key };
+          }
+          // else: keep layout.value as is (FR-E4) — layoutDiags already carries
+          // SGL4001/SGL4002/SGL4011.
+        })
+        .catch((err: unknown) => {
+          if (isAbortError(err)) return; // a newer request superseded us.
+          // §13's effect boundary: `LayoutHost.run()`'s contract (DD-06 §3) says
+          // it only ever rejects with `AbortError` — a different rejection is a
+          // violated invariant, caught here rather than left as an unhandled
+          // promise rejection.
+          if (generation === layoutGeneration) pipelineError.value = makePipelineError(err, sourceSnapshot);
+        })
+        .finally(settle);
+    } catch (err) {
+      // A host whose `run()` throws synchronously instead of returning a
+      // rejected promise would otherwise never reach `.catch` above.
+      pipelineError.value = makePipelineError(err, sourceSnapshot);
+      settle();
+    }
   }
 
   const disposeLayoutEffect = effect(() => {
     const styledSnapshot = styled.value.value;
     const tableSnapshot = table.value;
-    const engine = engineId.value;
+    const engine = effectiveEngineId.value;
     const options = engineOptions.value;
 
     if (debounceCancel !== null) {
@@ -247,6 +328,53 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     lastGood.value = { styled: styled.value.value, layout: layoutValue, svg: svgResult.svg, styleBlock: svgResult.styleBlock };
   });
 
+  // -------------------------------------------------------------------------
+  // DD-08 §11: "laying out…" only after 300 ms in flight, so a fast layout
+  // never flashes it. Uses the same injected `schedule` the debounce does.
+  // -------------------------------------------------------------------------
+  let layingOutTimer: Cancel | null = null;
+  const layingOutVisible = signal(false);
+  const disposeLayingOutEffect = effect(() => {
+    if (inFlight.value) {
+      if (layingOutTimer === null) {
+        layingOutTimer = schedule(() => {
+          layingOutTimer = null;
+          layingOutVisible.value = true;
+        }, LAYING_OUT_DELAY_MS);
+      }
+    } else {
+      if (layingOutTimer !== null) {
+        layingOutTimer();
+        layingOutTimer = null;
+      }
+      layingOutVisible.value = false;
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // DD-08 §6: offer "Fit" when `bounds` changes by more than 40% since the
+  // last fit (on open, or the toolbar button — `fitDone()` records the
+  // baseline either way; the canvas owns *when* a fit actually happens, this
+  // only tracks *whether one is due*).
+  // -------------------------------------------------------------------------
+  let lastFitBounds: Extent | null = null;
+  const fitOffered = signal(false);
+  const disposeFitOfferEffect = effect(() => {
+    const good = lastGood.value;
+    if (good === null) return;
+    const bounds: Extent = { w: good.layout.bounds.w, h: good.layout.bounds.h };
+    if (boundsChangedSignificantly(lastFitBounds, bounds)) fitOffered.value = true;
+  });
+
+  const chip = computed<ChipState>(() =>
+    deriveChipState({
+      crashed: pipelineError.value !== null,
+      layingOutVisible: layingOutVisible.value,
+      diagnostics: diags.value,
+      offerFit: fitOffered.value,
+    }),
+  );
+
   return {
     engineId,
     engineOptions,
@@ -262,16 +390,31 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     theme,
     styled,
     diags,
+    documentThemeId,
+    documentEngineId,
+    effectiveThemeId,
+    effectiveEngineId,
     table,
     layout,
     layoutDiags,
     inFlight,
     svg,
     lastGood,
+    pipelineError,
+    chip,
+    fitDone() {
+      const good = lastGood.peek();
+      lastFitBounds = good === null ? null : { w: good.layout.bounds.w, h: good.layout.bounds.h };
+      fitOffered.value = false;
+    },
     dispose() {
       disposeMeasureEffect();
       disposeLayoutEffect();
       disposeLastGoodEffect();
+      disposeRenderErrorEffect();
+      disposeLayingOutEffect();
+      disposeFitOfferEffect();
+      if (layingOutTimer !== null) layingOutTimer();
       if (debounceCancel !== null) debounceCancel();
       if (currentAbort !== null) currentAbort.abort();
     },

@@ -37,4 +37,5 @@ export const CLEAN_DOCS: readonly string[] = [
   'unicode.sgl',
   'hidden.sgl',
   'a11y-links.sgl',
+  'forty-three-level.sgl',
 ];

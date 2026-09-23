@@ -1,0 +1,39 @@
+/*
+ * DD-08 §5: Inter (Regular 400, Medium 500, SemiBold 600) bundled as WOFF2,
+ * `font-display: block` — block, not swap, so the first measurement
+ * (`CanvasMeasurer`) is never against a fallback face. `measurer.ready()`
+ * (`apps/web/src/state/pipeline.ts`'s measure effect) is awaited before the
+ * first pre-measure, which is what makes "block" the right choice here: a
+ * blocked paint is at worst invisible text for a beat, never a wrongly-sized
+ * label baked into a layout result.
+ *
+ * `@fontsource/inter`'s own `400.css`/`500.css`/`600.css` ship every Unicode
+ * subset (cyrillic, greek, vietnamese, …) at `font-display: swap`, so they are
+ * not imported directly — this file declares the three faces itself, Latin
+ * subset only (the only one the language and MVP examples need), pointing at
+ * the same WOFF2 files the installed package already ships.
+ */
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('../node_modules/@fontsource/inter/files/inter-latin-400-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: block;
+  src: url('../node_modules/@fontsource/inter/files/inter-latin-500-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: block;
+  src: url('../node_modules/@fontsource/inter/files/inter-latin-600-normal.woff2') format('woff2');
+}

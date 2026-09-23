@@ -1,0 +1,83 @@
+// MVP acceptance criterion 1 (06 §3): "a 40-node, three-level document renders
+// under both engines." Hand-written, not generated (unlike n50/n500/n2000,
+// which exist for scale/timing, not for this criterion's exact shape) — depth
+// and count are the point, so it is committed with its own goldens like any
+// other corpus fixture. 40 nodes total: 2 top-level containers, 4 second-level
+// containers, 34 leaves.
+@title: "Forty, three levels"
+
+frontend: {
+  @label: "Frontend"
+
+  web: {
+    @label: "Web"
+    home: {}
+    search: {}
+    cart: {}
+    checkout: {}
+    profile: {}
+    orders: {}
+    support: {}
+    admin: {}
+    reports: {}
+  }
+
+  mobile: {
+    @label: "Mobile"
+    ios: {}
+    android: {}
+    push: {}
+    sync: {}
+    cache: {}
+    auth: {}
+    onboarding: {}
+    settings: {}
+  }
+}
+
+backend: {
+  @label: "Backend"
+
+  api: {
+    @label: "API"
+    gateway: {}
+    users: {}
+    orders: {}
+    payments: {}
+    inventory: {}
+    shipping: {}
+    notifications: {}
+    search: {}
+    recommendations: {}
+  }
+
+  data: {
+    @label: "Data"
+    primary: {}
+    replica: {}
+    warehouse: {}
+    cache: {}
+    queue: {}
+    blob: {}
+    search: {}
+    backup: {}
+  }
+}
+
+// Root-level edges need the full path from root (DD-02 §5) — these are three
+// segments deep (container.container.leaf), same shape as nesting-3.sgl's
+// `platform.services.worker -> /external.cdn`.
+frontend.web.home -> frontend.web.search
+frontend.web.search -> frontend.web.cart
+frontend.web.cart -> frontend.web.checkout
+frontend.web.checkout -> backend.api.orders
+frontend.web.checkout -> backend.api.payments
+frontend.mobile.ios -> backend.api.gateway
+frontend.mobile.android -> backend.api.gateway
+backend.api.gateway -> backend.api.users
+backend.api.orders -> backend.data.primary
+backend.api.payments -> backend.data.primary
+backend.data.primary -> backend.data.replica
+backend.api.search -> backend.data.search
+backend.api.notifications -> backend.data.queue
+frontend.mobile.push -> backend.api.notifications

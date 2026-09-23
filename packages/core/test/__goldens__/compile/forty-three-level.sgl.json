@@ -1,0 +1,1734 @@
+{
+  "nodes": {
+    "frontend": {
+      "id": "frontend",
+      "path": [
+        "frontend"
+      ],
+      "parent": null,
+      "children": [
+        "frontend.web",
+        "frontend.mobile"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:frontend",
+      "ports": [],
+      "config": {
+        "label": "Frontend"
+      },
+      "hidden": false,
+      "span": {
+        "from": 449,
+        "to": 805
+      }
+    },
+    "frontend.web": {
+      "id": "frontend.web",
+      "path": [
+        "frontend",
+        "web"
+      ],
+      "parent": "frontend",
+      "children": [
+        "frontend.web.home",
+        "frontend.web.search",
+        "frontend.web.cart",
+        "frontend.web.checkout",
+        "frontend.web.profile",
+        "frontend.web.orders",
+        "frontend.web.support",
+        "frontend.web.admin",
+        "frontend.web.reports"
+      ],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:frontend.web",
+      "ports": [],
+      "config": {
+        "label": "Web"
+      },
+      "hidden": false,
+      "span": {
+        "from": 485,
+        "to": 648
+      }
+    },
+    "frontend.web.home": {
+      "id": "frontend.web.home",
+      "path": [
+        "frontend",
+        "web",
+        "home"
+      ],
+      "parent": "frontend.web",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:frontend.web.home",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 514,
+        "to": 522
+      }
+    },
+    "frontend.web.search": {
+      "id": "frontend.web.search",
+      "path": [
+        "frontend",
+        "web",
+        "search"
+      ],
+      "parent": "frontend.web",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:frontend.web.search",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 527,
+        "to": 537
+      }
+    },
+    "frontend.web.cart": {
+      "id": "frontend.web.cart",
+      "path": [
+        "frontend",
+        "web",
+        "cart"
+      ],
+      "parent": "frontend.web",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:frontend.web.cart",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 542,
+        "to": 550
+      }
+    },
+    "frontend.web.checkout": {
+      "id": "frontend.web.checkout",
+      "path": [
+        "frontend",
+        "web",
+        "checkout"
+      ],
+      "parent": "frontend.web",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:frontend.web.checkout",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 555,
+        "to": 567
+      }
+    },
+    "frontend.web.profile": {
+      "id": "frontend.web.profile",
+      "path": [
+        "frontend",
+        "web",
+        "profile"
+      ],
+      "parent": "frontend.web",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:frontend.web.profile",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 572,
+        "to": 583
+      }
+    },
+    "frontend.web.orders": {
+      "id": "frontend.web.orders",
+      "path": [
+        "frontend",
+        "web",
+        "orders"
+      ],
+      "parent": "frontend.web",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:frontend.web.orders",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 588,
+        "to": 598
+      }
+    },
+    "frontend.web.support": {
+      "id": "frontend.web.support",
+      "path": [
+        "frontend",
+        "web",
+        "support"
+      ],
+      "parent": "frontend.web",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:frontend.web.support",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 603,
+        "to": 614
+      }
+    },
+    "frontend.web.admin": {
+      "id": "frontend.web.admin",
+      "path": [
+        "frontend",
+        "web",
+        "admin"
+      ],
+      "parent": "frontend.web",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:frontend.web.admin",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 619,
+        "to": 628
+      }
+    },
+    "frontend.web.reports": {
+      "id": "frontend.web.reports",
+      "path": [
+        "frontend",
+        "web",
+        "reports"
+      ],
+      "parent": "frontend.web",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:frontend.web.reports",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 633,
+        "to": 644
+      }
+    },
+    "frontend.mobile": {
+      "id": "frontend.mobile",
+      "path": [
+        "frontend",
+        "mobile"
+      ],
+      "parent": "frontend",
+      "children": [
+        "frontend.mobile.ios",
+        "frontend.mobile.android",
+        "frontend.mobile.push",
+        "frontend.mobile.sync",
+        "frontend.mobile.cache",
+        "frontend.mobile.auth",
+        "frontend.mobile.onboarding",
+        "frontend.mobile.settings"
+      ],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:frontend.mobile",
+      "ports": [],
+      "config": {
+        "label": "Mobile"
+      },
+      "hidden": false,
+      "span": {
+        "from": 652,
+        "to": 803
+      }
+    },
+    "frontend.mobile.ios": {
+      "id": "frontend.mobile.ios",
+      "path": [
+        "frontend",
+        "mobile",
+        "ios"
+      ],
+      "parent": "frontend.mobile",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:frontend.mobile.ios",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 687,
+        "to": 694
+      }
+    },
+    "frontend.mobile.android": {
+      "id": "frontend.mobile.android",
+      "path": [
+        "frontend",
+        "mobile",
+        "android"
+      ],
+      "parent": "frontend.mobile",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:frontend.mobile.android",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 699,
+        "to": 710
+      }
+    },
+    "frontend.mobile.push": {
+      "id": "frontend.mobile.push",
+      "path": [
+        "frontend",
+        "mobile",
+        "push"
+      ],
+      "parent": "frontend.mobile",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:frontend.mobile.push",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 715,
+        "to": 723
+      }
+    },
+    "frontend.mobile.sync": {
+      "id": "frontend.mobile.sync",
+      "path": [
+        "frontend",
+        "mobile",
+        "sync"
+      ],
+      "parent": "frontend.mobile",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:frontend.mobile.sync",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 728,
+        "to": 736
+      }
+    },
+    "frontend.mobile.cache": {
+      "id": "frontend.mobile.cache",
+      "path": [
+        "frontend",
+        "mobile",
+        "cache"
+      ],
+      "parent": "frontend.mobile",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:frontend.mobile.cache",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 741,
+        "to": 750
+      }
+    },
+    "frontend.mobile.auth": {
+      "id": "frontend.mobile.auth",
+      "path": [
+        "frontend",
+        "mobile",
+        "auth"
+      ],
+      "parent": "frontend.mobile",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:frontend.mobile.auth",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 755,
+        "to": 763
+      }
+    },
+    "frontend.mobile.onboarding": {
+      "id": "frontend.mobile.onboarding",
+      "path": [
+        "frontend",
+        "mobile",
+        "onboarding"
+      ],
+      "parent": "frontend.mobile",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:frontend.mobile.onboarding",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 768,
+        "to": 782
+      }
+    },
+    "frontend.mobile.settings": {
+      "id": "frontend.mobile.settings",
+      "path": [
+        "frontend",
+        "mobile",
+        "settings"
+      ],
+      "parent": "frontend.mobile",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:frontend.mobile.settings",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 787,
+        "to": 799
+      }
+    },
+    "backend": {
+      "id": "backend",
+      "path": [
+        "backend"
+      ],
+      "parent": null,
+      "children": [
+        "backend.api",
+        "backend.data"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:backend",
+      "ports": [],
+      "config": {
+        "label": "Backend"
+      },
+      "hidden": false,
+      "span": {
+        "from": 807,
+        "to": 1184
+      }
+    },
+    "backend.api": {
+      "id": "backend.api",
+      "path": [
+        "backend",
+        "api"
+      ],
+      "parent": "backend",
+      "children": [
+        "backend.api.gateway",
+        "backend.api.users",
+        "backend.api.orders",
+        "backend.api.payments",
+        "backend.api.inventory",
+        "backend.api.shipping",
+        "backend.api.notifications",
+        "backend.api.search",
+        "backend.api.recommendations"
+      ],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:backend.api",
+      "ports": [],
+      "config": {
+        "label": "API"
+      },
+      "hidden": false,
+      "span": {
+        "from": 841,
+        "to": 1027
+      }
+    },
+    "backend.api.gateway": {
+      "id": "backend.api.gateway",
+      "path": [
+        "backend",
+        "api",
+        "gateway"
+      ],
+      "parent": "backend.api",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:backend.api.gateway",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 870,
+        "to": 881
+      }
+    },
+    "backend.api.users": {
+      "id": "backend.api.users",
+      "path": [
+        "backend",
+        "api",
+        "users"
+      ],
+      "parent": "backend.api",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:backend.api.users",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 886,
+        "to": 895
+      }
+    },
+    "backend.api.orders": {
+      "id": "backend.api.orders",
+      "path": [
+        "backend",
+        "api",
+        "orders"
+      ],
+      "parent": "backend.api",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:backend.api.orders",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 900,
+        "to": 910
+      }
+    },
+    "backend.api.payments": {
+      "id": "backend.api.payments",
+      "path": [
+        "backend",
+        "api",
+        "payments"
+      ],
+      "parent": "backend.api",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:backend.api.payments",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 915,
+        "to": 927
+      }
+    },
+    "backend.api.inventory": {
+      "id": "backend.api.inventory",
+      "path": [
+        "backend",
+        "api",
+        "inventory"
+      ],
+      "parent": "backend.api",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:backend.api.inventory",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 932,
+        "to": 945
+      }
+    },
+    "backend.api.shipping": {
+      "id": "backend.api.shipping",
+      "path": [
+        "backend",
+        "api",
+        "shipping"
+      ],
+      "parent": "backend.api",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:backend.api.shipping",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 950,
+        "to": 962
+      }
+    },
+    "backend.api.notifications": {
+      "id": "backend.api.notifications",
+      "path": [
+        "backend",
+        "api",
+        "notifications"
+      ],
+      "parent": "backend.api",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:backend.api.notifications",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 967,
+        "to": 984
+      }
+    },
+    "backend.api.search": {
+      "id": "backend.api.search",
+      "path": [
+        "backend",
+        "api",
+        "search"
+      ],
+      "parent": "backend.api",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:backend.api.search",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 989,
+        "to": 999
+      }
+    },
+    "backend.api.recommendations": {
+      "id": "backend.api.recommendations",
+      "path": [
+        "backend",
+        "api",
+        "recommendations"
+      ],
+      "parent": "backend.api",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:backend.api.recommendations",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1004,
+        "to": 1023
+      }
+    },
+    "backend.data": {
+      "id": "backend.data",
+      "path": [
+        "backend",
+        "data"
+      ],
+      "parent": "backend",
+      "children": [
+        "backend.data.primary",
+        "backend.data.replica",
+        "backend.data.warehouse",
+        "backend.data.cache",
+        "backend.data.queue",
+        "backend.data.blob",
+        "backend.data.search",
+        "backend.data.backup"
+      ],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:backend.data",
+      "ports": [],
+      "config": {
+        "label": "Data"
+      },
+      "hidden": false,
+      "span": {
+        "from": 1031,
+        "to": 1182
+      }
+    },
+    "backend.data.primary": {
+      "id": "backend.data.primary",
+      "path": [
+        "backend",
+        "data",
+        "primary"
+      ],
+      "parent": "backend.data",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:backend.data.primary",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1062,
+        "to": 1073
+      }
+    },
+    "backend.data.replica": {
+      "id": "backend.data.replica",
+      "path": [
+        "backend",
+        "data",
+        "replica"
+      ],
+      "parent": "backend.data",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:backend.data.replica",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1078,
+        "to": 1089
+      }
+    },
+    "backend.data.warehouse": {
+      "id": "backend.data.warehouse",
+      "path": [
+        "backend",
+        "data",
+        "warehouse"
+      ],
+      "parent": "backend.data",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:backend.data.warehouse",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1094,
+        "to": 1107
+      }
+    },
+    "backend.data.cache": {
+      "id": "backend.data.cache",
+      "path": [
+        "backend",
+        "data",
+        "cache"
+      ],
+      "parent": "backend.data",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:backend.data.cache",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1112,
+        "to": 1121
+      }
+    },
+    "backend.data.queue": {
+      "id": "backend.data.queue",
+      "path": [
+        "backend",
+        "data",
+        "queue"
+      ],
+      "parent": "backend.data",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:backend.data.queue",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1126,
+        "to": 1135
+      }
+    },
+    "backend.data.blob": {
+      "id": "backend.data.blob",
+      "path": [
+        "backend",
+        "data",
+        "blob"
+      ],
+      "parent": "backend.data",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:backend.data.blob",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1140,
+        "to": 1148
+      }
+    },
+    "backend.data.search": {
+      "id": "backend.data.search",
+      "path": [
+        "backend",
+        "data",
+        "search"
+      ],
+      "parent": "backend.data",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:backend.data.search",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1153,
+        "to": 1163
+      }
+    },
+    "backend.data.backup": {
+      "id": "backend.data.backup",
+      "path": [
+        "backend",
+        "data",
+        "backup"
+      ],
+      "parent": "backend.data",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:backend.data.backup",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1168,
+        "to": 1178
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-e46eb8dd5238e1e6",
+      "from": {
+        "node": "frontend.web.home"
+      },
+      "to": {
+        "node": "frontend.web.search"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1387,
+        "to": 1427
+      }
+    },
+    {
+      "id": "e-b26e2618c1a88e1b",
+      "from": {
+        "node": "frontend.web.search"
+      },
+      "to": {
+        "node": "frontend.web.cart"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1428,
+        "to": 1468
+      }
+    },
+    {
+      "id": "e-3d5537aaa91d0843",
+      "from": {
+        "node": "frontend.web.cart"
+      },
+      "to": {
+        "node": "frontend.web.checkout"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1469,
+        "to": 1511
+      }
+    },
+    {
+      "id": "e-d1c6966c80d738f6",
+      "from": {
+        "node": "frontend.web.checkout"
+      },
+      "to": {
+        "node": "backend.api.orders"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1512,
+        "to": 1555
+      }
+    },
+    {
+      "id": "e-de6b0e913a941714",
+      "from": {
+        "node": "frontend.web.checkout"
+      },
+      "to": {
+        "node": "backend.api.payments"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1556,
+        "to": 1601
+      }
+    },
+    {
+      "id": "e-df1051e75b27b164",
+      "from": {
+        "node": "frontend.mobile.ios"
+      },
+      "to": {
+        "node": "backend.api.gateway"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1602,
+        "to": 1644
+      }
+    },
+    {
+      "id": "e-7a2bea8d665101a6",
+      "from": {
+        "node": "frontend.mobile.android"
+      },
+      "to": {
+        "node": "backend.api.gateway"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1645,
+        "to": 1691
+      }
+    },
+    {
+      "id": "e-39b661bc8bf640a7",
+      "from": {
+        "node": "backend.api.gateway"
+      },
+      "to": {
+        "node": "backend.api.users"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1692,
+        "to": 1732
+      }
+    },
+    {
+      "id": "e-008a5d6a68b7aa50",
+      "from": {
+        "node": "backend.api.orders"
+      },
+      "to": {
+        "node": "backend.data.primary"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1733,
+        "to": 1775
+      }
+    },
+    {
+      "id": "e-fecd6779f40f2a36",
+      "from": {
+        "node": "backend.api.payments"
+      },
+      "to": {
+        "node": "backend.data.primary"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1776,
+        "to": 1820
+      }
+    },
+    {
+      "id": "e-778d181669820f97",
+      "from": {
+        "node": "backend.data.primary"
+      },
+      "to": {
+        "node": "backend.data.replica"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1821,
+        "to": 1865
+      }
+    },
+    {
+      "id": "e-3ff92aeb077b83cb",
+      "from": {
+        "node": "backend.api.search"
+      },
+      "to": {
+        "node": "backend.data.search"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1866,
+        "to": 1907
+      }
+    },
+    {
+      "id": "e-81f0e053a6ce27ba",
+      "from": {
+        "node": "backend.api.notifications"
+      },
+      "to": {
+        "node": "backend.data.queue"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1908,
+        "to": 1955
+      }
+    },
+    {
+      "id": "e-9fe36a32ada67c29",
+      "from": {
+        "node": "frontend.mobile.push"
+      },
+      "to": {
+        "node": "backend.api.notifications"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1956,
+        "to": 2005
+      }
+    }
+  ],
+  "rootChildren": [
+    "frontend",
+    "backend"
+  ],
+  "order": [
+    "frontend",
+    "frontend.web",
+    "frontend.web.home",
+    "frontend.web.search",
+    "frontend.web.cart",
+    "frontend.web.checkout",
+    "frontend.web.profile",
+    "frontend.web.orders",
+    "frontend.web.support",
+    "frontend.web.admin",
+    "frontend.web.reports",
+    "frontend.mobile",
+    "frontend.mobile.ios",
+    "frontend.mobile.android",
+    "frontend.mobile.push",
+    "frontend.mobile.sync",
+    "frontend.mobile.cache",
+    "frontend.mobile.auth",
+    "frontend.mobile.onboarding",
+    "frontend.mobile.settings",
+    "backend",
+    "backend.api",
+    "backend.api.gateway",
+    "backend.api.users",
+    "backend.api.orders",
+    "backend.api.payments",
+    "backend.api.inventory",
+    "backend.api.shipping",
+    "backend.api.notifications",
+    "backend.api.search",
+    "backend.api.recommendations",
+    "backend.data",
+    "backend.data.primary",
+    "backend.data.replica",
+    "backend.data.warehouse",
+    "backend.data.cache",
+    "backend.data.queue",
+    "backend.data.blob",
+    "backend.data.search",
+    "backend.data.backup"
+  ],
+  "labels": {
+    "l:frontend": {
+      "id": "l:frontend",
+      "owner": {
+        "kind": "node",
+        "id": "frontend"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Frontend"
+        }
+      ]
+    },
+    "l:frontend.web": {
+      "id": "l:frontend.web",
+      "owner": {
+        "kind": "node",
+        "id": "frontend.web"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Web"
+        }
+      ]
+    },
+    "l:frontend.web.home": {
+      "id": "l:frontend.web.home",
+      "owner": {
+        "kind": "node",
+        "id": "frontend.web.home"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "home"
+        }
+      ]
+    },
+    "l:frontend.web.search": {
+      "id": "l:frontend.web.search",
+      "owner": {
+        "kind": "node",
+        "id": "frontend.web.search"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "search"
+        }
+      ]
+    },
+    "l:frontend.web.cart": {
+      "id": "l:frontend.web.cart",
+      "owner": {
+        "kind": "node",
+        "id": "frontend.web.cart"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "cart"
+        }
+      ]
+    },
+    "l:frontend.web.checkout": {
+      "id": "l:frontend.web.checkout",
+      "owner": {
+        "kind": "node",
+        "id": "frontend.web.checkout"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "checkout"
+        }
+      ]
+    },
+    "l:frontend.web.profile": {
+      "id": "l:frontend.web.profile",
+      "owner": {
+        "kind": "node",
+        "id": "frontend.web.profile"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "profile"
+        }
+      ]
+    },
+    "l:frontend.web.orders": {
+      "id": "l:frontend.web.orders",
+      "owner": {
+        "kind": "node",
+        "id": "frontend.web.orders"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "orders"
+        }
+      ]
+    },
+    "l:frontend.web.support": {
+      "id": "l:frontend.web.support",
+      "owner": {
+        "kind": "node",
+        "id": "frontend.web.support"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "support"
+        }
+      ]
+    },
+    "l:frontend.web.admin": {
+      "id": "l:frontend.web.admin",
+      "owner": {
+        "kind": "node",
+        "id": "frontend.web.admin"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "admin"
+        }
+      ]
+    },
+    "l:frontend.web.reports": {
+      "id": "l:frontend.web.reports",
+      "owner": {
+        "kind": "node",
+        "id": "frontend.web.reports"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "reports"
+        }
+      ]
+    },
+    "l:frontend.mobile": {
+      "id": "l:frontend.mobile",
+      "owner": {
+        "kind": "node",
+        "id": "frontend.mobile"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Mobile"
+        }
+      ]
+    },
+    "l:frontend.mobile.ios": {
+      "id": "l:frontend.mobile.ios",
+      "owner": {
+        "kind": "node",
+        "id": "frontend.mobile.ios"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "ios"
+        }
+      ]
+    },
+    "l:frontend.mobile.android": {
+      "id": "l:frontend.mobile.android",
+      "owner": {
+        "kind": "node",
+        "id": "frontend.mobile.android"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "android"
+        }
+      ]
+    },
+    "l:frontend.mobile.push": {
+      "id": "l:frontend.mobile.push",
+      "owner": {
+        "kind": "node",
+        "id": "frontend.mobile.push"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "push"
+        }
+      ]
+    },
+    "l:frontend.mobile.sync": {
+      "id": "l:frontend.mobile.sync",
+      "owner": {
+        "kind": "node",
+        "id": "frontend.mobile.sync"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "sync"
+        }
+      ]
+    },
+    "l:frontend.mobile.cache": {
+      "id": "l:frontend.mobile.cache",
+      "owner": {
+        "kind": "node",
+        "id": "frontend.mobile.cache"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "cache"
+        }
+      ]
+    },
+    "l:frontend.mobile.auth": {
+      "id": "l:frontend.mobile.auth",
+      "owner": {
+        "kind": "node",
+        "id": "frontend.mobile.auth"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "auth"
+        }
+      ]
+    },
+    "l:frontend.mobile.onboarding": {
+      "id": "l:frontend.mobile.onboarding",
+      "owner": {
+        "kind": "node",
+        "id": "frontend.mobile.onboarding"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "onboarding"
+        }
+      ]
+    },
+    "l:frontend.mobile.settings": {
+      "id": "l:frontend.mobile.settings",
+      "owner": {
+        "kind": "node",
+        "id": "frontend.mobile.settings"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "settings"
+        }
+      ]
+    },
+    "l:backend": {
+      "id": "l:backend",
+      "owner": {
+        "kind": "node",
+        "id": "backend"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Backend"
+        }
+      ]
+    },
+    "l:backend.api": {
+      "id": "l:backend.api",
+      "owner": {
+        "kind": "node",
+        "id": "backend.api"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "API"
+        }
+      ]
+    },
+    "l:backend.api.gateway": {
+      "id": "l:backend.api.gateway",
+      "owner": {
+        "kind": "node",
+        "id": "backend.api.gateway"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "gateway"
+        }
+      ]
+    },
+    "l:backend.api.users": {
+      "id": "l:backend.api.users",
+      "owner": {
+        "kind": "node",
+        "id": "backend.api.users"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "users"
+        }
+      ]
+    },
+    "l:backend.api.orders": {
+      "id": "l:backend.api.orders",
+      "owner": {
+        "kind": "node",
+        "id": "backend.api.orders"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "orders"
+        }
+      ]
+    },
+    "l:backend.api.payments": {
+      "id": "l:backend.api.payments",
+      "owner": {
+        "kind": "node",
+        "id": "backend.api.payments"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "payments"
+        }
+      ]
+    },
+    "l:backend.api.inventory": {
+      "id": "l:backend.api.inventory",
+      "owner": {
+        "kind": "node",
+        "id": "backend.api.inventory"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "inventory"
+        }
+      ]
+    },
+    "l:backend.api.shipping": {
+      "id": "l:backend.api.shipping",
+      "owner": {
+        "kind": "node",
+        "id": "backend.api.shipping"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "shipping"
+        }
+      ]
+    },
+    "l:backend.api.notifications": {
+      "id": "l:backend.api.notifications",
+      "owner": {
+        "kind": "node",
+        "id": "backend.api.notifications"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "notifications"
+        }
+      ]
+    },
+    "l:backend.api.search": {
+      "id": "l:backend.api.search",
+      "owner": {
+        "kind": "node",
+        "id": "backend.api.search"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "search"
+        }
+      ]
+    },
+    "l:backend.api.recommendations": {
+      "id": "l:backend.api.recommendations",
+      "owner": {
+        "kind": "node",
+        "id": "backend.api.recommendations"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "recommendations"
+        }
+      ]
+    },
+    "l:backend.data": {
+      "id": "l:backend.data",
+      "owner": {
+        "kind": "node",
+        "id": "backend.data"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Data"
+        }
+      ]
+    },
+    "l:backend.data.primary": {
+      "id": "l:backend.data.primary",
+      "owner": {
+        "kind": "node",
+        "id": "backend.data.primary"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "primary"
+        }
+      ]
+    },
+    "l:backend.data.replica": {
+      "id": "l:backend.data.replica",
+      "owner": {
+        "kind": "node",
+        "id": "backend.data.replica"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "replica"
+        }
+      ]
+    },
+    "l:backend.data.warehouse": {
+      "id": "l:backend.data.warehouse",
+      "owner": {
+        "kind": "node",
+        "id": "backend.data.warehouse"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "warehouse"
+        }
+      ]
+    },
+    "l:backend.data.cache": {
+      "id": "l:backend.data.cache",
+      "owner": {
+        "kind": "node",
+        "id": "backend.data.cache"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "cache"
+        }
+      ]
+    },
+    "l:backend.data.queue": {
+      "id": "l:backend.data.queue",
+      "owner": {
+        "kind": "node",
+        "id": "backend.data.queue"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "queue"
+        }
+      ]
+    },
+    "l:backend.data.blob": {
+      "id": "l:backend.data.blob",
+      "owner": {
+        "kind": "node",
+        "id": "backend.data.blob"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "blob"
+        }
+      ]
+    },
+    "l:backend.data.search": {
+      "id": "l:backend.data.search",
+      "owner": {
+        "kind": "node",
+        "id": "backend.data.search"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "search"
+        }
+      ]
+    },
+    "l:backend.data.backup": {
+      "id": "l:backend.data.backup",
+      "owner": {
+        "kind": "node",
+        "id": "backend.data.backup"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "backup"
+        }
+      ]
+    }
+  },
+  "title": "Forty, three levels",
+  "meta": {
+    "nodeCount": 40,
+    "edgeCount": 14,
+    "containerCount": 6
+  }
+}

@@ -59,3 +59,44 @@ describe('F9 bench: render() alone (execution plan §2.1, DD-09 §2)', () => {
     });
   }
 });
+
+/**
+ * Stage I part 2's own half of F9: DD-08 §6's actual live-view operation is
+ * `render()` **followed by** `wrapper.innerHTML = result.svg` on a `<g>` —
+ * that whole pair, not `render()` alone, is what a theme toggle costs on
+ * screen. Builds the same detached `<svg><g class="rendered"></g></svg>`
+ * `apps/web/src/canvas/Canvas.tsx` swaps into, in this project's real
+ * Chromium/Firefox DOM (`document` is genuinely available here — `@vitest/browser`,
+ * not jsdom), and times both steps together. Renegotiated budget (human
+ * decision, 2026-09-23, execution plan §2.1): `< 16 ms` up to 500 nodes,
+ * `< 50 ms` at 2 000, measured in Chromium.
+ */
+describe('F9 bench: render() + innerHTML swap (execution plan §2.1, DD-08 §6)', () => {
+  for (const { doc, themeName, styled, result, theme } of FIXTURES) {
+    it(`${doc} / ${themeName}`, () => {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      const wrapper = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      wrapper.setAttribute('class', 'rendered');
+      svg.appendChild(wrapper);
+      document.body.appendChild(svg);
+
+      const times: number[] = [];
+      try {
+        for (let i = 0; i < RUNS; i += 1) {
+          const start = performance.now();
+          const rendered = render(styled, result, theme);
+          wrapper.innerHTML = rendered.svg;
+          times.push(performance.now() - start);
+        }
+      } finally {
+        svg.remove();
+      }
+
+      const m = median(times);
+      console.log(
+        `[F9] ${doc} / ${themeName}: render()+swap median ${m.toFixed(3)} ms over ${RUNS} runs (min ${Math.min(...times).toFixed(3)}, max ${Math.max(...times).toFixed(3)})`,
+      );
+      expect(wrapper.children.length).toBeGreaterThan(0);
+    });
+  }
+});

@@ -105,6 +105,18 @@ pnpm exec playwright install chromium firefox
 
 CI does this itself, before its own browser-test step (`.github/workflows/ci.yml`).
 
+**Stage I part 2** adds a second, independent Playwright surface: `apps/web`'s own e2e suite
+(DD-08 §14), against a production build (`vite build` + `vite preview`), covering the MVP
+criteria this stage owns (2, 3, 1's single-engine half) and the corrected DD-08 §14 checklist.
+`pnpm check`/root `pnpm test:e2e` run it in **Chromium only** (decision, Stage I part 2 brief) —
+the same `chromium` binary the browser project above already needs, so a contributor's machine
+stays green without Firefox/WebKit installed. CI's own `test:e2e:all-browsers` script runs all
+three (DD-10 §4), which needs WebKit fetched once per machine too:
+
+```bash
+pnpm exec playwright install webkit
+```
+
 `check` builds before testing because a workspace package's cross-package `import`s resolve
 through its published `exports`, which point at `dist/`. `tsc -b` (the typecheck step) only
 compiles `.ts` files, so a package that re-exports a hand-generated `.js` asset — `@sgl/core`'s

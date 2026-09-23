@@ -1,12 +1,18 @@
 import { effect } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
 import type { NodeId } from '@sgl/core';
+import { StatusChip } from '../panels/StatusChip.js';
 import type { Pipeline } from '../state/pipeline.js';
 import { hitTestNode } from './hit-test.js';
-import { boundsChangedSignificantly, fitViewport, panBy, screenToDiagram, zoomAt, IDENTITY_VIEWPORT, type Extent, type Viewport } from './viewport.js';
+import { fitViewport, panBy, screenToDiagram, zoomAt, IDENTITY_VIEWPORT, type Extent, type Viewport } from './viewport.js';
 
 export interface CanvasProps {
   readonly pipeline: Pipeline;
+  /** Handed the imperative `fit()` function once the canvas mounts, and
+   *  `null` on unmount — the toolbar's Fit button and the status chip's "Fit"
+   *  offer (DD-08 §6, §11) both trigger the same function from outside this
+   *  component. */
+  readonly onFitReady?: (fit: (() => void) | null) => void;
 }
 
 /**
@@ -14,7 +20,7 @@ export interface CanvasProps {
  * and the interaction overlay as a sibling `<g>` (DD-08 §6). Hover/click are
  * computed from `lastGood.layout` frames, never the DOM.
  */
-export function Canvas({ pipeline }: CanvasProps) {
+export function Canvas({ pipeline, onFitReady }: CanvasProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const wrapperRef = useRef<SVGGElement | null>(null);
   const viewportGRef = useRef<SVGGElement | null>(null);
@@ -24,7 +30,6 @@ export function Canvas({ pipeline }: CanvasProps) {
 
   const viewportRef = useRef<Viewport>(IDENTITY_VIEWPORT);
   const hasFittedRef = useRef(false);
-  const lastBoundsRef = useRef<Extent | null>(null);
   const draggingRef = useRef<{ readonly x: number; readonly y: number } | null>(null);
   const selectedRef = useRef<NodeId | null>(null);
 
@@ -45,6 +50,7 @@ export function Canvas({ pipeline }: CanvasProps) {
     if (bounds === undefined) return;
     viewportRef.current = fitViewport({ w: bounds.w, h: bounds.h }, viewportSize());
     applyTransform();
+    pipeline.fitDone(); // records the baseline for DD-08 §6's 40% "Fit" offer.
   }
 
   function updateOverlayRect(ref: { current: SVGRectElement | null }, id: NodeId | null): void {
@@ -65,7 +71,8 @@ export function Canvas({ pipeline }: CanvasProps) {
 
   // Swap the rendered SVG in on every `lastGood` change; fit once, the first
   // time there is something to fit (DD-08 §6: "on document open," never on
-  // every render after that).
+  // every render after that — a later bounds change instead surfaces through
+  // `pipeline.chip.value.offerFit`, computed in the DOM-free state layer).
   useEffect(() => {
     const disposeRenderEffect = effect(() => {
       const lastGood = pipeline.lastGood.value;
@@ -73,21 +80,18 @@ export function Canvas({ pipeline }: CanvasProps) {
       if (wrapper === null) return;
       wrapper.innerHTML = lastGood === null ? '' : lastGood.svg;
 
-      const bounds = lastGood === null ? null : { w: lastGood.layout.bounds.w, h: lastGood.layout.bounds.h };
-      if (!hasFittedRef.current && bounds !== null) {
+      if (!hasFittedRef.current && lastGood !== null) {
         hasFittedRef.current = true;
-        lastBoundsRef.current = bounds;
         fitNow();
-      } else if (bounds !== null && boundsChangedSignificantly(lastBoundsRef.current, bounds)) {
-        // DD-08 §6: offer "Fit" rather than fitting automatically — no chip in
-        // part 1 (§11 is part 2), so this is recorded but not surfaced yet.
-        lastBoundsRef.current = bounds;
-      } else if (bounds !== null) {
-        lastBoundsRef.current = bounds;
       }
       updateOverlayRect(selectedRectRef, selectedRef.current);
     });
     return () => disposeRenderEffect();
+  }, [pipeline]);
+
+  useEffect(() => {
+    onFitReady?.(fitNow);
+    return () => onFitReady?.(null);
   }, [pipeline]);
 
   function onWheel(ev: WheelEvent): void {
@@ -166,9 +170,10 @@ export function Canvas({ pipeline }: CanvasProps) {
           <rect ref={selectedRectRef} class="node-outline selected" visibility="hidden" fill="none" />
         </g>
       </svg>
-      <button type="button" class="fit-button" onClick={fitNow}>
-        ⟳ Fit
-      </button>
+      {/* DD-08 §2: the Fit *control* lives in the toolbar (`onFitReady` hands
+          this component's `fitNow` up to it); the chip's own "Fit" offer
+          (§6, §11) triggers the same function locally. */}
+      <StatusChip pipeline={pipeline} onFit={fitNow} />
     </div>
   );
 }

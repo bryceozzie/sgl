@@ -32,6 +32,11 @@ interface PendingRun {
   readonly engineId: string;
   readonly signal: AbortSignal;
   readonly resolve: (result: StageResult<LayoutResult | null>) => void;
+  /** Not part of the real `LayoutHost` contract (DD-06 §3: `run()` only ever
+   *  rejects with `AbortError`) — exposed anyway so the error-boundary tests
+   *  can simulate a *broken* host violating its own contract, which is exactly
+   *  the condition §13's effect boundary exists to catch. */
+  readonly reject: (err: unknown) => void;
 }
 
 /** A `LayoutHost` whose `run()` promises are settled by hand from the test, so
@@ -43,7 +48,7 @@ function createFakeHost(): { readonly host: LayoutHost; readonly pending: Pendin
   const host: LayoutHost = {
     run(engineId, _input, _options, _metrics, _table, signal) {
       return new Promise<StageResult<LayoutResult | null>>((resolve, reject) => {
-        pending.push({ engineId, signal, resolve });
+        pending.push({ engineId, signal, resolve, reject });
         signal.addEventListener('abort', () => reject(makeAbortError()), { once: true });
       });
     },
@@ -68,8 +73,16 @@ interface ScheduledCall {
 
 /** A controllable debounce clock (I3): `schedule` records the call instead of
  *  starting a real timer; `fireLatest()` runs whichever scheduled call is still
- *  live, the same thing a real 120 ms timer firing would do. */
-function createManualSchedule(): { readonly schedule: Schedule; readonly calls: ScheduledCall[]; fireLatest(): void } {
+ *  live, the same thing a real 120 ms timer firing would do. The pipeline now
+ *  schedules two different delays on this same clock — the 120 ms debounce and
+ *  the 300 ms "laying out…" chip delay — so `fireByMs` targets one specifically
+ *  when a test needs to fire one without the other. */
+function createManualSchedule(): {
+  readonly schedule: Schedule;
+  readonly calls: ScheduledCall[];
+  fireLatest(): void;
+  fireByMs(ms: number): void;
+} {
   const calls: ScheduledCall[] = [];
   const schedule: Schedule = (fn, ms) => {
     const entry: ScheduledCall = { fn, ms, cancelled: false };
@@ -85,6 +98,10 @@ function createManualSchedule(): { readonly schedule: Schedule; readonly calls: 
     fireLatest() {
       const live = [...calls].reverse().find((c) => !c.cancelled);
       live?.fn();
+    },
+    fireByMs(ms: number) {
+      const live = calls.filter((c) => !c.cancelled && c.ms === ms);
+      for (const entry of live) entry.fn();
     },
   };
 }
@@ -104,10 +121,10 @@ async function flush(times = 3): Promise<void> {
 
 function setup(source: string) {
   const { host, pending } = createFakeHost();
-  const { schedule, calls, fireLatest } = createManualSchedule();
+  const { schedule, calls, fireLatest, fireByMs } = createManualSchedule();
   const measurer = new TestMeasurer();
   const pipeline = createPipeline({ measurer, host, metrics: METRICS, defaultEngineId: 'sgl.grid', schedule }, source);
-  return { pipeline, host, pending, schedule, calls, fireLatest };
+  return { pipeline, host, pending, schedule, calls, fireLatest, fireByMs };
 }
 
 /** Drives the pipeline through one full successful layout: fires the scheduled
@@ -258,5 +275,170 @@ describe('pipeline (DD-08 §3)', () => {
     await flush();
     expect(env.pending.length).toBe(1); // only the latest edit's request ran.
     expect(env.pending[0]!.engineId).toBe('sgl.grid');
+  });
+});
+
+describe('document overrides (DD-08 §10)', () => {
+  it('a document @theme wins over the picker signal', async () => {
+    const env = setup('@theme: "neutral-dark"\na: "A"');
+    expect(env.pipeline.documentThemeId.value).toBe('neutral-dark');
+    expect(env.pipeline.effectiveThemeId.value).toBe('neutral-dark');
+    env.pipeline.themeId.value = 'neutral-light'; // the picker's own preference
+    expect(env.pipeline.effectiveThemeId.value).toBe('neutral-dark'); // document still wins
+  });
+
+  it('no document @theme falls through to the picker signal', () => {
+    const env = setup('a: "A"');
+    expect(env.pipeline.documentThemeId.value).toBeUndefined();
+    expect(env.pipeline.effectiveThemeId.value).toBe(env.pipeline.themeId.value);
+  });
+
+  it('a document @layout.engine wins over the picker signal', () => {
+    const env = setup('@layout.engine: "sgl.grid"\na: "A"');
+    expect(env.pipeline.documentEngineId.value).toBe('sgl.grid');
+    env.pipeline.engineId.value = 'sgl.elk';
+    expect(env.pipeline.effectiveEngineId.value).toBe('sgl.grid');
+  });
+
+  it('@layout: { engine: "..." } (object form) is read the same as the dotted form', () => {
+    const env = setup('@layout: { engine: "sgl.grid" }\na: "A"');
+    expect(env.pipeline.documentEngineId.value).toBe('sgl.grid');
+  });
+});
+
+describe('error boundary (DD-08 §13)', () => {
+  it('a host.run() rejection other than AbortError is caught, not left unhandled, and surfaces on the chip', async () => {
+    const env = setup('a: "A"');
+    await completeOneLayout(env, 'a');
+    const layoutBefore = env.pipeline.layout.value;
+
+    const parsedB = parse('a: "A"\nb: "B"');
+    env.pipeline.setDocument(parsedB.tree, 'a: "A"\nb: "B"');
+    await flush();
+    env.fireLatest();
+    await flush();
+
+    const call = env.pending[env.pending.length - 1]!;
+    call.reject(new Error('engine module failed to load'));
+    await flush();
+
+    expect(env.pipeline.pipelineError.value?.message).toContain('engine module failed to load');
+    expect(env.pipeline.pipelineError.value?.sourceHash).toBeTruthy();
+    expect(env.pipeline.chip.value.kind).toBe('crashed');
+    expect(env.pipeline.chip.value.message).toBe('Something went wrong rendering — your text is safe');
+    // The last good layout is untouched — "the editor keeps working" (§13).
+    expect(env.pipeline.layout.value).toBe(layoutBefore);
+  });
+
+  it('the crash clears once a later render succeeds', async () => {
+    const env = setup('a: "A"');
+    await completeOneLayout(env, 'a');
+
+    const parsedB = parse('a: "A"\nb: "B"');
+    env.pipeline.setDocument(parsedB.tree, 'a: "A"\nb: "B"');
+    await flush();
+    env.fireLatest();
+    await flush();
+    env.pending[env.pending.length - 1]!.reject(new Error('boom'));
+    await flush();
+    expect(env.pipeline.pipelineError.value).not.toBeNull();
+
+    const parsedC = parse('a: "A"\nc: "C"');
+    env.pipeline.setDocument(parsedC.tree, 'a: "A"\nc: "C"');
+    await flush();
+    env.fireLatest();
+    await flush();
+    env.pending[env.pending.length - 1]!.resolve({ value: fakeLayoutResult('c'), diagnostics: [] });
+    await flush();
+
+    expect(env.pipeline.pipelineError.value).toBeNull();
+    expect(env.pipeline.chip.value.kind).not.toBe('crashed');
+  });
+
+  it('a throw from measurer.ready() is caught, not left as an unhandled rejection', async () => {
+    const host: LayoutHost = { run: () => new Promise(() => {}), dispose: () => {} };
+    const throwingMeasurer: AppMeasurer = {
+      layoutRuns: () => ({ width: 0, height: 0, lines: [], ascent: 0 }),
+      layoutRunsAsync: async () => ({ width: 0, height: 0, lines: [], ascent: 0 }),
+      has: () => true,
+      ready: () => {
+        throw new Error('fonts API unavailable');
+      },
+    };
+    const pipeline = createPipeline({ measurer: throwingMeasurer, host, metrics: METRICS, defaultEngineId: 'sgl.grid' }, 'a: "A"');
+    await flush();
+    expect(pipeline.pipelineError.value?.message).toContain('fonts API unavailable');
+    pipeline.dispose();
+  });
+});
+
+describe('status chip (DD-08 §11)', () => {
+  it('shows nothing before 300 ms in flight, then "laying out…"', async () => {
+    const env = setup('a: "A"');
+    await flush();
+    env.fireLatest(); // fires the 120 ms debounce, starting the host.run() call
+    await flush();
+    expect(env.pipeline.chip.value.kind).toBe('idle');
+
+    env.fireByMs(300); // the "laying out…" delay
+    expect(env.pipeline.chip.value.kind).toBe('laying-out');
+    expect(env.pipeline.chip.value.message).toBe('laying out…');
+  });
+
+  it('SGL4001 shows the timeout message', async () => {
+    const env = setup('a: "A"');
+    await completeOneLayout(env, 'a');
+
+    const parsedB = parse('a: "A"\nb: "B"');
+    env.pipeline.setDocument(parsedB.tree, 'a: "A"\nb: "B"');
+    await flush();
+    env.fireLatest();
+    await flush();
+    env.pending[env.pending.length - 1]!.resolve({
+      value: null,
+      diagnostics: [diagnostic('SGL4001', NO_SPAN, { id: 'sgl.grid', ms: 2000 })],
+    });
+    await flush();
+
+    expect(env.pipeline.chip.value.kind).toBe('timeout');
+    expect(env.pipeline.chip.value.message).toBe('Layout timed out — showing previous');
+  });
+
+  it('a document error shows "Showing last good render · n errors"', async () => {
+    const env = setup('a: "A"');
+    await completeOneLayout(env, 'a');
+    const broken = parse('a: "A');
+    env.pipeline.setDocument(broken.tree, 'a: "A');
+    await flush();
+
+    expect(env.pipeline.chip.value.kind).toBe('last-good');
+    expect(env.pipeline.chip.value.message).toMatch(/^Showing last good render · \d+ errors?$/);
+  });
+});
+
+describe('the "Fit" offer (DD-08 §6)', () => {
+  it('is not offered before any fit has happened', async () => {
+    const env = setup('a: "A"');
+    await completeOneLayout(env, 'a');
+    expect(env.pipeline.chip.value.offerFit).toBe(false);
+  });
+
+  it('is offered once bounds change by more than 40% since the last fit, and fitDone() clears it', async () => {
+    const env = setup('a: "A"');
+    await completeOneLayout(env, 'a'); // 100x60 (fakeLayoutResult's default)
+    env.pipeline.fitDone(); // simulate the canvas's initial auto-fit
+    expect(env.pipeline.chip.value.offerFit).toBe(false);
+
+    const parsedB = parse('a: "A"\nb: "B"');
+    env.pipeline.setDocument(parsedB.tree, 'a: "A"\nb: "B"');
+    await flush();
+    env.fireLatest();
+    await flush();
+    env.pending[env.pending.length - 1]!.resolve({ value: fakeLayoutResult('b', 300, 300), diagnostics: [] });
+    await flush();
+
+    expect(env.pipeline.chip.value.offerFit).toBe(true);
+    env.pipeline.fitDone();
+    expect(env.pipeline.chip.value.offerFit).toBe(false);
   });
 });

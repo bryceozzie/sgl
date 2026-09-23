@@ -22,9 +22,11 @@
     "test:unit": "pnpm generate:corpus && vitest run --project unit",
     "test:browser": "pnpm generate:corpus && pnpm generate:bench-fixtures && pnpm generate:grid-fixture && vitest run --project browser",
     "test:watch": "pnpm generate:corpus && vitest",
+    "test:e2e": "pnpm --filter @sgl/web exec playwright test --project=chromium",
+    "test:e2e:all-browsers": "pnpm --filter @sgl/web run test:e2e:all-browsers",
     "clean": "rimraf \"packages/*/dist\" \"apps/*/dist\" .tsbuild bench/render-fixtures.json bench/grid-fixture.json",
     "changeset": "changeset",
-    "check": "pnpm lint && pnpm typecheck && pnpm build && pnpm test"
+    "check": "pnpm lint && pnpm typecheck && pnpm build && pnpm test && pnpm test:e2e"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.7",
