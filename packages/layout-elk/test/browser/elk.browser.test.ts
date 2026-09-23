@@ -80,6 +80,24 @@ describe('sgl.elk through a real Worker (Stage K)', () => {
     }
   });
 
+  it("elk's worker load leaves the worker's own onmessage in place: later requests still round-trip (K11)", async () => {
+    // Without the scoped `document` stub (`load-elk.ts`), elkjs installs its
+    // own dispatcher as `self.onmessage` on the worker it is loaded into. This
+    // file's worker entry has no shim of its own: if an elkjs upgrade changes
+    // that behaviour, this is the tripwire.
+    const host = createHost();
+    try {
+      const small = inputFor(CHECKOUT as string);
+      for (let i = 0; i < 3; i += 1) {
+        const outcome = await host.run('sgl.elk', small, {}, METRICS, {}, new AbortController().signal);
+        expect(outcome.diagnostics, `request ${i + 1}`).toEqual([]);
+        expect(outcome.value, `request ${i + 1}`).not.toBeNull();
+      }
+    } finally {
+      host.dispose();
+    }
+  });
+
   it("ELK's own output here matches the golden Node produced, after quantization (Node ≡ this browser)", async () => {
     const { raw } = await runHostSequence(elkEngine, inputFor(FORTY as string), {}, METRICS);
     // If this differs, it is an ADR-0004 finding to report, not an assertion to loosen.

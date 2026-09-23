@@ -1,5 +1,6 @@
 import type { LayoutContext, LayoutEngine, LayoutInput, LayoutResult } from '@sgl/layout-api';
 import { elkDescriptor, normalizeElkOptions } from './descriptor.js';
+import { loadElk } from './load-elk.js';
 import { fromElkGraph, toElkGraph, type ElkNode } from './mapping.js';
 
 export * from './descriptor.js';
@@ -20,36 +21,14 @@ export * from './mapping.js';
  * bundler emits elkjs as its own chunk (DD-10 §2's `elk` chunk), outside the
  * core bundle budget. The main thread imports `@sgl/layout-elk/descriptor`
  * instead of this module, so it never sees the dynamic import at all.
+ * Loading, and the scoped `document` stub elkjs needs inside a worker
+ * (decision K11), is `load-elk.ts`.
  *
  * Errors are values: anything ELK throws (or rejects with) propagates out of
  * `layout()`, and the worker runtime turns it into `SGL4011` (DD-06 §3).
  *
  * Design: DD-06 §6.
  */
-
-/** The one member of elkjs's `ELK` class this adapter uses. */
-interface ElkInstance {
-  layout(graph: ElkNode): Promise<ElkNode>;
-}
-
-type ElkConstructor = new () => ElkInstance;
-
-let elkInstance: Promise<ElkInstance> | null = null;
-
-/** Loads `elk.bundled.js` once and caches the instance. A failed load is not
- *  cached, so the next request retries it (a chunk that failed to fetch). */
-function loadElk(): Promise<ElkInstance> {
-  if (elkInstance === null) {
-    elkInstance = import('elkjs/lib/elk.bundled.js').then(
-      (mod: { readonly default: unknown }) => new (mod.default as ElkConstructor)(),
-      (err: unknown) => {
-        elkInstance = null;
-        throw err;
-      },
-    );
-  }
-  return elkInstance;
-}
 
 export const elkEngine: LayoutEngine = {
   ...elkDescriptor,

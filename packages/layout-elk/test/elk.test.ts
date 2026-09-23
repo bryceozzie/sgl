@@ -31,6 +31,16 @@ async function engineOutput(input: LayoutInput, options: Readonly<Record<string,
   return (await runHostSequence(elkEngine, input, options, METRICS)).raw;
 }
 
+describe('loading elkjs (K1, K11)', () => {
+  it('leaves no document stub behind once elk has loaded, and the layout succeeded', async () => {
+    expect(typeof (globalThis as { document?: unknown }).document).toBe('undefined');
+    const input = layoutInputFor('checkout.sgl');
+    const raw = await elkEngine.layout(input, conformanceContext({}, METRICS));
+    expect(Object.keys(raw.nodes).length).toBeGreaterThan(0);
+    expect(typeof (globalThis as { document?: unknown }).document).toBe('undefined');
+  });
+});
+
 describe('elk over the corpus (DD-06 §6, Stage K gate)', () => {
   for (const doc of DOCS) {
     it(`${doc}: lays out with no layout diagnostics at all (errors or warnings)`, async () => {
