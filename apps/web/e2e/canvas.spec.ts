@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { EXAMPLE_NODE_COUNT, renderedSvg, waitForNodeCount } from './helpers.js';
+import { EXAMPLE_NODE_COUNT, openFile, renderedSvg, SMALL_SOURCE, visibleNodeCount, waitForExactNodeCount, waitForNodeCount } from './helpers.js';
 
 /** DD-08 §6's canvas (`apps/web/src/canvas/Canvas.tsx`): the overlay as a
  *  sibling of the exported tree, hover and click from `lastGood.layout`
@@ -64,9 +64,16 @@ async function ctrlWheel(page: Page, deltaY: number, times = 1): Promise<void> {
 }
 
 test.describe('Canvas (DD-08 §6)', () => {
+  // Stage I's small document, opened through Open (DD-08 §7) so the canvas
+  // fits it exactly as it fits a document on first open (§6). The larger
+  // first-run example made WebKit's repaint at 8x zoom slow enough under
+  // parallel load to time the wheel test out, and none of these tests is
+  // about the document.
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+    await openFile(page, 'small.sgl', SMALL_SOURCE);
+    await waitForExactNodeCount(page, visibleNodeCount(SMALL_SOURCE));
   });
 
   test('the overlay is a sibling of the viewport, never part of the exported tree', async ({ page }) => {

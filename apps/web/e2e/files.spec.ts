@@ -89,8 +89,7 @@ test.describe('MVP acceptance criterion 4 / DD-08 §14 test 5', () => {
     await waitForDocument(page, 'placeholder: "P"\n');
 
     await openFile(page, saved.name, saved.text);
-    await expect.poll(async () => (await storedOpenDocument(page))?.source).toBe(saved.text);
-    await waitForExactNodeCount(page, visibleNodeCount(saved.text));
+    await waitForDocument(page, saved.text);
     expect(await diagram(page)).toEqual(before);
     // And canonical JSON is a fixed point: saving the reopened file again
     // writes the same bytes.

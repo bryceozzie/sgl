@@ -906,7 +906,8 @@ golden changed. What landed, by file:
   7, single-engine), `persistence.spec.ts` (autosave across a reload, the J6 boot paint),
   `pwa.spec.ts` (every emitted file is precached; the manifest), `csp.spec.ts` (the build served
   under its own `_headers`, with no CSP violation). Stage I's specs now wait on the example's
-  computed node count.
+  computed node count; `canvas.spec.ts` opens Stage I's small document through Open first (the
+  larger example made WebKit's repaint at 8x zoom slow enough to time its wheel test out once).
 
 **Decisions the brief and the documents left open, all recorded in DD-08 §5/§7–§9/§11/§12/§14**:
 the first-run example is an adapted copy of `corpus/checkout.sgl`, because that file pins
@@ -922,7 +923,10 @@ when unknown; only `lastOpenDocId` is written to `settings`.
 context installed the service worker and filled a ~560 KB precache, and with ten parallel Firefox
 workers that alone pushed unrelated tests past their timeouts in set-up and teardown — the suite
 now blocks service workers except in `offline.spec.ts` and `csp.spec.ts`, and the same Firefox run
-is then clean; (2) Playwright's WebKit fails an offline navigation, and blocks routed requests,
+is then clean; (2) with that fixed, an all-browser run could still hang several Firefox instances
+launching together in context set-up and teardown (`browserContext.close: Test ended`, juggler
+errors, test steps already finished), so the Firefox project is capped at four workers; (3)
+Playwright's WebKit fails an offline navigation, and blocks routed requests,
 before the service worker can answer, so in WebKit criterion 5 takes the network away by stopping a
 server of the test's own (`e2e/static-server.ts`). Separately, `playwright.config.ts` no longer
 reuses an existing server and takes `SGL_E2E_PORT`: another checkout's `vite preview` was found

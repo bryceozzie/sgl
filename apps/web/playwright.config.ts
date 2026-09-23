@@ -48,7 +48,13 @@ export default defineConfig({
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+    // At most four Firefox instances at once (Stage J). With the suite's
+    // default parallelism, several Firefox browsers launching together (with
+    // Chromium and WebKit still running) intermittently hung in context
+    // set-up and teardown (`browserContext.close: Test ended`, juggler's
+    // FrameTree errors) and timed out tests whose own steps had finished —
+    // contention, not a test or app fault.
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, workers: 4 },
     { name: 'webkit', use: { ...devices['Desktop Safari'] } },
   ],
 });

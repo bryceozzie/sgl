@@ -453,7 +453,9 @@ and criterion 5, single-engine half — the engine-switch half is Stage K's), `p
 now the example (§9), so the older tests wait on its computed node count. Two more things worth
 knowing: the suite **blocks service workers** (`playwright.config.ts`) except in the two specs about
 them — every context otherwise installs one and fills a ~560 KB precache, and with ten parallel
-Firefox workers that alone pushed unrelated tests past their timeouts; and in **WebKit**, criterion
+Firefox workers that alone pushed unrelated tests past their timeouts (the Firefox project is also
+capped at four workers, for the same kind of contention in context set-up and teardown); and in
+**WebKit**, criterion
 5 takes the network away by stopping a server of the test's own (`e2e/static-server.ts`), because
 Playwright's WebKit fails an offline navigation (and blocks routed requests) before the service
 worker can answer. `criteria.spec.ts` covers the MVP acceptance criteria
