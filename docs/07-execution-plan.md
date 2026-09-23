@@ -148,7 +148,7 @@ A stage is not done because the code is written. It is done when its gate passes
 | End-to-end pipeline (`source -> RenderResult`), `bench/generate.js` | **Done**, T3 gate green (Stage G) | `main` |
 | `@sgl/layout-api` — `createWorkerHost`, `worker-runtime.ts` (worker-side message handling) | **Done**, T1 gate green; the gate's four conditions also proven against a real `Worker` (browser project, Chromium + Firefox) (Stage H) | `main` |
 | `apps/web` | **Stage I done** — the editor loop, pickers, diagnostics panel, status chip, fonts, the §13 error boundary and the Playwright e2e gate (DD-08 §14 tests 1/2/3/8, MVP criteria 2/3/1-single-engine) all work end to end. Fix round 1 done (below). `elk`/engine-switch and the per-engine options form are Stage K | `main` |
-| `@sgl/layout-elk` — the elk adapter (lazy elkjs, K11 `document` stub), `@sgl/layout-api/conformance`, `applyHostFallbacks`; `apps/web` — elk registered and the default, F11 options form, engine-switch e2e, `size-limit` | **Stage K + fix round 1 on `feat/layout-elk`, not merged** — T2 + T3 + size check (177.22 kB) + T4 (Chromium only) green, twice from clean after fix round 1 (23 items incl. SGL4010, human decision 2026-09-23); H2/H3 held | `feat/layout-elk` |
+| `@sgl/layout-elk` — the elk adapter (lazy elkjs, K11 `document` stub), `@sgl/layout-api/conformance`, `applyHostFallbacks`; `apps/web` — elk registered and the default, F11 options form, engine-switch e2e, `size-limit` | **Stage K done, merged at `0e9ecfc`** — T2 + T3 + size check (177.22 kB gz, also under CI's Node 20.19.0) + T4 (Chromium only) green; one fix round (23 items incl. SGL4010, human decision 2026-09-23); H2/H3 recorded as F14/F15 | `main` |
 | `apps/web` — files, share, persistence, PWA, `_headers` | **Stage J done, merged at `0a32679`** — Open/Save (`.sgl`, `.sgl.json`, `.svg`), share by URL with the 2 MB inflate cap, IndexedDB autosave and boot, the stored-SVG boot paint (J6), `vite-plugin-pwa` precache + manifest + update chip, the `_headers` CSP; e2e gate MVP criteria 2–6 single-engine plus DD-08 §14 tests 5–7 green in Chromium, Firefox and WebKit (fix rounds 1 and 2 re-verified in Chromium only); Open makes a new local document and a minimal Documents ▾ list reaches every stored one (fix round 2, human decision 2026-09-23) | `main` |
 
 **Gate 1 is cleared.** `feat/compiler` merged to `main` at `a46c72b`; `pnpm check` green there
@@ -178,6 +178,20 @@ The orchestrator's sandbox blocks Playwright's browser CDN, so Firefox and WebKi
 fetched there; the Firefox half of the browser project and `test:e2e:all-browsers` last ran on the
 implementer's own machine before the fix rounds, and run in CI. **Stage K is next**, and
 its dependency is now satisfied.
+
+**Stage K merged to `main` at `0e9ecfc`** (`--no-ff`, 2026-09-23) after a three-lens review and
+one fix round (23 items). `pnpm check`'s steps from clean are green on `main`, run by the
+orchestrator: 2139 Vitest passed (unit + browser project, Chromium only), e2e 55/55 in Chromium,
+`size-limit` 177.22 kB gz of 180 (the same figure under Node 20.19.0, CI's `.nvmrc`). **All six
+MVP criteria are automated with both engines registered: Gate 3 is next**, and its only
+remaining step is T5, by hand. The orchestrator accepted two things the gate text does not say
+literally, both recorded here: (1) container titles are placed by the elk adapter in the band
+ELK reserves (the title is not sent to ELK, DD-06 §6.1 note 2), which meets the gate's intent,
+"not from the host fallback"; (2) a few edges still enter a container through its own title
+(`checkout` 2, `containers-edges` 1, `nesting-3` 1, `wildcards` 4), pinned as a counted warning
+because no ELK option removes them — **F16**. History note: `7e5aed5` on the merged branch is a
+deliberately red `wip` commit (the worker-blocker reproduction, fixed in `344620e`), kept rather
+than rewritten because the branch was already pushed; `main`'s first-parent history is green.
 
 **Gate 2 is cleared.** `feat/app-editor` cleared its review-fix round
 and merged to `main` at `b013aff`; `pnpm check` is green there (1772 Vitest + 6 skipped by design,
@@ -1028,8 +1042,8 @@ item:
 After round 2, the clean `pnpm check`-equivalent run is green twice: Vitest 1881 passed (unit and `browser (chromium)`), e2e
 50/50 in Chromium.
 
-**Stage K is implemented on `feat/layout-elk`** (branched from `main` at `35ab6bb`; not merged,
-awaiting review). The brief's gate command, run from clean twice, is green both times: Vitest
+**Stage K is implemented on `feat/layout-elk`** (branched from `main` at `35ab6bb`; merged at
+`0e9ecfc` after the fix round below — this paragraph describes the branch as first submitted). The brief's gate command, run from clean twice, is green both times: Vitest
 2040 passed (the `unit` and `browser (chromium)` projects), e2e 51/51 in Chromium, `pnpm size`
 174.63 kB of 180 kB. **Chromium only**: Firefox and WebKit could not be fetched in this sandbox.
 The harness refused the command as one shell line, so its steps were run in the same order as
@@ -1172,6 +1186,9 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F10** | `ctx.random`'s seed (`host.ts`'s `SEED = 1`) is one fixed constant, shared by every request for every document — `LayoutHost.run()`'s frozen signature has no per-call seed parameter, so Stage H could not add one unilaterally (DD-06 §3). Where a per-document seed should come from — a new `run()` parameter, or something content-addressed from a graph hash so the same document always seeds the same way without threading a value through every call site — is undecided, and is an orchestrator/design decision to make, not Stage H's to settle unilaterally. No engine shipped so far reads `ctx.random` at all (`grid` is fully deterministic; `elk` is unbuilt), so nothing depends on the answer yet. | Stage L (B5 `radial`/`force`, the first seed-consuming engines) |
 | **F12** | After a service-worker update is accepted in one tab, other open tabs keep running the old JS while `cleanupOutdatedCaches` has already removed the old precache, so a lazy chunk the old code has not yet loaded (from Stage K, `elk`) can fail to load offline in those tabs. Found in Stage J's review; `pwa.ts` has no cross-tab coordination (e.g. reloading other clients on `controllerchange`). | Stage L |
 | **F13** | A share link pasted into an already-open tab (Stage J fix round 1, item 14) imports by flushing autosave and **reloading**, not by switching in place like Open and Documents ▾ (fix round 2). That loses undo history, and when IndexedDB is unavailable (memory-store fallback) the reload loses the tab's documents outright. Also: criterion 5's offline test is falsifiable against the HTTP cache in Chromium and WebKit but not in Firefox, which has neither mechanism the spec uses; and error toasts persist until closed with no cap on how many pile up. | Stage L (E17, alongside the rest of the Documents UI) |
+| **F14** | DD-06 §5 says the host recomputes `bounds` from the quantized frames and routes plus `canvas.margin` (16 px). Never implemented (since Stage E): `host.ts`/`validate.ts` pass the engine's `bounds` through and the renderer uses them as-is, so `elk`'s margin is ELK's 12 px root padding, `grid`'s is 0, and `grid`'s self-loop teardrops are clipped at the canvas edge. Implementing it re-baselines every `grid` golden. **Decision (human, 2026-09-23): do it in the same deliberate re-baseline as F7**, not before. | Stage L, with F7, before Gate 4 |
+| **F15** | `elk` misses DD-09 §2's performance budget as measured in Node by Stage K's review: `elkEngine.layout` alone takes 0.5–0.8 s warm / 1.4 s cold at n500 (budget: 400 ms for the whole pipeline) and ~1.9 s warm / 3.8 s cold at n2000 (budget 3 s). Gate 3 is not timed. **Decision (human, 2026-09-23): record it and measure in the browser before Gate 4; the budget is not reopened.** | Stage L, before Gate 4 (the Gate 4 bench) |
+| **F16** | Under `elk`, some edges enter a container through its own title (the endpoint's ancestor, so the K4 hierarchy-crossing check does not count them): `checkout` 2, `containers-edges` 1, `nesting-3` 1, `wildcards` 4, pinned by `titleCrossings` in `packages/layout-elk/test/elk.test.ts`. No ELK option tried removes them (`considerModelOrder` crashes ELK on 8 documents; `FIXED_SIDE` moves them). Candidates: a host-side nudge of the final segment, or port placement once ports are real (F6). | Stage L |
 
 ---
 
