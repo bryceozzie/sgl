@@ -111,7 +111,10 @@ for (const [label, forceLayout] of [
 ] as const) {
   describe(`F9 bench: ${label} (execution plan §2.1, DD-08 §6)`, () => {
     for (const fixture of FIXTURES) {
-      it(`${fixture.doc} / ${fixture.themeName}`, () => {
+      // The budget is judged in Chromium (DD-09 §2), and the forced-layout
+      // variant is the heavy one (~250 ms a run at n2000), so it runs there
+      // only: in Firefox as well it slowed unrelated tests running beside it.
+      it.skipIf(forceLayout && BROWSER === 'firefox')(`${fixture.doc} / ${fixture.themeName}`, () => {
         const { times, children } = timeSwap(fixture, forceLayout);
         const m = median(times);
         console.log(
