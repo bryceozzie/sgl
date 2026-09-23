@@ -40,10 +40,19 @@ The interfaces from [Architecture §4](../03-architecture.md#4-layout-engine-plu
 > `hints` never became a field: `GraphNode.config`/`GraphEdge.config` already carry
 > the node/edge's own `@`-bag (`config.layout`, etc.), so an engine (or `grid`) just
 > reads `node.config['layout']` directly — one fewer thing to keep in sync. The
-> `SGL4010`-on-unknown-hint-key validation this section describes is **not
-> implemented**: it needs the JSON-Schema validator `hintsSchema`/`optionsSchema`
-> imply, which no stage has pulled in yet. `grid`'s own `columns` hint is read and
-> used; an unrecognised key is silently ignored rather than warned about.
+> `SGL4010`-on-unknown-hint-key validation this section describes was **not
+> implemented** until Stage K's fix round 1 (item 23, human decision 2026-09-23),
+> and is now, without a JSON-Schema validator: `layoutConfigDiagnostics(ast,
+> engineSchemas)` (`layout-api/src/layout-config.ts`) warns, at the key, for
+> (a) a container-level `@layout.engine` naming another engine than the
+> effective one (per-container engines are B8/B9; until then this warns and the
+> whole document is laid out by one engine), and (b) any `@layout.{key}` —
+> root, container, or `@direction` sugar — that the effective engine declares
+> in neither `optionsSchema` nor `hintsSchema` (key names only; values are not
+> validated). It reads the AST (only the AST keeps a span per `@layout`
+> sub-key; `compile()` drops the root's bag). The app's pipeline runs it with
+> the effective engine's descriptor, beside `buildLayoutInput`; so does
+> `render-svg/test/pipeline.ts`. Fixtures: `corpus/layout/*.sgl`.
 
 **`LayoutInput` construction** (`buildLayoutInput(styled, labelSizes, scope?)`, `sizing.ts`):
 
@@ -132,7 +141,7 @@ All payloads are plain objects; `LayoutInput` and `MeasureTable` are already `st
 
 **Errors as values, except abort.** §1's "a stage never throws" rule says `run()` should resolve `{ value: null, diagnostics }` for everything the caller might need to *display* — timeout, malformed output, an engine throw. Abort is different in kind: it is the host's own bookkeeping reacting to the caller's **own** cancellation (a superseding `run()` call, since "a single in-flight request at a time" below, or the caller's own `AbortSignal` firing), not a condition about the input or the engine. The caller already knows it asked for this, so there is nothing to report as a diagnostic — and DD-08 §3's "the application never queues more than one" means every call site is expected to see this on *every* superseded request, which is exactly the shape `catch`-an-`AbortError` already has for `fetch()` and every other abortable web API. Resolving it instead would force every call site to distinguish "cancelled because I asked" from "the document is broken" by inspecting diagnostics rather than by a `catch`. Kept as the one path that rejects; implemented in `host.ts`'s `makeAbortError()`.
 
-Engines receive `ctx.signal`; `elk` cannot be interrupted mid-run (it is synchronous GWT code), so abort on `elk` is effectively the 250 ms terminate path. This is acceptable: respawn is ~30 ms and the next layout request is already queued.
+Engines receive `ctx.signal`; `elk` cannot be interrupted mid-run (it is synchronous GWT code), so abort on `elk` is effectively the 250 ms terminate path. This is acceptable: respawn is ~30 ms and the next layout request is already queued. **Corrected by Stage K's fix round 1 (item 7):** that premise holds for a worker whose engines are already loaded, not for a *respawned* one — a fresh worker re-imports `elk`'s ~1.44 MB chunk and re-creates the `ELK` instance (hundreds of ms, and more on a slow device) before its first elk request. So `elkEngine.layout()` checks `ctx.signal.aborted` once elkjs has loaded and before calling ELK, and rejects with an `AbortError`: a request aborted while elkjs was loading answers `'error'` promptly, the host has no reason to terminate the worker, and the loaded instance is kept. An abort that arrives *during* ELK's synchronous run still takes the 250 ms path.
 
 A single in-flight request at a time; a new request aborts the previous one (the same `beginAbort` path — immediate `AbortError`, 250 ms escalation — as an external `AbortSignal`). The application never queues more than one (DD-08 §3).
 
@@ -168,7 +177,7 @@ For `directed: forward|both`, shorten the head end by `geometry.arrowSize` along
 
 Stage E's brief (07 §5) named only clipping and self-loops for `routeStraight`, not this subsection — folded in anyway, because without it every directed edge (the large majority of the corpus) would render with its arrowhead straddling the node boundary, and no later stage's task list claims it either. Uses `ctx.metrics.arrowSize`, the one theme-wide constant `ResolvedThemeMetricsView` exposes — not a per-edge `geometry.arrowSize`, despite the registry allowing `arrowSize` to vary by class; `routeStraight`'s signature was extended with a `metrics` parameter to reach it (the DD-06-inherited stub took only `input`/`result`).
 
-**Engine routes (Stage K, `finishEngineRoutes`).** §6.2 says the host applies this to `elk`'s routes too, so the contract is now explicit for every engine: a route an engine returns ends *on* the node (or port) boundary, and the host pulls a directed end back by `arrowSize` along the final segment, moving `end` and the route's last point together (and `start` for `both`). A missing `startNormal`/`endNormal` is taken from the end segment's own direction. An engine must therefore not reserve the arrowhead itself.
+**Engine routes (Stage K, `finishEngineRoutes`).** §6.2 says the host applies this to `elk`'s routes too, so the contract is now explicit for every engine: a route an engine returns ends *on* the node (or port) boundary, and the host pulls a directed end back by `arrowSize` along the final segment, moving `end` and the route's last point together (and `start` for `both`). A missing `startNormal`/`endNormal` is taken from the end segment's own direction. An engine must therefore not reserve the arrowhead itself. The reserve is clamped so an end segment shorter than `arrowSize` is never reversed or zeroed: at least 1 px of it is kept, in its own direction, and a single segment reserved at both ends shares that budget (fix round 1, item 6).
 
 ### 4.5 Self-loops
 
@@ -257,16 +266,17 @@ toElkNode(n):
   id: n.id
   width/height:  sizing.fixed ?? clamp(sizing.intrinsic, min, max)      // leaves
                  (omitted for containers — ELK sizes them from children + padding)
-  labels: [{ text: labelId,                                  // Stage K: never '' (ELK ignores it)
+  labels: leaf ? [{ text: labelId,                           // Stage K: never '' (ELK ignores it)
              width: label.w + box.l + box.r, height: label.h + box.t + box.b,   // the label box, below
-             layoutOptions: leaf ? { 'elk.nodeLabels.placement': '[H_CENTER, V_CENTER, INSIDE]' }
-                                 : { 'elk.nodeLabels.placement': '[H_CENTER, V_TOP, INSIDE]' } }]   // Stage K: not H_LEFT
+             layoutOptions: { 'elk.nodeLabels.placement': '[H_CENTER, V_CENTER, INSIDE]' } }]
+          : []                                               // containers: title not sent (note 2)
   ports: map(n.ports, p => ({ id: n.id + '#' + p.id, width: 0, height: 0,          // Stage K: portSize unseen
                               layoutOptions: { 'elk.port.side': NORTH|SOUTH|EAST|WEST } }))
-  layoutOptions (any node with ports or a portConstraints hint): { 'elk.portConstraints': hint ?? 'FIXED_SIDE' }
+  layoutOptions (a valid portConstraints hint — ELK's PortConstraints enum — or else any node with ports):
+                              { 'elk.portConstraints': hint ?? 'FIXED_SIDE' }    // unknown hint values skipped
   layoutOptions (containers): { ...the four per-level options of the root (spacings, nodeLabels.padding),
-                                'elk.padding': `[top=${padding.t - labelBox.h},left=${l},bottom=${b},right=${r}]`,
-                                // only when a minimum is set; swapped (h,w) for DOWN/UP:
+                                'elk.padding': `[top=${padding.t},left=${l},bottom=${b},right=${r}]`,
+                                // min width = max(min.w, title.w + contentInset.l + r); swapped (h,w) for DOWN/UP:
                                 'elk.nodeSize.constraints': 'MINIMUM_SIZE', 'elk.nodeSize.minimum': `(${min.w},${min.h})` }
   children: map(visible n.children, toElkNode)      // a container whose children are all hidden is a leaf
 
@@ -283,13 +293,13 @@ toElkEdge(e):
 **What running elkjs 0.11.1 changed (Stage K).** This pseudocode is amended in place above; each change was found by running ELK, and each is pinned by `packages/layout-elk/test/mapping.test.ts` or `elk.test.ts`:
 
 1. **Label text.** A label whose `text` is empty is ignored — ELK neither places it nor reserves room for it. Labels are sent with their `LabelId` as text (ELK never measures text).
-2. **Container title placement.** `[H_LEFT, V_TOP, INSIDE]` on a container makes ELK reserve a *left column* as wide as the title as well as the top band, pushing every child right by the title's width. `[H_CENTER, V_TOP, INSIDE]` reserves the top band only, so container titles are **centred** over the container (an ELK placement, and what "labels come from ELK" then means). See §6.3 for the artefact this allows.
-3. **Title band and padding.** ELK adds the title band itself: a child starts at `elk.padding.top + label height`. `elk.padding.top` is therefore `NodeSizing.padding.top` *minus* the label box's height (the title gap), not all of `padding.top`, or the band is counted twice.
+2. **Container title placement.** `[H_LEFT, V_TOP, INSIDE]` on a container makes ELK reserve a *left column* as wide as the title as well as the top band, pushing every child right by the title's width. *(Observation unchanged; conclusion replaced by Stage K fix round 1, item 1.)* Container titles are **top-left**, as §4.1 specifies and `grid` places them: the title is **not sent to ELK at all**; `elk.padding.top` is the whole `NodeSizing.padding.top` (the title band counted once), the title's width plus `contentInset.l + r` is a minimum container width (so a long title cannot overflow), and `fromElkGraph` places the title at ELK's container frame inset by `contentInset`, align `start`, baseline `top`. The reviewer's `[H_LEFT, V_TOP, INSIDE, V_PRIORITY]` produces byte-identical layouts (pinned by `elk.test.ts`), but only because `V_PRIORITY` is not a member of ELK's `NodeLabelPlacement`: ELK rejects the whole value and then neither places nor reserves anything for that label. Not sending the title does the same without depending on a parse failure. So "labels come from ELK" holds for leaf titles and edge labels; a container title comes from ELK's container frame. The Stage K first-cut `[H_CENTER, V_TOP, INSIDE]` (centred titles) is gone.
+3. **Title band and padding.** ELK adds a title band of its own for a title it is given (a child starts at `elk.padding.top + label height`). It is given none (note 2), so `elk.padding.top` is all of `padding.top`.
 4. **`elk.nodeLabels.padding` is read from a node's parent**, not the node, and defaults to 5 px on every side. It is zeroed on the root and on every container, so the label boxes below are the only insets in play.
 5. **Spacing options are per level.** Under `INCLUDE_CHILDREN`, `elk.spacing.nodeNode`, `…nodeNodeBetweenLayers` and `elk.spacing.edgeLabel` set on the root do not reach a container's children; they are repeated on every container.
 6. **`elk.nodeSize.minimum` is not transposed** for `DOWN`/`UP`: ELK applies the pair as (height, width) there, so it is sent swapped for those directions. (No document can set a container minimum today — `minWidth`/`minHeight` apply to leaves only in the style registry — but the mapping honours one.)
 7. **`portSize` is unseen.** It is a style (`geometry.portSize`), and engines never see `StyledGraph`; ports are sent zero-sized, so a port's point is on the node boundary and the renderer draws its circle there.
-8. **Label boxes.** §4.1 centres a leaf's title in its *content box* (frame inset by `contentInset`); ELK centres a label in the *frame*. They differ only where insets are asymmetric (a cylinder's cap, a package's tab), so ELK is given the label grown by the asymmetric part of the insets, on the side that needs it — for a container, by the whole `contentInset.top`, since ELK puts a `V_TOP` label at the node's top edge. The `LabelPlacement` frame is that box exactly as ELK placed it; `align`/`baseline` (`start`/`end`, `top`/`bottom`) put the text at its inner edge.
+8. **Label boxes.** §4.1 centres a leaf's title in its *content box* (frame inset by `contentInset`); ELK centres a label in the *frame*. They differ only where insets are asymmetric (a cylinder's cap, a package's tab), so ELK is given the label grown by the asymmetric part of the insets, on the side that needs it. The `LabelPlacement` frame is that box exactly as ELK placed it; `align`/`baseline` (`start`/`end`, `top`/`bottom`) put the text at its inner edge.
 9. **Seed.** `elk.randomSeed: '1'` (K2). Two runs are identical after quantization in Node and in a Chromium worker, and ELK's quantized output in Chromium equals Node's golden byte for byte (`elk.browser.test.ts`).
 
 ### 6.2 Output mapping
@@ -300,10 +310,16 @@ ELK coordinates are **relative to the parent node**. Walk the tree accumulating 
 NodeLayout.frame        = { x: abs.x, y: abs.y, w: node.width, h: node.height }
 NodeLayout.contentFrame = frame inset by sizing.padding (containers)
 NodeLayout.ports[p]     = { point: abs(port.x + port.width/2, port.y + port.height/2), normal: bySide }
-EdgeLayout              = sections[0]: start=startPoint, route = bendPoints.map(L) ++ [L endPoint]
-                          (multi-section edges — hyperedges — are not produced for simple edges)
+EdgeLayout              = every section, in order: start = sections[0].startPoint, route = each section's
+                          bendPoints and endPoint as L segments (a section's startPoint is dropped when it
+                          repeats the previous point). Stage K fix round 1 (item 9): the code concatenates
+                          all sections, which this line used to describe as sections[0] alone; a simple
+                          edge has exactly one section, so the two agree on every corpus document
                           startNormal/endNormal from the first/last segment direction; clip: 'none' (ELK already stops at the boundary)
-LabelPlacement (node)   = frame at abs(node) + label.x/y, size from label (the label box, §6.1 note 8); align/baseline from the box
+LabelPlacement (leaf)   = frame at abs(node) + label.x/y, size from label (the label box, §6.1 note 8); align/baseline from the box
+LabelPlacement (cont.)  = frame at frame + (contentInset.l, contentInset.t), size = measured title, align start, baseline top (§6.1 note 2)
+(a coordinate or size ELK left out — x, y, width, height, of a node, port or label — maps to NaN, never 0, so
+ validateResult rejects the result with SGL4002; fix round 1, item 5)
 LabelPlacement (edge)   = frame at abs(container) + label.x/y, align 'middle', baseline 'top', occlusion 'plate'
 bounds                  = { 0, 0, root.width, root.height }
 (an edge ELK returns without a section is left out, so routeStraight fills it; an id ELK returns that was never sent throws → SGL4011)
@@ -314,7 +330,7 @@ Then the host applies §4.4 (arrow reserve) and §4.5 (self-loops — ELK routes
 ### 6.3 Known ELK behaviours to test around (06 §4 pitfall 8)
 
 - Hierarchy-crossing edges with `ORTHOGONAL` occasionally route through a sibling container. The corpus includes this case; the mitigation is the `edgeRouting` option, and the test asserts no route segment intersects an unrelated container's frame — a *warning* in CI, not a failure, until the rate is known. **Stage K (K4):** `hierarchyCrossings` (`@sgl/layout-api/conformance`) counts, per document, the (edge, container) pairs where a route passes through the frame of a container enclosing neither endpoint (the frame shrunk by 0.5 px, curves sampled). It is logged by `elk.test.ts`, never failed. Measured: **0 on every corpus document** under `ORTHOGONAL`, and 0 for `containers-edges.sgl` under both `ORTHOGONAL` and `POLYLINE`.
-- **An edge entering a container from above can cross its centred title** (Stage K, found by inspection, not by the K4 check — the container is the endpoint's own ancestor, so it is "related"). ELK puts the hierarchical port where the inner target sits, often the container's middle, which is where §6.1 note 2's centred title is. Visible in `checkout.sgl` (`BFF -> api` through "Payments"). Not fixed; for review.
+- **An edge can cross a container's title** (Stage K, found by inspection; the K4 check does not see it, the container being the endpoint's own ancestor). Fix round 1 (item 2) counts it: `titleCrossings` (`@sgl/layout-api/conformance`) counts route segments through any container's title *text* (its measured size, placed by align/baseline, shrunk 0.5 px), endpoints' ancestors included. Per corpus document, under ORTHOGONAL — with the first-cut centred titles: `checkout` 2, `containers-edges` 1, `forty-three-level` 1, `nesting-3` 2, `wildcards` 1, `n50` 4, `n500` 49, `n2000` 199; with titles top-left (§6.1 note 2): `checkout` 2, `containers-edges` 1, `nesting-3` 1, `wildcards` 4, all others 0. ELK knows nothing of a title it is not given, and none of ELK's own mitigations tried removes the rest: `elk.layered.considerModelOrder.strategy: NODES_AND_EDGES` on containers makes ELK throw on 8 corpus documents; `elk.layered.mergeHierarchyEdges: false` and `elk.spacing.labelNode` change nothing; `FIXED_SIDE` port constraints on containers move the crossings (5 in `wildcard-globs`). They are a pinned, counted warning (`elk.test.ts`), for review.
 - Edge labels on very short edges may overlap the node; the host's plate makes this legible, and a later pass may nudge.
 
 ---
@@ -359,15 +375,16 @@ F1 (07 §2.1) is cleared here: `pack()`'s `childrenOf()` filters `.hidden` on ev
 
 Run against both engines in CI; shipped in `@sgl/plugin-sdk` later (**⟶ B18** — the suite exists in MVP; the SDK packaging is what is deferred).
 
-**Implemented (Stage K), `packages/layout-api/src/conformance.ts`.** `runConformance(engine, cases, { metrics, now, timedCase, options?, timeoutMs? })` runs each case through `runHostSequence` — `engine.layout -> applyHostFallbacks -> quantize(…, 64)`, the real request's sequence in one process — and returns a report with every failure of checks 1–5 as text, plus the K4 crossing counts (§6.3) as warnings. Cases are `LayoutInput`s the caller builds (this package may not import `@sgl/theme`/`@sgl/measure`); the clock is injected (`performance.now` is banned below `apps/web`). Check 2 compares the quantized results (and, for `bitwise` engines, the raw ones too) and skips `best-effort`. Check 4's budget defaults to the host's own timeout for that engine. Check 5 reads the engine's *raw* output, before any fallback. The suites: `layout-elk/test/conformance.test.ts` and `layout-std/test/conformance.test.ts`, each over every corpus document plus a 1 000-node graph built in memory from `bench/scale-document.js` (the same generator as `n50`/`n500`/`n2000`). Both pass. Measured (K10): `elk` 1 000 nodes ≈ 0.84 s in Node (host sequence included) and ≈ 1.07 s round trip in a Chromium worker, against its 10 s timeout; `grid` ≈ 13 ms.
+**Implemented (Stage K), `packages/layout-api/src/conformance.ts`.** `runConformance(engine, cases, { metrics, now, timedCase, options?, timeoutMs? })` runs each case through `runHostSequence` — `engine.layout -> applyHostFallbacks -> quantize(…, 64)`, the real request's sequence in one process — and returns a report with every failure of checks 1–6 as text, plus the K4 crossing counts (§6.3) as warnings. **Check 1 fails on *error* diagnostics only**; a warning such as `SGL4003` is reported in the case's `validation` but passes (fix round 1, item 9). Cases are `LayoutInput`s the caller builds (this package may not import `@sgl/theme`/`@sgl/measure`); the clock is injected (`performance.now` is banned below `apps/web`). Check 2 compares the quantized results (and, for `bitwise` engines, the raw ones too) and skips `best-effort`. Check 4's budget defaults to the host's own timeout for that engine. Check 5 reads the engine's *raw* output, before any fallback. The suites: `layout-elk/test/conformance.test.ts` and `layout-std/test/conformance.test.ts`, each over every corpus document plus a 1 000-node graph built in memory from `bench/scale-document.js` (the same generator as `n50`/`n500`/`n2000`). Both pass. Measured (K10): `elk` 1 000 nodes ≈ 0.84 s in Node (host sequence included) and ≈ 1.07 s round trip in a Chromium worker, against its 10 s timeout; `grid` ≈ 13 ms.
 
 For each corpus graph (empty, one node, one edge, self-loop, parallel edges, 3-deep nesting, container-to-container edge, boundary-crossing edge, disconnected components, 1 000 nodes, extreme aspect):
 
 1. Result passes `validateResult`.
 2. Run twice; results byte-identical after quantization (`bitwise`/`quantized` engines).
-3. No two sibling leaf frames overlap (containers may enclose).
+3. No two sibling frames overlap — leaves and containers alike (fix round 1, item 18: it compared leaf pairs only); a container may enclose its own descendants.
 4. Completes within the engine's timeout on the 1 000-node graph.
 5. Engines claiming `labelPlacement: true` return a `LabelPlacement` for every label.
+6. **Every edge is attached** (fix round 1, item 11): each routed edge's `start` lies within `arrowSize + 1` px of its source's frame (or its port's point, for a port-terminated end), and its `end` likewise of its target's — `arrowSize` because the host pulls a directed end back by exactly that (§4.4). An edge drawn in the wrong coordinate system (a container offset lost or doubled) fails it; nothing else did. `detachedEdges`; `grid` and `elk` pass it over the corpus. `layout-elk/test/elk.test.ts` also checks, per directed edge, that the end sits `arrowSize` ± 0.5 px off its node's frame (the reserve applied exactly once).
 
 ---
 
@@ -378,7 +395,7 @@ For each corpus graph (empty, one node, one edge, self-loop, parallel edges, 3-d
 | `SGL4001` | error | Layout engine `{id}` did not finish within {ms} ms and was stopped. Showing the previous layout. |
 | `SGL4002` | error | Layout engine `{id}` returned invalid geometry ({detail}). Showing the previous layout. |
 | `SGL4003` | warning | `{node}` extends outside its container after layout. |
-| `SGL4010` | warning | `@layout.{key}` is not an option of engine `{id}`; ignored. |
+| `SGL4010` | warning | `@layout.{key}` is not an option of engine `{id}`; ignored. — **implemented** (Stage K fix round 1, item 23): a container-level `@layout.engine` naming another engine (B8/B9), and any `@layout` key the effective engine does not declare (§2) |
 | `SGL4011` | error | Layout engine `{id}` failed: {message}. |
 
 ---

@@ -324,7 +324,7 @@ IndexedDB `sgl`, version 1, via `idb`:
 - **Boot** (`io/app-boot.ts` + `state/boot.ts`) runs before the first render, so the stored `lastGoodSvg` paints immediately (§5). If IndexedDB will not open at all, the app runs on the in-memory store with a toast ("changes are kept in this tab only"); a storage failure at any later boot step does the same and never stops the boot.
 - **Boot never rejects** (fix round 1). A new id comes from `crypto.randomUUID()` where it exists — only in a secure context, so not on plain http to a LAN address — else a v4 UUID from `crypto.getRandomValues`, else the time and a counter (`newDocumentId`, never a throw, no dependency). Anything else that throws during boot gives the example document on the in-memory store, with a toast ("Something went wrong opening your documents…"), and `main.tsx` catches a rejection the same way — never a blank page.
 - **Documents ▾** (fix round 2; `toolbar/DocumentsMenu.tsx`, `state/documents.ts`): the minimal slice of E17, built now so a document left behind by Open (§7) or a share link (§8) can always be reached. A disclosure at §2's `[≡ docs]` position, with the same pattern as Save ▾ (plain buttons, no menu roles; Escape and an outside click close it). It lists every stored document by title and updated time ("5 min ago", a date after a week), most recent first, the open one marked (`aria-current`, "open now", shown as it is now rather than as last saved). Picking one flushes the open document's autosave, makes the picked one `lastOpenDocId`, loads it with a fresh undo history, paints its stored `lastGoodSvg` until its live render (§5's J6 paint, now after every switch too) and fits. "New document" starts an **empty** one (the example is only for a first visit). Merely opening a document does not save it again, so viewing never reorders the list. **Still E17 (Stage L):** delete, rename, search, tabs and multi-select.
-- **The example document** is `apps/web/src/examples/checkout.sgl`, imported as text into the app chunk (so it is precached with it, §12). It is `corpus/checkout.sgl` — the spec's worked example — adapted so it renders with no diagnostics today: no `@layout: { engine: "layered" }` (the corpus file pins `layered`, which is roadmap and not registered, so every new user would have booted into `SGL4011` and a blank canvas), no `@vars`/`$hot` (A8), no `cloud` shape (not drawn yet), and no `@theme` pin, so the theme picker governs. The corpus file itself is unchanged: its goldens depend on its exact text.
+- **The example document** is `apps/web/src/examples/checkout.sgl`, imported as text into the app chunk (so it is precached with it, §12). It is `corpus/checkout.sgl` — the spec's worked example — adapted so it renders with no diagnostics today: no `@layout: { engine: "layered" }` (the corpus file pins `layered`, which is roadmap and not registered, so every new user would have booted into `SGL4011` and a blank canvas), no `@vars`/`$hot` (A8), no `cloud` shape (not drawn yet), and no `@theme` pin, so the theme picker governs. **Stage K fix round 1 (item 23, human decision 2026-09-23):** nor `payments`' `@layout: { engine: grid, columns: 2 }` — a container-level engine now warns `SGL4010` (per-container engines are B8/B9), and so does `columns` under `elk`, so a first visit would have shown two warnings. The corpus file itself is unchanged: its goldens depend on its exact text.
 
 ---
 
@@ -360,15 +360,25 @@ already falls back to the default only for an engine the worker does not registe
 but `layout()`, and none of elkjs — so the pickers never pull elkjs into the main thread.
 **The engine options panel (F11) is built**, as one hand-built form per engine (K9):
 `state/engine-options.ts` holds each engine's fields, labels and defaults, normalises the
-untrusted stored bag (a value the field does not allow shows, and is sent, as the default) and
-writes one field at a time (an unusable number is ignored, not written); it is Node-tested,
+untrusted stored bag (a value the field does not allow shows, and — since Stage K fix round 1,
+item 3, when `state/pipeline.ts` began sending `optionsForEngine(engine, bag)` rather than the
+stored bag raw — is also *sent*, as the default: before that, grid's `columns: "x"` reached grid
+and threw `SGL4011` while the form showed `auto`) and
+writes one field at a time. A refused value (fix round 1, item 22) — not a choice, not a number,
+or outside the field's range: elk node/rank spacing 0–500 px, grid gap 0–200 px, grid columns
+1–50 — is not written; the field gets `aria-invalid`, a visible `role="alert"` message says why and
+which value is in use, and the box shows that value again; a stored value beyond the range is shown
+and sent as the default. It is Node-tested,
 including that every default and select choice is one the engine's own `optionsSchema` allows.
 `toolbar/EngineOptions.tsx` renders the *effective* engine's form beside Engine ▾ as a plain
 `<details>` disclosure — the Save ▾ pattern (`toolbar/disclosure.ts`): no menu roles, Escape and
 an outside pointer-down close it, every input has a `<label>`. Values go through the existing
 `engineOptions` signal, persisted on the document record (Stage J). `elk`: direction, node
 spacing, rank spacing, edge routing, node placement. `grid`: columns (an empty box is `auto`),
-gap, align. **⟶ B7** still generates the form from `optionsSchema`. Left as is: when
+gap, align. `e2e/engine-options.spec.ts` covers it end to end (fix round 1, items 3, 13, 22):
+Direction → Right re-lays out and persists across a reload, an engine switch resets the form,
+a stored bag grid cannot use still renders, and a refused value is flagged. **⟶ B7** still
+generates the form from `optionsSchema`. Left as is: when
 `@layout.engine` in the document overrides the picker, the form edits the same `engineOptions`
 bag for the document's engine; there is one bag per document, not one per engine.
 
