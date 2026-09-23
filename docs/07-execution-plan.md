@@ -115,7 +115,8 @@ A stage is not done because the code is written. It is done when its gate passes
 | `@sgl/layout-api` — `buildLayoutInput`, shape content insets + anchors, host fallbacks, `validateResult`/`quantize` | **Done**, T1+T2 gate green (Stage E) | `main` |
 | `@sgl/layout-std` — `grid` | **Done**, T1+T2 gate green, bitwise double-run over the whole corpus (Stage E) | `main` |
 | End-to-end pipeline (`source -> RenderResult`), `bench/generate.js` | **Done**, T3 gate green (Stage G) | `main` |
-| Worker host, `apps/web` | **Not started** | — |
+| `@sgl/layout-api` — `createWorkerHost`, `worker-runtime.ts` (worker-side message handling) | **Done**, T1 gate green; the gate's four conditions also proven against a real `Worker` (browser project, Chromium + Firefox) (Stage H) | `feat/layout-host` (unmerged) |
+| `apps/web` | **Not started**, except `layout.worker.ts` — the one real worker entry Stage H needed (registers `gridEngine`) | `feat/layout-host` (unmerged) |
 
 **Gate 1 is cleared.** `feat/compiler` merged to `main` at `a46c72b`; `pnpm check` green there
 (496 tests). `.sgl` text in, `SemanticGraph` out, for every document in the corpus, with goldens
@@ -484,6 +485,60 @@ same-branch renames for clarity, not behaviour: `grid.test.ts`'s local `LayoutIn
 LayoutResult` helper, also called `runPipeline`, is now `runHostPipeline`, distinct from
 `pipeline.ts`'s exported `source -> RenderResult` one; and `eslint.config.js`'s
 `bench/**/*.js` globals block no longer declares `process`, which `bench/generate.js` never uses.
+
+**Stage H is in progress on `feat/layout-host`** (not yet merged — do not treat as done until a
+merge commit lands and this line is updated). Branched from `main` at `38ab324` (Stage G, 1580
+tests after this stage's own additions). `createWorkerHost` (decision D1) now takes a
+`spawn: () => Worker` factory rather than a fixed instance, so it can `terminate()` and respawn;
+`options` carries the default/per-engine timeouts (`DEFAULT_ENGINE_TIMEOUT_MS = { 'sgl.grid': 2000
+}`, DD-06 §3's own number made concrete) and the main-thread `measure` callback. The worker-side
+logic is a second module, `worker-runtime.ts` (decision D2) — deliberately `Worker`-free, taking a
+registry and a `{ post }` port, so `worker-runtime.test.ts` drives it with a fake port and no real
+`Worker` at all; `apps/web/src/layout.worker.ts` is the one real file this stage adds to `apps/web`,
+wiring that runtime to the actual worker global scope with `gridEngine` registered (it has to live
+there, not in `@sgl/layout-api`, because DD-00 §2 rule 3 forbids the reverse import). `contract.ts`'s
+`MeasurerView` gained `layoutRunsAsync` — the design's own `'measure'`/`'measure-reply'` RPC had
+nothing to call it from without an async member, and Architecture §6's full `Measurer` interface
+already specified one; the reduced structural view in `contract.ts` had simply dropped it. All of
+this is written up in DD-06 §3 in the same change, including the decision that `run()` rejects with
+`AbortError` on abort rather than resolving `{ value: null, diagnostics }` like every other failure
+path — the one deliberate exception to §1's errors-are-values rule, reasoned through against DD-08
+§3 at `host.ts`'s `makeAbortError`.
+
+**The browser project (decision D3) exists now**: `vitest.config.ts` gained a `browser` project
+(Chromium + Firefox via `@vitest/browser`'s Playwright provider, both pinned to the installed vitest
+version, 3.2.7), matching `*.browser.test.ts` files; `pnpm test:unit` stays Node-only via an explicit
+`exclude` on the `unit` project (without it, `*.browser.test.ts` also matches `*.test.ts` and fails
+under Node with `Worker is not defined`). The Stage H gate's four conditions — timeout to
+`SGL4001`, abort, `SGL4002` on malformed output, the measure RPC — are proven twice: `host.test.ts`
+against a fake `Worker` under Node (15 tests), `host.browser.test.ts` against a real one in both
+browsers via a small test-fixture worker (`fixture.worker.ts`, decision D2's "browser tests use
+their own test-fixture worker entry" — synthetic `test.ok`/`test.slow`/`test.throws`/
+`test.malformed`/`test.measuring` engines, not `gridEngine`, so each condition can be forced on
+demand). **Left out**: DD-06 §10's "grid bitwise double-run across Chrome and Firefox" — registering
+the real `gridEngine` package inside that same shared fixture worker made every engine in it start
+timing out, consistent with the worker script itself failing to finish loading before its message
+listener attaches; isolating `grid` into a second worker entry to avoid destabilising the required
+gate tests was judged not "cheap" per this stage's brief, so it stays open, written up in DD-06 §10
+rather than silently dropped.
+
+**F9 (§2.1) is measured, not cleared** (decision D4). `bench/generate-render-fixtures.js` runs
+`runPipeline`'s stages up to but excluding `render()` in Node for n50/n500/n2000 under both built-in
+themes and ships the result as a gitignored JSON file; `render.bench.browser.test.ts` times
+`render()` alone against it, in-browser, printing median-of-15 rather than asserting a threshold —
+timing asserts are flaky in CI, per the brief. n50 stays under the 16 ms budget in both browsers;
+n500 is at or just over it in Firefox; n2000 is 2–3x over it everywhere. The numbers are recorded in
+the F9 row below and in `bench/README.md`; confirming or renegotiating DD-09 §2's figure is left as
+the human decision the brief said it was, not decided here.
+
+**Operational note, not a code finding**: `pnpm check`'s combined `lint && typecheck && build &&
+test` run twice hung indefinitely on the browser project on this machine (zero output, browsers left
+running) after other pnpm commands had just run in the same session; a standalone `pnpm test:browser`
+run immediately after, with nothing else preceding it, completed in ~10 s both times. Clearing
+`node_modules/.vite` before the run also made a subsequent in-session hang go away. This looks like a
+Windows-specific Vite dependency-optimisation race in front of the browser provider, not a defect in
+the host/runtime code — flagged here in case the next stage that runs `pnpm check` on Windows hits it
+too.
 
 ### 2.1 Open findings
 
