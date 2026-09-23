@@ -304,13 +304,13 @@
     {
       "labelId": "l:storefront",
       "frame": {
-        "x": 50.625,
-        "y": 123,
+        "x": 36.453125,
+        "y": 139,
         "w": 56.90625,
-        "h": 31.59375
+        "h": 15.59375
       },
-      "align": "middle",
-      "baseline": "bottom"
+      "align": "start",
+      "baseline": "top"
     },
     {
       "labelId": "l:storefront.web",
@@ -337,13 +337,13 @@
     {
       "labelId": "l:payments",
       "frame": {
-        "x": 82.890625,
-        "y": 567.203125,
+        "x": 31.703125,
+        "y": 583.203125,
         "w": 57.625,
-        "h": 31.59375
+        "h": 15.59375
       },
-      "align": "middle",
-      "baseline": "bottom"
+      "align": "start",
+      "baseline": "top"
     },
     {
       "labelId": "l:payments.api",

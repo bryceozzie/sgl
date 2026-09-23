@@ -316,13 +316,13 @@
     {
       "labelId": "l:alpha",
       "frame": {
-        "x": 59.4375,
-        "y": 123,
+        "x": 40,
+        "y": 139,
         "w": 33.140625,
-        "h": 31.59375
+        "h": 15.59375
       },
-      "align": "middle",
-      "baseline": "bottom"
+      "align": "start",
+      "baseline": "top"
     },
     {
       "labelId": "l:alpha.one",
@@ -349,13 +349,13 @@
     {
       "labelId": "l:beta",
       "frame": {
-        "x": 106.671875,
-        "y": 398.59375,
+        "x": 28,
+        "y": 414.59375,
         "w": 26.65625,
-        "h": 31.59375
+        "h": 15.59375
       },
-      "align": "middle",
-      "baseline": "bottom"
+      "align": "start",
+      "baseline": "top"
     },
     {
       "labelId": "l:beta.three",

@@ -1,7 +1,7 @@
 import type { LayoutContext, LayoutEngine, LayoutInput, LayoutResult } from '@sgl/layout-api';
 import { elkDescriptor, normalizeElkOptions } from './descriptor.js';
 import { loadElk } from './load-elk.js';
-import { fromElkGraph, toElkGraph, type ElkNode } from './mapping.js';
+import { fromElkGraph, toElkGraph } from './mapping.js';
 
 export * from './descriptor.js';
 export * from './mapping.js';
@@ -36,11 +36,30 @@ export const elkEngine: LayoutEngine = {
   async layout(input: LayoutInput, ctx: LayoutContext): Promise<LayoutResult> {
     const graph = toElkGraph(input, normalizeElkOptions(ctx.options), ctx.metrics);
     const elk = await loadElk();
-    // ELK writes its results (and GWT bookkeeping) into the object it is
-    // given, so it gets its own deep copy; `graph` itself stays as sent.
-    const out = await elk.layout(JSON.parse(JSON.stringify(graph)) as ElkNode);
+    // Fix round 1, item 7: the first request pays elkjs's import, which can
+    // outlast an abort. ELK itself cannot be interrupted (it is synchronous
+    // GWT code), so this is the last point to honour one: reject with an
+    // AbortError, the runtime posts `'error'` promptly, and the host has no
+    // reason to terminate the worker — which would throw away the loaded
+    // elkjs instance and make the next request pay the import again.
+    if (ctx.signal.aborted) throw abortError();
+    // Fix round 1, item 8: no defensive copy. ELK does write its results
+    // (and GWT bookkeeping) into the graph it is given, but `graph` is built
+    // fresh above for this call alone and nothing reads it afterwards.
+    const out = await elk.layout(graph);
     return fromElkGraph(input, out);
   },
 };
+
+/** `DOMException` exists in every worker and in Node ≥ 17, but `lib` here
+ *  is ES2022 only, so it is reached through `globalThis`; a plain `Error`
+ *  named `AbortError` is the fallback. */
+function abortError(): Error {
+  const Ctor = (globalThis as { DOMException?: new (message: string, name: string) => Error }).DOMException;
+  if (Ctor !== undefined) return new Ctor('The layout request was aborted.', 'AbortError');
+  const err = new Error('The layout request was aborted.');
+  err.name = 'AbortError';
+  return err;
+}
 
 export default elkEngine;

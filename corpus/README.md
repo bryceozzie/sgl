@@ -22,6 +22,7 @@ single purpose, so a failure names what broke.
 | `hidden.sgl` | hidden nodes with edges to them, and an edge hidden by its own `@hidden` between two visible nodes |
 | `a11y-links.sgl` | `@a11y.label`/`@a11y.description` overrides on a node and an edge, and a valid `https:` `@link` |
 | `forty-three-level.sgl` | MVP criterion 1's shape: 40 nodes over three levels (2 top-level containers, 4 second-level containers, 34 leaves), hand-written; the Playwright criterion-1 test renders it |
+| `nested-crossing.sgl` | boundary-crossing edges whose endpoints meet below the root, so ELK reports them in a non-root container's coordinates (Stage K fix round 1) |
 | `n50.sgl` `n500.sgl` `n2000.sgl` | **generated** by `bench/generate.js`; perf and scale |
 | `malformed/*.sgl` | one syntax error each, with the expected diagnostic and a partial AST |
 | `injection/*.sgl` | one hostile string per context |

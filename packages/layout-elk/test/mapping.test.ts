@@ -1,7 +1,7 @@
 import { asNodeId, type EdgeId, type LabelId, type NodeId } from '@sgl/core';
-import type { LayoutInput, NodeSizing } from '@sgl/layout-api';
+import { validateResult, type LayoutInput, type NodeSizing } from '@sgl/layout-api';
 import { describe, expect, it } from 'vitest';
-import { ELK_DEFAULT_OPTIONS, normalizeElkOptions, type ElkOptions } from '../src/descriptor.js';
+import { ELK_DEFAULT_OPTIONS, ELK_PORT_CONSTRAINTS, elkDescriptor, normalizeElkOptions, type ElkOptions } from '../src/descriptor.js';
 import { fromElkGraph, labelBox, leafSize, toElkGraph, type ElkNode } from '../src/mapping.js';
 import { layoutInputFor, layoutInputForSource, METRICS, withContainerMin } from './corpus-input.js';
 
@@ -132,38 +132,37 @@ describe('toElkGraph (DD-06 §6.1)', () => {
     expect(leaf!.labels?.[0]?.layoutOptions).toEqual({ 'elk.nodeLabels.placement': '[H_CENTER, V_CENTER, INSIDE]' });
   });
 
-  it("puts a container's title band in the label box, not in elk.padding.top (ELK adds the band itself)", () => {
+  it("sends no container title to ELK: the title band is elk.padding.top, once, and the title's width is a minimum (fix round 1, item 1)", () => {
     const input = layoutInputFor('checkout.sgl');
-    const graph = toElkGraph(input, opts(), METRICS);
-    const containers = allElkNodes(graph).filter((n) => n.id !== 'root' && (n.children?.length ?? 0) > 0);
-    expect(containers.length).toBeGreaterThan(0);
-    for (const c of containers) {
-      const sizing = sizingOf(input, c.id);
-      const label = c.labels?.[0];
-      expect(label?.layoutOptions).toEqual({ 'elk.nodeLabels.placement': '[H_CENTER, V_TOP, INSIDE]' });
-      const [t, r, b, l] = sizing.padding;
-      const band = label?.height ?? 0;
-      expect(c.layoutOptions?.['elk.padding']).toBe(`[top=${t - band},left=${l},bottom=${b},right=${r}]`);
-      // The box is the title plus the content inset above it, so ELK's
-      // `elk.padding.top + box height` is `padding.top` again: the title gap.
-      const title = input.labelSizes[input.graph.nodes[c.id as NodeId]!.labelId!]!;
-      expect(band).toBe(sizing.contentInset[0] + title.h);
-      expect(t - band).toBeGreaterThanOrEqual(0);
-      expect(c.width).toBeUndefined(); // ELK sizes a container from its children.
+    for (const direction of ['down', 'right'] as const) {
+      const graph = toElkGraph(input, opts({ direction }), METRICS);
+      const containers = allElkNodes(graph).filter((n) => n.id !== 'root' && (n.children?.length ?? 0) > 0);
+      expect(containers.length).toBeGreaterThan(0);
+      for (const c of containers) {
+        const sizing = sizingOf(input, c.id);
+        // No label: ELK would otherwise reserve a left column and add the band a second time.
+        expect(c.labels).toBeUndefined();
+        const [t, r, b, l] = sizing.padding;
+        expect(c.layoutOptions?.['elk.padding']).toBe(`[top=${t},left=${l},bottom=${b},right=${r}]`);
+        const title = input.labelSizes[input.graph.nodes[c.id as NodeId]!.labelId!]!;
+        const minW = title.w + sizing.contentInset[1] + sizing.contentInset[3];
+        expect(c.layoutOptions).toMatchObject({
+          'elk.nodeSize.constraints': 'MINIMUM_SIZE',
+          'elk.nodeSize.minimum': direction === 'down' ? `(0,${minW})` : `(${minW},0)`,
+        });
+        expect(c.width).toBeUndefined(); // ELK sizes a container from its children.
+      }
     }
   });
 
   it('grows a label box by the asymmetric part of its insets, and says where the text sits in it', () => {
     // Symmetric: the box is the label, centred.
-    expect(labelBox([6, 8, 6, 8], false)).toEqual({ extra: [0, 0, 0, 0], align: 'middle', baseline: 'middle' });
+    expect(labelBox([6, 8, 6, 8])).toEqual({ extra: [0, 0, 0, 0], align: 'middle', baseline: 'middle' });
     // A cylinder's top cap: 2·ry on top, ry below.
-    expect(labelBox([16, 0, 8, 0], false)).toEqual({ extra: [8, 0, 0, 0], align: 'middle', baseline: 'bottom' });
+    expect(labelBox([16, 0, 8, 0])).toEqual({ extra: [8, 0, 0, 0], align: 'middle', baseline: 'bottom' });
     // Heavier on the left: the extra goes left and the text sits at the box's end.
-    expect(labelBox([0, 2, 0, 10], false)).toEqual({ extra: [0, 0, 0, 8], align: 'end', baseline: 'middle' });
-    expect(labelBox([0, 10, 0, 2], false)).toEqual({ extra: [0, 8, 0, 0], align: 'start', baseline: 'middle' });
-    // A container: ELK puts a V_TOP label at the node's top edge, so the whole
-    // top inset goes into the box.
-    expect(labelBox([6, 8, 6, 8], true)).toEqual({ extra: [6, 0, 0, 0], align: 'middle', baseline: 'bottom' });
+    expect(labelBox([0, 2, 0, 10])).toEqual({ extra: [0, 0, 0, 8], align: 'end', baseline: 'middle' });
+    expect(labelBox([0, 10, 0, 2])).toEqual({ extra: [0, 8, 0, 0], align: 'start', baseline: 'middle' });
 
     const input = layoutInputFor('shapes.sgl');
     const graph = toElkGraph(input, opts(), METRICS);
@@ -216,6 +215,23 @@ describe('toElkGraph (DD-06 §6.1)', () => {
     ]);
   });
 
+  it('takes a portConstraints hint only from DD-06 §6\'s enum, and skips anything else (fix round 1, item 4)', () => {
+    const doc = (value: string) =>
+      layoutInputForSource(`box: {\n  @layout.portConstraints: "${value}"\n  @ports: { a: west }\n}\nplain: {\n  @layout.portConstraints: "${value}"\n}\n`);
+    for (const value of ELK_PORT_CONSTRAINTS) {
+      const graph = toElkGraph(doc(value), opts(), METRICS);
+      expect(findElk(graph, 'box').layoutOptions?.['elk.portConstraints'], value).toBe(value);
+      expect(findElk(graph, 'plain').layoutOptions?.['elk.portConstraints'], value).toBe(value);
+    }
+    const bogus = toElkGraph(doc('SIDEWAYS'), opts(), METRICS);
+    expect(findElk(bogus, 'box').layoutOptions?.['elk.portConstraints']).toBe('FIXED_SIDE'); // it has ports
+    expect(findElk(bogus, 'plain').layoutOptions).toBeUndefined(); // no ports, no valid hint
+    expect((elkDescriptor.hintsSchema as { properties: { portConstraints: unknown } }).properties.portConstraints).toEqual({
+      type: 'string',
+      enum: ELK_PORT_CONSTRAINTS,
+    });
+  });
+
   it('puts every edge on the root (valid under INCLUDE_CHILDREN) and leaves out hidden nodes and edges', () => {
     const input = layoutInputFor('hidden.sgl');
     const graph = toElkGraph(input, opts(), METRICS);
@@ -247,8 +263,8 @@ describe('toElkGraph (DD-06 §6.1)', () => {
 
 describe('fromElkGraph (DD-06 §6.2)', () => {
   // outer (container) > inner (leaf), plus a root-level leaf `x`, and two
-  // edges: `x -> outer.inner` (labelled) and `outer.inner -> x`.
-  const SOURCE = 'x: "X"\nouter: {\n  @label: "Outer"\n  inner: "Inner"\n}\nx -> outer.inner: "call"\nouter.inner -> x\n';
+  // labelled edges: `x -> outer.inner` and `outer.inner -> x`.
+  const SOURCE = 'x: "X"\nouter: {\n  @label: "Outer"\n  inner: "Inner"\n}\nx -> outer.inner: "call"\nouter.inner -> x: "back"\n';
   const input = layoutInputForSource(SOURCE);
   const g = input.graph;
   const outer = asNodeId('outer');
@@ -270,7 +286,6 @@ describe('fromElkGraph (DD-06 §6.2)', () => {
         y: 50,
         width: 200,
         height: 150,
-        labels: [{ text: 'l:outer', width: 44, height: 18, x: 123, y: 0 }],
         children: [{ id: inner, x: 20, y: 40, width: 70, height: 30, labels: [{ text: 'l:inner', width: 30, height: 13, x: 3, y: 11 }] }],
       },
     ],
@@ -289,6 +304,7 @@ describe('fromElkGraph (DD-06 §6.2)', () => {
         targets: [x],
         container: outer,
         sections: [{ startPoint: { x: 5, y: 5 }, endPoint: { x: 5, y: 1 } }],
+        labels: [{ text: 'l:e2', width: 21, height: 11, x: 7, y: 9 }],
       },
     ],
   };
@@ -311,16 +327,22 @@ describe('fromElkGraph (DD-06 §6.2)', () => {
     const outerLabel = g.nodes[outer]!.labelId!;
     const innerLabel = g.nodes[inner]!.labelId!;
     const edgeLabel = e1!.labelId!;
+    const edge2Label = e2!.labelId!;
     // Node labels: the node's absolute origin plus ELK's label x/y; size as ELK sent it back.
     expect(at(xLabel)?.frame).toEqual({ x: 17 + 31, y: 5 + 2, w: 9, h: 13 });
-    expect(at(outerLabel)?.frame).toEqual({ x: 100 + 123, y: 50 + 0, w: 44, h: 18 });
     expect(at(innerLabel)?.frame).toEqual({ x: 120 + 3, y: 90 + 11, w: 30, h: 13 });
-    // A container title's text sits at the bottom of its box (the box took in contentInset.top).
-    expect(at(outerLabel)).toMatchObject({ align: 'middle', baseline: 'bottom' });
     expect(at(innerLabel)).toMatchObject({ align: 'middle', baseline: 'middle' });
+    // A container title (fix round 1, item 1): not ELK's — ELK was never
+    // given it — but top-left in ELK's container frame, inset by
+    // contentInset, align start / baseline top (DD-06 §4.1, §6.1).
+    const ci = sizingOf(input, 'outer').contentInset;
+    const title = input.labelSizes[outerLabel]!;
+    expect(at(outerLabel)).toEqual({ labelId: outerLabel, frame: { x: 100 + ci[3], y: 50 + ci[0], w: title.w, h: title.h }, align: 'start', baseline: 'top' });
     // An edge label: relative to the edge's container (root here), with a plate.
     expect(at(edgeLabel)).toEqual({ labelId: edgeLabel, frame: { x: 60, y: 61, w: 25, h: 12 }, align: 'middle', baseline: 'top', occlusion: 'plate' });
-    expect(result.labels).toHaveLength(4);
+    // … and with a non-root container (item 16): offset by `outer`'s absolute origin.
+    expect(at(edge2Label)).toEqual({ labelId: edge2Label, frame: { x: 100 + 7, y: 50 + 9, w: 21, h: 11 }, align: 'middle', baseline: 'top', occlusion: 'plate' });
+    expect(result.labels).toHaveLength(5);
   });
 
   it('turns section 0 into a start point and L segments, with end directions and clip: none', () => {
@@ -340,6 +362,27 @@ describe('fromElkGraph (DD-06 §6.2)', () => {
 
   it("offsets an edge by the node ELK reports as its container (edges move to their endpoints' common ancestor)", () => {
     expect(result.edges[e2!.id]).toMatchObject({ start: { x: 105, y: 55 }, end: { x: 105, y: 51 }, route: [{ t: 'L', to: { x: 105, y: 51 } }] });
+  });
+
+  it('maps a coordinate ELK left out to NaN, never 0, so validateResult rejects it with SGL4002 (fix round 1, item 5)', () => {
+    const strip = (n: ElkNode, id: string, key: 'x' | 'y'): ElkNode => {
+      const kids = n.children?.map((c) => strip(c, id, key));
+      const self = n.id === id ? Object.fromEntries(Object.entries(n).filter(([k]) => k !== key)) : n;
+      return { ...(self as ElkNode), ...(kids !== undefined && { children: kids }) };
+    };
+    for (const [id, key] of [[x, 'x'], [inner, 'y']] as const) {
+      const bad = fromElkGraph(input, strip(elkOut, id, key));
+      const codes = validateResult(bad, g, 'sgl.elk').map((d) => d.code);
+      expect(codes, `${id}.${key}`).toContain('SGL4002');
+    }
+    // A node label's and an edge label's missing x.
+    const noLabelX: ElkNode = {
+      ...elkOut,
+      children: [{ id: x, x: 17, y: 5, width: 60, height: 30, labels: [{ text: 'l:x', width: 9, height: 13, y: 2 }] }, elkOut.children![1]!],
+      edges: [{ ...elkOut.edges![0]!, labels: [{ text: 'l:e', width: 25, height: 12, y: 61 }] }, elkOut.edges![1]!],
+    };
+    const labelled = fromElkGraph(input, noLabelX);
+    expect(validateResult(labelled, g, 'sgl.elk').filter((d) => d.code === 'SGL4002')).toHaveLength(2);
   });
 
   it('leaves out an edge ELK returned without a section, so the host routes it', () => {

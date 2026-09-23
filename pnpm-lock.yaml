@@ -161,6 +161,9 @@ importers:
         specifier: ^0.11.0
         version: 0.11.1
     devDependencies:
+      '@sgl/layout-std':
+        specifier: workspace:*
+        version: link:../layout-std
       '@sgl/measure':
         specifier: workspace:*
         version: link:../measure

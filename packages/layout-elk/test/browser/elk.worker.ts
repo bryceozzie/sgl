@@ -26,5 +26,11 @@ const runtime = createWorkerRuntime(registry, {
   },
 });
 scope.addEventListener('message', (ev) => {
+  // Test-only probe (fix round 1, item 19): report whether this worker's
+  // global scope has a `document` — K11's stub must leave none behind.
+  if ((ev.data as { t: string }).t === 'probe-document') {
+    (scope as unknown as { postMessage(m: unknown): void }).postMessage({ t: 'probe-document', type: typeof (self as unknown as { document?: unknown }).document });
+    return;
+  }
   runtime.receive(ev.data);
 });

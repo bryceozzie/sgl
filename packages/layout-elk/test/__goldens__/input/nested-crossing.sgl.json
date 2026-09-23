@@ -14,35 +14,6 @@
   },
   "children": [
     {
-      "id": "external",
-      "layoutOptions": {
-        "elk.spacing.nodeNode": "40",
-        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
-        "elk.spacing.edgeLabel": "4",
-        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
-        "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
-        "elk.nodeSize.constraints": "MINIMUM_SIZE",
-        "elk.nodeSize.minimum": "(0,78.09872000000001)"
-      },
-      "children": [
-        {
-          "id": "external.cdn",
-          "width": 72,
-          "height": 36,
-          "labels": [
-            {
-              "text": "l:external.cdn",
-              "width": 20.956000000000003,
-              "height": 16.900000000000002,
-              "layoutOptions": {
-                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
       "id": "platform",
       "layoutOptions": {
         "elk.spacing.nodeNode": "40",
@@ -55,7 +26,7 @@
       },
       "children": [
         {
-          "id": "platform.ingress",
+          "id": "platform.web",
           "layoutOptions": {
             "elk.spacing.nodeNode": "40",
             "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -63,17 +34,17 @@
             "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
             "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
             "elk.nodeSize.constraints": "MINIMUM_SIZE",
-            "elk.nodeSize.minimum": "(0,74.49584)"
+            "elk.nodeSize.minimum": "(0,58.64576)"
           },
           "children": [
             {
-              "id": "platform.ingress.lb",
-              "width": 106.38100000000001,
+              "id": "platform.web.ui",
+              "width": 72,
               "height": 36,
               "labels": [
                 {
-                  "text": "l:platform.ingress.lb",
-                  "width": 82.38100000000001,
+                  "text": "l:platform.web.ui",
+                  "width": 13,
                   "height": 16.900000000000002,
                   "layoutOptions": {
                     "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
@@ -82,13 +53,13 @@
               ]
             },
             {
-              "id": "platform.ingress.waf",
+              "id": "platform.web.cdn",
               "width": 72,
               "height": 36,
               "labels": [
                 {
-                  "text": "l:platform.ingress.waf",
-                  "width": 20.228,
+                  "text": "l:platform.web.cdn",
+                  "width": 28.157999999999998,
                   "height": 16.900000000000002,
                   "layoutOptions": {
                     "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
@@ -99,7 +70,7 @@
           ]
         },
         {
-          "id": "platform.services",
+          "id": "platform.data",
           "layoutOptions": {
             "elk.spacing.nodeNode": "40",
             "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -107,17 +78,17 @@
             "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
             "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
             "elk.nodeSize.constraints": "MINIMUM_SIZE",
-            "elk.nodeSize.minimum": "(0,79.52432000000002)"
+            "elk.nodeSize.minimum": "(0,59.371520000000004)"
           },
           "children": [
             {
-              "id": "platform.services.api",
+              "id": "platform.data.db",
               "width": 72,
               "height": 36,
               "labels": [
                 {
-                  "text": "l:platform.services.api",
-                  "width": 17.342000000000002,
+                  "text": "l:platform.data.db",
+                  "width": 18.057,
                   "height": 16.900000000000002,
                   "layoutOptions": {
                     "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
@@ -126,13 +97,13 @@
               ]
             },
             {
-              "id": "platform.services.worker",
+              "id": "platform.data.cache",
               "width": 72,
               "height": 36,
               "labels": [
                 {
-                  "text": "l:platform.services.worker",
-                  "width": 39,
+                  "text": "l:platform.data.cache",
+                  "width": 37.57,
                   "height": 16.900000000000002,
                   "layoutOptions": {
                     "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
@@ -143,56 +114,60 @@
           ]
         }
       ]
+    },
+    {
+      "id": "client",
+      "width": 72,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:client",
+          "width": 33.228,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
     }
   ],
   "edges": [
     {
-      "id": "e-aa8a579440c55bf8",
+      "id": "e-be334112e524c233",
       "sources": [
-        "platform.services.worker"
+        "client"
       ],
       "targets": [
-        "external.cdn"
+        "platform.web.ui"
       ],
       "labels": []
     },
     {
-      "id": "e-8053b7646e964a44",
+      "id": "e-69689b04ba39061f",
       "sources": [
-        "platform.ingress.lb"
+        "platform.web.ui"
       ],
       "targets": [
-        "platform.services.api"
+        "platform.data.db"
       ],
-      "labels": []
+      "labels": [
+        {
+          "text": "l:e-69689b04ba39061f",
+          "width": 27.511000000000003,
+          "height": 14.3,
+          "layoutOptions": {
+            "elk.edgeLabels.placement": "CENTER"
+          }
+        }
+      ]
     },
     {
-      "id": "e-8312902bb75b3f5b",
+      "id": "e-66a7798fce94a874",
       "sources": [
-        "platform.ingress.waf"
+        "platform.web.cdn"
       ],
       "targets": [
-        "platform.ingress.lb"
-      ],
-      "labels": []
-    },
-    {
-      "id": "e-838a69e88cc4c5f7",
-      "sources": [
-        "platform.services.api"
-      ],
-      "targets": [
-        "platform.services.worker"
-      ],
-      "labels": []
-    },
-    {
-      "id": "e-727e23be260ac34e",
-      "sources": [
-        "platform.services.api"
-      ],
-      "targets": [
-        "platform.ingress.lb"
+        "platform.data.cache"
       ],
       "labels": []
     }

@@ -859,24 +859,24 @@
     {
       "labelId": "l:frontend",
       "frame": {
-        "x": 806.59375,
-        "y": 12,
+        "x": 28,
+        "y": 28,
         "w": 51.859375,
-        "h": 31.59375
+        "h": 15.59375
       },
-      "align": "middle",
-      "baseline": "bottom"
+      "align": "start",
+      "baseline": "top"
     },
     {
       "labelId": "l:frontend.web",
       "frame": {
-        "x": 346.671875,
-        "y": 49.59375,
+        "x": 44,
+        "y": 65.59375,
         "w": 26.640625,
-        "h": 31.59375
+        "h": 15.59375
       },
-      "align": "middle",
-      "baseline": "bottom"
+      "align": "start",
+      "baseline": "top"
     },
     {
       "labelId": "l:frontend.web.home",
@@ -980,13 +980,13 @@
     {
       "labelId": "l:frontend.mobile",
       "frame": {
-        "x": 1165.4375,
-        "y": 367.59375,
+        "x": 748,
+        "y": 383.59375,
         "w": 38.171875,
-        "h": 31.59375
+        "h": 15.59375
       },
-      "align": "middle",
-      "baseline": "bottom"
+      "align": "start",
+      "baseline": "top"
     },
     {
       "labelId": "l:frontend.mobile.ios",
@@ -1079,24 +1079,24 @@
     {
       "labelId": "l:backend",
       "frame": {
-        "x": 703.203125,
-        "y": 558.203125,
+        "x": 243.8125,
+        "y": 574.203125,
         "w": 50.421875,
-        "h": 31.59375
+        "h": 15.59375
       },
-      "align": "middle",
-      "baseline": "bottom"
+      "align": "start",
+      "baseline": "top"
     },
     {
       "labelId": "l:backend.api",
       "frame": {
-        "x": 769.640625,
-        "y": 600.796875,
+        "x": 363.15625,
+        "y": 616.796875,
         "w": 20.890625,
-        "h": 31.59375
+        "h": 15.59375
       },
-      "align": "middle",
-      "baseline": "bottom"
+      "align": "start",
+      "baseline": "top"
     },
     {
       "labelId": "l:backend.api.gateway",
@@ -1200,13 +1200,13 @@
     {
       "labelId": "l:backend.data",
       "frame": {
-        "x": 625.921875,
-        "y": 876.40625,
+        "x": 259.8125,
+        "y": 892.40625,
         "w": 27.375,
-        "h": 31.59375
+        "h": 15.59375
       },
-      "align": "middle",
-      "baseline": "bottom"
+      "align": "start",
+      "baseline": "top"
     },
     {
       "labelId": "l:backend.data.primary",

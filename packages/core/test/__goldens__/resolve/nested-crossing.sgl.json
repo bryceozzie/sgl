@@ -1,0 +1,50 @@
+{
+  "@sgl": "1.0",
+  "platform": {
+    "@label": "Platform",
+    "web": {
+      "@label": "Web",
+      "ui": {
+        "@label": "UI"
+      },
+      "cdn": {
+        "@label": "CDN"
+      }
+    },
+    "data": {
+      "@label": "Data",
+      "db": {
+        "@label": "DB"
+      },
+      "cache": {
+        "@label": "Cache"
+      }
+    },
+    "@edges": [
+      {
+        "from": "web.ui",
+        "to": "data.db",
+        "directed": "forward",
+        "ordinal": 0,
+        "@label": "query"
+      },
+      {
+        "from": "web.cdn",
+        "to": "data.cache",
+        "directed": "forward",
+        "ordinal": 0
+      }
+    ]
+  },
+  "client": {
+    "@label": "Client"
+  },
+  "@edges": [
+    {
+      "from": "client",
+      "to": "platform.web.ui",
+      "directed": "forward",
+      "ordinal": 0
+    }
+  ]
+}

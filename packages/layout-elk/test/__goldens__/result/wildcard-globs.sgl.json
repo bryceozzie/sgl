@@ -1670,13 +1670,13 @@
     {
       "labelId": "l:lane1",
       "frame": {
-        "x": 324.1875,
-        "y": 12,
+        "x": 28,
+        "y": 28,
         "w": 39.625,
-        "h": 31.59375
+        "h": 15.59375
       },
-      "align": "middle",
-      "baseline": "bottom"
+      "align": "start",
+      "baseline": "top"
     },
     {
       "labelId": "l:lane1.cam1",
@@ -1747,13 +1747,13 @@
     {
       "labelId": "l:stores",
       "frame": {
-        "x": 350.765625,
-        "y": 371.59375,
+        "x": 145.75,
+        "y": 387.59375,
         "w": 35.296875,
-        "h": 31.59375
+        "h": 15.59375
       },
-      "align": "middle",
-      "baseline": "bottom"
+      "align": "start",
+      "baseline": "top"
     },
     {
       "labelId": "l:stores.orders-db",
@@ -1802,13 +1802,13 @@
     {
       "labelId": "l:mixed",
       "frame": {
-        "x": 874.796875,
-        "y": 371.59375,
+        "x": 688.078125,
+        "y": 387.59375,
         "w": 34.5625,
-        "h": 31.59375
+        "h": 15.59375
       },
-      "align": "middle",
-      "baseline": "bottom"
+      "align": "start",
+      "baseline": "top"
     },
     {
       "labelId": "l:mixed.camAhd",

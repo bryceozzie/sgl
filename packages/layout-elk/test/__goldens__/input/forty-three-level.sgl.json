@@ -20,18 +20,10 @@
         "elk.layered.spacing.nodeNodeBetweenLayers": "70",
         "elk.spacing.edgeLabel": "4",
         "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
-        "elk.padding": "[top=6,left=16,bottom=16,right=16]"
+        "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+        "elk.nodeSize.constraints": "MINIMUM_SIZE",
+        "elk.nodeSize.minimum": "(0,83.86592000000002)"
       },
-      "labels": [
-        {
-          "text": "l:frontend",
-          "width": 51.86592000000001,
-          "height": 31.6,
-          "layoutOptions": {
-            "elk.nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]"
-          }
-        }
-      ],
       "children": [
         {
           "id": "frontend.web",
@@ -40,18 +32,10 @@
             "elk.layered.spacing.nodeNodeBetweenLayers": "70",
             "elk.spacing.edgeLabel": "4",
             "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
-            "elk.padding": "[top=6,left=16,bottom=16,right=16]"
+            "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+            "elk.nodeSize.constraints": "MINIMUM_SIZE",
+            "elk.nodeSize.minimum": "(0,58.64576)"
           },
-          "labels": [
-            {
-              "text": "l:frontend.web",
-              "width": 26.645760000000003,
-              "height": 31.6,
-              "layoutOptions": {
-                "elk.nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]"
-              }
-            }
-          ],
           "children": [
             {
               "id": "frontend.web.home",
@@ -197,18 +181,10 @@
             "elk.layered.spacing.nodeNodeBetweenLayers": "70",
             "elk.spacing.edgeLabel": "4",
             "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
-            "elk.padding": "[top=6,left=16,bottom=16,right=16]"
+            "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+            "elk.nodeSize.constraints": "MINIMUM_SIZE",
+            "elk.nodeSize.minimum": "(0,70.16720000000001)"
           },
-          "labels": [
-            {
-              "text": "l:frontend.mobile",
-              "width": 38.16720000000001,
-              "height": 31.6,
-              "layoutOptions": {
-                "elk.nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]"
-              }
-            }
-          ],
           "children": [
             {
               "id": "frontend.mobile.ios",
@@ -341,18 +317,10 @@
         "elk.layered.spacing.nodeNodeBetweenLayers": "70",
         "elk.spacing.edgeLabel": "4",
         "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
-        "elk.padding": "[top=6,left=16,bottom=16,right=16]"
+        "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+        "elk.nodeSize.constraints": "MINIMUM_SIZE",
+        "elk.nodeSize.minimum": "(0,82.42736)"
       },
-      "labels": [
-        {
-          "text": "l:backend",
-          "width": 50.42736,
-          "height": 31.6,
-          "layoutOptions": {
-            "elk.nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]"
-          }
-        }
-      ],
       "children": [
         {
           "id": "backend.api",
@@ -361,18 +329,10 @@
             "elk.layered.spacing.nodeNodeBetweenLayers": "70",
             "elk.spacing.edgeLabel": "4",
             "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
-            "elk.padding": "[top=6,left=16,bottom=16,right=16]"
+            "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+            "elk.nodeSize.constraints": "MINIMUM_SIZE",
+            "elk.nodeSize.minimum": "(0,52.89152)"
           },
-          "labels": [
-            {
-              "text": "l:backend.api",
-              "width": 20.891520000000003,
-              "height": 31.6,
-              "layoutOptions": {
-                "elk.nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]"
-              }
-            }
-          ],
           "children": [
             {
               "id": "backend.api.gateway",
@@ -518,18 +478,10 @@
             "elk.layered.spacing.nodeNodeBetweenLayers": "70",
             "elk.spacing.edgeLabel": "4",
             "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
-            "elk.padding": "[top=6,left=16,bottom=16,right=16]"
+            "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+            "elk.nodeSize.constraints": "MINIMUM_SIZE",
+            "elk.nodeSize.minimum": "(0,59.371520000000004)"
           },
-          "labels": [
-            {
-              "text": "l:backend.data",
-              "width": 27.371520000000004,
-              "height": 31.6,
-              "layoutOptions": {
-                "elk.nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]"
-              }
-            }
-          ],
           "children": [
             {
               "id": "backend.data.primary",

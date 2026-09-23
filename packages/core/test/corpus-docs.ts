@@ -38,4 +38,5 @@ export const CLEAN_DOCS: readonly string[] = [
   'hidden.sgl',
   'a11y-links.sgl',
   'forty-three-level.sgl',
+  'nested-crossing.sgl',
 ];

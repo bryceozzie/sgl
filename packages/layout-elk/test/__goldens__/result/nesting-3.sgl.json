@@ -319,13 +319,13 @@
     {
       "labelId": "l:external",
       "frame": {
-        "x": 40.953125,
-        "y": 656.796875,
+        "x": 28,
+        "y": 672.796875,
         "w": 46.09375,
-        "h": 31.59375
+        "h": 15.59375
       },
-      "align": "middle",
-      "baseline": "bottom"
+      "align": "start",
+      "baseline": "top"
     },
     {
       "labelId": "l:external.cdn",
@@ -341,24 +341,24 @@
     {
       "labelId": "l:platform",
       "frame": {
-        "x": 119.828125,
-        "y": 12,
+        "x": 64,
+        "y": 28,
         "w": 48.25,
-        "h": 31.59375
+        "h": 15.59375
       },
-      "align": "middle",
-      "baseline": "bottom"
+      "align": "start",
+      "baseline": "top"
     },
     {
       "labelId": "l:platform.ingress",
       "frame": {
-        "x": 123.21875,
-        "y": 340.203125,
+        "x": 91,
+        "y": 356.203125,
         "w": 42.5,
-        "h": 31.59375
+        "h": 15.59375
       },
-      "align": "middle",
-      "baseline": "bottom"
+      "align": "start",
+      "baseline": "top"
     },
     {
       "labelId": "l:platform.ingress.lb",
@@ -385,13 +385,13 @@
     {
       "labelId": "l:platform.services",
       "frame": {
-        "x": 109.234375,
-        "y": 64.59375,
+        "x": 91,
+        "y": 80.59375,
         "w": 47.53125,
-        "h": 31.59375
+        "h": 15.59375
       },
-      "align": "middle",
-      "baseline": "bottom"
+      "align": "start",
+      "baseline": "top"
     },
     {
       "labelId": "l:platform.services.api",

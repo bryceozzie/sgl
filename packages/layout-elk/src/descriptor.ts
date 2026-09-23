@@ -24,6 +24,10 @@ export const ELK_DIRECTIONS: readonly ElkDirection[] = ['down', 'up', 'left', 'r
 export const ELK_EDGE_ROUTINGS: readonly ElkEdgeRouting[] = ['ORTHOGONAL', 'POLYLINE', 'SPLINES'];
 export const ELK_NODE_PLACEMENTS: readonly ElkNodePlacement[] = ['BRANDES_KOEPF', 'NETWORK_SIMPLEX', 'LINEAR_SEGMENTS'];
 
+/** ELK's `PortConstraints` members: the `portConstraints` hint's enum (DD-06
+ *  §6). The mapping skips any other value (fix round 1, item 4). */
+export const ELK_PORT_CONSTRAINTS = ['UNDEFINED', 'FREE', 'FIXED_SIDE', 'FIXED_ORDER', 'FIXED_RATIO', 'FIXED_POS'] as const;
+
 /** The engine's options, every field filled. */
 export interface ElkOptions {
   readonly direction: ElkDirection;
@@ -109,7 +113,7 @@ export const elkDescriptor: ElkDescriptor = {
     properties: {
       rank: { type: 'string', enum: ['same'] }, // ⟶ B13
       priority: { type: 'number' },
-      portConstraints: { type: 'string' },
+      portConstraints: { type: 'string', enum: ELK_PORT_CONSTRAINTS },
     },
   },
 

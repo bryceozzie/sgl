@@ -1,4 +1,4 @@
-import { asNodeId, type LabelId } from '@sgl/core';
+import { asNodeId, type LabelId, type NodeId } from '@sgl/core';
 import {
   createWorkerRuntime,
   EngineRegistry,
@@ -8,13 +8,15 @@ import {
   type LayoutInput,
   type WorkerToHost,
 } from '@sgl/layout-api';
-import { conformanceContext, hierarchyCrossings, runHostSequence } from '@sgl/layout-api/conformance';
+import { conformanceContext, detachedEdges, hierarchyCrossings, runHostSequence, titleCrossings } from '@sgl/layout-api/conformance';
+import { gridEngine } from '@sgl/layout-std';
 import { describe, expect, it } from 'vitest';
 import { CLEAN_DOCS } from '../../core/test/corpus-docs.js';
 import { listCorpusDocs } from '../../theme/test/corpus.js';
 import { ELK_DEFAULT_OPTIONS } from '../src/descriptor.js';
 import { elkEngine } from '../src/index.js';
-import { toElkGraph } from '../src/mapping.js';
+import { loadElk } from '../src/load-elk.js';
+import { fromElkGraph, toElkGraph, type ElkNode } from '../src/mapping.js';
 import { layoutInputFor, layoutInputForSource, METRICS, withContainerMin } from './corpus-input.js';
 
 /**
@@ -81,7 +83,44 @@ describe('elk over the corpus (DD-06 §6, Stage K gate)', () => {
   }
 });
 
+/** The K4 baseline (fix round 1, item 10): documents with any hierarchy
+ *  crossing under ORTHOGONAL. None today. */
+const EXPECTED_HIERARCHY_CROSSINGS: Readonly<Record<string, number>> = {};
+
+/** Item 2's baseline: edges through a container's title text, per document
+ *  (any container, the endpoints' own ancestors included). Measured after
+ *  item 1 moved titles top-left; no ELK option tried removed the rest
+ *  (DD-06 §6.3), so they are a pinned, counted warning. */
+const EXPECTED_TITLE_CROSSINGS: Readonly<Record<string, number>> = {
+  'checkout.sgl': 2,
+  'containers-edges.sgl': 1,
+  'nesting-3.sgl': 1,
+  'wildcards.sgl': 4,
+};
+
 describe('the hierarchy-crossing warning (DD-06 §6.3, K4)', () => {
+  it('title crossings per corpus document (fix round 1, item 2; logged and pinned, never a layout failure)', async () => {
+    const counts: Record<string, number> = {};
+    for (const doc of DOCS) {
+      const input = layoutInputFor(doc);
+      const { result } = await runHostSequence(elkEngine, input, {}, METRICS);
+      const n = titleCrossings(input, result).length;
+      if (n > 0) counts[doc] = n;
+    }
+    console.warn(`[K4] title crossings under ORTHOGONAL, per document with any: ${JSON.stringify(counts)}`);
+    expect(counts).toEqual(EXPECTED_TITLE_CROSSINGS);
+  }, 60_000);
+
+  it('nested-crossing.sgl exercises an edge ELK reports in a non-root container, and it stays attached', async () => {
+    const input = layoutInputFor('nested-crossing.sgl');
+    const out = await (await loadElk()).layout(JSON.parse(JSON.stringify(toElkGraph(input, ELK_DEFAULT_OPTIONS, METRICS))) as ElkNode);
+    const containers = (out.edges ?? []).map((e) => e.container);
+    expect(containers.some((c) => c !== undefined && c !== 'root')).toBe(true);
+    const { result } = await runHostSequence(elkEngine, input, {}, METRICS);
+    expect(detachedEdges(input.graph, result, METRICS.arrowSize)).toEqual([]);
+    expect(validateResult(result, input.graph, elkEngine.id)).toEqual([]);
+  });
+
   it('counts per corpus document, ORTHOGONAL (logged, never a failure)', async () => {
     const counts: Record<string, number> = {};
     for (const doc of DOCS) {
@@ -91,7 +130,9 @@ describe('the hierarchy-crossing warning (DD-06 §6.3, K4)', () => {
       if (n > 0) counts[doc] = n;
     }
     console.warn(`[K4] hierarchy crossings under ORTHOGONAL, per document with any: ${JSON.stringify(counts)}`);
-    expect(counts).toBeTypeOf('object');
+    // Pinned (fix round 1, item 10): a warning, not a failure of the layout —
+    // but a change in the count is a change to review, not to miss.
+    expect(counts).toEqual(EXPECTED_HIERARCHY_CROSSINGS);
   }, 60_000);
 
   it('containers-edges.sgl under ORTHOGONAL and POLYLINE (the escape hatch, 06 §4 pitfall 8)', async () => {
@@ -103,7 +144,7 @@ describe('the hierarchy-crossing warning (DD-06 §6.3, K4)', () => {
       out[edgeRouting] = hierarchyCrossings(input.graph, result).length;
     }
     console.warn(`[K4] containers-edges.sgl crossings: ${JSON.stringify(out)}`);
-    expect(Object.keys(out)).toEqual(['ORTHOGONAL', 'POLYLINE']);
+    expect(out).toEqual({ ORTHOGONAL: 0, POLYLINE: 0 });
   });
 });
 
@@ -167,28 +208,117 @@ describe('labels come from ELK through the real worker runtime (K5, second half)
     return message.result;
   }
 
-  it("posts ELK's label placements, not placeLabels' — a centred container title the fallback never produces", async () => {
+  it("posts ELK's label placements, not placeLabels' — edge labels the fallback would put elsewhere", async () => {
     const input = layoutInputFor('checkout.sgl');
     const posted = await throughRuntime(input);
     const direct = await engineOutput(input);
     const fallback = placeLabels(input, posted, METRICS);
 
-    const containers = input.graph.order.filter((id) => (input.graph.nodes[id]?.children.length ?? 0) > 0);
-    expect(containers.length).toBeGreaterThan(0);
-    for (const id of containers) {
-      const labelId = input.graph.nodes[id]!.labelId!;
-      const got = posted.labels.find((l) => l.labelId === labelId);
-      const elk = direct.labels.find((l) => l.labelId === labelId);
-      const host = fallback.labels.find((l) => l.labelId === labelId);
-      expect(got).toEqual(elk); // what the worker posts is ELK's …
-      // … and not what the fallback would have placed: the fallback puts a
-      // container title at the content box's left edge with align 'start';
-      // ELK centres it over the container.
-      expect(got?.align).toBe('middle');
-      expect(host?.align).toBe('start');
-      expect(got?.frame.x).not.toBe(host?.frame.x);
-    }
-    // Every other label too — none replaced, none dropped.
+    // What the worker posts is exactly the engine's own output: nothing replaced, nothing dropped.
     expect(posted.labels).toEqual(direct.labels);
+    // And it is not what the fallback would have placed: every edge label
+    // ELK placed differs from placeLabels' midpoint-and-offset placement.
+    const edgeLabels = input.graph.edges.filter((e) => e.labelId !== null).map((e) => e.labelId!);
+    expect(edgeLabels.length).toBeGreaterThan(0);
+    for (const labelId of edgeLabels) {
+      const got = posted.labels.find((l) => l.labelId === labelId);
+      const host = fallback.labels.find((l) => l.labelId === labelId);
+      expect(got, labelId).toBeDefined();
+      expect(got?.frame, labelId).not.toEqual(host?.frame);
+    }
+  });
+});
+
+describe('container titles top-left, as grid places them (fix round 1, item 1)', () => {
+  for (const doc of CLEAN_DOCS) {
+    it(`${doc}: every container title has grid's alignment and inset`, async () => {
+      const input = layoutInputFor(doc);
+      const elk = (await runHostSequence(elkEngine, input, {}, METRICS)).result;
+      const grid = (await runHostSequence(gridEngine, input, {}, METRICS)).result;
+      for (const id of input.graph.order) {
+        const node = input.graph.nodes[id]!;
+        if (node.hidden || node.labelId === null || !node.children.some((c) => input.graph.nodes[c]?.hidden === false)) continue;
+        const inset = (r: typeof elk) => {
+          const l = r.labels.find((p) => p.labelId === node.labelId)!;
+          const f = r.nodes[id]!.frame;
+          return { align: l.align, baseline: l.baseline, dx: l.frame.x - f.x, dy: l.frame.y - f.y, w: l.frame.w, h: l.frame.h };
+        };
+        expect(inset(elk), id).toEqual(inset(grid));
+        expect(inset(elk).align).toBe('start');
+      }
+    });
+  }
+
+  it('the reviewer\'s [H_LEFT, V_TOP, INSIDE, V_PRIORITY] lays out byte-identically to sending no title at all (V_PRIORITY is not an ELK placement; ELK ignores the whole value)', async () => {
+    const elk = await loadElk();
+    for (const doc of ['checkout.sgl', 'nesting-3.sgl', 'forty-three-level.sgl']) {
+      const input = layoutInputFor(doc);
+      const graph = toElkGraph(input, ELK_DEFAULT_OPTIONS, METRICS);
+      const withTitles = (n: ElkNode): ElkNode => {
+        const node = input.graph.nodes[n.id as NodeId];
+        const isContainer = (n.children?.length ?? 0) > 0;
+        const size = node?.labelId ? input.labelSizes[node.labelId] : undefined;
+        return {
+          ...n,
+          ...(isContainer && size !== undefined && node?.labelId
+            ? { labels: [{ text: node.labelId, width: size.w, height: size.h, layoutOptions: { 'elk.nodeLabels.placement': '[H_LEFT, V_TOP, INSIDE, V_PRIORITY]' } }] }
+            : {}),
+          ...(n.children && { children: n.children.map(withTitles) }),
+        };
+      };
+      const a = fromElkGraph(input, await elk.layout(JSON.parse(JSON.stringify(graph)) as ElkNode));
+      const b = fromElkGraph(input, await elk.layout(withTitles(graph)));
+      expect(JSON.stringify(b.nodes), doc).toBe(JSON.stringify(a.nodes));
+      expect(JSON.stringify(b.edges), doc).toBe(JSON.stringify(a.edges));
+    }
+  });
+});
+
+describe('arrowheads are reserved exactly once, end to end (fix round 1, item 12)', () => {
+  /** Distance from `p` to the nearest point of `r` (0 inside). */
+  const toFrame = (p: { x: number; y: number }, r: { x: number; y: number; w: number; h: number }) =>
+    Math.hypot(Math.max(r.x - p.x, 0, p.x - (r.x + r.w)), Math.max(r.y - p.y, 0, p.y - (r.y + r.h)));
+
+  for (const doc of CLEAN_DOCS) {
+    it(`${doc}: every directed end sits arrowSize (±0.5) off its node's frame`, async () => {
+      const input = layoutInputFor(doc);
+      const { result } = await runHostSequence(elkEngine, input, {}, METRICS);
+      for (const edge of input.graph.edges) {
+        if (edge.hidden || edge.directed === 'none' || edge.from.node === edge.to.node) continue;
+        const layout = result.edges[edge.id]!;
+        const head = toFrame(layout.end, result.nodes[edge.to.node]!.frame);
+        expect(Math.abs(head - METRICS.arrowSize), `${edge.id} head ${head}`).toBeLessThanOrEqual(0.5);
+        if (edge.directed === 'both') {
+          const tail = toFrame(layout.start, result.nodes[edge.from.node]!.frame);
+          expect(Math.abs(tail - METRICS.arrowSize), `${edge.id} tail ${tail}`).toBeLessThanOrEqual(0.5);
+        }
+      }
+    });
+  }
+});
+
+describe('abort (fix round 1, item 7)', () => {
+  it('rejects with an AbortError once elk has loaded, before calling ELK, and keeps the loaded instance', async () => {
+    const input = layoutInputFor('checkout.sgl');
+    await loadElk();
+    const controller = new AbortController();
+    controller.abort();
+    const ctx = { ...conformanceContext({}, METRICS), signal: controller.signal };
+    await expect(elkEngine.layout(input, ctx)).rejects.toMatchObject({ name: 'AbortError' });
+    // The same instance serves the next request.
+    const first = await loadElk();
+    await elkEngine.layout(input, conformanceContext({}, METRICS));
+    expect(await loadElk()).toBe(first);
+  });
+
+  it("through the worker runtime, an aborted request is an 'error' message, not a crash", async () => {
+    const registry = new EngineRegistry();
+    registry.register(elkEngine);
+    const sent: WorkerToHost[] = [];
+    const runtime = createWorkerRuntime(registry, { post: (m) => sent.push(m) });
+    runtime.receive({ t: 'layout', id: 3, engine: elkEngine.id, input: layoutInputFor('checkout.sgl'), options: {}, metrics: METRICS, table: {}, seed: 1 });
+    runtime.receive({ t: 'abort', id: 3 });
+    await expect.poll(() => sent.length).toBe(1);
+    expect(sent[0]).toMatchObject({ t: 'error', id: 3 });
   });
 });

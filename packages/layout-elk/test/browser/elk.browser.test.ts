@@ -6,6 +6,7 @@ import type { LayoutInput, ResolvedThemeMetricsView, StyledGraphInput } from '..
 import { runHostSequence } from '../../../layout-api/src/conformance.js';
 import { createWorkerHost, DEFAULT_ENGINE_TIMEOUT_MS, DEFAULT_TIMEOUT_MS } from '../../../layout-api/src/host.js';
 import { buildLayoutInput } from '../../../layout-api/src/sizing.js';
+import { placeLabels } from '../../../layout-api/src/fallbacks.js';
 import { quantize } from '../../../layout-api/src/validate.js';
 // Plain data and a plain-JS pure function, shared with the Node side.
 import { scaleDocument } from '../../../../bench/scale-document.js';
@@ -98,6 +99,32 @@ describe('sgl.elk through a real Worker (Stage K)', () => {
     }
   });
 
+  it('leaves no document behind in the worker after the first layout (K11, fix round 1, item 19)', async () => {
+    const worker = spawn();
+    try {
+      const next = (t: string) =>
+        new Promise<Record<string, unknown>>((resolve) => {
+          const on = (ev: MessageEvent) => {
+            const data = ev.data as Record<string, unknown>;
+            if (data['t'] === t || (t === 'result' && data['t'] === 'error')) {
+              worker.removeEventListener('message', on);
+              resolve(data);
+            }
+          };
+          worker.addEventListener('message', on);
+        });
+      const input = inputFor(CHECKOUT as string);
+      const done = next('result');
+      worker.postMessage({ t: 'layout', id: 1, engine: 'sgl.elk', input, options: {}, metrics: METRICS, table: {}, seed: 1 });
+      expect((await done)['t']).toBe('result'); // elk loaded and laid out …
+      const probe = next('probe-document');
+      worker.postMessage({ t: 'probe-document' });
+      expect((await probe)['type']).toBe('undefined'); // … and the stub is gone.
+    } finally {
+      worker.terminate();
+    }
+  });
+
   it("ELK's own output here matches the golden Node produced, after quantization (Node ≡ this browser)", async () => {
     const { raw } = await runHostSequence(elkEngine, inputFor(FORTY as string), {}, METRICS);
     // If this differs, it is an ADR-0004 finding to report, not an assertion to loosen.
@@ -111,11 +138,15 @@ describe('sgl.elk through a real Worker (Stage K)', () => {
       const outcome = await host.run('sgl.elk', input, {}, METRICS, {}, new AbortController().signal);
       const { raw } = await runHostSequence(elkEngine, input, {}, METRICS);
       expect(outcome.value?.labels).toEqual(quantize(raw, 64).labels);
-      // A container title ELK centred — the fallback would have put it at the
-      // left edge with align 'start'.
-      const titles = outcome.value!.labels.filter((l) => l.baseline === 'bottom');
-      expect(titles.length).toBeGreaterThan(0);
-      for (const t of titles) expect(t.align).toBe('middle');
+      // Edge labels are where ELK put them, not where the host fallback
+      // (`placeLabels`, midpoint plus a perpendicular offset) would have.
+      const fallback = placeLabels(input, outcome.value!, METRICS);
+      const edgeLabels = input.graph.edges.filter((e) => e.labelId !== null).map((e) => e.labelId!);
+      expect(edgeLabels.length).toBeGreaterThan(0);
+      for (const id of edgeLabels) {
+        const got = outcome.value!.labels.find((l) => l.labelId === id);
+        expect(got?.frame).not.toEqual(fallback.labels.find((l) => l.labelId === id)?.frame);
+      }
     } finally {
       host.dispose();
     }
