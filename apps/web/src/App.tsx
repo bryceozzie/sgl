@@ -33,6 +33,7 @@ const NOTICE_TOASTS: Readonly<Record<BootNotice, { readonly message: string; rea
   'share-opened': { message: 'Opened the shared diagram as a new document.', kind: 'info' },
   'share-invalid': { message: 'This share link is not valid', kind: 'error' },
   'storage-failed': { message: "This browser's storage is unavailable, so changes are kept in this tab only.", kind: 'error' },
+  'boot-failed': { message: "Something went wrong opening your documents, so the example is open instead. Changes are kept in this tab only.", kind: 'error' },
 };
 
 /**

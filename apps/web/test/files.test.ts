@@ -49,6 +49,49 @@ describe('sanitised for file names', () => {
     const stem = sanitizeFileStem(`${'x'.repeat(119)} .${'y'.repeat(50)}`);
     expect(stem).toBe('x'.repeat(119));
   });
+  // Fix round 1, item 12.
+  it.each([
+    // Windows reserves the stem before the FIRST dot, whatever follows.
+    ['con.backup', 'con_.backup'],
+    ['AUX.tar', 'AUX_.tar'],
+    ['nul.a.b', 'nul_.a.b'],
+    ['con .backup', 'con_ .backup'],
+    ['console.backup', 'console.backup'],
+    // …and these, which the first list missed.
+    ['CONIN$', 'CONIN$_'],
+    ['conout$', 'conout$_'],
+    ['CONOUT$.log', 'CONOUT$_.log'],
+    ['COM\u00b9', 'COM\u00b9_'],
+    ['com\u00b2', 'com\u00b2_'],
+    ['LPT\u00b3', 'LPT\u00b3_'],
+    ['lpt\u00b9.txt', 'lpt\u00b9_.txt'],
+    ['COM\u2074', 'COM\u2074'], // only ¹ ² ³ are reserved
+  ])('reserved device name %j → %j', (title, stem) => {
+    expect(sanitizeFileStem(title)).toBe(stem);
+  });
+
+  it.each([
+    // Bidi controls could make "evil\u202Egpj.svg" display as "evilsvg.jpg".
+    ['evil\u202Egpj', 'evilgpj'],
+    ['a\u202Ab\u202Bc\u202Cd\u202De', 'abcde'],
+    ['a\u2066b\u2067c\u2068d\u2069e', 'abcde'],
+    ['l\u200Er\u200Fm', 'lrm'],
+    // Zero-width characters: invisible, and they make look-alike names.
+    ['zero\u200Bwidth\u200Cjoin\u200Dx', 'zerowidthjoinx'],
+    ['\uFEFFbom', 'bom'],
+    ['\u200B\u200B', 'diagram'],
+  ])('bidi and zero-width characters are stripped: %j → %j', (title, stem) => {
+    expect(sanitizeFileStem(title)).toBe(stem);
+  });
+
+  it('caps the length by code point, never splitting a surrogate pair', () => {
+    const stem = sanitizeFileStem('🚀'.repeat(200)); // 400 UTF-16 code units
+    expect(Array.from(stem)).toHaveLength(120);
+    expect(stem).toBe('🚀'.repeat(120));
+    expect(stem).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/); // no lone surrogate
+    const mixed = sanitizeFileStem(`${'x'.repeat(119)}😀tail`);
+    expect(mixed).toBe(`${'x'.repeat(119)}😀`);
+  });
 });
 
 describe('save names and the remembered extension', () => {

@@ -1,7 +1,7 @@
 import { gridEngine } from '@sgl/layout-std';
 import { BUILT_IN, DEFAULT_THEME_ID } from '@sgl/theme';
 import EXAMPLE_SOURCE from '../examples/checkout.sgl?raw';
-import { bootDocument, type BootResult } from '../state/boot.js';
+import { bootDocument, fallbackBoot, newDocumentId, type BootResult, type IdSource } from '../state/boot.js';
 import { decodeShareFragment } from '../state/share.js';
 import { createMemoryStore, type DocumentStore } from '../state/storage.js';
 import { openIdbStore } from '../state/storage-idb.js';
@@ -24,8 +24,30 @@ export interface AppBoot extends BootResult {
  * pick the document (`state/boot.ts`), and clear a share hash so a reload
  * does not re-import it (§8). Runs before the first render, so the stored
  * `lastGoodSvg` is on screen before fonts or the worker are ready (§5).
+ *
+ * **Never rejects** (fix round 1, item 8): a storage failure falls back to
+ * memory, and anything else that throws gives `bootFallback()` — the example
+ * in memory, with a notice — rather than a blank page.
  */
 export async function bootApp(): Promise<AppBoot> {
+  try {
+    return await bootFromStorage();
+  } catch (err) {
+    console.error('[SGL] boot failed; opening the example in memory.', err);
+    return bootFallback();
+  }
+}
+
+/** The example document on an in-memory store, with the `boot-failed`
+ *  notice: what the app mounts when boot cannot complete (`main.tsx`). */
+export function bootFallback(): AppBoot {
+  return {
+    ...fallbackBoot({ exampleSource: EXAMPLE_SOURCE, now: () => Date.now(), defaultEngineId: DEFAULT_ENGINE_ID, defaultThemeId: DEFAULT_THEME_ID }),
+    store: createMemoryStore(),
+  };
+}
+
+async function bootFromStorage(): Promise<AppBoot> {
   let store: DocumentStore;
   let storageFailed = false;
   try {
@@ -40,7 +62,9 @@ export async function bootApp(): Promise<AppBoot> {
     store,
     hash: window.location.hash,
     exampleSource: EXAMPLE_SOURCE,
-    newId: () => crypto.randomUUID(),
+    // `crypto.randomUUID` only exists in a secure context; plain http on a
+    // LAN address has only `getRandomValues` (`newDocumentId`).
+    newId: () => newDocumentId(globalThis.crypto as IdSource | undefined, () => Date.now()),
     now: () => Date.now(),
     defaultEngineId: DEFAULT_ENGINE_ID,
     defaultThemeId: DEFAULT_THEME_ID,

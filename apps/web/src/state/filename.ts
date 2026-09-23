@@ -32,23 +32,35 @@ export function documentTitle(model: DocumentModel): string {
  *  strictest and a superset of the others), plus C0/C1 controls. */
 // eslint-disable-next-line no-control-regex
 const FORBIDDEN = /[<>:"/\\|?*\u0000-\u001f\u007f-\u009f]/g;
-/** Windows reserves these names whatever the extension. */
-const RESERVED = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])$/i;
+/** Bidi controls (U+202A–U+202E embeddings/overrides, U+2066–U+2069
+ *  isolates, U+200E/U+200F marks) — which can make `evil\u202Egpj.svg` read
+ *  as `evilsvg.jpg` — and zero-width characters (U+200B–U+200D, U+FEFF):
+ *  invisible, and a way to build look-alike names. Removed outright. */
+const INVISIBLE = /[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g;
+/** Windows reserves these device names for the stem before the **first** dot
+ *  (`con.backup.sgl` is as reserved as `con.sgl`), ignoring trailing spaces,
+ *  whatever the extension: `CON`, `PRN`, `AUX`, `NUL`, `CONIN$`, `CONOUT$`,
+ *  and `COM`/`LPT` followed by a digit or a superscript ¹ ² ³. */
+const RESERVED = /^(con|prn|aux|nul|conin\$|conout\$|com[0-9\u00b9\u00b2\u00b3]|lpt[0-9\u00b9\u00b2\u00b3])(?= *(\.|$))/i;
+/** In code points, not UTF-16 units, so the cut never splits a surrogate
+ *  pair (a lone surrogate is not valid in a file name, nor in UTF-8). */
 const MAX_STEM_LENGTH = 120;
 
-/** "Sanitised for filenames": forbidden characters become `-`, whitespace
- *  runs collapse to one space, leading/trailing dots, dashes and spaces go
- *  (a trailing dot is silently dropped by Windows; a leading one hides the
- *  file on Unix), the stem is capped, and a reserved device name gets a `_`.
- *  Anything left empty is `diagram`. */
+/** "Sanitised for filenames": bidi and zero-width characters go, forbidden
+ *  characters become `-`, whitespace runs collapse to one space,
+ *  leading/trailing dots, dashes and spaces go (a trailing dot is silently
+ *  dropped by Windows; a leading one hides the file on Unix), the stem is
+ *  capped at 120 code points, and a reserved device name — the part before
+ *  the first dot — gets a `_`. Anything left empty is `diagram`. */
 export function sanitizeFileStem(title: string): string {
-  // Whitespace first, so a tab or newline (also a control) becomes a space.
-  let stem = title.normalize('NFC').replace(/\s+/g, ' ').replace(FORBIDDEN, '-');
+  // Invisibles first (U+FEFF is also `\s`), then whitespace, so a tab or
+  // newline (also a control) becomes a space.
+  let stem = title.normalize('NFC').replace(INVISIBLE, '').replace(/\s+/g, ' ').replace(FORBIDDEN, '-');
   stem = stem.replace(/^[\s.-]+|[\s.-]+$/g, '');
-  if (stem.length > MAX_STEM_LENGTH) stem = stem.slice(0, MAX_STEM_LENGTH).replace(/[\s.-]+$/g, '');
+  const codePoints = Array.from(stem);
+  if (codePoints.length > MAX_STEM_LENGTH) stem = codePoints.slice(0, MAX_STEM_LENGTH).join('').replace(/[\s.-]+$/g, '');
   if (stem === '') return FALLBACK_TITLE;
-  if (RESERVED.test(stem)) stem = `${stem}_`;
-  return stem;
+  return stem.replace(RESERVED, '$1_');
 }
 
 /** The three Save ▾ items in scope (DD-08 §7; PNG is D6). */

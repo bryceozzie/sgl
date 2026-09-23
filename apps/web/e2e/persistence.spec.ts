@@ -96,3 +96,14 @@ test('an edit made just before leaving the page is not lost (flushed on pagehide
   expect((await storedOpenDocument(page))?.source).toBe(SMALL_SOURCE);
   await waitForExactNodeCount(page, visibleNodeCount(SMALL_SOURCE));
 });
+
+test('boot without crypto.randomUUID (an insecure origin, e.g. plain http on a LAN IP) still opens the app', async ({ page }) => {
+  await page.addInitScript(() => {
+    // What a non-secure context looks like: `randomUUID` is [SecureContext].
+    delete (Crypto.prototype as { randomUUID?: unknown }).randomUUID;
+  });
+  await page.goto('/');
+  await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+  expect(await page.evaluate(() => typeof crypto.randomUUID)).toBe('undefined');
+  await expect.poll(async () => (await storedOpenDocument(page))?.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+});

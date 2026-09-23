@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bootDocument, type BootDeps } from '../src/state/boot.js';
+import { bootDocument, fallbackBoot, newDocumentId, type BootDeps } from '../src/state/boot.js';
 import { encodeShareFragment, type SharePayload } from '../src/state/share.js';
 import { createMemoryStore, type DocumentRecord, type DocumentStore } from '../src/state/storage.js';
 
@@ -139,5 +139,59 @@ describe('boot with a share link', () => {
     const result = await bootDocument(deps(store, { hash: `#${fragment}` }));
     expect(result.record.source).toBe('shared\n');
     expect(result.notices).toEqual(['share-opened', 'storage-failed']);
+  });
+});
+
+describe('boot never rejects (fix round 1, item 8)', () => {
+  const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+  it('an id source that throws (crypto.randomUUID missing on an insecure origin) still boots, with an id', async () => {
+    const store = createMemoryStore();
+    const result = await bootDocument(
+      deps(store, {
+        newId: () => {
+          throw new TypeError('crypto.randomUUID is not a function');
+        },
+      }),
+    );
+    expect(result.record.source).toBe(EXAMPLE);
+    expect(result.record.id).toMatch(/\S/);
+    expect(await store.getDocument(result.record.id)).toEqual(result.record);
+    expect(await store.getSetting('lastOpenDocId')).toBe(result.record.id);
+  });
+
+  it('newDocumentId: randomUUID where it exists (secure contexts)', () => {
+    expect(newDocumentId({ randomUUID: () => 'from-random-uuid' }, () => 0)).toBe('from-random-uuid');
+  });
+
+  it('newDocumentId: a v4 UUID from getRandomValues where randomUUID is absent (plain http on a LAN IP)', () => {
+    const insecure = { getRandomValues: <T extends ArrayBufferView | null>(a: T): T => crypto.getRandomValues(a as Uint8Array) as T };
+    const a = newDocumentId(insecure, () => 0);
+    const b = newDocumentId(insecure, () => 0);
+    expect(a).toMatch(UUID_V4);
+    expect(b).toMatch(UUID_V4);
+    expect(a).not.toBe(b);
+  });
+
+  it('newDocumentId: with no usable crypto at all, still a distinct id, and never a throw', () => {
+    const broken = {
+      randomUUID: () => {
+        throw new Error('nope');
+      },
+      getRandomValues: () => {
+        throw new Error('nope');
+      },
+    };
+    const a = newDocumentId(broken, () => 1234);
+    const b = newDocumentId(undefined, () => 1234);
+    expect(a).toMatch(/\S/);
+    expect(a).not.toBe(b);
+  });
+
+  it('fallbackBoot: the example document, in no store yet, with a notice — what main.tsx mounts if boot ever rejects', () => {
+    const result = fallbackBoot({ exampleSource: EXAMPLE, now: () => 1000, defaultEngineId: 'sgl.grid', defaultThemeId: 'neutral-light' });
+    expect(result.record).toMatchObject({ source: EXAMPLE, engineId: 'sgl.grid', themeId: 'neutral-light', engineOptions: {}, createdAt: 1000 });
+    expect(result.record.id).toMatch(/\S/);
+    expect(result).toMatchObject({ created: true, clearHash: false, notices: ['boot-failed'] });
   });
 });
