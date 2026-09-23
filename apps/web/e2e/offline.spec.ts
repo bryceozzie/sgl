@@ -1,4 +1,4 @@
-import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { expect, test, type BrowserContext, type Page, type Response } from '@playwright/test';
 import { EXAMPLE_NODE_COUNT, nodeGeometry, openFile, waitForExactNodeCount, waitForNodeCount } from './helpers.js';
 import { serveDist, type StaticServer } from './static-server.js';
 
@@ -15,6 +15,23 @@ import { serveDist, type StaticServer } from './static-server.js';
  * request routing likewise sees — and blocks — requests the service worker
  * would have served; so there the build is served by a server of the test's
  * own (`static-server.ts`), and the network is taken away by stopping it.
+ *
+ * **Only the service worker may answer** (fix round 1, item 1). Taking the
+ * network away is not enough on its own: the first load left every
+ * `/assets/*` file in the HTTP cache (`_headers` makes them immutable), so a
+ * service worker that precached only `index.html` would still pass — its
+ * missing routes fall through to "the network", which the HTTP cache answers
+ * offline. So the HTTP cache is emptied first, per browser:
+ *
+ * - **Chromium**: `Network.clearBrowserCache` over CDP, and then every
+ *   response of the offline reload must be `fromServiceWorker()` (Playwright
+ *   documents that for Chromium). Verified to fail with `globPatterns:
+ *   ['**\/*.html']`.
+ * - **WebKit**: the test's own server sends `Cache-Control: no-store`, so the
+ *   HTTP cache never holds anything to answer from once the server stops.
+ * - **Firefox**: Playwright has neither a cache-clearing call nor a reliable
+ *   `fromServiceWorker()` there, so this half is not falsifiable in Firefox;
+ *   Chromium and WebKit carry it.
  */
 
 // The service worker is the thing under test here (the suite blocks it
@@ -25,6 +42,29 @@ test.use({ serviceWorkers: 'allow' });
 async function goOffline(context: BrowserContext, server: StaticServer | null): Promise<void> {
   if (server !== null) await server.close();
   else await context.setOffline(true);
+}
+
+/** Empties the HTTP cache where the browser lets a test do that (Chromium). */
+async function clearHttpCache(page: Page, context: BrowserContext, browserName: string): Promise<void> {
+  if (browserName !== 'chromium') return;
+  const cdp = await context.newCDPSession(page);
+  await cdp.send('Network.clearBrowserCache');
+  await cdp.detach();
+}
+
+/** Every response the offline reload got, and that each came from the
+ *  service worker (Chromium: see the file comment). Also asserts that each
+ *  kind of file the app needs was actually requested and seen, so an empty
+ *  or partial list cannot pass by accident. */
+function assertAllFromServiceWorker(responses: readonly Response[], browserName: string): void {
+  const urls = responses.map((r) => new URL(r.url()).pathname);
+  expect(urls).toContain('/');
+  for (const kind of [/\/assets\/index-.*\.js$/, /\/assets\/editor-.*\.js$/, /\/assets\/grid-.*\.js$/, /\.css$/, /\.woff2$/, /layout\.worker-.*\.js$/]) {
+    expect(urls.some((u) => kind.test(u)), `a response matching ${String(kind)}`).toBe(true);
+  }
+  if (browserName !== 'chromium') return;
+  const notFromWorker = responses.filter((r) => !r.fromServiceWorker()).map((r) => r.url());
+  expect(notFromWorker).toEqual([]);
 }
 
 async function exerciseOffline(page: Page, online: Record<string, string>): Promise<void> {
@@ -47,7 +87,7 @@ async function exerciseOffline(page: Page, online: Record<string, string>): Prom
 }
 
 test('criterion 5: reload offline — the app and grid work fully', async ({ page, context, browserName }) => {
-  const server = browserName === 'webkit' ? await serveDist() : null;
+  const server = browserName === 'webkit' ? await serveDist({ noStore: true }) : null;
   try {
     await page.goto(server === null ? '/' : `${server.origin}/`);
     await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
@@ -56,10 +96,16 @@ test('criterion 5: reload offline — the app and grid work fully', async ({ pag
     // when the precache has been filled.
     expect(await page.evaluate(async () => Boolean((await navigator.serviceWorker.ready).active))).toBe(true);
 
+    await clearHttpCache(page, context, browserName);
     await goOffline(context, server);
+    const responses: Response[] = [];
+    page.on('response', (r) => {
+      if (r.url().startsWith('http')) responses.push(r);
+    });
     try {
       await page.reload();
       await exerciseOffline(page, online);
+      assertAllFromServiceWorker(responses, browserName);
     } finally {
       if (server === null) await context.setOffline(false);
     }

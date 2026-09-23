@@ -37,6 +37,10 @@ export interface SettingRecord {
 /** The store is a keyed list from day one (E17's drawer is UI only). */
 export interface DocumentStore {
   getDocument(id: string): Promise<DocumentRecord | undefined>;
+  /** Writes land in the order they are issued, even when a caller does not
+   *  wait for one to settle before issuing the next (autosave's flush on
+   *  leaving the page, `autosave.ts`). IndexedDB guarantees it: `readwrite`
+   *  transactions over the same store run in creation order. */
   putDocument(record: DocumentRecord): Promise<void>;
   listDocuments(): Promise<readonly DocumentRecord[]>;
   getSetting(key: SettingKey): Promise<unknown>;

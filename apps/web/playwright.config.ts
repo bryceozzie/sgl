@@ -24,10 +24,15 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   // J5 (Stage J): one retry on CI only, where an all-browser run under
-  // parallel load has timed out in Firefox; the list reporter still names
-  // every test that needed it as "flaky". Local runs keep 0 so a flake stays
-  // loud.
+  // parallel load has timed out in Firefox. Local runs keep 0 so a flake
+  // stays loud.
   retries: process.env.CI ? 1 : 0,
+  // …but a test that fails and then passes on its retry still fails the CI
+  // run (fix round 1, item 16). A retry that silently turns red into green
+  // hides exactly the timing races this suite exists to catch — an app race
+  // looks like a flake. The retry stays for its trace and for the "flaky"
+  // report, which names the test to look at.
+  failOnFlakyTests: !!process.env.CI,
   reporter: 'list',
   use: {
     baseURL: `http://localhost:${PORT}`,

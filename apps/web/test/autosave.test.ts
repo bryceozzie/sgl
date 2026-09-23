@@ -87,6 +87,49 @@ describe('autosave', () => {
     expect(landed).toEqual(['old', 'new']);
   });
 
+  it('flush issues the pending write synchronously, even while an earlier write is still in flight', async () => {
+    // Leaving the page (pagehide, visibilitychange → hidden) runs flush from
+    // the event handler; the page may be gone before any promise callback or
+    // storage event runs, so the write must be issued before flush returns —
+    // not queued behind the in-flight one. The store keeps issue order
+    // (IndexedDB runs readwrite transactions on one store in creation order).
+    const clock = createFakeClock();
+    const issued: string[] = [];
+    const landed: string[] = [];
+    let releaseFirst: () => void = () => undefined;
+    const slowFirst = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const store: DocumentStore = {
+      ...createMemoryStore(),
+      async putDocument(r) {
+        issued.push(r.source);
+        if (r.source === 'old') await slowFirst;
+        landed.push(r.source);
+      },
+    };
+    const autosave = createAutosave({ store, schedule: clock.schedule, onQuotaExceeded: vi.fn(), onError: vi.fn() });
+    autosave.request(record('old'));
+    clock.advance(AUTOSAVE_DELAY_MS);
+    await settle();
+    expect(issued).toEqual(['old']);
+
+    autosave.request(record('new'));
+    const flushed = autosave.flush();
+    expect(issued).toEqual(['old', 'new']); // synchronously, no await in between
+    expect(clock.pendingCount()).toBe(0);
+
+    let settled = false;
+    void flushed.then(() => {
+      settled = true;
+    });
+    await settle();
+    expect(settled).toBe(false); // flush still waits for the earlier write…
+    releaseFirst();
+    await flushed; // …and resolves once both have settled.
+    expect(landed).toEqual(['new', 'old']); // (this fake store does not keep issue order; IndexedDB does)
+  });
+
   it('QuotaExceededError is reported once per run of failures, and editing continues', async () => {
     const clock = createFakeClock();
     const store = createMemoryStore();

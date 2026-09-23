@@ -31,13 +31,17 @@ export interface StaticServer {
   close(): Promise<void>;
 }
 
-export async function serveDist(): Promise<StaticServer> {
+/** `noStore`: every response says `Cache-Control: no-store` (over whatever
+ *  `_headers` declares), so the browser's HTTP cache never holds a copy that
+ *  could answer once the server is stopped — only the service worker can. */
+export async function serveDist(options: { readonly noStore?: boolean } = {}): Promise<StaticServer> {
   const rules = parseHeadersFile(readFileSync(join(DIST, '_headers'), 'utf8'));
   const server: Server = createServer((req, res) => {
     const pathname = decodeURIComponent(new URL(req.url ?? '/', 'http://x').pathname);
     let file = normalize(join(DIST, pathname));
     if (!file.startsWith(normalize(DIST)) || !isFile(file)) file = join(DIST, 'index.html');
     for (const [name, value] of headersFor(rules, pathname)) res.setHeader(name, value);
+    if (options.noStore === true) res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Content-Type', TYPES[extname(file)] ?? 'application/octet-stream');
     res.end(readFileSync(file));
   });

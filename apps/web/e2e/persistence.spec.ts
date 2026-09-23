@@ -1,6 +1,8 @@
 import { expect, test, type Route } from '@playwright/test';
 import {
   EXAMPLE_NODE_COUNT,
+  EXAMPLE_SOURCE,
+  editorText,
   nodeGeometry,
   readStorage,
   renderedSvg,
@@ -76,4 +78,21 @@ test.describe('J6: the stored picture paints before fonts or the worker are read
     await expect(storedSvg(page)).toHaveCount(0);
     expect(await nodeGeometry(page)).toEqual(liveGeometry);
   });
+});
+
+test('an edit made just before leaving the page is not lost (flushed on pagehide)', async ({ page }) => {
+  await page.goto('/');
+  await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+  await expect.poll(async () => (await storedOpenDocument(page))?.source).toBe(EXAMPLE_SOURCE);
+
+  // Well inside the 500 ms autosave delay: only the flush on leaving the page
+  // can save this.
+  await setSource(page, SMALL_SOURCE);
+  await waitForExactNodeCount(page, visibleNodeCount(SMALL_SOURCE));
+  await page.reload();
+
+  await waitForNodeCount(page, 1);
+  expect(await editorText(page)).toBe(SMALL_SOURCE);
+  expect((await storedOpenDocument(page))?.source).toBe(SMALL_SOURCE);
+  await waitForExactNodeCount(page, visibleNodeCount(SMALL_SOURCE));
 });
