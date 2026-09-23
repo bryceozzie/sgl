@@ -115,8 +115,18 @@ function fakeLayoutResult(nodeId: string, w = 100, h = 60): LayoutResult {
   };
 }
 
-async function flush(times = 3): Promise<void> {
+async function flush(times = 5): Promise<void> {
   for (let i = 0; i < times; i += 1) await Promise.resolve();
+}
+
+/** Flushes microtasks until `predicate()` is true or `maxTicks` is reached —
+ *  more robust than a fixed `flush(n)` for state that now depends on the
+ *  measure effect's own async chain completing *before* the layout effect
+ *  schedules anything (`hasMeasuredOnce`, `pipeline.ts`), which takes a
+ *  variable, environment-dependent number of microtask turns rather than a
+ *  hardcoded one. */
+async function flushUntil(predicate: () => boolean, maxTicks = 20): Promise<void> {
+  for (let i = 0; i < maxTicks && !predicate(); i += 1) await Promise.resolve();
 }
 
 function setup(source: string) {
@@ -131,7 +141,7 @@ function setup(source: string) {
  *  debounce, lets the measure effect's async `ready()`/`premeasure()` settle,
  *  resolves the fake host's request, and lets the resulting signals propagate. */
 async function completeOneLayout(env: ReturnType<typeof setup>, nodeId: string): Promise<void> {
-  await flush();
+  await flushUntil(() => env.calls.some((c) => !c.cancelled));
   env.fireLatest();
   await flush();
   const call = env.pending[env.pending.length - 1];
@@ -160,7 +170,7 @@ describe('pipeline (DD-08 §3)', () => {
 
   it('a superseded layout is aborted and its result ignored', async () => {
     const env = setup('a: "A"');
-    await flush();
+    await flushUntil(() => env.calls.some((c) => !c.cancelled));
     env.fireLatest();
     await flush();
     expect(env.pending.length).toBe(1);
@@ -256,9 +266,8 @@ describe('pipeline (DD-08 §3)', () => {
 
   it('debounces: rapid edits before the timer fires issue only one request', async () => {
     const env = setup('a: "A"');
-    await flush();
-    // The constructor's own initial state already scheduled one call; two more
-    // edits before anything fires must each cancel the previous scheduling.
+    await flushUntil(() => env.calls.some((c) => !c.cancelled)); // the initial boot's own first scheduling.
+    // Two more edits before anything fires must each cancel the previous scheduling.
     const parsedB = parse('b: "B"');
     env.pipeline.setDocument(parsedB.tree, 'b: "B"');
     await flush();
@@ -375,7 +384,7 @@ describe('error boundary (DD-08 §13)', () => {
 describe('status chip (DD-08 §11)', () => {
   it('shows nothing before 300 ms in flight, then "laying out…"', async () => {
     const env = setup('a: "A"');
-    await flush();
+    await flushUntil(() => env.calls.some((c) => !c.cancelled));
     env.fireLatest(); // fires the 120 ms debounce, starting the host.run() call
     await flush();
     expect(env.pipeline.chip.value.kind).toBe('idle');

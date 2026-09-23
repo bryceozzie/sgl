@@ -213,6 +213,18 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   // DD-08 §3's pseudocode calls it with; see the Stage I report for the deviation.
   // -------------------------------------------------------------------------
   let measureGeneration = 0;
+  // Set once the *first* premeasure table has actually landed — the layout
+  // effect below waits on it (found while chasing a real bug, not assumed up
+  // front): `table` starts as `{}`, and without this guard the layout effect's
+  // own dependency on `table` means it fires *immediately* on boot with that
+  // empty table, laying out every label at `labelSizesOf`'s `{ w: 0, h: 0 }`
+  // fallback — a real, briefly-visible "wrong size" layout that a *second*,
+  // correctly-sized layout then overwrites once `ready()`/`premeasure()`
+  // finish. DD-08 §14 test 8 (font gate) caught this: its "cold load" snapshot
+  // landed on that first, wrongly-sized `lastGood` often enough to make the
+  // cold/warm geometry comparison flaky. Fonts were never the issue — `document
+  // .fonts` already reported every face "loaded" by the time either layout ran.
+  let hasMeasuredOnce = false;
   const disposeMeasureEffect = effect(() => {
     const styledSnapshot = styled.value.value;
     void effectiveThemeId.value; // explicit dependency per DD-08 §3, alongside geometryHash below
@@ -223,6 +235,12 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
       try {
         await deps.measurer.ready(distinctTextStyles(styledSnapshot));
         if (generation !== measureGeneration) return; // superseded by a newer edit
+        // Set *before* writing `table.value`: `@preact/signals` reruns a
+        // dependent effect synchronously, inline in this assignment — the
+        // layout effect below reads `hasMeasuredOnce` on that same
+        // synchronous re-run, so setting it after the write is one statement
+        // too late and the guard never lifts (found by tracing exactly this).
+        hasMeasuredOnce = true;
         table.value = premeasure(styledSnapshot, deps.measurer);
       } catch (err) {
         if (generation !== measureGeneration) return;
@@ -303,6 +321,11 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     const tableSnapshot = table.value;
     const engine = effectiveEngineId.value;
     const options = engineOptions.value;
+
+    // Reads `table.value` above regardless, so this effect is still subscribed
+    // to it and re-runs the instant the first real table lands (see
+    // `hasMeasuredOnce`'s own comment on the measure effect).
+    if (!hasMeasuredOnce) return;
 
     if (debounceCancel !== null) {
       debounceCancel();
