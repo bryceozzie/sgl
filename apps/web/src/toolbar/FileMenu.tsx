@@ -71,13 +71,19 @@ export function FileMenu({ pipeline, session, toasts, onOpen }: FileMenuProps) {
   }
 
   async function openShare(): Promise<void> {
-    const fragment = await encodeShareFragment({
+    const encoded = await encodeShareFragment({
       source: pipeline.source.peek(),
       engineId: pipeline.effectiveEngineId.peek(),
       themeId: pipeline.effectiveThemeId.peek(),
     });
-    const link = shareLink(`${window.location.origin}${window.location.pathname}`, fragment);
     if (saveMenuRef.current !== null) saveMenuRef.current.open = false;
+    if (!encoded.ok) {
+      // No `CompressionStream` here (an older or locked-down browser): the
+      // file is the other way to share (fix round 1, item 11).
+      toasts.push("This browser can't make share links. Use Save ▾ → SGL source and share the file instead.", 'error');
+      return;
+    }
+    const link = shareLink(`${window.location.origin}${window.location.pathname}`, encoded.fragment);
     setShare({ link, long: isLongShareLink(link) });
   }
 

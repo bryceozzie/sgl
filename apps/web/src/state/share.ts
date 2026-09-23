@@ -21,8 +21,9 @@ export const SHARE_LINK_WARN_LENGTH = 8000;
  *  reader does, so the chunk size is what bounds the overshoot past the cap:
  *  deflate's maximum ratio is about 1032:1, so a 512-byte slice can add at
  *  most about 0.5 MB. Writing the whole payload as one chunk would inflate the
- *  whole bomb before the cap could be checked. */
-const INFLATE_SLICE_BYTES = 512;
+ *  whole bomb before the cap could be checked. Exported for the test that
+ *  holds every write to it (`test/share.test.ts`). */
+export const INFLATE_SLICE_BYTES = 512;
 
 export interface ByteTransform {
   readonly writable: WritableStream<Uint8Array>;
@@ -131,13 +132,24 @@ export async function inflateRawCapped(bytes: Uint8Array, cap: number, codec: Sh
   return { ok: true, bytes: concat(chunks, total) };
 }
 
-/** The fragment (no leading `#`) for `payload`. */
-export async function encodeShareFragment(payload: SharePayload, codec: ShareCodec = NATIVE_SHARE_CODEC): Promise<string> {
-  const compressed = await deflateRaw(new TextEncoder().encode(payload.source), codec);
+/** `ok: false` when this browser cannot compress at all — no
+ *  `CompressionStream` (an older engine, or one that locks it down) — or the
+ *  compressor errors. The Share button toasts and offers the file save. */
+export type ShareEncodeResult = { readonly ok: true; readonly fragment: string } | { readonly ok: false };
+
+/** The fragment (no leading `#`) for `payload`. Never rejects (fix round 1,
+ *  item 11): a missing or failing compressor is a value. */
+export async function encodeShareFragment(payload: SharePayload, codec: ShareCodec = NATIVE_SHARE_CODEC): Promise<ShareEncodeResult> {
+  let compressed: Uint8Array;
+  try {
+    compressed = await deflateRaw(new TextEncoder().encode(payload.source), codec);
+  } catch {
+    return { ok: false };
+  }
   let fragment = `s=${encodeBase64Url(compressed)}`;
   if (payload.engineId !== undefined) fragment += `&e=${encodeURIComponent(payload.engineId)}`;
   if (payload.themeId !== undefined) fragment += `&t=${encodeURIComponent(payload.themeId)}`;
-  return fragment;
+  return { ok: true, fragment };
 }
 
 /** The whole link: `base` (origin + path, no hash) plus the fragment. */

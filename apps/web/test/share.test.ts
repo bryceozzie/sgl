@@ -4,6 +4,7 @@ import { decodeBase64Url, encodeBase64Url } from '../src/state/base64url.js';
 import {
   decodeShareFragment,
   encodeShareFragment,
+  INFLATE_SLICE_BYTES,
   inflateRawCapped,
   isLongShareLink,
   NATIVE_SHARE_CODEC,
@@ -17,6 +18,12 @@ import {
 /** DD-08 §8 — share by URL, DOM-free, with Node's own `CompressionStream`. */
 
 const fragmentOf = (bytes: Uint8Array, extra = ''): string => `s=${encodeBase64Url(bytes)}${extra}`;
+
+/** The fragment of a successful encode (fails the test otherwise). */
+function encoded(result: Awaited<ReturnType<typeof encodeShareFragment>>): string {
+  if (!result.ok) throw new Error('encodeShareFragment failed');
+  return result.fragment;
+}
 
 describe('base64url (RFC 4648 §5, no padding)', () => {
   it("agrees with Node's own encoder for every length mod 3", () => {
@@ -45,7 +52,7 @@ describe('encode / decode round trip', () => {
     ['non-ASCII', 'ümlaut: "Grüße — 日本語 🚀"\n'],
     ['empty', ''],
   ])('%s source survives, with its engine and theme', async (_name, source) => {
-    const fragment = await encodeShareFragment({ source, engineId: 'sgl.grid', themeId: 'neutral-dark' });
+    const fragment = encoded(await encodeShareFragment({ source, engineId: 'sgl.grid', themeId: 'neutral-dark' }));
     expect(fragment).toMatch(/^s=[A-Za-z0-9_-]*&e=sgl\.grid&t=neutral-dark$/);
     expect(await decodeShareFragment(`#${fragment}`)).toEqual({
       kind: 'ok',
@@ -54,16 +61,38 @@ describe('encode / decode round trip', () => {
   });
 
   it('is deflate-raw: Node zlib inflates what the encoder wrote', async () => {
-    const fragment = await encodeShareFragment({ source: 'a -> b\n' });
+    const fragment = encoded(await encodeShareFragment({ source: 'a -> b\n' }));
     const s = new URLSearchParams(fragment).get('s')!;
     const { inflateRawSync } = await import('node:zlib');
     expect(inflateRawSync(Buffer.from(s, 'base64url')).toString('utf8')).toBe('a -> b\n');
   });
 
   it('leaves e/t out when the payload has none, and decodes a link without them', async () => {
-    const fragment = await encodeShareFragment({ source: 'x\n' });
+    const fragment = encoded(await encodeShareFragment({ source: 'x\n' }));
     expect(fragment).not.toContain('&');
     expect(await decodeShareFragment(fragment)).toEqual({ kind: 'ok', payload: { source: 'x\n' } });
+  });
+
+  it('an encoder that cannot run (no CompressionStream: an old or locked-down browser) is a value, not a rejection', async () => {
+    const missing: ShareCodec = {
+      compress: () => {
+        throw new ReferenceError('CompressionStream is not defined');
+      },
+      decompress: NATIVE_SHARE_CODEC.decompress,
+    };
+    await expect(encodeShareFragment({ source: 'a\n' }, missing)).resolves.toEqual({ ok: false });
+    const failing: ShareCodec = {
+      compress: () => {
+        const t = new TransformStream<Uint8Array, Uint8Array>({
+          transform() {
+            throw new TypeError('compression failed');
+          },
+        });
+        return t;
+      },
+      decompress: NATIVE_SHARE_CODEC.decompress,
+    };
+    await expect(encodeShareFragment({ source: 'a\n' }, failing)).resolves.toEqual({ ok: false });
   });
 
   it('builds the whole link and measures it against the 8 000-character warning', () => {
@@ -109,6 +138,19 @@ describe('decode refusals', () => {
     expect(over).toEqual({ kind: 'invalid', reason: 'oversize' });
   });
 
+  it('the default cap is exactly 2 MB (DD-08 §8, DD-09 §1.1)', () => {
+    expect(SHARE_INFLATED_CAP).toBe(2 * 1024 * 1024);
+  });
+
+  it('with the default cap, exactly 2 MB inflates and 2 MB + 1 byte is oversize', async () => {
+    const twoMb = 2 * 1024 * 1024;
+    const at = await decodeShareFragment(fragmentOf(deflateRawSync(Buffer.alloc(twoMb, 0x61))));
+    expect(at.kind).toBe('ok');
+    expect(at.kind === 'ok' && at.payload.source.length).toBe(twoMb);
+    const over = await decodeShareFragment(fragmentOf(deflateRawSync(Buffer.alloc(twoMb + 1, 0x61))));
+    expect(over).toEqual({ kind: 'invalid', reason: 'oversize' });
+  });
+
   it('a fragment too long to inflate under the cap is refused before decoding', async () => {
     expect(await decodeShareFragment(`#s=${'A'.repeat(4 * SHARE_INFLATED_CAP)}`)).toEqual({ kind: 'invalid', reason: 'oversize' });
   });
@@ -150,6 +192,49 @@ describe('decompression-bomb guard (DD-09 §1.1: hard 2 MB inflated cap)', () =>
     // measuring it.
     expect(metered.produced()).toBeGreaterThan(SHARE_INFLATED_CAP);
     expect(metered.produced()).toBeLessThan(SHARE_INFLATED_CAP + 2 * 1024 * 1024);
+  });
+
+  it('no single write to the decompressor exceeds 512 bytes (INFLATE_SLICE_BYTES)', async () => {
+    // The slice size is what bounds the overshoot past the cap: a
+    // TransformStream inflates each written chunk in full, whatever the
+    // reader does. So record every chunk the decompressor is handed, and hold
+    // it to the literal bound DD-08 §8 reasons about (512 B × ~1032:1 ≈
+    // 0.5 MB), not to the constant, which could drift with it.
+    const MAX_WRITE = 512;
+    const writes: number[] = [];
+    const recording: ShareCodec = {
+      compress: NATIVE_SHARE_CODEC.compress,
+      decompress: () => {
+        const inner = NATIVE_SHARE_CODEC.decompress();
+        const recorder = new TransformStream<Uint8Array, Uint8Array>({
+          transform(chunk, controller) {
+            writes.push(chunk.byteLength);
+            controller.enqueue(chunk);
+          },
+        });
+        void recorder.readable.pipeTo(inner.writable).catch(() => undefined);
+        return { writable: recorder.writable, readable: inner.readable };
+      },
+    };
+    // Incompressible text, so the compressed payload spans many slices…
+    let seed = 7;
+    const noisy = Array.from({ length: 20_000 }, () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return String.fromCharCode(33 + (seed % 90));
+    }).join('');
+    const compressed = deflateRawSync(Buffer.from(noisy));
+    expect(compressed.length).toBeGreaterThan(8 * MAX_WRITE);
+    expect(await decodeShareFragment(fragmentOf(compressed), recording)).toEqual({ kind: 'ok', payload: { source: noisy } });
+    expect(writes.reduce((a, b) => a + b, 0)).toBe(compressed.length);
+    expect(Math.max(...writes)).toBeLessThanOrEqual(MAX_WRITE);
+    expect(writes.length).toBeGreaterThanOrEqual(Math.ceil(compressed.length / INFLATE_SLICE_BYTES));
+
+    // …and a bomb, which is refused while still being fed.
+    writes.length = 0;
+    const bomb = deflateRawSync(Buffer.alloc(64 * 1024 * 1024));
+    expect(await decodeShareFragment(fragmentOf(bomb), recording)).toEqual({ kind: 'invalid', reason: 'oversize' });
+    expect(writes.length).toBeGreaterThan(0);
+    expect(Math.max(...writes)).toBeLessThanOrEqual(MAX_WRITE);
   });
 
   it('inflateRawCapped reports oversize and corrupt as values, never throws', async () => {

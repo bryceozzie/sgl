@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { bootDocument, type BootDeps } from '../src/state/boot.js';
-import { encodeShareFragment } from '../src/state/share.js';
+import { encodeShareFragment, type SharePayload } from '../src/state/share.js';
 import { createMemoryStore, type DocumentRecord, type DocumentStore } from '../src/state/storage.js';
 
 /** DD-08 §8/§9 — which document boot opens. */
@@ -34,6 +34,12 @@ function deps(store: DocumentStore, overrides: Partial<BootDeps> = {}): BootDeps
     isKnownTheme: (id) => id === 'neutral-light' || id === 'neutral-dark',
     ...overrides,
   };
+}
+
+async function fragmentFor(payload: SharePayload): Promise<string> {
+  const result = await encodeShareFragment(payload);
+  if (!result.ok) throw new Error('encodeShareFragment failed');
+  return result.fragment;
 }
 
 describe('boot without a share link', () => {
@@ -95,7 +101,7 @@ describe('boot with a share link', () => {
   it('opens it as a NEW document, keeps the current one, remembers the new one, and clears the hash', async () => {
     const current = stored('doc-a', 'mine: "Mine"\n');
     const store = createMemoryStore({ documents: [current], settings: { lastOpenDocId: 'doc-a' } });
-    const fragment = await encodeShareFragment({ source: 'shared: "Shared"\n', engineId: 'sgl.grid', themeId: 'neutral-dark' });
+    const fragment = await fragmentFor({ source: 'shared: "Shared"\n', engineId: 'sgl.grid', themeId: 'neutral-dark' });
 
     const result = await bootDocument(deps(store, { hash: `#${fragment}` }));
 
@@ -107,7 +113,7 @@ describe('boot with a share link', () => {
   });
 
   it("a link's unknown engine or theme falls back to the default", async () => {
-    const fragment = await encodeShareFragment({ source: 'x\n', engineId: 'sgl.elk', themeId: 'sepia' });
+    const fragment = await fragmentFor({ source: 'x\n', engineId: 'sgl.elk', themeId: 'sepia' });
     const { record } = await bootDocument(deps(createMemoryStore(), { hash: `#${fragment}` }));
     expect(record).toMatchObject({ engineId: 'sgl.grid', themeId: 'neutral-light' });
   });
@@ -129,7 +135,7 @@ describe('boot with a share link', () => {
   it('a share link while storage is failing still opens, in memory', async () => {
     const store = createMemoryStore();
     store.failPut = () => new Error('no space');
-    const fragment = await encodeShareFragment({ source: 'shared\n' });
+    const fragment = await fragmentFor({ source: 'shared\n' });
     const result = await bootDocument(deps(store, { hash: `#${fragment}` }));
     expect(result.record.source).toBe('shared\n');
     expect(result.notices).toEqual(['share-opened', 'storage-failed']);
