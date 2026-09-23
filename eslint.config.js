@@ -78,6 +78,21 @@ export default tseslint.config(
     languageOptions: { globals: { window: 'readonly', document: 'readonly', navigator: 'readonly' } },
   },
 
+  // DD-08 §4: "the app never calls `parse` on its own" — the pipeline's `parsed`
+  // computed reuses the editor's own tree, and everything else (the pickers'
+  // root-config writes included) reads `parsed`. `pipeline.ts` alone may import
+  // it, to build the initial tree before any editor exists.
+  {
+    files: ['apps/web/src/**/*.ts', 'apps/web/src/**/*.tsx'],
+    ignores: ['apps/web/src/state/pipeline.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { paths: [{ name: '@sgl/core', importNames: ['parse'], message: "DD-08 §4: the app never calls parse on its own; read the pipeline's `parsed` instead." }] },
+      ],
+    },
+  },
+
   // Test-only code is exempt from the import-boundary and determinism rules:
   // `**/test/**/*.ts` covers not just `*.test.ts` files themselves but the
   // dev-only fixture/harness modules beside them (e.g. `theme/test/corpus.ts`,

@@ -33,6 +33,9 @@ interface Fixture {
 const FIXTURES = fixtures as readonly Fixture[];
 const RUNS = 15;
 
+/** Which browser instance printed a line — both run in parallel. */
+const BROWSER = navigator.userAgent.includes('Firefox') ? 'firefox' : 'chromium';
+
 function median(values: readonly number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
@@ -52,10 +55,73 @@ describe('F9 bench: render() alone (execution plan §2.1, DD-09 §2)', () => {
       const m = median(times);
       // The bench's actual output; this file reports, it does not assert (D4).
       console.log(
-        `[F9] ${doc} / ${themeName}: median ${m.toFixed(3)} ms over ${RUNS} runs (min ${Math.min(...times).toFixed(3)}, max ${Math.max(...times).toFixed(3)})`,
+        `[F9] ${BROWSER} ${doc} / ${themeName}: render() median ${m.toFixed(3)} ms over ${RUNS} runs (min ${Math.min(...times).toFixed(3)}, max ${Math.max(...times).toFixed(3)})`,
       );
       // Sanity only — proves render() actually ran on real input, not a perf gate.
       expect(last?.svg.length).toBeGreaterThan(0);
     });
   }
 });
+
+/**
+ * Stage I part 2's own half of F9: DD-08 §6's actual live-view operation is
+ * `render()` **followed by** `wrapper.innerHTML = result.svg` on a `<g>` —
+ * that whole pair, not `render()` alone, is what a theme toggle costs on
+ * screen. Builds the same `<svg><g class="rendered"></g></svg>`
+ * `apps/web/src/canvas/Canvas.tsx` swaps into, attached to this project's real
+ * Chromium/Firefox DOM (`document` is genuinely available here — `@vitest/browser`,
+ * not jsdom), and times the pair. Budget (01 §4.1, DD-09 §2; kept by the
+ * 2026-09-23 human decision, execution plan §2.1 F9): `< 16 ms` up to 500
+ * nodes, `< 50 ms` at 2 000, measured in Chromium.
+ *
+ * Two variants, both reported (fix round 1, item 17):
+ * - **swap**: the timer stops right after the `innerHTML` assignment. That
+ *   undercounts — parsing is done, but the browser has not yet computed style
+ *   or laid the new subtree out, and it pays that before the next frame.
+ * - **swap+layout**: `wrapper.getBBox()` inside the timed region forces the
+ *   style recalculation and layout synchronously, so the figure includes the
+ *   work the frame will do anyway. This is the number the budget is judged by.
+ */
+function timeSwap(fixture: Fixture, forceLayout: boolean): { readonly times: number[]; readonly children: number } {
+  const { styled, result, theme } = fixture;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  const wrapper = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  wrapper.setAttribute('class', 'rendered');
+  svg.appendChild(wrapper);
+  document.body.appendChild(svg);
+
+  const times: number[] = [];
+  try {
+    for (let i = 0; i < RUNS; i += 1) {
+      const start = performance.now();
+      const rendered = render(styled, result, theme);
+      wrapper.innerHTML = rendered.svg;
+      if (forceLayout) wrapper.getBBox(); // forces style recalculation + layout now.
+      times.push(performance.now() - start);
+    }
+    return { times, children: wrapper.children.length };
+  } finally {
+    svg.remove();
+  }
+}
+
+for (const [label, forceLayout] of [
+  ['render() + innerHTML swap', false],
+  ['render() + innerHTML swap + forced layout', true],
+] as const) {
+  describe(`F9 bench: ${label} (execution plan §2.1, DD-08 §6)`, () => {
+    for (const fixture of FIXTURES) {
+      // The budget is judged in Chromium (DD-09 §2), and the forced-layout
+      // variant is the heavy one (~250 ms a run at n2000), so it runs there
+      // only: in Firefox as well it slowed unrelated tests running beside it.
+      it.skipIf(forceLayout && BROWSER === 'firefox')(`${fixture.doc} / ${fixture.themeName}`, () => {
+        const { times, children } = timeSwap(fixture, forceLayout);
+        const m = median(times);
+        console.log(
+          `[F9] ${BROWSER} ${fixture.doc} / ${fixture.themeName}: ${forceLayout ? 'render()+swap+layout' : 'render()+swap'} median ${m.toFixed(3)} ms over ${RUNS} runs (min ${Math.min(...times).toFixed(3)}, max ${Math.max(...times).toFixed(3)})`,
+        );
+        expect(children).toBeGreaterThan(0);
+      });
+    }
+  });
+}

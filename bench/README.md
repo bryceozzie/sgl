@@ -53,3 +53,27 @@ The `< 16 ms` budget (DD-09 §2) holds at 50 nodes, is borderline in Firefox at
 500, and is 2–3× over at 2 000 in both browsers. Execution plan §2.1's **F9**
 has the detail; confirming or renegotiating the number is a human decision,
 not this bench's.
+
+## F9: what the live view pays, measured
+
+The same file's other two blocks time DD-08 §6's actual live-view operation —
+`render()` and then `wrapper.innerHTML = svg` on the canvas's wrapper `<g>`:
+**swap** stops the timer right after the assignment, before the browser has
+computed style or laid the new subtree out; **swap+layout** calls
+`wrapper.getBBox()` inside the timed region, forcing that work synchronously.
+Swap+layout is the one the budget is judged by (fix round 1, item 17), since a
+frame cannot paint without doing it.
+
+Chromium only (`vitest run --project browser --browser=chromium …`), medians
+of 15, range over three standalone runs and both themes, 2026-09-23:
+
+| Document | `render()` | + swap | + swap + layout |
+|---|---|---|---|
+| n50.sgl | 0.7–1.1 ms | 1.1–1.4 ms | 3.4–9.7 ms |
+| n500.sgl | 7.1–8.0 ms | 10.8–14.5 ms | 37–72 ms |
+| n2000.sgl | 29–34 ms | 85–150 ms | 183–254 ms |
+
+With layout counted, 500 nodes misses the `< 16 ms` budget as well as 2 000
+missing `< 50 ms`. Execution plan §2.1's **F9** row records the human
+decision on this (keep the budget; `morphdom` the wrapper, Stage L, before
+Gate 4).

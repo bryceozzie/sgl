@@ -36,9 +36,17 @@ function spawn(): Worker {
   return new Worker(new URL('./grid.worker.ts', import.meta.url), { type: 'module' });
 }
 
+/** These tests prove bitwise equality, not `sgl.grid`'s 2 s production timeout
+ *  (`DEFAULT_ENGINE_TIMEOUT_MS`, covered by the host's own tests). A request's
+ *  timer includes the worker's first module load, which on a cold Vite cache
+ *  (`pnpm check` from clean) also pays dependency optimisation while the Node
+ *  unit project saturates the CPU. That repeatedly pushed the first request past
+ *  2 s and failed with `SGL4001`, so the timeout here is generous. */
+const createHost = () => createWorkerHost(spawn, { engineTimeoutMs: { 'sgl.grid': 30_000 } });
+
 describe('sgl.grid through a real Worker (DD-06 §10)', () => {
   it('matches the Node-computed expected result bitwise — proves Node ≡ this browser', async () => {
-    const host = createWorkerHost(spawn);
+    const host = createHost();
     try {
       const outcome = await host.run('sgl.grid', input, {}, metrics, {}, new AbortController().signal);
       expect(outcome.diagnostics).toEqual([]);
@@ -53,7 +61,7 @@ describe('sgl.grid through a real Worker (DD-06 §10)', () => {
   });
 
   it('is bitwise-identical across two runs (ADR-0004, DD-06 §10)', async () => {
-    const host = createWorkerHost(spawn);
+    const host = createHost();
     try {
       const first = await host.run('sgl.grid', input, {}, metrics, {}, new AbortController().signal);
       const second = await host.run('sgl.grid', input, {}, metrics, {}, new AbortController().signal);

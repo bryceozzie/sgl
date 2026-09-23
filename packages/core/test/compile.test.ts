@@ -260,6 +260,23 @@ describe('ports (DD-03 §3)', () => {
     expect(graph.nodes.a?.ports).toEqual([{ id: 'out', side: 'east' }]);
   });
 
+  it('F2: an inline invalid port side carries no related span (nothing else to point at)', () => {
+    const { diagnostics } = compileSrc('a: { @ports: { out: banana } }\n');
+    expect(diagnostics[0]?.related).toBeUndefined();
+  });
+
+  it('F2: a class-sourced invalid port side carries a related span at the class declaration', () => {
+    const src = '@classes: { Bad: { @ports: { out: banana } } }\na: Bad\nb: Bad\n';
+    const { diagnostics } = compileSrc(src);
+    expect(diagnostics.map((d) => d.code)).toEqual(['SGL3007', 'SGL3007']);
+    const classSpan = src.indexOf('Bad: {');
+    for (const d of diagnostics) {
+      expect(d.related).toHaveLength(1);
+      expect(d.related?.[0]?.span.from).toBe(classSpan);
+      expect(d.related?.[0]?.message).toContain('Bad');
+    }
+  });
+
   it('a non-string port side is also SGL3007, not a silent coercion', () => {
     const { graph, diagnostics } = compileSrc('a: { @ports: { out: 5 } }\n');
     expect(diagnostics.map((d) => d.code)).toEqual(['SGL3007']);
@@ -301,6 +318,26 @@ describe('shape resolution (DD-03 §4)', () => {
     expect(graph.nodes.a?.shape).toBe('rect');
   });
 
+  it('F2 (execution plan §2.1): an inline unknown shape carries no related span', () => {
+    const { diagnostics } = compileSrc('a: { @shape: trapezoid }\n');
+    expect(diagnostics[0]?.related).toBeUndefined();
+  });
+
+  it('F2: three nodes sharing one bad class each get their own SGL3001, all related to the one class declaration', () => {
+    const src = '@classes: { Bad: { @shape: trapezoid } }\na: Bad\nb: Bad\nc: Bad\n';
+    const { diagnostics } = compileSrc(src);
+    expect(diagnostics.map((d) => d.code)).toEqual(['SGL3001', 'SGL3001', 'SGL3001']);
+    const classSpan = src.indexOf('Bad: {');
+    for (const d of diagnostics) {
+      expect(d.related).toHaveLength(1);
+      expect(d.related?.[0]?.span.from).toBe(classSpan);
+      expect(d.related?.[0]?.message).toContain('Bad');
+    }
+    // Every diagnostic's own span is still the node, not the class (unchanged
+    // behaviour — related is additive, not a replacement for the node span).
+    expect(diagnostics[0]?.span.from).toBe(src.indexOf('a: Bad'));
+  });
+
   it('a language-recognised but not-yet-drawn shape is SGL3006 (info), not SGL3001, and falls back to rect (A1)', () => {
     const { graph, diagnostics } = compileSrc('a: { @shape: actor }\n');
     expect(diagnostics.map((d) => d.code)).toEqual(['SGL3006']);
@@ -310,8 +347,14 @@ describe('shape resolution (DD-03 §4)', () => {
 
   it('checkout.sgl’s @shape: cloud (via the External class, on `edge` and `psp`) is SGL3006, not SGL3001', () => {
     const { diagnostics } = compileSrc(corpus('checkout.sgl'));
-    expect(diagnostics.filter((d) => d.code === 'SGL3006')).toHaveLength(2);
+    const cloudDiags = diagnostics.filter((d) => d.code === 'SGL3006');
+    expect(cloudDiags).toHaveLength(2);
     expect(diagnostics.filter((d) => d.code === 'SGL3001')).toHaveLength(0);
+    // F2: class-sourced, so both point back at `External`'s declaration.
+    for (const d of cloudDiags) {
+      expect(d.related).toHaveLength(1);
+      expect(d.related?.[0]?.message).toContain('External');
+    }
   });
 
   it('falls back to the highest-precedence class that defines a shape when there is no inline shape', () => {

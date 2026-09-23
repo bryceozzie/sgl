@@ -59,12 +59,20 @@ jobs:
         # (bench/README.md; prints, does not gate on timing).
         run: pnpm test:browser
 
+      - name: Install WebKit (apps/web e2e needs all three; Chromium/Firefox already installed above)
+        run: pnpm exec playwright install --with-deps webkit
+
+      - name: apps/web e2e (Chromium, Firefox, WebKit)
+        # DD-08 §14, against a production build (vite build + vite preview) —
+        # `pnpm check` itself only runs the Chromium project (Stage I part 2
+        # decision), so this is CI's own wider run per DD-10 §4.
+        run: pnpm test:e2e:all-browsers
+
       - name: Audit
         run: pnpm audit --prod --audit-level high
 
-  # ⟶ Steps from DD-10 §4 that arrive with the code they test:
+  # ⟶ Steps from DD-10 §4 still to arrive with the code they test:
   #
-  #   test:e2e      playwright (Chromium, Firefox, WebKit) — apps/web
   #   size          size-limit on the core chunk (< 180 kB gz, hard 300)
   #
   # And nightly: bench against the DD-09 §2 targets, commenting on regressions over

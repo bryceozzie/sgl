@@ -9,9 +9,20 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test",
+    "test:e2e:all-browsers": "playwright test --project=chromium --project=firefox --project=webkit"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.19.2",
+    "@codemirror/commands": "^6.9.1",
+    "@codemirror/language": "^6.11.4",
+    "@codemirror/lint": "^6.9.2",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.39.4",
+    "@fontsource/inter": "^5.3.0",
+    "@lezer/common": "^1.2.3",
+    "@lezer/highlight": "^1.2.1",
     "@preact/signals": "^2.0.0",
     "@sgl/core": "workspace:*",
     "@sgl/layout-api": "workspace:*",
@@ -23,6 +34,7 @@
     "preact": "^10.27.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@preact/preset-vite": "^2.10.2",
     "vite": "^7.1.7"
   }

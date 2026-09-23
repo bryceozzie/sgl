@@ -1,0 +1,142 @@
+{
+  "@sgl": "1.0",
+  "@title": "Forty, three levels",
+  "frontend": {
+    "@label": "Frontend",
+    "web": {
+      "@label": "Web",
+      "home": {},
+      "search": {},
+      "cart": {},
+      "checkout": {},
+      "profile": {},
+      "orders": {},
+      "support": {},
+      "admin": {},
+      "reports": {}
+    },
+    "mobile": {
+      "@label": "Mobile",
+      "ios": {},
+      "android": {},
+      "push": {},
+      "sync": {},
+      "cache": {},
+      "auth": {},
+      "onboarding": {},
+      "settings": {}
+    }
+  },
+  "backend": {
+    "@label": "Backend",
+    "api": {
+      "@label": "API",
+      "gateway": {},
+      "users": {},
+      "orders": {},
+      "payments": {},
+      "inventory": {},
+      "shipping": {},
+      "notifications": {},
+      "search": {},
+      "recommendations": {}
+    },
+    "data": {
+      "@label": "Data",
+      "primary": {},
+      "replica": {},
+      "warehouse": {},
+      "cache": {},
+      "queue": {},
+      "blob": {},
+      "search": {},
+      "backup": {}
+    }
+  },
+  "@edges": [
+    {
+      "from": "frontend.web.home",
+      "to": "frontend.web.search",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "frontend.web.search",
+      "to": "frontend.web.cart",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "frontend.web.cart",
+      "to": "frontend.web.checkout",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "frontend.web.checkout",
+      "to": "backend.api.orders",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "frontend.web.checkout",
+      "to": "backend.api.payments",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "frontend.mobile.ios",
+      "to": "backend.api.gateway",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "frontend.mobile.android",
+      "to": "backend.api.gateway",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "backend.api.gateway",
+      "to": "backend.api.users",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "backend.api.orders",
+      "to": "backend.data.primary",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "backend.api.payments",
+      "to": "backend.data.primary",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "backend.data.primary",
+      "to": "backend.data.replica",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "backend.api.search",
+      "to": "backend.data.search",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "backend.api.notifications",
+      "to": "backend.data.queue",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "frontend.mobile.push",
+      "to": "backend.api.notifications",
+      "directed": "forward",
+      "ordinal": 0
+    }
+  ]
+}

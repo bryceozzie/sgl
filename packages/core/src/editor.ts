@@ -1,11 +1,84 @@
 /**
  * @sgl/core/editor — the CodeMirror-facing half of the package: the Lezer
- * `LRLanguage`, highlight styles, folding and indentation.
+ * `LRLanguage`, highlight tags, folding and indentation.
  *
  * Split into its own entry point so the pipeline (Node, Worker, CLI) never pulls
- * CodeMirror into its bundle.
+ * CodeMirror into its bundle. `tsdown.config.ts` builds this as a second, separate
+ * entry (`src/editor.ts` alongside `src/index.ts`), and `package.json`'s `exports`
+ * map keeps `@sgl/core` and `@sgl/core/editor` as two subpaths — `index.ts` never
+ * imports this file, and this file only ever imports the grammar output, never
+ * `index.ts` — so a consumer of the plain `@sgl/core` entry point pulls in none of
+ * this.
  *
- * Design: DD-01 §7, DD-08 §4.
+ * Design: DD-01 §6, §7; DD-08 §4.
  */
 
-export {};
+import { delimitedIndent, foldInside, foldNodeProp, indentNodeProp, LanguageSupport, LRLanguage } from '@codemirror/language';
+import { styleTags, tags as t } from '@lezer/highlight';
+import { parser } from './grammar/sgl.parser.js';
+
+/**
+ * The grammar (`sgl.grammar`) carries `@detectDelim`, which bakes matching-bracket
+ * metadata for `{ } [ ]` into the generated parser itself — CodeMirror's
+ * `bracketMatching()` extension reads that directly, so there is nothing to add
+ * here for it (DD-01 §6's "Bracket matching: from `@detectDelim`").
+ *
+ * The tag mapping below is DD-01 §6's table verbatim for the six named
+ * productions, filled out for four more the table did not name but the grammar
+ * implies: `ConfigString` (`"@style.stroke"`, the quoted spelling of a
+ * `ConfigKey`/`String`, tagged the same as whichever the surrounding table names
+ * — `buildAst` already treats the two identically as values, and highlighting
+ * ConfigString differently everywhere it is used as a value would be visibly
+ * wrong), `Bool`/`Null` (literal tags CodeMirror already has themes for), and
+ * `Variable` (the `$name` token — DD-01 §6 groups `NodeKey`/`PathSegment` as
+ * `variableName` for the same reason: it names something rather than being a
+ * literal).
+ */
+const sglTags = styleTags({
+  ConfigKey: t.propertyName,
+  ConfigString: t.propertyName,
+  'NodeKey PathSegment': t.variableName,
+  Variable: t.variableName,
+  EdgeOp: t.operator,
+  String: t.string,
+  Number: t.number,
+  Bool: t.bool,
+  Null: t.null,
+  Word: t.atom,
+  'LineComment BlockComment': t.comment,
+  Port: t.attributeName,
+});
+
+const sglParser = parser.configure({
+  props: [
+    sglTags,
+    // DD-01 §6: "one level inside Block/Object/Array." `delimitedIndent` adds one
+    // indent unit inside the node and aligns the closing delimiter with the line
+    // the node opened on.
+    indentNodeProp.add({
+      Block: delimitedIndent({ closing: '}' }),
+      Object: delimitedIndent({ closing: '}' }),
+      Array: delimitedIndent({ closing: ']' }),
+    }),
+    // DD-01 §6: "foldNodeProp on Block, Object, Array."
+    foldNodeProp.add({
+      Block: foldInside,
+      Object: foldInside,
+      Array: foldInside,
+    }),
+  ],
+});
+
+/** The `LRLanguage` DD-08 §4's `EditorState` is built from. */
+export const sglLanguage: LRLanguage = LRLanguage.define({
+  parser: sglParser,
+  languageData: {
+    commentTokens: { line: '//', block: { open: '/*', close: '*/' } },
+    closeBrackets: { brackets: ['{', '[', '"'] },
+  },
+});
+
+/** `LanguageSupport` wrapper, the unit `EditorState.create({ extensions })` takes. */
+export function sgl(): LanguageSupport {
+  return new LanguageSupport(sglLanguage);
+}

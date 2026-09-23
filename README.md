@@ -37,6 +37,15 @@ suite, which needs Playwright's browser binaries fetched once per machine (not b
 pnpm exec playwright install chromium firefox
 ```
 
+`pnpm check` also runs `apps/web`'s Playwright e2e suite (DD-08 §14), in Chromium only, against
+a production build (`vite build` + `vite preview`) — the same `chromium` binary above covers it.
+CI additionally runs `pnpm test:e2e:all-browsers` (Firefox + WebKit too, DD-10 §4), which needs
+WebKit fetched once per machine as well:
+
+```bash
+pnpm exec playwright install webkit
+```
+
 | Command | Does |
 |---|---|
 | `pnpm dev` | Vite dev server for `apps/web` |
@@ -87,6 +96,8 @@ bench/                              perf harness against the DD-09 §2 budgets
 `@sgl/plugin-sdk`, `@sgl/cli`, `@sgl/text`, `@sgl/lsp` and `apps/worker` are later phases; their directories do not exist until they have code.
 
 Dependency direction is strictly downward and enforced by lint: `core` knows nothing about layout; `layout-*` knows nothing about rendering; `render-svg` knows nothing about the app.
+
+**Font attribution.** `apps/web` bundles the Inter typeface, Copyright 2016 The Inter Project Authors, under the SIL Open Font License 1.1; the licence text ships with the built app as `fonts/OFL.txt` ([`apps/web/public/fonts/OFL.txt`](apps/web/public/fonts/OFL.txt)).
 
 ## Documents
 

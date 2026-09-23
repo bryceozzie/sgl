@@ -105,11 +105,24 @@ pnpm exec playwright install chromium firefox
 
 CI does this itself, before its own browser-test step (`.github/workflows/ci.yml`).
 
+**Stage I part 2** adds a second, independent Playwright surface: `apps/web`'s own e2e suite
+(DD-08 §14), against a production build (`vite build` + `vite preview`), covering the MVP
+criteria this stage owns (2, 3, 1's single-engine half) and the corrected DD-08 §14 checklist.
+`pnpm check`/root `pnpm test:e2e` run it in **Chromium only** (decision, Stage I part 2 brief) —
+the same `chromium` binary the browser project above already needs, so a contributor's machine
+stays green without Firefox/WebKit installed. CI's own `test:e2e:all-browsers` script runs all
+three (DD-10 §4), which needs WebKit fetched once per machine too:
+
+```bash
+pnpm exec playwright install webkit
+```
+
 `check` builds before testing because a workspace package's cross-package `import`s resolve
 through its published `exports`, which point at `dist/`. `tsc -b` (the typecheck step) only
 compiles `.ts` files, so a package that re-exports a hand-generated `.js` asset — `@sgl/core`'s
 Lezer parser, once Stage A wires `parse()` to it — needs its real build (`tsdown`, which bundles
-everything into one file) before any other package's tests can import it.
+each entry, the grammar as one shared chunk both import) before any other package's tests can
+import it.
 
 A stage is not done because the code is written. It is done when its gate passes.
 
@@ -130,7 +143,7 @@ A stage is not done because the code is written. It is done when its gate passes
 | `@sgl/layout-std` — `grid` | **Done**, T1+T2 gate green, bitwise double-run over the whole corpus (Stage E) | `main` |
 | End-to-end pipeline (`source -> RenderResult`), `bench/generate.js` | **Done**, T3 gate green (Stage G) | `main` |
 | `@sgl/layout-api` — `createWorkerHost`, `worker-runtime.ts` (worker-side message handling) | **Done**, T1 gate green; the gate's four conditions also proven against a real `Worker` (browser project, Chromium + Firefox) (Stage H) | `main` |
-| `apps/web` | **Not started**, except `layout.worker.ts` — the one real worker entry Stage H needed (registers `gridEngine`) | `main` |
+| `apps/web` | **Stage I done** — the editor loop, pickers, diagnostics panel, status chip, fonts, the §13 error boundary and the Playwright e2e gate (DD-08 §14 tests 1/2/3/8, MVP criteria 2/3/1-single-engine) all work end to end. Open/save, share, autosave and the PWA shell are Stage J; `elk`/engine-switch and the per-engine options form are Stage K. Fix round 1 done (below) | `feat/app-editor`, unmerged |
 
 **Gate 1 is cleared.** `feat/compiler` merged to `main` at `a46c72b`; `pnpm check` green there
 (496 tests). `.sgl` text in, `SemanticGraph` out, for every document in the corpus, with goldens
@@ -656,7 +669,59 @@ front of the browser provider, not a reliably reproducible property of this repo
 defect in the host/runtime code. Recorded as an observation for whoever next hits it, not as
 something this stage could fix.
 
-**Bug fix, `fix/arrowhead-gap` (unmerged, branched from `main` at `3e79f4c`).** A user-reported
+**Stage I part 1 is in progress on `feat/app-editor`** (branched from `main` at `af09d48`,
+Stages A–H, 1625 tests). `pnpm check` is green (1653 tests, up from 1625). Only what part 1's
+brief scoped: `@sgl/core/editor` (`packages/core/src/editor.ts`) — the `LRLanguage` over the
+shared Lezer parser, DD-01 §6's tag/fold/indent mapping, filled out for four tokens the table
+didn't name (`ConfigString`, `Bool`, `Null`, `Variable`); the DOM-free signal graph and pipeline
+orchestration (`apps/web/src/state/pipeline.ts`, `types.ts`, `metrics.ts`, `measure-styles.ts`,
+`worker-host.ts`), with the layout host, measurer and debounce clock injected (I3) and driven by
+fakes in `apps/web/test/pipeline.test.ts` — last-good survives a syntax error, a superseded
+layout is aborted and ignored, a theme-only change skips layout but re-renders, `SGL4001`/
+`SGL4002` keep the previous layout, and the 120 ms debounce coalesces rapid edits; the real
+worker wired through `createAppWorkerHost` (`apps/web/src/state/worker-host.ts`); the CodeMirror
+editor (`apps/web/src/editor/`) with DD-08 §4's extension list, `setDiagnostics` on every `diags`
+change, and a transaction-based `replaceDocument` ready for part 2's Open/Save; the canvas
+(`apps/web/src/canvas/`) with the host `<svg>`, pan/zoom (`k ∈ [0.1, 8]`), fit on open and on the
+button only, the `innerHTML` swap of a wrapper `<g>`, and hover/click computed from
+`lastGood.layout` frames via a pure `hitTestNode` (`apps/web/test/hit-test.test.ts`,
+`viewport.test.ts`); `App.tsx` wiring all of it into DD-08 §2's editor-left/canvas-right shell.
+Verified in a real browser via `pnpm dev`: typing renders and updates the diagram live, and an
+unterminated string shows a squiggle at the right offset while the previous diagram stays on
+screen (FR-E4) — `App.tsx`'s `EXAMPLE` default document is `checkout: { web: "Web App" ... }`,
+a colon after the container key, per DD-01's `NodeDecl` grammar (`NodeKey (":" NodeValue)?` —
+the colon is not optional before a block). Pickers, the
+diagnostics panel, the status chip, Inter/font bundling, the §13 error boundary and the
+Playwright gate are **explicitly part 2**, not started. F2 (a class-sourced diagnostic's
+`related` span) is also part 2's, not this change's.
+
+A **build-tool finding, fixed in the same change**: `packages/core/tsdown.config.ts` already listed
+`src/editor.ts` as a second entry (Stage A/D-era scaffolding, before this stage gave it real
+content); once `editor.ts` actually imported the same generated, non-TS grammar module
+(`src/grammar/sgl.parser.js`) that `index.ts` already does via `parse.ts`, tsdown's default
+unbundle mode extracted that shared file into one hashed chunk but did not rewrite the relative
+import specifier in either entry's own output — both `dist/parse.js` and `dist/editor.js` kept the
+literal, now-nonexistent `./grammar/sgl.parser.js` path, breaking `@sgl/core` at import time for
+every consumer, not just the editor entry. Not caught by `pnpm build` (which only reports success
+per file written), only by `pnpm test`, which is why §1's "`check` builds before testing" rule
+exists. Fixed with `unbundle: false` in `tsdown.config.ts`. *(Corrected in fix round 1: this
+paragraph originally said the grammar is then inlined into both entries. It is not.)* Bundle mode
+puts the grammar in one shared chunk, `dist/sgl.parser-<hash>.js`, which imports only `@lezer/lr`,
+and rewrites both `index.js`'s and `editor.js`'s imports to point at it. That rewriting is what
+unbundle mode failed to do. The entries stay independent where DD-01 §7 needs it: `index.js`
+imports nothing from `editor.js`, so no CodeMirror code reaches a consumer of the `.` entry.
+
+**Deviations from DD-08 §3's pseudocode, all recorded in DD-08 §3 itself in the same change**:
+`premeasure`'s real signature has no `previousTable` parameter to pass one through (the
+measurer's own per-run cache delivers the same reuse in practice); `ctx.metrics` has no
+`ResolvedTheme` field to derive "theme-derived numbers" from, so the app reuses the same static
+constant `packages/render-svg/test/pipeline.ts`'s reference harness already established;
+`diags` also folds in `theme`'s, `styled`'s and `render()`'s own diagnostics, which the
+pseudocode's list omits; and the paint-only skip condition's "engine/options unchanged" half is
+tracked in a small piece of state alongside `lastGood`, since `lastGood`'s own documented shape
+has nowhere to carry an engine id or an options bag.
+
+**Bug fix, `fix/arrowhead-gap`, merged to `main` at `b16ad27`.** A user-reported
 rendering bug, not a stage: every directed edge's arrowhead stopped `arrowSize` short of the node
 it pointed at. Root cause was a double application, not a missing one — `fallbacks.ts`'s
 `applyArrowReserve` (DD-06 §4.4) correctly shortens the path by `arrowSize` so the marker's *tip*
@@ -676,6 +741,134 @@ node's `LayoutResult` frame boundary within 0.05 px — confirmed failing (short
 every checked edge) against the pre-fix `refX`, passing after. `markers.test.ts` gained a matching
 direct unit assertion pinning the anchor per arrowhead kind.
 
+**Stage I part 2 is done on `feat/app-editor`** (`main` merged in twice more — once for the
+theme-switch-budget renegotiation and Stage K reordering, once for the arrowhead-gap fix, both
+above). `pnpm check` is green twice in a row from clean, unit/browser at 1743 tests (up from 1653)
+plus the new Playwright e2e project (8/8, Chromium). Everything the part 2 brief scoped:
+
+- **Pickers (DD-08 §10)**: `ThemePicker`/`EnginePicker` (`apps/web/src/toolbar/`), the 24 px
+  swatch, the `determinism` badge, "(set by document)" when `@theme`/`@layout.engine` overrides
+  the picker. Reading an override (`state/overrides.ts`) and *writing* one — "editing it writes
+  into the document's root config via a transaction" — needed a small new module
+  (`state/root-config-edit.ts`) to compute the minimal text change from the already-parsed AST,
+  dispatched through the `EditorView` `Editor.tsx` now exposes via an `onView` callback (the one
+  deliberate, narrow hole in "the pipeline never touches CodeMirror," owned by the app shell). The
+  per-engine options form is F11 (Stage K), not built.
+- **Diagnostics panel and status chip (DD-08 §11), the "Fit" offer (§6), the §13 error boundary**:
+  all state-layer logic (`state/chip.ts`, `state/pipeline-error.ts`), Node-tested
+  (`apps/web/test/chip.test.ts`, and the error-boundary/chip/fit-offer cases added to
+  `pipeline.test.ts`) before any component renders it. `pipeline.ts` gained
+  `effectiveThemeId`/`effectiveEngineId` (document overrides win over the picker signals), a
+  `pipelineError` signal fed by try/catch around `render()` and around the layout effect's
+  `host.run()` rejection path (§13: a rejection other than `AbortError` is a violated invariant,
+  not a document problem), and `layingOutVisible`/`fitOffered` signals driving `chip`.
+- **Fonts (DD-08 §5)**: Inter 400/500/600 as WOFF2 (`apps/web/src/fonts.css`), `font-display:
+  block` — written by hand rather than importing `@fontsource/inter`'s own `400.css`/etc., which
+  ship every Unicode subset at `font-display: swap`; this file declares the three Latin-only faces
+  itself, pointing at the same WOFF2 files the installed package already has.
+- **A real bug found and fixed while building DD-08 §14 test 8 (the font gate), not a doc
+  finding**: `apps/web/src/state/pipeline.ts`'s layout effect fired on boot with `table` still
+  `{}` (its initial value), laying out every label at zero size before the *real* premeasure table
+  landed a moment later and produced a second, correctly-sized layout — a real, briefly-visible
+  "wrong size" flash on every cold load, not a test artefact. Fonts were never the cause;
+  `document.fonts` already reported every face `loaded` by the time either layout ran. Fixed with
+  a `hasMeasuredOnce` guard on the layout effect, gated correctly only after finding that setting
+  it *after* the `table.value` write was one statement too late — `@preact/signals` reruns a
+  dependent effect synchronously, inline in the write itself, so the guard has to already be true
+  before that statement runs, not after.
+- **F2**: `packages/core/src/compile.ts`'s `resolveShape`/`buildPorts` now thread which class (if
+  any) contributed the value that produced a `SGL3001`/`SGL3006`/`SGL3007`, and attach a `related`
+  span at that class's declaration (`model.spans.get('c:<name>')`, already populated by
+  `resolve()`) when it did. `packages/core/test/compile.test.ts` covers both the inline case (no
+  `related`) and the class-sourced case (three nodes extending one bad class, all `related` to the
+  one declaration). No golden changed — the existing tests only ever asserted `.code`, never the
+  full diagnostic object.
+- **F8**: verified live rather than left as spec reading. `apps/web/e2e/f8-style-decode.spec.ts`
+  reads a rendered label's computed `font-family` back out of the DOM and confirms it is the real
+  multi-word stack, not literal `&apos;` — the reading DD-07 §8 gave (`style` is not in HTML's
+  foreign-content breakout list, so it parses as ordinary SVG element content, entities decode)
+  holds.
+- **F9**: measured, and **does not clear the renegotiated budget** — see the F9 row below. This is
+  the one item the brief said to stop and report rather than resolve; not fixed here, and the
+  execution plan's F9 row is updated with the numbers rather than marked cleared.
+- **Criterion 1's single-engine half** needed a real 40-node, three-level document; none in
+  `corpus/` fit (n50/n500/n2000 are generated, two-level, and exist for scale timing, not this
+  shape). Added `corpus/forty-three-level.sgl` (hand-written, committed with its own goldens,
+  `CLEAN_DOCS`) rather than inlining a large literal in a Playwright test.
+- **Playwright e2e** (`apps/web/e2e/`), against a production build (`vite build` + `vite
+  preview`): MVP criteria 2, 3 and 1's single-engine half; DD-08 §14 tests 1, 2, 3 (as corrected by
+  I2) and 8. `pnpm check`/root `pnpm test:e2e` run it in Chromium only; `pnpm
+  test:e2e:all-browsers` (CI, `.github/workflows/ci.yml`) runs all three engines, needing a
+  one-time `pnpm exec playwright install webkit` per machine (README, alongside the existing
+  chromium/firefox note).
+
+Two testing gotchas found and worked around, both in the e2e suite rather than the app:
+`closeBrackets` (DD-08 §4) auto-pairs a typed opening `"`/`{`, so per-character `type()` of a
+fixture or of deliberately-broken syntax can pass through a momentarily *valid* intermediate state
+a debounced layout can legitimately pick up as `lastGood` — `page.keyboard.insertText()` (one
+atomic input event, the same shape a real paste produces) avoids it; and the example document's
+own trailing newline means `Control+End` lands on an empty final line, so "delete the closing
+brace" needs two `Backspace`s, not one.
+
+**Stage I fix round 1 is done on `feat/app-editor`**, unmerged. The 18-item list came from the
+orchestrator's triage of the part 2 review. An interrupted implementer left a WIP commit
+(`0ffa048`), which this round verified item by item and finished. What landed:
+
+- **Guard tests that fail when the guard is removed** (`apps/web/test/pipeline.test.ts`). Both
+  mutations were checked by hand.
+  - *Superseded layout.* The fake host can now ignore abort, so a superseded request's
+    *fulfilled* result really arrives, both before and after the current one. The test asserts it
+    touches none of `layout`/`layoutDiags`/`lastGood` and that the current result is adopted.
+  - *`hasMeasuredOnce`.* The boot test fires every debounce the moment it is scheduled and records
+    each run's `LayoutInput`. It asserts exactly one layout runs, carrying the real premeasure
+    table's non-zero size for every label.
+- **"At the right span"** (`apps/web/e2e/criteria.spec.ts` criterion 3, `dd08-14.spec.ts` test 2,
+  `helpers.ts`). The test reads CodeMirror's error decorations back as document offsets and
+  compares them with the front end's own spans for the text read back from the editor. It also
+  checks the panel's exact diagnostic codes. `toCmDiagnostic` moved to `editor/diagnostics.ts` with
+  a unit test. Shifting its span by one fails both e2e tests.
+- **DD-08 §13 on every stage** (`state/pipeline.ts`, `types.ts`). `parse`/`buildAst`, `resolve`,
+  `compile`, `resolveTheme`, `styleGraph` and `render()` each hold their last good value on a
+  throw, and a stage downstream of a frozen one does not run. A boot-time throw falls back to the
+  empty document, so the editor still mounts. `lastGood` is built from the render's own inputs.
+  Layout-input building moved inside the layout boundary. Every boundary logs the original error
+  with `console.error`. The unit tests inject throws into parse, compile, styleGraph (at boot) and
+  render, plus `measurer.ready()`/`premeasure`.
+- **Picker writes** (`state/root-config-edit.ts`, new `state/picker-actions.ts`, both pickers).
+  A write edits whatever already sets `@theme`/`@layout.engine`, in place, including an
+  `@layout: { … }` object. A new line is added only when nothing sets the key. Tests cover the none,
+  dotted and object shapes, each with zero diagnostics after the write. The edit is built from the
+  pipeline's `parsed`. A lint rule (`eslint.config.js`) now forbids importing `parse` in
+  `apps/web/src` outside `pipeline.ts`. Selecting an engine resets `engineOptions` to `{}`.
+- **No sleeps in e2e** (`Canvas.tsx`, e2e). The canvas stamps `data-theme`/`data-paint-hash` on
+  the wrapper from `lastGood`, and theme-switch tests wait for it. There is no `waitForTimeout` in
+  `apps/web/e2e/`.
+- **Canvas coverage** (new `apps/web/e2e/canvas.spec.ts`): the overlay is a sibling of the export
+  and absent from it; hover and click outlines match the node; ctrl+wheel zoom holds the cursor
+  point and clamps to exactly `[0.1, 8]`; drag pans; Fit centres at 94 %. Also `viewport.test.ts`'s
+  exact-40 % case.
+- **Packaging** (`packages/core/package.json`, `apps/web/package.json`, lockfile).
+  `@codemirror/language`/`@lezer/highlight` are optional peer dependencies of `@sgl/core` (dev
+  dependencies there, regular dependencies of `apps/web`). `pnpm install --frozen-lockfile` is
+  clean. A packed `@sgl/core` installed into an empty project pulls in only `@lezer/common` and
+  `@lezer/lr`, and its `.` entry imports and parses.
+- **Inter's OFL licence** ships as `dist/fonts/OFL.txt` (`apps/web/public/fonts/OFL.txt`), with
+  an attribution in `README.md`.
+- **Docs**: DD-08 §3/§5/§6/§10/§11/§13/§14, the DD-09 §2 row, `corpus/README.md`, and the
+  corrected tsdown description (above and in `tsdown.config.ts`).
+- **F9**: the bench's forced-layout variant (item 17) and the human decision (item 18) are in the
+  §2.1 row and in Stage L's table. `morphdom` is not implemented. The forced-layout variant runs
+  in Chromium only, where the budget is judged: running it in Firefox too slowed neighbouring
+  tests enough to fail a clean `pnpm check`.
+- **A pre-existing cold-cache failure, fixed test-side.** `pnpm check` from clean failed
+  `packages/layout-std/test/browser/grid.browser.test.ts` twice, with `SGL4001`. The first request
+  through a real Worker also pays Vite's dependency optimisation, while the Node unit project
+  saturates the CPU, and so exceeded `sgl.grid`'s 2 s timeout. The `fd6bbf0` bench fails the same
+  way. That test proves bitwise equality, so its host now gets a 30 s grid timeout. After this, two
+  consecutive clean `pnpm check` runs were green. Every e2e test passes in each of Chromium,
+  Firefox and WebKit (`test:e2e:all-browsers`, 42/42). One earlier all-browser run hit three
+  Firefox 30 s timeouts under three-browser parallel load; Firefox alone passed 14/14.
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
@@ -685,13 +878,12 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 
 | # | Finding | Owner |
 |---|---|---|
-| **F2** | One bad value in a class body yields one diagnostic **per node using the class** — three nodes extending a class with `@shape: trapezoid` give three `SGL3001`s, each spanned to a node, none to the class. Same for `SGL3007`. Correct but noisy; wants a `related` span on the class declaration. | Stage I |
 | **F3** | `linearizeClasses` recurses `@extends` with no visited-set guard. Safe **only** because `resolve()` splices every cycle's back-edge first, so no `DocumentModel` reaching `compile()` can contain one. A second producer of class tables would turn bad input into a stack overflow — which §1 reserves for invariant violations. | Stage L (A9) |
 | **F6** | `renderNode`'s port-circle template (DD-07 §3) is live, correctly `aria-hidden`, and unit-tested directly — but unreachable through the real pipeline: `grid` declares `capabilities.ports: false` and no host fallback places ports (DD-06 §4 covers labels and routing, not ports), so `LayoutResult.nodes[id].ports` is never populated end to end. Found during Stage F's accessibility pass. | unassigned — whichever stage next reconsiders `ports: false` for `grid`, or ships a port-aware engine |
 | **F7** | The paint-only `<style>`-swap property (DD-07 §11, DD-08 §3) does not hold, for two independent reasons verified against the committed goldens. (a) `s-`/`t-`/`p-{paintHash}` class names (`style.ts`) embed the paint hash, so a paint change changes every referencing element's `class` attribute, not just the `<style>` block — fixable by keying the class name on something theme-invariant instead, which is a DD-07 §6 class-naming-scheme change (would churn every golden), not pulled here. (b) independently, a directed edge's arrowhead marker bakes its stroke colour into a `<defs>` `fill` and into the marker's own `id` (`markers.ts`), so `marker-end`/`marker-start` references change too — this needs a different marker strategy or a `context-stroke` rewrite (both currently rejected: resvg lacks `context-stroke`, Safari support arrived late), not just a class rename. DD-08 §3 is corrected to describe a full re-render instead of a `<style>`-only swap; the code is unchanged. | Stage I |
-| **F8** | `<style>` content is XML-escaped by `render()` (every golden carries `&apos;Segoe UI&apos;` in the font stack). For a standalone `.svg` this is verified correct — XML parses style content as character data and decodes entities, confirmed by the injection suite. For DD-08 §6's `innerHTML` path it should *also* be correct — `style` is not in HTML's foreign-content breakout list, so inside `<svg>` the parser treats it as a foreign element and never enters the RAWTEXT state, meaning entities decode there too — but that is spec reading, not a live-browser result, and no browser target exists yet (`apps/web` is not started) to prove it. If the reading is wrong, every multi-word font family silently degrades in the live view only, not in exports. | Stage I, to verify once `apps/web` runs |
-| **F9** | The paint-only theme-switch budget. **Renegotiated 2026-09-23 (human decision):** from a flat `< 16 ms` to **`< 16 ms` up to 500 nodes and `< 50 ms` at 2 000 nodes, measured in Chromium** (hard ceilings 50 / 100 ms), in [01 §4.1](01-requirements.md) and DD-09 §2 together. The basis: Stage H measured `render()` alone (`packages/render-svg/test/browser/render.bench.browser.test.ts`, median of 15, Chromium / Firefox) at n50 **1.1 / 2.0 ms**, n500 **8.9 / 15–16 ms**, n2000 **33.8–41.3 / 54 ms** — a flat 16 ms held only at the small end, because F7 makes a theme toggle a full `render()` plus `innerHTML` swap. **Still open:** the `innerHTML` swap on top of `render()` is unmeasured. Clear this row when Stage I measures `render()` + swap at 50/500/2 000 nodes in Chromium and it fits the new budget; if it does not, that is a new escalation, not a silent re-negotiation. Firefox at 2 000 nodes (54 ms for `render()` alone) is a watch item. | Stage I (part 2) |
+| **F9** | The paint-only theme-switch budget: **`< 16 ms` up to 500 nodes and `< 50 ms` at 2 000 nodes, measured in Chromium** (hard ceilings 50 / 100 ms; 01 §4.1, DD-09 §2). **Measured, and not met.** `packages/render-svg/test/browser/render.bench.browser.test.ts`, median of 15, Chromium, several standalone runs. The live-view operation is `render()` plus the `innerHTML` swap of the wrapper `<g>` (DD-08 §6). Timed up to the assignment only, it measured n50 **1.1–3.0 ms**, n500 **10–25 ms** and n2000 **53–150 ms** (Stage I part 2 and fix round 1 together). That undercounts: the browser has not yet computed style or laid out the new subtree. With `wrapper.getBBox()` forcing that work inside the timed region (fix round 1, item 17), the figures are n50 **3.4–9.7 ms**, n500 **37–72 ms**, n2000 **183–254 ms**. So with layout counted, 500 nodes misses too, not only 2 000. **Decision (human, 2026-09-23): keep the budget, and do not renegotiate it again.** The 2 000-node miss is scheduled as performance work required before Gate 4: replace the live view's wholesale `innerHTML` swap with `morphdom` on the wrapper `<g>` (DD-08 §6's and DD-09 §2's own planned response). `morphdom` is a new runtime dependency, approved by this decision. MVP / Gate 3 is not blocked, since no MVP criterion is timed. **Clears when** the forced-layout variant of that bench shows n2000 < 50 ms in Chromium. | **Stage L — morphdom live-view swap, before Gate 4** |
 | **F10** | `ctx.random`'s seed (`host.ts`'s `SEED = 1`) is one fixed constant, shared by every request for every document — `LayoutHost.run()`'s frozen signature has no per-call seed parameter, so Stage H could not add one unilaterally (DD-06 §3). Where a per-document seed should come from — a new `run()` parameter, or something content-addressed from a graph hash so the same document always seeds the same way without threading a value through every call site — is undecided, and is an orchestrator/design decision to make, not Stage H's to settle unilaterally. No engine shipped so far reads `ctx.random` at all (`grid` is fully deterministic; `elk` is unbuilt), so nothing depends on the answer yet. | Stage L (B5 `radial`/`force`, the first seed-consuming engines) |
+| **F11** | DD-08 §10's engine options panel — "MVP is a hand-built form per engine" — is not built. With one registered engine (`grid`) there is nothing to switch *between*, so a form whose whole point is per-engine variation has no second case to prove it against; building it now risks shaping it around `grid`'s own three options (`columns`, `gap`, `align`) in a way that does not generalise to `elk`'s different set (direction, node/rank spacing, edge routing, node placement). `engineOptions` itself is wired end to end (the signal, `buildLayoutInput`, the worker protocol) — only the settings UI is missing. | Stage K (the second engine makes the form's generality checkable) |
 
 ---
 
@@ -1139,6 +1331,7 @@ complete the Playwright suite's engine-switch cases (DD-08 §14 test 4).
 | D6/D7 PNG and clipboard export | Canvas `drawImage` of the SVG blob. |
 | F2 drag-and-drop, F5 `.sglpack` | Conveniences on F1. |
 | E17 multiple documents | Storage is already a list; this is UI. |
+| **F9 — `morphdom` live-view swap** | **Required before Gate 4** (human decision, 2026-09-23; §2.1 **F9**). Patch the canvas's wrapper `<g class="rendered">` with `morphdom` instead of replacing its `innerHTML` wholesale (DD-08 §6, DD-09 §2's planned response). The overlay stays a sibling of the exported tree, never inside the patched wrapper. Measured by the F9 bench (`packages/render-svg/test/browser/render.bench.browser.test.ts`, forced-layout variant): done when n2000 < 50 ms in Chromium. `morphdom` is a new runtime dependency, approved by that decision. |
 
 **Gate 4 — v1.0.** Every Must in [04](04-feature-backlog.md) done, all gates green, bench inside the
 DD-09 §2 budgets on the 50/500/2000-node corpus.
