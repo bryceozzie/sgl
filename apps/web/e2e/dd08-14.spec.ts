@@ -3,28 +3,36 @@ import {
   diagnosticCodes,
   editorText,
   errorDecorations,
-  EXAMPLE_SOURCE,
+  EXAMPLE_NODE_COUNT,
   expectedErrorDecorations,
   nodeGeometry,
   renderedSvg,
+  setSource,
+  SMALL_SOURCE,
   sourceDiagnostics,
+  visibleNodeCount,
+  waitForExactNodeCount,
   waitForNodeCount,
   waitForTheme,
 } from './helpers.js';
 
-/** DD-08 §14's Playwright list, tests 1, 2, 3 (corrected by I2) and 8 — the
- *  rest (4: engine switch, 5–7: files/share/offline) wait for Stage J/K. */
+/** DD-08 §14's Playwright list, tests 1, 2, 3 (corrected by I2) and 8.
+ *  Tests 5–7 (files, share, offline) are `files.spec.ts`, `share.spec.ts`
+ *  and `offline.spec.ts` (Stage J); test 4 (engine switch) waits for `elk`
+ *  (Stage K). */
 test.describe('DD-08 §14', () => {
   test('1. typing updates the canvas and does not reset the viewport', async ({ page }) => {
     await page.goto('/');
-    await waitForNodeCount(page, 2);
+    await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
     const transformBefore = await page.locator('.viewport').getAttribute('transform');
     expect(transformBefore).toBeTruthy();
 
     await page.locator('.cm-content').click();
     await page.keyboard.press('Control+End');
-    await page.keyboard.type('\ndb: "Database"\napi -> db');
-    await waitForNodeCount(page, 3);
+    // `payments.api`, the example's own node: an edge from an undeclared
+    // endpoint is an error, and a document with an error never renders.
+    await page.keyboard.type('\ndb: "Database"\npayments.api -> db');
+    await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT + 1);
 
     const transformAfter = await page.locator('.viewport').getAttribute('transform');
     expect(transformAfter).toBe(transformBefore); // DD-08 §6: fit only on open/button, never on re-render.
@@ -32,10 +40,14 @@ test.describe('DD-08 §14', () => {
 
   test('2. deleting a closing brace shows a squiggle at the right offset and keeps the previous SVG', async ({ page }) => {
     await page.goto('/');
-    await waitForNodeCount(page, 2);
+    await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+    // A document that ends in a container's closing brace (the example ends
+    // in an edge).
+    await setSource(page, SMALL_SOURCE);
+    await waitForExactNodeCount(page, visibleNodeCount(SMALL_SOURCE));
     const svgBefore = await renderedSvg(page).innerHTML();
 
-    const finalSource = EXAMPLE_SOURCE.slice(0, -2); // the trailing "}\n" removed.
+    const finalSource = SMALL_SOURCE.slice(0, -2); // the trailing "}\n" removed.
     // What "the right offset" means here, pinned independently of the
     // parser: one zero-width "expected `}`" marker at the very end of the
     // document, and no ranged squiggle.
@@ -62,7 +74,7 @@ test.describe('DD-08 §14', () => {
 
   test("3 (corrected by I2): theme switch leaves every node's frame geometry untouched", async ({ page }) => {
     await page.goto('/');
-    await waitForNodeCount(page, 2);
+    await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
     await waitForTheme(page, 'neutral-light');
 
     const frames = () =>
@@ -82,11 +94,11 @@ test.describe('DD-08 §14', () => {
 
   test('8. font gate: label geometry is identical on a cold load and a warm (reloaded) one', async ({ page }) => {
     await page.goto('/');
-    await waitForNodeCount(page, 2);
+    await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
     const cold = await nodeGeometry(page);
 
     await page.reload();
-    await waitForNodeCount(page, 2);
+    await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
     const warm = await nodeGeometry(page);
 
     expect(warm).toEqual(cold);

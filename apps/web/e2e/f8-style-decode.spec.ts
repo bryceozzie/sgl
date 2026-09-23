@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { renderedSvg, waitForNodeCount } from './helpers.js';
+import { EXAMPLE_NODE_COUNT, renderedSvg, waitForNodeCount } from './helpers.js';
 
 /**
  * F8 (execution plan §2.1): `<style>` content is XML-escaped by `render()` —
@@ -18,7 +18,7 @@ test('F8: the innerHTML-inserted <style> decodes &apos; — computed font-family
   page,
 }) => {
   await page.goto('/');
-  await waitForNodeCount(page, 2);
+  await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
 
   const svg = renderedSvg(page);
 

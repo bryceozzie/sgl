@@ -51,6 +51,20 @@ export function screenToDiagram(v: Viewport, x: number, y: number): { readonly x
   return { x: (x - v.tx) / v.k, y: (y - v.ty) / v.k };
 }
 
+/** The extent of a stored `render()` output, read from its root `viewBox`
+ *  (DD-07: `viewBox="x y w h"`, the layout's bounds) — what the canvas fits
+ *  to while it paints the last-good SVG from storage at boot (DD-08 §5, §9),
+ *  before any `LayoutResult` exists to read `bounds` from. `null` if the
+ *  string has no usable `viewBox`. */
+export function svgExtent(svg: string): Extent | null {
+  const m = /^<svg\b[^>]*?\sviewBox="([^"]*)"/.exec(svg);
+  if (m === null) return null;
+  const parts = m[1]!.trim().split(/[\s,]+/).map(Number);
+  if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n))) return null;
+  const [, , w, h] = parts as [number, number, number, number];
+  return w > 0 && h > 0 ? { w, h } : null;
+}
+
 /** DD-08 §6: "When `bounds` changes size by more than 40% the chip offers
  *  'Fit'." `prev === null` (nothing rendered yet) is never a significant change —
  *  there is nothing to offer refitting relative to. */

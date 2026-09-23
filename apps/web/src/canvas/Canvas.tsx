@@ -4,7 +4,7 @@ import type { NodeId } from '@sgl/core';
 import { StatusChip } from '../panels/StatusChip.js';
 import type { Pipeline } from '../state/pipeline.js';
 import { hitTestNode } from './hit-test.js';
-import { fitViewport, panBy, screenToDiagram, zoomAt, IDENTITY_VIEWPORT, type Extent, type Viewport } from './viewport.js';
+import { fitViewport, panBy, screenToDiagram, svgExtent, zoomAt, IDENTITY_VIEWPORT, type Extent, type Viewport } from './viewport.js';
 
 export interface CanvasProps {
   readonly pipeline: Pipeline;
@@ -13,6 +13,13 @@ export interface CanvasProps {
    *  offer (DD-08 §6, §11) both trigger the same function from outside this
    *  component. */
   readonly onFitReady?: (fit: (() => void) | null) => void;
+  /** DD-08 §5/§9 (J6): the document's stored `lastGoodSvg`, painted at boot
+   *  while `lastGood` is still `null` — before fonts or the worker are
+   *  ready — so a returning user never sees a blank canvas. */
+  readonly bootSvg?: string;
+  /** Bumped when a new document opens (§7 Open): the next render fits, as on
+   *  first open (DD-08 §6: "fit on document open"). */
+  readonly fitRequest?: number;
 }
 
 /**
@@ -20,7 +27,7 @@ export interface CanvasProps {
  * and the interaction overlay as a sibling `<g>` (DD-08 §6). Hover/click are
  * computed from `lastGood.layout` frames, never the DOM.
  */
-export function Canvas({ pipeline, onFitReady }: CanvasProps) {
+export function Canvas({ pipeline, onFitReady, bootSvg, fitRequest = 0 }: CanvasProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const wrapperRef = useRef<SVGGElement | null>(null);
   const viewportGRef = useRef<SVGGElement | null>(null);
@@ -30,6 +37,9 @@ export function Canvas({ pipeline, onFitReady }: CanvasProps) {
 
   const viewportRef = useRef<Viewport>(IDENTITY_VIEWPORT);
   const hasFittedRef = useRef(false);
+  /** Whether what is on screen is the stored boot picture (J6) rather than a
+   *  live render; the extent to fit it to comes from its own `viewBox`. */
+  const showingStoredRef = useRef(false);
   const draggingRef = useRef<{ readonly x: number; readonly y: number } | null>(null);
   const selectedRef = useRef<NodeId | null>(null);
 
@@ -47,10 +57,11 @@ export function Canvas({ pipeline, onFitReady }: CanvasProps) {
 
   function fitNow(): void {
     const bounds = pipeline.lastGood.peek()?.layout.bounds;
-    if (bounds === undefined) return;
-    viewportRef.current = fitViewport({ w: bounds.w, h: bounds.h }, viewportSize());
+    const extent = bounds !== undefined ? { w: bounds.w, h: bounds.h } : showingStoredRef.current && bootSvg !== undefined ? svgExtent(bootSvg) : null;
+    if (extent === null) return;
+    viewportRef.current = fitViewport(extent, viewportSize());
     applyTransform();
-    pipeline.fitDone(); // records the baseline for DD-08 §6's 40% "Fit" offer.
+    if (bounds !== undefined) pipeline.fitDone(); // records the baseline for DD-08 §6's 40% "Fit" offer.
   }
 
   function updateOverlayRect(ref: { current: SVGRectElement | null }, id: NodeId | null): void {
@@ -78,7 +89,25 @@ export function Canvas({ pipeline, onFitReady }: CanvasProps) {
       const lastGood = pipeline.lastGood.value;
       const wrapper = wrapperRef.current;
       if (wrapper === null) return;
+      if (lastGood === null && bootSvg !== undefined) {
+        // J6: the stored picture, until the first live render replaces it.
+        // It is this document's own last good `render()` output, from our
+        // own storage — the same trust as `lastGood.svg` itself.
+        wrapper.innerHTML = bootSvg;
+        wrapper.setAttribute('data-origin', 'stored');
+        wrapper.removeAttribute('data-paint-hash');
+        wrapper.removeAttribute('data-theme');
+        showingStoredRef.current = true;
+        fitNow();
+        return;
+      }
+      const replacingStored = showingStoredRef.current;
+      showingStoredRef.current = false;
       wrapper.innerHTML = lastGood === null ? '' : lastGood.svg;
+      // `live` once a render of the running pipeline is on screen — the e2e
+      // suite waits on it, so a stored boot picture is never mistaken for one.
+      if (lastGood === null) wrapper.removeAttribute('data-origin');
+      else wrapper.setAttribute('data-origin', 'live');
       // Which render is on screen, stamped from the same `lastGood` just
       // swapped in: a theme switch changes neither the node count nor any
       // geometry a test could wait on, so the e2e suite awaits `data-theme`
@@ -92,7 +121,10 @@ export function Canvas({ pipeline, onFitReady }: CanvasProps) {
         wrapper.setAttribute('data-theme', lastGood.styled.themeId);
       }
 
-      if (!hasFittedRef.current && lastGood !== null) {
+      // The first live render fits even after a stored picture did: that
+      // records the fit baseline (§6's 40% offer) against real bounds, and
+      // for the same document it lands on the same transform anyway.
+      if ((!hasFittedRef.current || replacingStored) && lastGood !== null) {
         hasFittedRef.current = true;
         fitNow();
       }
@@ -105,6 +137,11 @@ export function Canvas({ pipeline, onFitReady }: CanvasProps) {
     onFitReady?.(fitNow);
     return () => onFitReady?.(null);
   }, [pipeline]);
+
+  // A newly opened document fits on its first render, like the first one did.
+  useEffect(() => {
+    if (fitRequest > 0) hasFittedRef.current = false;
+  }, [fitRequest]);
 
   function onWheel(ev: WheelEvent): void {
     const svg = svgRef.current;

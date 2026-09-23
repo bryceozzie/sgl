@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { renderedSvg, waitForNodeCount } from './helpers.js';
+import { EXAMPLE_NODE_COUNT, renderedSvg, waitForNodeCount } from './helpers.js';
 
 /** DD-08 §6's canvas (`apps/web/src/canvas/Canvas.tsx`): the overlay as a
  *  sibling of the exported tree, hover and click from `lastGood.layout`
@@ -66,7 +66,7 @@ async function ctrlWheel(page: Page, deltaY: number, times = 1): Promise<void> {
 test.describe('Canvas (DD-08 §6)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await waitForNodeCount(page, 2);
+    await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
   });
 
   test('the overlay is a sibling of the viewport, never part of the exported tree', async ({ page }) => {

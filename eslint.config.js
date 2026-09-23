@@ -110,4 +110,11 @@ export default tseslint.config(
     files: ['bench/**/*.js'],
     languageOptions: { globals: { console: 'readonly', URL: 'readonly', AbortController: 'readonly' } },
   },
+
+  // apps/web/scripts/generate-icons.mjs (Stage J) is the same kind of plain
+  // Node script: it writes the PWA's placeholder icons.
+  {
+    files: ['apps/web/scripts/**/*.mjs'],
+    languageOptions: { globals: { URL: 'readonly', Buffer: 'readonly' } },
+  },
 );

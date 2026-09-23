@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { expect, type Locator, type Page } from '@playwright/test';
 import { compile, parse, resolve, type Diagnostic } from '@sgl/core';
 
@@ -12,9 +14,26 @@ export function sourceDiagnostics(source: string): readonly Diagnostic[] {
   return [...parsed.diagnostics, ...resolved.diagnostics, ...compiled.diagnostics].sort((a, b) => a.span.from - b.span.from);
 }
 
-/** The document the app opens with (`App.tsx`'s `EXAMPLE`) — note the
+/** A `corpus/` document's text. */
+export const corpusDoc = (name: string): string => readFileSync(fileURLToPath(new URL(`../../../corpus/${name}`, import.meta.url)), 'utf8');
+
+/** The document a first visit opens with (DD-08 §9: "create a document from
+ *  the example" — `src/examples/checkout.sgl`, Stage J). Every Playwright
+ *  test starts in a fresh browser context, so a fresh IndexedDB, so this. */
+export const EXAMPLE_SOURCE = readFileSync(fileURLToPath(new URL('../src/examples/checkout.sgl', import.meta.url)), 'utf8');
+
+export function visibleNodeCount(source: string): number {
+  const { graph } = compile(resolve(parse(source).ast).model);
+  return graph.order.filter((id) => graph.nodes[id]?.hidden === false).length;
+}
+
+/** How many nodes and containers the example renders — computed, not
+ *  hard-coded, so editing the example cannot silently weaken a wait. */
+export const EXAMPLE_NODE_COUNT = visibleNodeCount(EXAMPLE_SOURCE);
+
+/** A small document for tests that edit at a known offset — note the
  *  trailing newline: `Control+End` lands on an empty final line. */
-export const EXAMPLE_SOURCE = 'checkout: {\n  web: "Web App"\n  api: "API"\n  web -> api\n}\n';
+export const SMALL_SOURCE = 'checkout: {\n  web: "Web App"\n  api: "API"\n  web -> api\n}\n';
 
 /** Replaces the whole editor document — CodeMirror's content is
  *  `contenteditable`, so `fill()` does not work. Uses `insertText` (one bulk
@@ -35,14 +54,31 @@ export function renderedSvg(page: Page): Locator {
   // `lastGood.svg` is inserted whole into `<g class="rendered">` (DD-08 §6) —
   // the nested `<svg>` this selects is the actual exported/golden-comparable
   // tree, distinct from the host `<svg class="host">` that owns pan/zoom.
-  return page.locator('.canvas-host g.rendered > svg');
+  // `data-origin="live"`: a render of the running pipeline, never the stored
+  // picture a reload paints first (J6, `storedSvg` below).
+  return page.locator('.canvas-host g.rendered[data-origin="live"] > svg');
 }
 
+/** The last-good SVG painted from IndexedDB at boot, before a live render
+ *  replaces it (DD-08 §5, §9). */
+export function storedSvg(page: Page): Locator {
+  return page.locator('.canvas-host g.rendered[data-origin="stored"] > svg');
+}
+
+const NODES = 'g.L-nodes > g.n, g.L-containers > g.c';
+
+/** At least `count` nodes and containers rendered live. */
 export async function waitForNodeCount(page: Page, count: number): Promise<void> {
   await renderedSvg(page)
-    .locator('g.L-nodes > g.n, g.L-containers > g.c')
+    .locator(NODES)
     .nth(count - 1)
     .waitFor({ state: 'attached' });
+}
+
+/** Exactly `count` nodes and containers rendered live — for waiting on a
+ *  *particular* document's render, where "at least" would already hold. */
+export async function waitForExactNodeCount(page: Page, count: number): Promise<void> {
+  await expect(renderedSvg(page).locator(NODES)).toHaveCount(count);
 }
 
 /** Every node/container's own shape `d` (DD-07 §4) — geometry, keyed by id so
