@@ -19,6 +19,11 @@ export interface ThemeDoc {
   readonly byShape: Readonly<Record<string, StyleSet>>;
   readonly byClass: Readonly<Record<string, StyleSet>>;
   readonly canvas: { readonly background: string };
+  /** DD-04 §4 step 7 (C5): paint properties forced over the whole cascade,
+   *  the document's classes and inline `@style` included — how `print` makes
+   *  every fill white and every stroke black. Paint only: a geometry property
+   *  here is `SGL5003` and dropped, so a theme's metrics never depend on it. */
+  readonly force?: StyleSet;
 }
 
 /** The same document with inheritance followed, `@token` references resolved and
@@ -30,6 +35,8 @@ export interface ResolvedTheme {
   readonly byClass: Readonly<Record<string, StyleSet>>;
   readonly canvas: { readonly background: string };
   readonly tokens: Readonly<Record<string, StyleValue>>;
+  /** DD-04 §4 step 7; present only when the theme forces anything. */
+  readonly force?: StyleSet;
 }
 
 /** The small set of theme-derived numbers a layout engine may want for defaults

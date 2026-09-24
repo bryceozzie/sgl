@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="sgl" data-sgl="1.0" width="496.109" height="141.797" viewBox="0 0 496.109 141.797" role="img" aria-labelledby="sgl-t sgl-d"><title id="sgl-t">JSON subset</title><desc id="sgl-d">3 nodes, 1 connections, 0 groups.</desc><style>.canvas{fill:#FFFFFF}
+.c-shape,.n-shape{stroke-linejoin:round}
+.e-path{fill:none;stroke-linecap:round}
+.el-plate{stroke:none}
+.n-port{stroke:none}
+text{white-space:pre}
+.g-8ab423a0{stroke-width:1.5px}
+.g-c4cad93e{font-family:Inter, system-ui, -apple-system, &apos;Segoe UI&apos;, Roboto, sans-serif;font-size:13px;font-weight:500}
+.g-d7aeceec{font-family:Inter, system-ui, -apple-system, &apos;Segoe UI&apos;, Roboto, sans-serif;font-size:11px;font-weight:400}
+.mf-61761734cd8c29d8{fill:#000000}
+.p-61761734cd8c29d8{fill:#FFFFFF}
+.s-59cc7c1f39e120e4{fill:#FFFFFF;stroke:#000000}
+.s-61761734cd8c29d8{stroke:#000000}
+.s-f87f15f458f0b195{fill:#FFFFFF;stroke:#000000}
+.t-5e011169d32131cb{fill:#000000}
+.t-79715efa3bfa0626{fill:#000000}
+.t-e96d5fe92f4c4358{fill:#000000}</style><defs><marker id="m-triangle-8-61761734cd8c29d8" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto"><path class="mf-61761734cd8c29d8" d="M0 0L8 3L0 6Z" /></marker></defs><rect class="canvas" x="0" y="0" width="496.109" height="141.797" aria-hidden="true"/><g class="L-containers"></g><g class="L-edges"><g id="e-1a68a89c6143642d" class="e" role="graphics-symbol" aria-label="gateway to cache: reads"><path class="e-path g-8ab423a0 s-61761734cd8c29d8" d="M249.984 40.906L400.109 40.906" marker-end="url(#m-triangle-8-61761734cd8c29d8)"/></g></g><g class="L-nodes"><g id="n-gateway" class="n sh-rect" role="group" aria-label="API Gateway"><path class="n-shape g-8ab423a0 s-f87f15f458f0b195" d="M 150.125 22.906 h 99.875 v 36 h -99.875 Z"/><text class="n-title g-c4cad93e t-5e011169d32131cb" x="200.063" y="42.856" text-anchor="middle" xml:space="preserve" aria-hidden="true"><tspan x="200.063" dy="0">API Gateway</tspan></text></g><g id="n-cache" class="n sh-cylinder Datastore" role="group" aria-label="cache"><path class="n-shape g-8ab423a0 s-59cc7c1f39e120e4" d="M 408.109 24 A 36 8 0 0 1 480.109 24 L 480.109 57.797 A 36 8 0 0 1 408.109 57.797 Z M 480.109 24 A 36 8 0 0 1 408.109 24"/><text class="n-title g-c4cad93e t-79715efa3bfa0626" x="444.109" y="45.669" text-anchor="middle" xml:space="preserve" aria-hidden="true"><tspan x="444.109" dy="0">cache</tspan></text></g><g id="n-notes" class="n sh-rect" role="group" aria-label="A string under a non-@ key is always a label, never a class."><path class="n-shape g-8ab423a0 s-f87f15f458f0b195" d="M 16 89.797 h 368.109 v 36 h -368.109 Z"/><text class="n-title g-c4cad93e t-5e011169d32131cb" x="200.055" y="109.747" text-anchor="middle" xml:space="preserve" aria-hidden="true"><tspan x="200.055" dy="0">A string under a non-@ key is always a label, never a class.</tspan></text></g></g><g class="L-labels"><g class="el" aria-hidden="true"><rect class="el-plate p-61761734cd8c29d8" x="311.297" y="44.906" width="27.516" height="14.297" aria-hidden="true"/><text class="el-text g-d7aeceec t-e96d5fe92f4c4358" x="325.055" y="53.705" text-anchor="middle" xml:space="preserve" aria-hidden="true"><tspan x="325.055" dy="0">reads</tspan></text></g></g></svg>

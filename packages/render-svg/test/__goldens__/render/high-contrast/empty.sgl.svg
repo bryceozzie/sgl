@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="sgl" data-sgl="1.0" width="0" height="0" viewBox="0 0 0 0" role="img" aria-labelledby="sgl-t sgl-d"><title id="sgl-t">Diagram</title><desc id="sgl-d">0 nodes, 0 connections, 0 groups.</desc><style>.canvas{fill:#FFFFFF}
+.c-shape,.n-shape{stroke-linejoin:round}
+.e-path{fill:none;stroke-linecap:round}
+.el-plate{stroke:none}
+.n-port{stroke:none}
+text{white-space:pre}</style><defs></defs><rect class="canvas" x="0" y="0" width="0" height="0" aria-hidden="true"/><g class="L-containers"></g><g class="L-edges"></g><g class="L-nodes"></g><g class="L-labels"></g></svg>

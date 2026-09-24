@@ -420,6 +420,7 @@ export function styleGraph(
     for (const set of layers.docClassSets) assign(bag, set, role); // 4
     assign(bag, layers.inline, role); // 5
     assign(bag, layers.size, role); // 6
+    assignThemeSet(bag, theme.force, role); // 7 (C5: kept in step)
     return bag;
   };
 
@@ -430,6 +431,7 @@ export function styleGraph(
     for (const set of layers.themeClassSets) assign(bag, set, 'text'); // 3
     for (const set of layers.docClassSets) assign(bag, set, 'text'); // 4
     assign(bag, layers.inline, 'text'); // 5
+    assignThemeSet(bag, theme.force, 'text'); // 7 (C5: kept in step)
     return bag;
   };
 

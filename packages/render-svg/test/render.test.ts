@@ -1,5 +1,5 @@
 import type { GraphNode, LabelId, NodeId, PortId, SemanticGraph } from '@sgl/core';
-import { neutralDark, neutralLight, resolveTheme, type ComputedStyle, type ResolvedTheme, type StyledGraph, type ThemeDoc } from '@sgl/theme';
+import { BUILT_IN, neutralDark, neutralLight, resolveTheme, type ComputedStyle, type ResolvedTheme, type StyledGraph, type ThemeDoc } from '@sgl/theme';
 import { XMLValidator } from 'fast-xml-parser';
 import { describe, expect, it } from 'vitest';
 import { render } from '../src/index.js';
@@ -17,10 +17,11 @@ import { listCorpusDocs, renderCorpusDoc } from './pipeline.js';
 const KNOWN_DIRTY = /^(?:malformed|unresolved|injection|layout|theme)\//;
 const GENERATED_BENCH = /^n(?:50|500|2000)\.sgl$/;
 
-const THEMES: readonly ThemeDoc[] = [neutralLight, neutralDark];
+/** Every built-in theme; C5 added `high-contrast` and `print` (new golden directories). */
+const THEMES: readonly ThemeDoc[] = [neutralLight, neutralDark, BUILT_IN['high-contrast']!, BUILT_IN['print']!];
 const DOCS = listCorpusDocs();
 
-describe('render(): corpus goldens (grid engine x both built-in themes, DD-07 §11)', () => {
+describe('render(): corpus goldens (grid engine x every built-in theme, DD-07 §11)', () => {
   it('CLEAN_DOCS plus the known-dirty sets exactly partition listCorpusDocs() (Fix 3)', () => {
     for (const doc of CLEAN_DOCS) {
       expect(DOCS, `${doc} is in CLEAN_DOCS but not in the corpus`).toContain(doc);
@@ -66,12 +67,14 @@ describe('render(): double-run determinism (DD-00 §3, DD-07 §11)', () => {
     });
   }
 
-  for (const doc of CLEAN_DOCS) {
-    it(`${doc}: byte-identical across two runs under neutral-dark`, async () => {
-      const a = await renderCorpusDoc(doc, neutralDark);
-      const b = await renderCorpusDoc(doc, neutralDark);
-      expect(a.rendered.svg).toBe(b.rendered.svg);
-    });
+  for (const theme of THEMES.slice(1)) {
+    for (const doc of CLEAN_DOCS) {
+      it(`${doc}: byte-identical across two runs under ${theme.id}`, async () => {
+        const a = await renderCorpusDoc(doc, theme);
+        const b = await renderCorpusDoc(doc, theme);
+        expect(a.rendered.svg).toBe(b.rendered.svg);
+      });
+    }
   }
 });
 
