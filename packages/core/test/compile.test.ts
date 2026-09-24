@@ -492,9 +492,10 @@ describe('wildcard expansion (DD-03 §3.1, language spec §3)', () => {
     expect(graph.edges.some((e) => e.from.node === 'empty')).toBe(false);
   });
 
-  it('a mid-path wildcard is SGL3004 and the edge is dropped', () => {
-    const { diagnostics } = compileSrc('switch\nlane1: { a: { handler: {} } }\nlane1.*.handler -> switch\n');
+  it('a mid-path `**` is SGL3004 and the edge is dropped', () => {
+    const { graph, diagnostics } = compileSrc('switch\nlane1: { a: { handler: {} } }\nlane1.**.handler -> switch\n');
     expect(diagnostics.map((d) => d.code)).toEqual(['SGL3004']);
+    expect(graph.edges).toHaveLength(0);
   });
 
   it('every expanded edge carries the wildcard statement’s label and config', () => {
@@ -578,6 +579,189 @@ describe('wildcard expansion (DD-03 §3.1, language spec §3)', () => {
     const { diagnostics, graph } = compile({ sgl: '1.0', root, classes: {}, spans: new Map() });
     expect(diagnostics.map((d) => d.code)).toEqual(['SGL3005']);
     expect(graph.edges).toHaveLength(0);
+  });
+});
+
+describe('wildcards in parent path segments (language spec §3, human decision 2026-09-24)', () => {
+  const pairs = (edges: readonly GraphEdge[]) => edges.map((e) => [e.from.node, e.to.node]);
+
+  /** Two `store*` containers with api-ish children, plus every near-miss the
+   *  rules say contributes nothing: a matched parent with no matching child, a
+   *  matched leaf, a hidden matched parent, and a hidden child. */
+  const STORES =
+    'payments: { api: {} }\n' +
+    'store1: { api: {} apiV2: {} db: {} }\n' +
+    'store2: { internal: {} api-edge: {} apiHidden: { @hidden: true } }\n' +
+    'store3: { db: {} }\n' + // matched parent, no `api*` child: silent
+    'stored\n' + // matched leaf: silent
+    'storefront: { @hidden: true, api: {} }\n' + // hidden parent: its children are not reached
+    'other: { api: {} }\n'; // not matched by `store*`
+
+  it('`store*.api* -> payments.api` expands to exactly the expected edges, depth-first in declaration order', () => {
+    const { graph, diagnostics } = compileSrc(`${STORES}store*.api* -> payments.api\n`);
+    expect(diagnostics).toEqual([]);
+    expect(pairs(graph.edges)).toEqual([
+      ['store1.api', 'payments.api'],
+      ['store1.apiV2', 'payments.api'],
+      ['store2.api-edge', 'payments.api'],
+    ]);
+  });
+
+  it('expansion order is depth-first in child declaration order at each level', () => {
+    const src = 'sink\nb: { y: {} x: {} }\na: { z: { q: {} } w: {} }\n*.* -> sink\n*.** -> sink\n';
+    const { graph, diagnostics } = compileSrc(src);
+    expect(diagnostics).toEqual([]);
+    expect(graph.edges.map((e) => e.from.node)).toEqual([
+      // `*.*`: b's children, then a's — declaration order, not alphabetical.
+      'b.y',
+      'b.x',
+      'a.z',
+      'a.w',
+      // `*.**`: each matched parent's descendants in pre-order.
+      'b.y',
+      'b.x',
+      'a.z',
+      'a.z.q',
+      'a.w',
+    ]);
+  });
+
+  it('a bare `*` in a middle segment, followed by a literal key', () => {
+    const { graph, diagnostics } = compileSrc('db\nsvc1: { api: {} }\nsvc2: { web: {} }\nsvc3: { api: {} }\n*.api -> db\n');
+    expect(diagnostics).toEqual([]);
+    expect(pairs(graph.edges)).toEqual([
+      ['svc1.api', 'db'],
+      ['svc3.api', 'db'],
+    ]);
+  });
+
+  it('globs in a middle and the final segment together (`lane*.cam*`)', () => {
+    const src = 'switch\nlane1: { cam1: {} mic: {} }\nlane2: { camA: {} camB: {} }\nlink: { cam9: {} }\nlane*.cam* -> switch\n';
+    const { graph, diagnostics } = compileSrc(src);
+    expect(diagnostics).toEqual([]);
+    expect(graph.edges.map((e) => e.from.node)).toEqual(['lane1.cam1', 'lane2.camA', 'lane2.camB']);
+  });
+
+  it('a leading `/` before a middle wildcard resolves from the root', () => {
+    const src =
+      'bus\nplatform: { a: { handler: {} } b: { other: {} } c: { handler: {} } }\n' +
+      'deep: { inner: { /platform.*.handler -> /bus } }\n';
+    const { graph, diagnostics } = compileSrc(src);
+    expect(diagnostics).toEqual([]);
+    expect(pairs(graph.edges)).toEqual([
+      ['platform.a.handler', 'bus'],
+      ['platform.c.handler', 'bus'],
+    ]);
+  });
+
+  it('`../` before a middle wildcard resolves relative to the enclosing container', () => {
+    const src = 'lanes: {\n  l1: { h: {} }\n  l2: { h: {} }\n  hub: {\n    x: {}\n    ../*.h -> x\n  }\n}\n';
+    const { graph, diagnostics } = compileSrc(src);
+    expect(diagnostics).toEqual([]);
+    // `hub` itself matches `*` but has no `h`: it contributes silently.
+    expect(pairs(graph.edges)).toEqual([
+      ['lanes.l1.h', 'lanes.hub.x'],
+      ['lanes.l2.h', 'lanes.hub.x'],
+    ]);
+  });
+
+  it('an unresolvable literal prefix before a middle wildcard is still SGL2001', () => {
+    const { diagnostics } = compileSrc('x\nnowhere.*.h -> x\n');
+    expect(diagnostics.map((d) => d.code)).toEqual(['SGL2001']);
+  });
+
+  it('a partial match (a matched parent with no matching child) contributes nothing, silently', () => {
+    const { graph, diagnostics } = compileSrc('sink\ns1: { api: {} }\ns2: { db: {} }\ns*.api -> sink\n');
+    expect(diagnostics).toEqual([]);
+    expect(graph.edges.map((e) => e.from.node)).toEqual(['s1.api']);
+  });
+
+  it('a leaf matched in a middle segment contributes nothing, silently', () => {
+    const { graph, diagnostics } = compileSrc('sink\ns1: { api: {} }\ns2\ns*.* -> sink\n');
+    expect(diagnostics).toEqual([]);
+    expect(graph.edges.map((e) => e.from.node)).toEqual(['s1.api']);
+  });
+
+  it('a whole endpoint expanding to nothing is SGL3003, once', () => {
+    const { graph, diagnostics } = compileSrc(`${STORES}store*.nope* -> payments.api\n`);
+    expect(diagnostics.map((d) => d.code)).toEqual(['SGL3003']);
+    expect(diagnostics[0]?.message).toBe('`store*.nope*` matched no nodes; the edge was skipped.');
+    expect(graph.edges).toHaveLength(0);
+  });
+
+  it('`a.**.b` is SGL3004 with the narrowed template', () => {
+    const { graph, diagnostics } = compileSrc('x\na: { m: { b: {} } }\na.**.b -> x\n');
+    expect(diagnostics.map((d) => d.code)).toEqual(['SGL3004']);
+    expect(diagnostics[0]?.message).toBe('`**` may only be the last part of a path; `a.**.b` was skipped.');
+    expect(graph.edges).toHaveLength(0);
+  });
+
+  it('hidden parents are skipped, and hidden nodes are never matched at any level', () => {
+    const src =
+      'sink\nvis: { api: {} }\nghost: { @hidden: true, api: {} }\nhalf: { api: { @hidden: true } }\n*.api -> sink\n*.* -> sink\n';
+    const { graph, diagnostics } = compileSrc(src);
+    expect(diagnostics).toEqual([]);
+    expect(pairs(graph.edges)).toEqual([
+      ['vis.api', 'sink'],
+      ['vis.api', 'sink'],
+    ]);
+  });
+
+  it('both sides wildcarded with middle segments is a cross product with self-pairs omitted', () => {
+    const src = 'g1: { a: {} b: {} }\ng2: { c: {} }\ng*.* -> g*.*\n';
+    const { graph, diagnostics } = compileSrc(src);
+    expect(diagnostics).toEqual([]);
+    // 3 x 3 = 9 pairs, minus the 3 self-pairs = 6, in (from, to) order.
+    expect(pairs(graph.edges)).toEqual([
+      ['g1.a', 'g1.b'],
+      ['g1.a', 'g2.c'],
+      ['g1.b', 'g1.a'],
+      ['g1.b', 'g2.c'],
+      ['g2.c', 'g1.a'],
+      ['g2.c', 'g1.b'],
+    ]);
+  });
+
+  it('ports attach per expansion, with one SGL2003 per matched node lacking the port', () => {
+    const src =
+      'switch\nlane1: { cam1: { @ports: { out: east } } cam2: {} }\nlane2: { camA: { @ports: { out: east } } }\n' +
+      'lane*.cam*[out] -> switch\n';
+    const { graph, diagnostics } = compileSrc(src);
+    expect(diagnostics.map((d) => [d.code, d.message])).toEqual([
+      ['SGL2003', expect.stringContaining('lane1.cam2') as unknown as string],
+    ]);
+    expect(graph.edges.map((e) => [e.from.node, e.from.port])).toEqual([
+      ['lane1.cam1', 'out'],
+      ['lane1.cam2', undefined],
+      ['lane2.camA', 'out'],
+    ]);
+  });
+
+  it('the 1 000-edge ceiling applies to the whole statement (SGL3005)', () => {
+    const container = (name: string) =>
+      `${name}: { ${Array.from({ length: 10 }, (_, i) => `n${i}: {}`).join(' ')} }\n`;
+    // 4 `a*` containers x 10 children = 40 per side; 40 x 40 = 1 600 > 1 000.
+    const src =
+      ['a1', 'a2', 'a3', 'a4', 'b1', 'b2', 'b3', 'b4'].map(container).join('') + 'keep1\nkeep2\na*.* -> b*.*\nkeep1 -> keep2\n';
+    const { graph, diagnostics } = compileSrc(src);
+    expect(diagnostics.map((d) => d.code)).toEqual(['SGL3005']);
+    expect(diagnostics[0]?.message).toContain('1600');
+    expect(pairs(graph.edges)).toEqual([['keep1', 'keep2']]);
+  });
+
+  it('expanded edges have the same ids, labels and config as the same edges written by hand', () => {
+    const expanded = compileSrc(`${STORES}store*.api* -> payments.api: { @label: "calls", @style: dashed }\n`).graph;
+    const byHand = compileSrc(
+      `${STORES}` +
+        'store1.api -> payments.api: { @label: "calls", @style: dashed }\n' +
+        'store1.apiV2 -> payments.api: { @label: "calls", @style: dashed }\n' +
+        'store2.api-edge -> payments.api: { @label: "calls", @style: dashed }\n',
+    ).graph;
+    const strip = (e: GraphEdge) => ({ ...e, span: undefined });
+    expect(expanded.edges).toHaveLength(3);
+    expect(expanded.edges.map((e) => e.id)).toEqual(byHand.edges.map((e) => e.id));
+    expect(expanded.edges.map(strip)).toEqual(byHand.edges.map(strip));
+    expect(expanded.labels).toEqual(byHand.labels);
   });
 });
 

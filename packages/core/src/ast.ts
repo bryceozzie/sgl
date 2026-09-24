@@ -72,10 +72,12 @@ export interface PathExpr {
 /**
  * One dot-separated part of a path.
  *
- * A `Wildcard` step is only meaningful as the last one, but the grammar accepts it
- * anywhere so that `lane1.*.handler` still yields a usable partial tree plus an
- * SGL3004 pointing at the offending step. Keeping the AST faithful to what was
- * written is what lets that diagnostic carry a precise span.
+ * A `Wildcard` step may sit in any position (`store*.api*`, `lane1.*.handler`;
+ * language spec §3, human decision 2026-09-24), except that `**` is only
+ * meaningful as the last one. The grammar accepts `**` anywhere so that
+ * `a.**.b` still yields a usable partial tree plus an SGL3004 from the
+ * compiler. Keeping the AST faithful to what was written is what lets the
+ * editor keep highlighting the rest of the line.
  */
 export type PathStep = NameStep | WildcardStep;
 

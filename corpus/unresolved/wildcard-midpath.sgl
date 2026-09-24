@@ -1,4 +1,5 @@
 // expects: SGL3004
+// `**` is final-only; a `*` or glob mid-path is valid (language spec §3).
 switch
 lane1: { a: { handler: {} } }
-lane1.*.handler -> switch
+lane1.**.handler -> switch
