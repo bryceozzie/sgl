@@ -132,7 +132,9 @@ Per element, lowest to highest precedence. Each step is a `StyleSet`; later keys
 | 3 | `byClass[c]` for `c` in `classes` (linearised order) | ✔ | ✔ | ✔ |
 | 4 | Document `@classes[c].style` for `c` in `classes` | ✔ | ✔ | ✔ |
 | 5 | Inline `config.style` | ✔ | ✔ | ✔ |
-| 6 | Inline `config.size` → `width height minWidth …` | ✔ | ✔ | — |
+| 6 | Inline `config.size`, **only** the size keys (`SIZE_KEYS`: `width height minWidth minHeight maxWidth aspectRatio`) | ✔ | ✔ | — |
+
+Step 6 is geometry only. Any other key under `@size` — `@size.fill`, say — is kept by the resolver with `SGL2010` (language spec §4: an unknown key in a known namespace) and never reaches the bag. Until fix round 1 of the Stage L re-baseline, step 6 applied any key, so `@size.fill` painted; and because the renderer names paint classes after the cascade signature, which leaves `@size` out (below; DD-07 §6), such an element shared its paint class with an unstyled sibling and repainted it.
 
 Text properties for the element's label resolve the same way but starting from `rules.<role>.title` / `rules.edge.label` at step 1, then the *same* steps 3–5 filtered to `appliesTo: text`. So `@style.fontSize: 16` on a node applies to its title; `@style.fill` does not.
 

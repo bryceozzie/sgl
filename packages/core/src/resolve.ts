@@ -35,7 +35,7 @@ import type {
   StringLit,
   Value,
 } from './ast.js';
-import { configKeyOrder, validateConfigKey } from './config-registry.js';
+import { configKeyOrder, SIZE_KEYS, validateConfigKey } from './config-registry.js';
 import { diagnostic, type Diagnostic } from './diagnostics.js';
 import { nodeIdFromPath } from './ids.js';
 import type {
@@ -539,6 +539,12 @@ function finalizeConfig(bag: Bag, scope: Scope, diags: Diagnostic[]): ConfigBag 
       delete bag.config[key];
     } else if (result.outcome === 'unknown') {
       diags.push(diagnostic('SGL2010', span, { key }));
+    } else if (key === 'size' && isPlainObject(bag.config[key])) {
+      // Spec §4: an unknown key within a known namespace is a warning. Kept,
+      // like any unknown key; DD-04 §4 step 6 ignores it.
+      for (const sub of Object.keys(bag.config[key] as Record<string, unknown>).sort()) {
+        if (!SIZE_KEYS.has(sub)) diags.push(diagnostic('SGL2010', span, { key: `size.${sub}` }));
+      }
     }
   }
   return bag.config as ConfigBag;

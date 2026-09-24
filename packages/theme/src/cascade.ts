@@ -15,6 +15,7 @@ import {
   canonicalise,
   diagnostic,
   fnv1a64,
+  SIZE_KEYS,
   type ClassModel,
   type ConfigBag,
   type Diagnostic,
@@ -507,6 +508,12 @@ function styleSetFromConfig(value: unknown): Readonly<Record<string, unknown>> {
   return isPlainObject(value) ? value : {};
 }
 
+function sizeKeysOnly(set: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>> {
+  const out: Record<string, unknown> = {};
+  for (const key of sortedKeys(set)) if (SIZE_KEYS.has(key)) out[key] = set[key];
+  return out;
+}
+
 function computeStyle(bag: Readonly<Record<string, ResolvedValue>>): ComputedStyle {
   const geometry: Record<string, ResolvedValue> = {};
   const paint: Record<string, ResolvedValue> = {};
@@ -590,8 +597,12 @@ export function styleGraph(
       span,
       diagnostics,
     );
+    // Step 6 takes only the geometry keys `@size` may carry (language spec
+    // §4, `SIZE_KEYS`): anything else under `@size` is the resolver's SGL2010
+    // and must not reach the bag, or `@size.fill` would paint behind the
+    // renderer's cascade signature (DD-07 §6), which leaves `@size` out.
     const size = withSize
-      ? resolveStyleSet(styleSetFromConfig(config?.size), theme.tokens, where, span, diagnostics)
+      ? resolveStyleSet(sizeKeysOnly(styleSetFromConfig(config?.size)), theme.tokens, where, span, diagnostics)
       : {};
     return { themeClassSets, docClassSets, inline, size };
   };
