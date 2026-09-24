@@ -46,10 +46,26 @@ WebKit fetched once per machine as well:
 pnpm exec playwright install webkit
 ```
 
+### Running the app
+
+```bash
+pnpm install
+pnpm build     # required first: the app imports the workspace packages from their built dist/
+pnpm dev       # http://localhost:5173
+```
+
+**Rebuild before `pnpm dev` whenever you pull or change anything under `packages/`.** The dev
+server does not compile the workspace packages itself: every `@sgl/*` import resolves through the
+package's `exports` to its `dist/` folder, so `pnpm dev` serves whatever was last built. A stale
+`dist/` shows up as a Vite error such as `Failed to resolve import "@sgl/layout-elk/descriptor"`
+(a file a newer build emits) or as old behaviour with no error at all. The fix is always
+`pnpm install && pnpm build`, then `pnpm dev` again. Changes inside `apps/web` itself are picked up
+live without a rebuild.
+
 | Command | Does |
 |---|---|
-| `pnpm dev` | Vite dev server for `apps/web` |
-| `pnpm check` | `lint` + `typecheck` + `test` — what CI gates on |
+| `pnpm dev` | Vite dev server for `apps/web` — run `pnpm build` first (above) |
+| `pnpm check` | `lint` + `typecheck` + `build` + `size` + `test` + `test:e2e` — what CI gates on |
 | `pnpm build` | Every package, then the app |
 | `pnpm grammar` | Regenerate the Lezer parser from `sgl.grammar` |
 | `pnpm test` | Vitest (Node) |
