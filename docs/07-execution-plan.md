@@ -188,7 +188,7 @@ checked by hand before a release, together with opening a `.sgl` from the OS and
 for this gate, so Firefox/WebKit and the Node 20 path have not been verified on GitHub.
 **Stage L is next.**
 
-**Wildcards in parent path segments, on `feat/wildcard-paths`** (language change, **human
+**Wildcards in parent path segments, merged to `main` at `2cb614b`** (one review with mutation testing, one fix round; 2279 Vitest + 56/56 e2e from clean) (language change, **human
 decision 2026-09-24**; branched from `main` at `1afd586`, not merged). Any segment of an edge
 endpoint may now be a `*` or one-star glob (`store*.api* -> payments.api`, `/platform.*.handler`);
 `**` stays final-only, and `SGL3004` (same number, new template) now means only "`**` in a
