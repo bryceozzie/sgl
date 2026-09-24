@@ -29,6 +29,8 @@ export default defineConfig({
         },
       },
       {
+        // `apps/web/test/canvas.browser.test.ts` mounts the Preact `Canvas`.
+        esbuild: { jsx: 'automatic', jsxImportSource: 'preact' },
         test: {
           name: 'browser',
           // apps/web/test's browser tests (F9 P3): the canvas's paint-only DOM

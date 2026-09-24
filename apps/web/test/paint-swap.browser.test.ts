@@ -116,6 +116,22 @@ describe('the paint-only swap leaves exactly the DOM of a full render (F9 P3 ora
     });
   }
 
+  it('replaces, never swaps, when a different (non-null) plan is on screen (fix round 1, item 2)', async () => {
+    const a = styleUnder(SYNTHETIC_DOC, SYNTHETIC_A);
+    const b = styleUnder(SYNTHETIC_DOC, SYNTHETIC_B);
+    const layout = await layOut(a.styled);
+    const wrapper = host();
+    // What is on screen: another document's live render, with its own plan.
+    const other = styleUnder('only: "one node"\n', SYNTHETIC_A);
+    const otherLayout = await layOut(other.styled);
+    const onScreen = render(other.styled, otherLayout, other.theme);
+    expect(showLastGood(wrapper, lastGoodOf(other.styled, otherLayout, onScreen), null)).toBe(false);
+    // A paint-only render of the synthetic document: its plan is not that one.
+    const toB = renderPaintOnly(render(a.styled, layout, a.theme), b.styled, layout)!;
+    expect(showLastGood(wrapper, lastGoodOf(b.styled, layout, toB), onScreen.paintPlan)).toBe(false);
+    expect(wrapper.innerHTML).toBe(fullDom(render(b.styled, layout, b.theme).svg).html);
+  });
+
   it('replaces the tree when what is on screen is not the tree the render was drawn as', async () => {
     const a = styleUnder(SYNTHETIC_DOC, SYNTHETIC_A);
     const b = styleUnder(SYNTHETIC_DOC, SYNTHETIC_B);
