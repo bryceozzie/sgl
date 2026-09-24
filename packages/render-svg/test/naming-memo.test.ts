@@ -55,6 +55,45 @@ function call(table: ClassTable, { style, kind }: Use): string {
   return kind === 'shape' ? table.shapeClasses(style) : kind === 'text' ? table.textClasses(style) : table.plateClasses(style);
 }
 
+describe('MarkerTable: every argument is part of what a cached id stands for (F9)', () => {
+  // The corpus uses one arrowhead at one size, so it cannot tell whether a
+  // cached id ignores `arrowhead` or `size`: this synthetic cross product can.
+  const ARROWHEADS = ['triangle', 'open', 'diamond', 'circle', 'none'] as const;
+  const SIZES = [8, 12.5];
+  const COLORS = ['#8A96A8', '#1F5F80'];
+  const cases: MarkerUse[] = [];
+  for (const arrowhead of ARROWHEADS) {
+    for (const size of SIZES) {
+      for (const color of COLORS) {
+        for (const start of [false, true]) cases.push({ arrowhead, color, size, start });
+      }
+    }
+  }
+
+  it(`${cases.length} combinations, each asked for three times and in two orders`, () => {
+    for (const order of [cases, [...cases].reverse()]) {
+      const table = new MarkerTable();
+      const alone = new Map<string, string>();
+      for (let pass = 0; pass < 3; pass += 1) {
+        for (const m of order) {
+          const arrowhead = m.arrowhead as Parameters<MarkerTable['add']>[0];
+          const id = table.add(arrowhead, m.color, m.size, m.start);
+          expect(id, JSON.stringify(m)).toBe(referenceMarkerId(m.arrowhead, m.color, m.size, m.start));
+          if (id !== null && !alone.has(id)) {
+            const fresh = new MarkerTable();
+            fresh.add(arrowhead, m.color, m.size, m.start);
+            alone.set(id, fresh.emit());
+          }
+        }
+      }
+      // Every drawn combination is its own marker (ids distinct), and the
+      // <defs> are each one's own element, sorted by id.
+      expect(alone.size).toBe(cases.filter((m) => m.arrowhead !== 'none').length);
+      expect(table.emit()).toBe([...alone.keys()].sort().map((id) => alone.get(id) as string).join(''));
+    }
+  });
+});
+
 describe('ClassTable/MarkerTable naming is computed once per distinct style, with unchanged output (F9)', () => {
   for (const theme of THEMES) {
     for (const doc of listCorpusDocs()) {
