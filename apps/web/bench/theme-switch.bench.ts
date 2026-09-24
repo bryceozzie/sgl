@@ -432,9 +432,8 @@ async function reset(app: Harness, scenario: Scenario, original: string, nodes: 
   if (scenario === 'first') {
     // The original text (no `@theme`), and the picker signal back on light.
     // A minimal edit (drop the `@theme` entry the last pick wrote), not a
-    // whole-document replacement: CodeMirror parses a replaced n2000 text
-    // only partly before its `updateListener` fires, so the pipeline would get
-    // a truncated tree (an SGL1001 halfway through) and never the rest.
+    // whole-document replacement, which would make the editor reparse all of
+    // it (`completeSyntaxTree`, F19) for an untimed step.
     const current = app.view.state.doc.toString();
     if (current !== original) {
       let from = 0;
