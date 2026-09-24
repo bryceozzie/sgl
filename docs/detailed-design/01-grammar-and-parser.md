@@ -76,9 +76,10 @@ Null { @specialize<Identifier, "null"> }
   EdgeOp     { "->" | "<-" | "<->" | "--" }
   // Fan-out over children (*) or descendants (**), optionally narrowed by a name
   // glob with one star: `cam*`, `*-db`, `cam*hd`. Legal only in an edge endpoint,
-  // because `Path` appears only in `Endpoint`. Position within the path is a
-  // compile-stage concern, not a syntax one (SGL3004) — the grammar stays
-  // permissive so a mid-path wildcard still yields a usable partial tree.
+  // because `Path` appears only in `Endpoint`. `*` and globs are valid in any
+  // segment; only `**` must be last, and that is a compile-stage concern, not a
+  // syntax one (SGL3004) — the grammar stays permissive so a mid-path `**`
+  // still yields a usable partial tree.
   Wildcard   { "*" "*"? | "*" globSuffix | globPrefix "*" globSuffix? }
   globPrefix { $[A-Za-z_] ($[A-Za-z0-9_] | "-")* }
   globSuffix { ($[A-Za-z0-9_] | "-")* $[A-Za-z0-9_] }
