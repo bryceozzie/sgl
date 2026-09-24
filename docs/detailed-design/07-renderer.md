@@ -151,7 +151,8 @@ For a `LabelPlacement` and its `TextLayout`:
     shape   = the node's shape, '' for an edge or a label (step 2: byShape; nodes and containers only)
     classes = the element's classes, in linearised order  (steps 3 and 4: theme byClass[c] and the
                                                             document's @classes[c].style, both keyed by name)
-    inline  = canonicalise(@style), or ''                 (step 5)
+    inline  = canonicalise(@style), or ''                 (step 5; keys sorted at every depth,
+                                                            values JSON, so 1 and "1" differ)
   ```
 
   Step 6 (`@size`) is geometry and not part of it. Within one render (one document, one theme) equal signatures resolve to equal paint, so the signature is a sound de-duplication key — a 500-node diagram with three visual variants still emits three rules, not 500 attributes — and nothing in it comes from a theme, so **the same element has the same class name under every theme** and a theme switch changes only rule bodies. A plate takes its edge's signature (`labelPlate` is an edge property). The theme's resolved values appear only inside the `<style>` rules. DD-04 §4 pins the cascade steps this list mirrors; a new cascade input added there must be added here.
