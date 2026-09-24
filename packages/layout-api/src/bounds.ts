@@ -18,10 +18,12 @@
  * past the node an engine sized the canvas for, are never clipped.
  *
  * Curves are bounded by their own extrema, not their control polygon, so the
- * margin is the same 16 px round a teardrop as round a frame. The marker at a
- * directed end needs no extent of its own: DD-06 §4.4's reserve puts its tip on
- * the node boundary (inside a frame), and its half-width (`0.375 · arrowSize`)
- * is well inside the margin.
+ * margin is the same 16 px round a teardrop as round a frame. Ink is not
+ * measured — this sees the `LayoutResult`, not the styles — so strokes
+ * (`strokeWidth / 2`) and arrowheads (`0.375 · arrowSize` either side of the
+ * path end, plus half the `open` head's own stroke) rely on the margin: it
+ * holds for `strokeWidth ≤ 32` and `arrowSize ≤ 42` (`≤ 34` for `open`),
+ * DD-06 §5's documented limit.
  */
 
 import type { PathSeg, Point, Rect } from '@sgl/core';
