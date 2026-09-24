@@ -1,4 +1,4 @@
-import { diagnostic, NO_SPAN, type StageResult } from '@sgl/core';
+import { layoutDiagnostic, NO_SPAN, type StageResult } from '@sgl/core';
 import type { LayoutInput, LayoutResult, ResolvedThemeMetricsView } from './contract.js';
 import type { HostToWorker, WorkerToHost } from './protocol.js';
 import { quantize, validateResult } from './validate.js';
@@ -271,7 +271,7 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
           respawn();
           state.resolve({
             value: null,
-            diagnostics: [diagnostic('SGL4001', NO_SPAN, { id: state.engineId, ms: timeoutFor(state.engineId) })],
+            diagnostics: [layoutDiagnostic('SGL4001', NO_SPAN, { id: state.engineId, ms: timeoutFor(state.engineId) })],
           });
         }, timeoutFor(engineId));
 

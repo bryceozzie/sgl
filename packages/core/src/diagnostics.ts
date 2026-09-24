@@ -1,3 +1,4 @@
+import { fromCatalogue, LAYOUT_CATALOGUE, type CodeSpec } from './layout-diagnostics.js';
 import type { SourceSpan } from './span.js';
 
 /** Codes are allocated per stage and never reused (DD-00 §3):
@@ -20,12 +21,6 @@ export interface Diagnostic {
 export interface StageResult<T> {
   readonly value: T;
   readonly diagnostics: readonly Diagnostic[];
-}
-
-interface CodeSpec {
-  readonly severity: Severity;
-  /** Message template; `{placeholders}` are filled by the emitting stage. */
-  readonly template: string;
 }
 
 /**
@@ -69,11 +64,9 @@ export const CATALOGUE = {
   SGL3007: { severity: 'warning', template: '`{node}` port `{port}` has side `{side}`; expected north, south, east or west. Using `east`.' },
 
   // ---- 4xxx layout (DD-06) -----------------------------------------------
-  SGL4001: { severity: 'error', template: 'Layout engine `{id}` did not finish within {ms} ms and was stopped. Showing the previous layout.' },
-  SGL4002: { severity: 'error', template: 'Layout engine `{id}` returned invalid geometry ({detail}). Showing the previous layout.' },
-  SGL4003: { severity: 'warning', template: '`{node}` extends outside its container after layout.' },
-  SGL4010: { severity: 'warning', template: '`@layout.{key}` is not an option of engine `{id}`; ignored.' },
-  SGL4011: { severity: 'error', template: 'Layout engine `{id}` failed: {message}.' },
+  // Kept in `layout-diagnostics.ts`, so the layout worker can bundle these
+  // rows without the rest (`layoutDiagnostic()`).
+  ...LAYOUT_CATALOGUE,
 
   // ---- 5xxx theme (DD-04) ------------------------------------------------
   SGL5001: { severity: 'error', template: 'Theme inheritance deeper than 8 (`{chain}`); stopping at `{id}`.' },
@@ -94,11 +87,5 @@ export function diagnostic(
   values: Readonly<Record<string, string | number>> = {},
   related?: readonly { readonly span: SourceSpan; readonly message: string }[],
 ): Diagnostic {
-  const spec: CodeSpec = CATALOGUE[code];
-  const message = spec.template.replace(/\{(\w+)\}/g, (whole, key: string) =>
-    key in values ? String(values[key]) : whole,
-  );
-  return related === undefined
-    ? { code, severity: spec.severity, message, span }
-    : { code, severity: spec.severity, message, span, related };
+  return fromCatalogue(CATALOGUE, code, span, values, related);
 }

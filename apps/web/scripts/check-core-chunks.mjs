@@ -67,4 +67,33 @@ if (!existsSync(`${DIST}index.html`)) {
   if (process.exitCode !== 1) {
     console.log(`check-core-chunks: ${seen.size} boot chunks (${[...seen].sort().join(', ')}); none reaches elk.`);
   }
+
+  // A8 follow-up: the layout worker emits only layout diagnostics (`SGL4xxx`),
+  // built from `@sgl/core`'s `LAYOUT_CATALOGUE` through `layoutDiagnostic()`.
+  // If anything in the worker imports the full `diagnostic()` again, the whole
+  // `CATALOGUE` (~1.1 kB gzipped) comes back into it. A catalogue row is
+  // `SGLnnnn:{severity:…`; the worker and its static imports may carry only
+  // 4xxx rows, and must carry some (else this pattern no longer matches the
+  // minified output and the check would pass vacuously).
+  const ROW = /\bSGL(\d{4})\s*:\s*\{\s*severity\b/g;
+  const workers = assets.filter((f) => /^layout\.worker-[\w-]+\.js$/.test(f));
+  if (workers.length !== 1) fail(`expected one assets/layout.worker-*.js chunk, found ${workers.length}.`);
+  const inWorker = new Set();
+  const workerQueue = [...workers];
+  const rows = new Set();
+  while (workerQueue.length > 0) {
+    const file = workerQueue.shift();
+    if (inWorker.has(file)) continue;
+    inWorker.add(file);
+    const code = readFileSync(`${DIST}assets/${file}`, 'utf8');
+    for (const m of code.matchAll(ROW)) {
+      rows.add(m[1]);
+      if (!m[1].startsWith('4')) fail(`${file} (layout worker) contains catalogue row SGL${m[1]}; the worker may bundle only the SGL4xxx rows.`);
+    }
+    for (const m of code.matchAll(STATIC)) if (!inWorker.has(m[1])) workerQueue.push(m[1]);
+  }
+  if (rows.size === 0) fail('no SGL4xxx catalogue row found in the layout worker; update ROW for this minifier output.');
+  if (process.exitCode !== 1) {
+    console.log(`check-core-chunks: layout worker carries only catalogue rows ${[...rows].sort().map((r) => `SGL${r}`).join(', ')}.`);
+  }
 }
