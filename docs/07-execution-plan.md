@@ -1541,7 +1541,9 @@ all four themes, `theme-fast-path` over every ordered pair, the `paint-swap` DOM
 changes only the `<style>` text, source and layout geometry untouched; print's computed paint; a stored
 record and a `t=print` link boot in the theme; a document's own `@theme` edited in place) and an
 offline case in `offline.spec.ts` (a document stored in `print` boots offline in it and switches to
-`high-contrast`, every response from the service worker). Docs: DD-04 §1, §3, §4, §7, §8; DD-07 §11;
+`high-contrast`, every response from the service worker). `pwa.spec.ts` now matches the service
+worker's `SKIP_WAITING` handler by pattern: terser names its parameter by character frequency over the
+whole `sw.js`, asset hashes included, and this build named it `s`, not `e`. Docs: DD-04 §1, §3, §4, §7, §8; DD-07 §11;
 DD-08 §6, §10; DD-09 §3 criterion 2.
 
 ### 2.1 Open findings
