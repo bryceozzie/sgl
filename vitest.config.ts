@@ -31,6 +31,12 @@ export default defineConfig({
       {
         // `apps/web/test/canvas.browser.test.ts` mounts the Preact `Canvas`.
         esbuild: { jsx: 'automatic', jsxImportSource: 'preact' },
+        // Pre-bundled up front, as the bench project does: discovered mid-run
+        // (a cold `node_modules/.vite`, as after the standard clean command),
+        // Vite reloads the page under the running tests.
+        optimizeDeps: {
+          include: ['preact', 'preact/hooks', 'preact/jsx-dev-runtime', 'preact/jsx-runtime', '@preact/signals'],
+        },
         test: {
           name: 'browser',
           // apps/web/test's browser tests (F9 P3): the canvas's paint-only DOM
