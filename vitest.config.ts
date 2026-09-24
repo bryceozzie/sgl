@@ -31,11 +31,13 @@ export default defineConfig({
       {
         // `apps/web/test/canvas.browser.test.ts` mounts the Preact `Canvas`.
         esbuild: { jsx: 'automatic', jsxImportSource: 'preact' },
-        // Pre-bundled up front, as the bench project does: discovered mid-run
-        // (a cold `node_modules/.vite`, as after the standard clean command),
-        // Vite reloads the page under the running tests.
+        // The dependency scan must see the JSX runtime import esbuild injects
+        // into `.tsx`: discovered mid-run instead (a cold `node_modules/.vite`,
+        // as after the standard clean command), Vite re-optimises and reloads
+        // the page under the running tests. (`include` cannot name Preact
+        // here: it resolves from the repo root, where Preact is not installed.)
         optimizeDeps: {
-          include: ['preact', 'preact/hooks', 'preact/jsx-dev-runtime', 'preact/jsx-runtime', '@preact/signals'],
+          esbuildOptions: { jsx: 'automatic', jsxImportSource: 'preact', jsxDev: true },
         },
         test: {
           name: 'browser',
