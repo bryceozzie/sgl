@@ -138,6 +138,8 @@ Text properties for the element's label resolve the same way but starting from `
 
 A container is a node with children; it takes `rules.container` instead of `rules.node`. Everything else is identical.
 
+**Cascade inputs (pinned by Stage L's F7 re-baseline).** Everything steps 1–5 read from the element itself, rather than from the theme, is its *cascade signature*: its role (`node`, `container`, `edge`, or the label role `node.title` / `container.title` / `edge.label`), its shape (step 2; nodes and containers), its classes in linearised order (steps 3 and 4 look both the theme's `byClass` and the document's `@classes` up by name), and its inline `@style` bag (step 5). Under one theme and one document, two elements with the same signature get the same paint. DD-07 §6 names the renderer's paint classes after this signature so that they are the same under every theme; a new input to steps 1–5 must therefore be added to `cascadeSignature` (`@sgl/render-svg`'s `style.ts`) as well. Step 6 (`@size`) is geometry only and is not an input to paint.
+
 Document-class and inline values may also be `@token` references, resolved against the active theme. This is what lets `@style.stroke: "@danger"` in a document work under every theme.
 
 ---

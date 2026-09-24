@@ -6,5 +6,5 @@
 text{white-space:pre}
 .g-8ab423a0{stroke-width:1.5px}
 .g-c4cad93e{font-family:Inter, system-ui, -apple-system, &apos;Segoe UI&apos;, Roboto, sans-serif;font-size:13px;font-weight:500}
-.s-fd9a5e415fda65de{fill:#FFFFFF;stroke:#8A96A8}
-.t-3a61febfdc44ff9d{fill:#1B2330}</style><defs></defs><rect class="canvas" x="0" y="0" width="104" height="68" aria-hidden="true"/><g class="L-containers"></g><g class="L-edges"></g><g class="L-nodes"><g id="n-db" class="n sh-rect" role="group" aria-label="db"><path class="n-shape g-8ab423a0 s-fd9a5e415fda65de" d="M 16 16 h 72 v 36 h -72 Z"/><text class="n-title g-c4cad93e t-3a61febfdc44ff9d" x="51.992" y="35.95" text-anchor="middle" xml:space="preserve" aria-hidden="true"><tspan x="51.992" dy="0">db</tspan></text></g></g><g class="L-labels"></g></svg>
+.s-f87f15f458f0b195{fill:#FFFFFF;stroke:#8A96A8}
+.t-5e011169d32131cb{fill:#1B2330}</style><defs></defs><rect class="canvas" x="0" y="0" width="104" height="68" aria-hidden="true"/><g class="L-containers"></g><g class="L-edges"></g><g class="L-nodes"><g id="n-db" class="n sh-rect" role="group" aria-label="db"><path class="n-shape g-8ab423a0 s-f87f15f458f0b195" d="M 16 16 h 72 v 36 h -72 Z"/><text class="n-title g-c4cad93e t-5e011169d32131cb" x="51.992" y="35.95" text-anchor="middle" xml:space="preserve" aria-hidden="true"><tspan x="51.992" dy="0">db</tspan></text></g></g><g class="L-labels"></g></svg>

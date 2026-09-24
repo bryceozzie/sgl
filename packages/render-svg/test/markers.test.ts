@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isArrowhead, MarkerTable } from '../src/markers.js';
+import { isArrowhead, markerId, markerPaintClass, MarkerTable } from '../src/markers.js';
 
 describe('isArrowhead()', () => {
   it('accepts the five known arrowheads', () => {
@@ -16,57 +16,65 @@ describe('isArrowhead()', () => {
 describe('MarkerTable', () => {
   it('add() returns null for "none" or a non-positive size — nothing to draw', () => {
     const t = new MarkerTable();
-    expect(t.add('none', '#000', 8, false)).toBeNull();
-    expect(t.add('triangle', '#000', 0, false)).toBeNull();
-    expect(t.add('triangle', '#000', -1, false)).toBeNull();
+    expect(t.add('none', 8, false, 't0')).toBeNull();
+    expect(t.add('triangle', 0, false, 't0')).toBeNull();
+    expect(t.add('triangle', -1, false, 't0')).toBeNull();
     expect(t.emit()).toBe('');
   });
 
-  it('the same (arrowhead, color, size) reuses one marker id', () => {
+  it('the same (arrowhead, size, start, token) reuses one marker id', () => {
     const t = new MarkerTable();
-    const a = t.add('triangle', '#000000', 8, false);
-    const b = t.add('triangle', '#000000', 8, false);
+    const a = t.add('triangle', 8, false, 't0');
+    const b = t.add('triangle', 8, false, 't0');
     expect(a).toBe(b);
     expect(t.emit().match(/<marker/g)).toHaveLength(1);
   });
 
-  it('a different color or size gets a different id', () => {
+  it('a different token or size gets a different id', () => {
     const t = new MarkerTable();
-    const a = t.add('triangle', '#000000', 8, false);
-    const b = t.add('triangle', '#ffffff', 8, false);
-    const c = t.add('triangle', '#000000', 10, false);
+    const a = t.add('triangle', 8, false, 't0');
+    const b = t.add('triangle', 8, false, 't1');
+    const c = t.add('triangle', 10, false, 't0');
     expect(new Set([a, b, c]).size).toBe(3);
   });
 
-  it('start vs end markers get distinct ids even with identical color/size', () => {
+  it('start vs end markers get distinct ids even with identical token/size', () => {
     const t = new MarkerTable();
-    const end = t.add('triangle', '#000', 8, false);
-    const start = t.add('triangle', '#000', 8, true);
+    const end = t.add('triangle', 8, false, 't0');
+    const start = t.add('triangle', 8, true, 't0');
     expect(end).not.toBe(start);
     expect(start).toContain('-s-');
   });
 
-  it('a bad color falls back to the loud magenta rather than emitting unsanitised CSS', () => {
+  it('the id is (arrowhead, start/end, size, token) and never a colour; the shape carries the paint class, no colour attribute (F7)', () => {
     const t = new MarkerTable();
-    t.add('triangle', 'javascript:alert(1)', 8, false);
-    expect(t.emit()).toContain('#FF00FF');
+    expect(t.add('triangle', 8, false, 'abc')).toBe('m-triangle-8-abc');
+    expect(t.add('open', 12.5, true, 'abc')).toBe('m-open-s-12.5-abc');
+    expect(markerId('circle', 8, false, 'abc')).toBe('m-circle-8-abc');
+    const svg = t.emit();
+    expect(svg).toContain('<path class="mf-abc" ');
+    expect(svg).toContain('<path class="ms-abc" ');
+    expect(svg).not.toMatch(/(?:fill|stroke)="#/);
+    expect(svg).not.toMatch(/(?:fill|stroke)="(?!none")[^"]/);
+    expect(markerPaintClass('open', 'abc')).toBe('ms-abc');
+    for (const k of ['triangle', 'diamond', 'circle'] as const) expect(markerPaintClass(k, 'abc')).toBe('mf-abc');
   });
 
   it('emit() is sorted by id, independent of insertion order', () => {
     const t1 = new MarkerTable();
-    t1.add('circle', '#111111', 8, false);
-    t1.add('triangle', '#000000', 8, false);
+    t1.add('circle', 8, false, 't1');
+    t1.add('triangle', 8, false, 't0');
 
     const t2 = new MarkerTable();
-    t2.add('triangle', '#000000', 8, false);
-    t2.add('circle', '#111111', 8, false);
+    t2.add('triangle', 8, false, 't0');
+    t2.add('circle', 8, false, 't1');
 
     expect(t1.emit()).toBe(t2.emit());
   });
 
   it('markerUnits is userSpaceOnUse and refX/refY anchor the base, arrowSize behind the tip', () => {
     const t = new MarkerTable();
-    t.add('triangle', '#000000', 8, false);
+    t.add('triangle', 8, false, 't0');
     const svg = t.emit();
     expect(svg).toContain('markerUnits="userSpaceOnUse"');
     // The reserve (DD-06 §4.4) already pulled the path back by `arrowSize`;
@@ -79,7 +87,7 @@ describe('MarkerTable', () => {
 
   it('a start marker flips refX to w and rotates 180deg about its own center', () => {
     const t = new MarkerTable();
-    t.add('triangle', '#000000', 8, true);
+    t.add('triangle', 8, true, 't0');
     const svg = t.emit();
     // Flipped 180°, the drawn tip moves to local x=0 and the base to x=w, so
     // the base anchor swaps accordingly (mirror of the end-marker case).
@@ -93,11 +101,11 @@ describe('MarkerTable', () => {
     // the tip is then exactly `arrowSize` (=w, here 8) beyond the anchor.
     for (const arrowhead of ['triangle', 'open', 'diamond'] as const) {
       const end = new MarkerTable();
-      end.add(arrowhead, '#000000', 8, false);
+      end.add(arrowhead, 8, false, 't0');
       expect(end.emit(), arrowhead).toContain('refX="0"');
 
       const start = new MarkerTable();
-      start.add(arrowhead, '#000000', 8, true);
+      start.add(arrowhead, 8, true, 't0');
       expect(start.emit(), arrowhead).toContain('refX="8"');
     }
 
@@ -106,11 +114,11 @@ describe('MarkerTable', () => {
     // of w by 1 — its refX is offset by that same 1px so the edge (not the
     // nominal markerWidth) lands `arrowSize` beyond the anchor.
     const circleEnd = new MarkerTable();
-    circleEnd.add('circle', '#000000', 8, false);
+    circleEnd.add('circle', 8, false, 't0');
     expect(circleEnd.emit()).toContain('refX="-1"');
 
     const circleStart = new MarkerTable();
-    circleStart.add('circle', '#000000', 8, true);
+    circleStart.add('circle', 8, true, 't0');
     expect(circleStart.emit()).toContain('refX="9"');
   });
 });
