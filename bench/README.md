@@ -78,8 +78,9 @@ missing `< 50 ms`. Execution plan §2.1's **F9** row records the human
 decision on this (keep the budget, met before Gate 4, Stage L).
 
 **Superseded as F9's measure (Stage L).** These figures start from an
-already-styled graph, so they leave out the `styleGraph()` re-run and the
-pre-measure a real theme switch triggers. F9 is now judged end to end by
-`pnpm bench:theme` (`apps/web/bench/theme-switch.bench.ts`, the real pipeline
-and canvas); execution plan §1 Verification and §2.1 **F9** have the numbers.
+already-styled graph, so they leave out everything upstream of `render()`
+that a real theme switch runs. F9 is now judged end to end by `pnpm
+bench:theme` (`apps/web/bench/theme-switch.bench.ts`: a Theme ▾ pick as the
+picker makes it, on the real editor, pipeline and canvas); execution plan §1
+Verification and §2.1 **F9** have the numbers.
 `morphdom` was measured and dropped (slower than the `innerHTML` swap).
