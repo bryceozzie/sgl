@@ -97,6 +97,8 @@ const EXPECTED_TITLE_CROSSINGS: Readonly<Record<string, number>> = {
   'checkout.sgl': 2,
   'containers-edges.sgl': 1,
   'nesting-3.sgl': 1,
+  // Added with the document itself (wildcards in parent segments, 2026-09-24).
+  'wildcard-paths.sgl': 4,
   'wildcards.sgl': 4,
 };
 

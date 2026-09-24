@@ -108,7 +108,7 @@ describe('wildcard endpoints', () => {
     expect(errorCount('*: { @label: "nope" }')).toBeGreaterThan(0);
   });
 
-  it.each(['wildcards.sgl', 'wildcard-globs.sgl'])('parses %s clean', (name) => {
+  it.each(['wildcards.sgl', 'wildcard-globs.sgl', 'wildcard-paths.sgl'])('parses %s clean', (name) => {
     expect(errorCount(corpus(name))).toBe(0);
   });
 });
@@ -177,6 +177,7 @@ describe('the grammar at large', () => {
     'hidden.sgl',
     'wildcards.sgl',
     'wildcard-globs.sgl',
+    'wildcard-paths.sgl',
     // Both were tracked as known grammar defects (README → Open questions) until
     // Stage A: checkout.sgl needed the `$name` Variable token, json-form.sgl.json
     // needed a quoted spelling of ConfigKey (ConfigString) so strict JSON can

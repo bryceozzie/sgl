@@ -1,0 +1,1632 @@
+{
+  "nodes": {
+    "payments": {
+      "id": "payments",
+      "path": [
+        "payments"
+      ],
+      "parent": null,
+      "children": [
+        "payments.api"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:payments",
+      "ports": [],
+      "config": {
+        "label": "Payments"
+      },
+      "hidden": false,
+      "span": {
+        "from": 244,
+        "to": 288
+      }
+    },
+    "payments.api": {
+      "id": "payments.api",
+      "path": [
+        "payments",
+        "api"
+      ],
+      "parent": "payments",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:payments.api",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 279,
+        "to": 286
+      }
+    },
+    "bus": {
+      "id": "bus",
+      "path": [
+        "bus"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:bus",
+      "ports": [],
+      "config": {
+        "label": "Bus"
+      },
+      "hidden": false,
+      "span": {
+        "from": 290,
+        "to": 312
+      }
+    },
+    "store1": {
+      "id": "store1",
+      "path": [
+        "store1"
+      ],
+      "parent": null,
+      "children": [
+        "store1.api",
+        "store1.apiV2",
+        "store1.db"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:store1",
+      "ports": [],
+      "config": {
+        "label": "Store 1"
+      },
+      "hidden": false,
+      "span": {
+        "from": 314,
+        "to": 466
+      }
+    },
+    "store1.api": {
+      "id": "store1.api",
+      "path": [
+        "store1",
+        "api"
+      ],
+      "parent": "store1",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:store1.api",
+      "ports": [
+        {
+          "id": "out",
+          "side": "east"
+        }
+      ],
+      "config": {
+        "ports": {
+          "out": "east"
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 346,
+        "to": 376
+      }
+    },
+    "store1.apiV2": {
+      "id": "store1.apiV2",
+      "path": [
+        "store1",
+        "apiV2"
+      ],
+      "parent": "store1",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:store1.apiV2",
+      "ports": [
+        {
+          "id": "out",
+          "side": "east"
+        }
+      ],
+      "config": {
+        "ports": {
+          "out": "east"
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 379,
+        "to": 411
+      }
+    },
+    "store1.db": {
+      "id": "store1.db",
+      "path": [
+        "store1",
+        "db"
+      ],
+      "parent": "store1",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:store1.db",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 414,
+        "to": 420
+      }
+    },
+    "store2": {
+      "id": "store2",
+      "path": [
+        "store2"
+      ],
+      "parent": null,
+      "children": [
+        "store2.api-edge",
+        "store2.cache"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:store2",
+      "ports": [],
+      "config": {
+        "label": "Store 2"
+      },
+      "hidden": false,
+      "span": {
+        "from": 468,
+        "to": 549
+      }
+    },
+    "store2.api-edge": {
+      "id": "store2.api-edge",
+      "path": [
+        "store2",
+        "api-edge"
+      ],
+      "parent": "store2",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:store2.api-edge",
+      "ports": [
+        {
+          "id": "out",
+          "side": "east"
+        }
+      ],
+      "config": {
+        "ports": {
+          "out": "east"
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 500,
+        "to": 535
+      }
+    },
+    "store2.cache": {
+      "id": "store2.cache",
+      "path": [
+        "store2",
+        "cache"
+      ],
+      "parent": "store2",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:store2.cache",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 538,
+        "to": 547
+      }
+    },
+    "store3": {
+      "id": "store3",
+      "path": [
+        "store3"
+      ],
+      "parent": null,
+      "children": [
+        "store3.db"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:store3",
+      "ports": [],
+      "config": {
+        "label": "Store 3"
+      },
+      "hidden": false,
+      "span": {
+        "from": 551,
+        "to": 678
+      }
+    },
+    "store3.db": {
+      "id": "store3.db",
+      "path": [
+        "store3",
+        "db"
+      ],
+      "parent": "store3",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:store3.db",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 583,
+        "to": 589
+      }
+    },
+    "stored": {
+      "id": "stored",
+      "path": [
+        "stored"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:stored",
+      "ports": [],
+      "config": {
+        "label": "Stored"
+      },
+      "hidden": false,
+      "span": {
+        "from": 680,
+        "to": 708
+      }
+    },
+    "storefront": {
+      "id": "storefront",
+      "path": [
+        "storefront"
+      ],
+      "parent": null,
+      "children": [
+        "storefront.api"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": null,
+      "ports": [],
+      "config": {
+        "hidden": true
+      },
+      "hidden": true,
+      "span": {
+        "from": 770,
+        "to": 888
+      }
+    },
+    "storefront.api": {
+      "id": "storefront.api",
+      "path": [
+        "storefront",
+        "api"
+      ],
+      "parent": "storefront",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": null,
+      "ports": [],
+      "config": {},
+      "hidden": true,
+      "span": {
+        "from": 879,
+        "to": 886
+      }
+    },
+    "platform": {
+      "id": "platform",
+      "path": [
+        "platform"
+      ],
+      "parent": null,
+      "children": [
+        "platform.auth",
+        "platform.billing",
+        "platform.docs",
+        "platform.inner",
+        "platform.gateway"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform",
+      "ports": [],
+      "config": {
+        "label": "Platform"
+      },
+      "hidden": false,
+      "span": {
+        "from": 1138,
+        "to": 1547
+      }
+    },
+    "platform.auth": {
+      "id": "platform.auth",
+      "path": [
+        "platform",
+        "auth"
+      ],
+      "parent": "platform",
+      "children": [
+        "platform.auth.handler"
+      ],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform.auth",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1173,
+        "to": 1194
+      }
+    },
+    "platform.auth.handler": {
+      "id": "platform.auth.handler",
+      "path": [
+        "platform",
+        "auth",
+        "handler"
+      ],
+      "parent": "platform.auth",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform.auth.handler",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1181,
+        "to": 1192
+      }
+    },
+    "platform.billing": {
+      "id": "platform.billing",
+      "path": [
+        "platform",
+        "billing"
+      ],
+      "parent": "platform",
+      "children": [
+        "platform.billing.handler",
+        "platform.billing.worker"
+      ],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform.billing",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1197,
+        "to": 1232
+      }
+    },
+    "platform.billing.handler": {
+      "id": "platform.billing.handler",
+      "path": [
+        "platform",
+        "billing",
+        "handler"
+      ],
+      "parent": "platform.billing",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform.billing.handler",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1208,
+        "to": 1219
+      }
+    },
+    "platform.billing.worker": {
+      "id": "platform.billing.worker",
+      "path": [
+        "platform",
+        "billing",
+        "worker"
+      ],
+      "parent": "platform.billing",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform.billing.worker",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1220,
+        "to": 1230
+      }
+    },
+    "platform.docs": {
+      "id": "platform.docs",
+      "path": [
+        "platform",
+        "docs"
+      ],
+      "parent": "platform",
+      "children": [
+        "platform.docs.site"
+      ],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform.docs",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1235,
+        "to": 1253
+      }
+    },
+    "platform.docs.site": {
+      "id": "platform.docs.site",
+      "path": [
+        "platform",
+        "docs",
+        "site"
+      ],
+      "parent": "platform.docs",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform.docs.site",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1243,
+        "to": 1251
+      }
+    },
+    "platform.inner": {
+      "id": "platform.inner",
+      "path": [
+        "platform",
+        "inner"
+      ],
+      "parent": "platform",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform.inner",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1314,
+        "to": 1412
+      }
+    },
+    "platform.gateway": {
+      "id": "platform.gateway",
+      "path": [
+        "platform",
+        "gateway"
+      ],
+      "parent": "platform",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:platform.gateway",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1497,
+        "to": 1545
+      }
+    },
+    "lanes": {
+      "id": "lanes",
+      "path": [
+        "lanes"
+      ],
+      "parent": null,
+      "children": [
+        "lanes.lane1",
+        "lanes.lane2"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lanes",
+      "ports": [],
+      "config": {
+        "label": "Lanes"
+      },
+      "hidden": false,
+      "span": {
+        "from": 1667,
+        "to": 1758
+      }
+    },
+    "lanes.lane1": {
+      "id": "lanes.lane1",
+      "path": [
+        "lanes",
+        "lane1"
+      ],
+      "parent": "lanes",
+      "children": [
+        "lanes.lane1.cam1",
+        "lanes.lane1.cam2"
+      ],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lanes.lane1",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1696,
+        "to": 1724
+      }
+    },
+    "lanes.lane1.cam1": {
+      "id": "lanes.lane1.cam1",
+      "path": [
+        "lanes",
+        "lane1",
+        "cam1"
+      ],
+      "parent": "lanes.lane1",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lanes.lane1.cam1",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1705,
+        "to": 1713
+      }
+    },
+    "lanes.lane1.cam2": {
+      "id": "lanes.lane1.cam2",
+      "path": [
+        "lanes",
+        "lane1",
+        "cam2"
+      ],
+      "parent": "lanes.lane1",
+      "children": [],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lanes.lane1.cam2",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1714,
+        "to": 1722
+      }
+    },
+    "lanes.lane2": {
+      "id": "lanes.lane2",
+      "path": [
+        "lanes",
+        "lane2"
+      ],
+      "parent": "lanes",
+      "children": [
+        "lanes.lane2.camA"
+      ],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lanes.lane2",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1727,
+        "to": 1756
+      }
+    },
+    "lanes.lane2.camA": {
+      "id": "lanes.lane2.camA",
+      "path": [
+        "lanes",
+        "lane2",
+        "camA"
+      ],
+      "parent": "lanes.lane2",
+      "children": [
+        "lanes.lane2.camA.lens"
+      ],
+      "depth": 2,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lanes.lane2.camA",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1736,
+        "to": 1754
+      }
+    },
+    "lanes.lane2.camA.lens": {
+      "id": "lanes.lane2.camA.lens",
+      "path": [
+        "lanes",
+        "lane2",
+        "camA",
+        "lens"
+      ],
+      "parent": "lanes.lane2.camA",
+      "children": [],
+      "depth": 3,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lanes.lane2.camA.lens",
+      "ports": [],
+      "config": {},
+      "hidden": false,
+      "span": {
+        "from": 1744,
+        "to": 1752
+      }
+    },
+    "switch": {
+      "id": "switch",
+      "path": [
+        "switch"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:switch",
+      "ports": [],
+      "config": {
+        "label": "Switch"
+      },
+      "hidden": false,
+      "span": {
+        "from": 1759,
+        "to": 1787
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-b88d62fed4c10b18",
+      "from": {
+        "node": "store1.api"
+      },
+      "to": {
+        "node": "payments.api"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1013,
+        "to": 1040
+      }
+    },
+    {
+      "id": "e-593c33cc85b979d4",
+      "from": {
+        "node": "store1.apiV2"
+      },
+      "to": {
+        "node": "payments.api"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1013,
+        "to": 1040
+      }
+    },
+    {
+      "id": "e-4013c5118f03ab65",
+      "from": {
+        "node": "store2.api-edge"
+      },
+      "to": {
+        "node": "payments.api"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1013,
+        "to": 1040
+      }
+    },
+    {
+      "id": "e-732147fe5e342317",
+      "from": {
+        "node": "store1.api",
+        "port": "out"
+      },
+      "to": {
+        "node": "bus"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-732147fe5e342317",
+      "config": {
+        "label": "events"
+      },
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1103,
+        "to": 1136
+      }
+    },
+    {
+      "id": "e-cc4fb08237fd807b",
+      "from": {
+        "node": "store1.apiV2",
+        "port": "out"
+      },
+      "to": {
+        "node": "bus"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-cc4fb08237fd807b",
+      "config": {
+        "label": "events"
+      },
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1103,
+        "to": 1136
+      }
+    },
+    {
+      "id": "e-34e82cea56a0615e",
+      "from": {
+        "node": "store2.api-edge",
+        "port": "out"
+      },
+      "to": {
+        "node": "bus"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-34e82cea56a0615e",
+      "config": {
+        "label": "events"
+      },
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1103,
+        "to": 1136
+      }
+    },
+    {
+      "id": "e-f0b55fd14a3c1561",
+      "from": {
+        "node": "lanes.lane1.cam1"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1788,
+        "to": 1812
+      }
+    },
+    {
+      "id": "e-14e3a19fd5aa805a",
+      "from": {
+        "node": "lanes.lane1.cam2"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1788,
+        "to": 1812
+      }
+    },
+    {
+      "id": "e-41e78964b9e1e4b0",
+      "from": {
+        "node": "lanes.lane2.camA"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1788,
+        "to": 1812
+      }
+    },
+    {
+      "id": "e-7ec8fc76cadbc206",
+      "from": {
+        "node": "lanes.lane2.camA.lens"
+      },
+      "to": {
+        "node": "switch"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1788,
+        "to": 1812
+      }
+    },
+    {
+      "id": "e-144249b1075d819e",
+      "from": {
+        "node": "lanes.lane1.cam1"
+      },
+      "to": {
+        "node": "lanes.lane1.cam2"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1944,
+        "to": 1980
+      }
+    },
+    {
+      "id": "e-3447644a50e83cf8",
+      "from": {
+        "node": "lanes.lane1.cam1"
+      },
+      "to": {
+        "node": "lanes.lane2.camA"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1944,
+        "to": 1980
+      }
+    },
+    {
+      "id": "e-062b1185994b3b5a",
+      "from": {
+        "node": "lanes.lane1.cam2"
+      },
+      "to": {
+        "node": "lanes.lane1.cam1"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1944,
+        "to": 1980
+      }
+    },
+    {
+      "id": "e-2aff5633dec3800f",
+      "from": {
+        "node": "lanes.lane1.cam2"
+      },
+      "to": {
+        "node": "lanes.lane2.camA"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1944,
+        "to": 1980
+      }
+    },
+    {
+      "id": "e-2b9dd4e66192fdd4",
+      "from": {
+        "node": "lanes.lane2.camA"
+      },
+      "to": {
+        "node": "lanes.lane1.cam1"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1944,
+        "to": 1980
+      }
+    },
+    {
+      "id": "e-ab093edd8c52a203",
+      "from": {
+        "node": "lanes.lane2.camA"
+      },
+      "to": {
+        "node": "lanes.lane1.cam2"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1944,
+        "to": 1980
+      }
+    },
+    {
+      "id": "e-98852831e39de168",
+      "from": {
+        "node": "platform.auth.handler"
+      },
+      "to": {
+        "node": "bus"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": "platform.inner",
+      "hidden": false,
+      "span": {
+        "from": 1381,
+        "to": 1408
+      }
+    },
+    {
+      "id": "e-af287e8cc92f5175",
+      "from": {
+        "node": "platform.billing.handler"
+      },
+      "to": {
+        "node": "bus"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": "platform.inner",
+      "hidden": false,
+      "span": {
+        "from": 1381,
+        "to": 1408
+      }
+    },
+    {
+      "id": "e-6c4a142ad3fb4c0a",
+      "from": {
+        "node": "platform.billing.handler"
+      },
+      "to": {
+        "node": "platform.auth.handler"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": "platform.gateway",
+      "hidden": false,
+      "span": {
+        "from": 1512,
+        "to": 1541
+      }
+    },
+    {
+      "id": "e-2b8c1c911f9b945e",
+      "from": {
+        "node": "platform.billing.worker"
+      },
+      "to": {
+        "node": "platform.auth.handler"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": "platform.gateway",
+      "hidden": false,
+      "span": {
+        "from": 1512,
+        "to": 1541
+      }
+    }
+  ],
+  "rootChildren": [
+    "payments",
+    "bus",
+    "store1",
+    "store2",
+    "store3",
+    "stored",
+    "storefront",
+    "platform",
+    "lanes",
+    "switch"
+  ],
+  "order": [
+    "payments",
+    "payments.api",
+    "bus",
+    "store1",
+    "store1.api",
+    "store1.apiV2",
+    "store1.db",
+    "store2",
+    "store2.api-edge",
+    "store2.cache",
+    "store3",
+    "store3.db",
+    "stored",
+    "platform",
+    "platform.auth",
+    "platform.auth.handler",
+    "platform.billing",
+    "platform.billing.handler",
+    "platform.billing.worker",
+    "platform.docs",
+    "platform.docs.site",
+    "platform.inner",
+    "platform.gateway",
+    "lanes",
+    "lanes.lane1",
+    "lanes.lane1.cam1",
+    "lanes.lane1.cam2",
+    "lanes.lane2",
+    "lanes.lane2.camA",
+    "lanes.lane2.camA.lens",
+    "switch"
+  ],
+  "labels": {
+    "l:e-732147fe5e342317": {
+      "id": "l:e-732147fe5e342317",
+      "owner": {
+        "kind": "edge",
+        "id": "e-732147fe5e342317"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "events"
+        }
+      ]
+    },
+    "l:e-cc4fb08237fd807b": {
+      "id": "l:e-cc4fb08237fd807b",
+      "owner": {
+        "kind": "edge",
+        "id": "e-cc4fb08237fd807b"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "events"
+        }
+      ]
+    },
+    "l:e-34e82cea56a0615e": {
+      "id": "l:e-34e82cea56a0615e",
+      "owner": {
+        "kind": "edge",
+        "id": "e-34e82cea56a0615e"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "events"
+        }
+      ]
+    },
+    "l:payments": {
+      "id": "l:payments",
+      "owner": {
+        "kind": "node",
+        "id": "payments"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Payments"
+        }
+      ]
+    },
+    "l:payments.api": {
+      "id": "l:payments.api",
+      "owner": {
+        "kind": "node",
+        "id": "payments.api"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "api"
+        }
+      ]
+    },
+    "l:bus": {
+      "id": "l:bus",
+      "owner": {
+        "kind": "node",
+        "id": "bus"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Bus"
+        }
+      ]
+    },
+    "l:store1": {
+      "id": "l:store1",
+      "owner": {
+        "kind": "node",
+        "id": "store1"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Store 1"
+        }
+      ]
+    },
+    "l:store1.api": {
+      "id": "l:store1.api",
+      "owner": {
+        "kind": "node",
+        "id": "store1.api"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "api"
+        }
+      ]
+    },
+    "l:store1.apiV2": {
+      "id": "l:store1.apiV2",
+      "owner": {
+        "kind": "node",
+        "id": "store1.apiV2"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "apiV2"
+        }
+      ]
+    },
+    "l:store1.db": {
+      "id": "l:store1.db",
+      "owner": {
+        "kind": "node",
+        "id": "store1.db"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "db"
+        }
+      ]
+    },
+    "l:store2": {
+      "id": "l:store2",
+      "owner": {
+        "kind": "node",
+        "id": "store2"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Store 2"
+        }
+      ]
+    },
+    "l:store2.api-edge": {
+      "id": "l:store2.api-edge",
+      "owner": {
+        "kind": "node",
+        "id": "store2.api-edge"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "api-edge"
+        }
+      ]
+    },
+    "l:store2.cache": {
+      "id": "l:store2.cache",
+      "owner": {
+        "kind": "node",
+        "id": "store2.cache"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "cache"
+        }
+      ]
+    },
+    "l:store3": {
+      "id": "l:store3",
+      "owner": {
+        "kind": "node",
+        "id": "store3"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Store 3"
+        }
+      ]
+    },
+    "l:store3.db": {
+      "id": "l:store3.db",
+      "owner": {
+        "kind": "node",
+        "id": "store3.db"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "db"
+        }
+      ]
+    },
+    "l:stored": {
+      "id": "l:stored",
+      "owner": {
+        "kind": "node",
+        "id": "stored"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Stored"
+        }
+      ]
+    },
+    "l:platform": {
+      "id": "l:platform",
+      "owner": {
+        "kind": "node",
+        "id": "platform"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Platform"
+        }
+      ]
+    },
+    "l:platform.auth": {
+      "id": "l:platform.auth",
+      "owner": {
+        "kind": "node",
+        "id": "platform.auth"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "auth"
+        }
+      ]
+    },
+    "l:platform.auth.handler": {
+      "id": "l:platform.auth.handler",
+      "owner": {
+        "kind": "node",
+        "id": "platform.auth.handler"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "handler"
+        }
+      ]
+    },
+    "l:platform.billing": {
+      "id": "l:platform.billing",
+      "owner": {
+        "kind": "node",
+        "id": "platform.billing"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "billing"
+        }
+      ]
+    },
+    "l:platform.billing.handler": {
+      "id": "l:platform.billing.handler",
+      "owner": {
+        "kind": "node",
+        "id": "platform.billing.handler"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "handler"
+        }
+      ]
+    },
+    "l:platform.billing.worker": {
+      "id": "l:platform.billing.worker",
+      "owner": {
+        "kind": "node",
+        "id": "platform.billing.worker"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "worker"
+        }
+      ]
+    },
+    "l:platform.docs": {
+      "id": "l:platform.docs",
+      "owner": {
+        "kind": "node",
+        "id": "platform.docs"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "docs"
+        }
+      ]
+    },
+    "l:platform.docs.site": {
+      "id": "l:platform.docs.site",
+      "owner": {
+        "kind": "node",
+        "id": "platform.docs.site"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "site"
+        }
+      ]
+    },
+    "l:platform.inner": {
+      "id": "l:platform.inner",
+      "owner": {
+        "kind": "node",
+        "id": "platform.inner"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "inner"
+        }
+      ]
+    },
+    "l:platform.gateway": {
+      "id": "l:platform.gateway",
+      "owner": {
+        "kind": "node",
+        "id": "platform.gateway"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "gateway"
+        }
+      ]
+    },
+    "l:lanes": {
+      "id": "l:lanes",
+      "owner": {
+        "kind": "node",
+        "id": "lanes"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Lanes"
+        }
+      ]
+    },
+    "l:lanes.lane1": {
+      "id": "l:lanes.lane1",
+      "owner": {
+        "kind": "node",
+        "id": "lanes.lane1"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "lane1"
+        }
+      ]
+    },
+    "l:lanes.lane1.cam1": {
+      "id": "l:lanes.lane1.cam1",
+      "owner": {
+        "kind": "node",
+        "id": "lanes.lane1.cam1"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "cam1"
+        }
+      ]
+    },
+    "l:lanes.lane1.cam2": {
+      "id": "l:lanes.lane1.cam2",
+      "owner": {
+        "kind": "node",
+        "id": "lanes.lane1.cam2"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "cam2"
+        }
+      ]
+    },
+    "l:lanes.lane2": {
+      "id": "l:lanes.lane2",
+      "owner": {
+        "kind": "node",
+        "id": "lanes.lane2"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "lane2"
+        }
+      ]
+    },
+    "l:lanes.lane2.camA": {
+      "id": "l:lanes.lane2.camA",
+      "owner": {
+        "kind": "node",
+        "id": "lanes.lane2.camA"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "camA"
+        }
+      ]
+    },
+    "l:lanes.lane2.camA.lens": {
+      "id": "l:lanes.lane2.camA.lens",
+      "owner": {
+        "kind": "node",
+        "id": "lanes.lane2.camA.lens"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "lens"
+        }
+      ]
+    },
+    "l:switch": {
+      "id": "l:switch",
+      "owner": {
+        "kind": "node",
+        "id": "switch"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Switch"
+        }
+      ]
+    }
+  },
+  "title": "Wildcard paths",
+  "meta": {
+    "nodeCount": 33,
+    "edgeCount": 20,
+    "containerCount": 13
+  }
+}

@@ -33,6 +33,7 @@ export const CLEAN_DOCS: readonly string[] = [
   'containers-edges.sgl',
   'wildcards.sgl',
   'wildcard-globs.sgl',
+  'wildcard-paths.sgl',
   'shapes.sgl',
   'unicode.sgl',
   'hidden.sgl',

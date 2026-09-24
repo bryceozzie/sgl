@@ -1,0 +1,121 @@
+{
+  "@sgl": "1.0",
+  "@title": "Wildcard paths",
+  "payments": {
+    "@label": "Payments",
+    "api": {}
+  },
+  "bus": {
+    "@label": "Bus"
+  },
+  "store1": {
+    "@label": "Store 1",
+    "api": {
+      "@ports": {
+        "out": "east"
+      }
+    },
+    "apiV2": {
+      "@ports": {
+        "out": "east"
+      }
+    },
+    "db": {}
+  },
+  "store2": {
+    "@label": "Store 2",
+    "api-edge": {
+      "@ports": {
+        "out": "east"
+      }
+    },
+    "cache": {}
+  },
+  "store3": {
+    "@label": "Store 3",
+    "db": {}
+  },
+  "stored": {
+    "@label": "Stored"
+  },
+  "storefront": {
+    "@hidden": true,
+    "api": {}
+  },
+  "platform": {
+    "@label": "Platform",
+    "auth": {
+      "handler": {}
+    },
+    "billing": {
+      "handler": {},
+      "worker": {}
+    },
+    "docs": {
+      "site": {}
+    },
+    "inner": {
+      "@edges": [
+        {
+          "from": "/platform.*.handler",
+          "to": "/bus",
+          "directed": "forward",
+          "ordinal": 0
+        }
+      ]
+    },
+    "gateway": {
+      "@edges": [
+        {
+          "from": "../bill*.*",
+          "to": "../auth.handler",
+          "directed": "forward",
+          "ordinal": 0
+        }
+      ]
+    }
+  },
+  "lanes": {
+    "@label": "Lanes",
+    "lane1": {
+      "cam1": {},
+      "cam2": {}
+    },
+    "lane2": {
+      "camA": {
+        "lens": {}
+      }
+    }
+  },
+  "switch": {
+    "@label": "Switch"
+  },
+  "@edges": [
+    {
+      "from": "store*.api*",
+      "to": "payments.api",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "store*.api*",
+      "to": "bus",
+      "fromPort": "out",
+      "directed": "forward",
+      "ordinal": 0,
+      "@label": "events"
+    },
+    {
+      "from": "lanes.lane*.**",
+      "to": "switch",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "lanes.lane*.cam*",
+      "to": "lanes.lane*.cam*",
+      "directed": "forward",
+      "ordinal": 0
+    }
+  ]
+}

@@ -1,0 +1,738 @@
+{
+  "id": "root",
+  "layoutOptions": {
+    "elk.algorithm": "layered",
+    "elk.direction": "DOWN",
+    "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+    "elk.randomSeed": "1",
+    "elk.edgeRouting": "ORTHOGONAL",
+    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+    "elk.spacing.nodeNode": "40",
+    "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+    "elk.spacing.edgeLabel": "4",
+    "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]"
+  },
+  "children": [
+    {
+      "id": "payments",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+        "elk.nodeSize.constraints": "MINIMUM_SIZE",
+        "elk.nodeSize.minimum": "(0,89.62016)"
+      },
+      "children": [
+        {
+          "id": "payments.api",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:payments.api",
+              "width": 17.342000000000002,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bus",
+      "width": 72,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:bus",
+          "width": 22.399,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "store1",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+        "elk.nodeSize.constraints": "MINIMUM_SIZE",
+        "elk.nodeSize.minimum": "(0,73.78304)"
+      },
+      "children": [
+        {
+          "id": "store1.api",
+          "width": 72,
+          "height": 36,
+          "layoutOptions": {
+            "elk.portConstraints": "FIXED_SIDE"
+          },
+          "labels": [
+            {
+              "text": "l:store1.api",
+              "width": 17.342000000000002,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ],
+          "ports": [
+            {
+              "id": "store1.api#out",
+              "width": 0,
+              "height": 0,
+              "layoutOptions": {
+                "elk.port.side": "EAST"
+              }
+            }
+          ]
+        },
+        {
+          "id": "store1.apiV2",
+          "width": 72,
+          "height": 36,
+          "layoutOptions": {
+            "elk.portConstraints": "FIXED_SIDE"
+          },
+          "labels": [
+            {
+              "text": "l:store1.apiV2",
+              "width": 33.24100000000001,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ],
+          "ports": [
+            {
+              "id": "store1.apiV2#out",
+              "width": 0,
+              "height": 0,
+              "layoutOptions": {
+                "elk.port.side": "EAST"
+              }
+            }
+          ]
+        },
+        {
+          "id": "store1.db",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:store1.db",
+              "width": 14.456000000000001,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "store2",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+        "elk.nodeSize.constraints": "MINIMUM_SIZE",
+        "elk.nodeSize.minimum": "(0,73.78304)"
+      },
+      "children": [
+        {
+          "id": "store2.api-edge",
+          "width": 74.583,
+          "height": 36,
+          "layoutOptions": {
+            "elk.portConstraints": "FIXED_SIDE"
+          },
+          "labels": [
+            {
+              "text": "l:store2.api-edge",
+              "width": 50.583,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ],
+          "ports": [
+            {
+              "id": "store2.api-edge#out",
+              "width": 0,
+              "height": 0,
+              "layoutOptions": {
+                "elk.port.side": "EAST"
+              }
+            }
+          ]
+        },
+        {
+          "id": "store2.cache",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:store2.cache",
+              "width": 34.684000000000005,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "store3",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+        "elk.nodeSize.constraints": "MINIMUM_SIZE",
+        "elk.nodeSize.minimum": "(0,73.78304)"
+      },
+      "children": [
+        {
+          "id": "store3.db",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:store3.db",
+              "width": 14.456000000000001,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stored",
+      "width": 72,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:stored",
+          "width": 38.298,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "platform",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+        "elk.nodeSize.constraints": "MINIMUM_SIZE",
+        "elk.nodeSize.minimum": "(0,80.25008000000001)"
+      },
+      "children": [
+        {
+          "id": "platform.auth",
+          "layoutOptions": {
+            "elk.spacing.nodeNode": "40",
+            "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+            "elk.spacing.edgeLabel": "4",
+            "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+            "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+            "elk.nodeSize.constraints": "MINIMUM_SIZE",
+            "elk.nodeSize.minimum": "(0,57.22016000000001)"
+          },
+          "children": [
+            {
+              "id": "platform.auth.handler",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:platform.auth.handler",
+                  "width": 43.355000000000004,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "platform.billing",
+          "layoutOptions": {
+            "elk.spacing.nodeNode": "40",
+            "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+            "elk.spacing.edgeLabel": "4",
+            "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+            "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+            "elk.nodeSize.constraints": "MINIMUM_SIZE",
+            "elk.nodeSize.minimum": "(0,65.12576)"
+          },
+          "children": [
+            {
+              "id": "platform.billing.handler",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:platform.billing.handler",
+                  "width": 43.355000000000004,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "platform.billing.worker",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:platform.billing.worker",
+                  "width": 39,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "platform.docs",
+          "layoutOptions": {
+            "elk.spacing.nodeNode": "40",
+            "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+            "elk.spacing.edgeLabel": "4",
+            "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+            "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+            "elk.nodeSize.constraints": "MINIMUM_SIZE",
+            "elk.nodeSize.minimum": "(0,59.371520000000004)"
+          },
+          "children": [
+            {
+              "id": "platform.docs.site",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:platform.docs.site",
+                  "width": 20.228,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "platform.inner",
+          "width": 72,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:platform.inner",
+              "width": 28.899000000000004,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "platform.gateway",
+          "width": 72.412,
+          "height": 36,
+          "labels": [
+            {
+              "text": "l:platform.gateway",
+              "width": 48.412000000000006,
+              "height": 16.900000000000002,
+              "layoutOptions": {
+                "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lanes",
+      "layoutOptions": {
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+        "elk.spacing.edgeLabel": "4",
+        "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+        "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+        "elk.nodeSize.constraints": "MINIMUM_SIZE",
+        "elk.nodeSize.minimum": "(0,67.30304000000001)"
+      },
+      "children": [
+        {
+          "id": "lanes.lane1",
+          "layoutOptions": {
+            "elk.spacing.nodeNode": "40",
+            "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+            "elk.spacing.edgeLabel": "4",
+            "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+            "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+            "elk.nodeSize.constraints": "MINIMUM_SIZE",
+            "elk.nodeSize.minimum": "(0,63.70016000000001)"
+          },
+          "children": [
+            {
+              "id": "lanes.lane1.cam1",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:lanes.lane1.cam1",
+                  "width": 31.785000000000004,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "lanes.lane1.cam2",
+              "width": 72,
+              "height": 36,
+              "labels": [
+                {
+                  "text": "l:lanes.lane1.cam2",
+                  "width": 31.785000000000004,
+                  "height": 16.900000000000002,
+                  "layoutOptions": {
+                    "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "lanes.lane2",
+          "layoutOptions": {
+            "elk.spacing.nodeNode": "40",
+            "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+            "elk.spacing.edgeLabel": "4",
+            "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+            "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+            "elk.nodeSize.constraints": "MINIMUM_SIZE",
+            "elk.nodeSize.minimum": "(0,63.70016000000001)"
+          },
+          "children": [
+            {
+              "id": "lanes.lane2.camA",
+              "layoutOptions": {
+                "elk.spacing.nodeNode": "40",
+                "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+                "elk.spacing.edgeLabel": "4",
+                "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
+                "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
+                "elk.nodeSize.constraints": "MINIMUM_SIZE",
+                "elk.nodeSize.minimum": "(0,65.12576)"
+              },
+              "children": [
+                {
+                  "id": "lanes.lane2.camA.lens",
+                  "width": 72,
+                  "height": 36,
+                  "labels": [
+                    {
+                      "text": "l:lanes.lane2.camA.lens",
+                      "width": 23.842000000000002,
+                      "height": 16.900000000000002,
+                      "layoutOptions": {
+                        "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "switch",
+      "width": 72,
+      "height": 36,
+      "labels": [
+        {
+          "text": "l:switch",
+          "width": 38.285000000000004,
+          "height": 16.900000000000002,
+          "layoutOptions": {
+            "elk.nodeLabels.placement": "[H_CENTER, V_CENTER, INSIDE]"
+          }
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-b88d62fed4c10b18",
+      "sources": [
+        "store1.api"
+      ],
+      "targets": [
+        "payments.api"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-593c33cc85b979d4",
+      "sources": [
+        "store1.apiV2"
+      ],
+      "targets": [
+        "payments.api"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-4013c5118f03ab65",
+      "sources": [
+        "store2.api-edge"
+      ],
+      "targets": [
+        "payments.api"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-732147fe5e342317",
+      "sources": [
+        "store1.api#out"
+      ],
+      "targets": [
+        "bus"
+      ],
+      "labels": [
+        {
+          "text": "l:e-732147fe5e342317",
+          "width": 32.406,
+          "height": 14.3,
+          "layoutOptions": {
+            "elk.edgeLabels.placement": "CENTER"
+          }
+        }
+      ]
+    },
+    {
+      "id": "e-cc4fb08237fd807b",
+      "sources": [
+        "store1.apiV2#out"
+      ],
+      "targets": [
+        "bus"
+      ],
+      "labels": [
+        {
+          "text": "l:e-cc4fb08237fd807b",
+          "width": 32.406,
+          "height": 14.3,
+          "layoutOptions": {
+            "elk.edgeLabels.placement": "CENTER"
+          }
+        }
+      ]
+    },
+    {
+      "id": "e-34e82cea56a0615e",
+      "sources": [
+        "store2.api-edge#out"
+      ],
+      "targets": [
+        "bus"
+      ],
+      "labels": [
+        {
+          "text": "l:e-34e82cea56a0615e",
+          "width": 32.406,
+          "height": 14.3,
+          "layoutOptions": {
+            "elk.edgeLabels.placement": "CENTER"
+          }
+        }
+      ]
+    },
+    {
+      "id": "e-f0b55fd14a3c1561",
+      "sources": [
+        "lanes.lane1.cam1"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-14e3a19fd5aa805a",
+      "sources": [
+        "lanes.lane1.cam2"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-41e78964b9e1e4b0",
+      "sources": [
+        "lanes.lane2.camA"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-7ec8fc76cadbc206",
+      "sources": [
+        "lanes.lane2.camA.lens"
+      ],
+      "targets": [
+        "switch"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-144249b1075d819e",
+      "sources": [
+        "lanes.lane1.cam1"
+      ],
+      "targets": [
+        "lanes.lane1.cam2"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-3447644a50e83cf8",
+      "sources": [
+        "lanes.lane1.cam1"
+      ],
+      "targets": [
+        "lanes.lane2.camA"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-062b1185994b3b5a",
+      "sources": [
+        "lanes.lane1.cam2"
+      ],
+      "targets": [
+        "lanes.lane1.cam1"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-2aff5633dec3800f",
+      "sources": [
+        "lanes.lane1.cam2"
+      ],
+      "targets": [
+        "lanes.lane2.camA"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-2b9dd4e66192fdd4",
+      "sources": [
+        "lanes.lane2.camA"
+      ],
+      "targets": [
+        "lanes.lane1.cam1"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-ab093edd8c52a203",
+      "sources": [
+        "lanes.lane2.camA"
+      ],
+      "targets": [
+        "lanes.lane1.cam2"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-98852831e39de168",
+      "sources": [
+        "platform.auth.handler"
+      ],
+      "targets": [
+        "bus"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-af287e8cc92f5175",
+      "sources": [
+        "platform.billing.handler"
+      ],
+      "targets": [
+        "bus"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-6c4a142ad3fb4c0a",
+      "sources": [
+        "platform.billing.handler"
+      ],
+      "targets": [
+        "platform.auth.handler"
+      ],
+      "labels": []
+    },
+    {
+      "id": "e-2b8c1c911f9b945e",
+      "sources": [
+        "platform.billing.worker"
+      ],
+      "targets": [
+        "platform.auth.handler"
+      ],
+      "labels": []
+    }
+  ]
+}

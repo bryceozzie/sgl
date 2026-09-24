@@ -749,6 +749,24 @@ describe('wildcards in parent path segments (language spec §3, human decision 2
     expect(pairs(graph.edges)).toEqual([['keep1', 'keep2']]);
   });
 
+  it('corpus/wildcard-paths.sgl expands to exactly its documented edges, with no diagnostics', () => {
+    const { graph, diagnostics } = compileSrc(corpus('wildcard-paths.sgl'));
+    expect(diagnostics).toEqual([]);
+    const api = ['store1.api', 'store1.apiV2', 'store2.api-edge'];
+    const cams = ['lanes.lane1.cam1', 'lanes.lane1.cam2', 'lanes.lane2.camA'];
+    expect(pairs(graph.edges)).toEqual([
+      ...api.map((a) => [a, 'payments.api']),
+      ...api.map((a) => [a, 'bus']),
+      ...['lanes.lane1.cam1', 'lanes.lane1.cam2', 'lanes.lane2.camA', 'lanes.lane2.camA.lens'].map((n) => [n, 'switch']),
+      ...cams.flatMap((f) => cams.filter((t) => t !== f).map((t) => [f, t])),
+      ['platform.auth.handler', 'bus'],
+      ['platform.billing.handler', 'bus'],
+      ['platform.billing.handler', 'platform.auth.handler'],
+      ['platform.billing.worker', 'platform.auth.handler'],
+    ]);
+    expect(graph.edges.filter((e) => e.to.node === 'bus' && e.from.node.startsWith('store')).every((e) => e.from.port === 'out')).toBe(true);
+  });
+
   it('expanded edges have the same ids, labels and config as the same edges written by hand', () => {
     const expanded = compileSrc(`${STORES}store*.api* -> payments.api: { @label: "calls", @style: dashed }\n`).graph;
     const byHand = compileSrc(

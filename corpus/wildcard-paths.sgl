@@ -1,0 +1,74 @@
+// Wildcards in parent path segments (language spec §3, human decision
+// 2026-09-24): a `*` or one-star glob may sit in any segment of an endpoint;
+// each matches direct children by key, and only `**` is final-only.
+@title: "Wildcard paths"
+
+payments: {
+  @label: "Payments"
+  api: {}
+}
+
+bus: { @label: "Bus" }
+
+store1: {
+  @label: "Store 1"
+  api: { @ports: { out: east } }
+  apiV2: { @ports: { out: east } }
+  db: {}                      // not matched by api*
+}
+
+store2: {
+  @label: "Store 2"
+  api-edge: { @ports: { out: east } }
+  cache: {}
+}
+
+store3: {
+  @label: "Store 3"
+  db: {}                      // store3 matches store*, but has no api* child: skipped silently
+}
+
+stored: { @label: "Stored" }  // a leaf matched by store*: contributes nothing, silently
+
+storefront: {
+  @hidden: true               // a hidden parent is never matched, so its api is not reached
+  api: {}
+}
+
+// Glob in a middle and the final segment: store1.api, store1.apiV2,
+// store2.api-edge, depth-first in declaration order.
+store*.api* -> payments.api
+
+// Ports attach per expansion (every matched api has `out`).
+store*.api*[out] -> bus: "events"
+
+platform: {
+  @label: "Platform"
+  auth: { handler: {} }
+  billing: { handler: {} worker: {} }
+  docs: { site: {} }          // matched by `*`, no handler: skipped silently
+
+  inner: {
+    // Root-absolute prefix before a bare middle `*`.
+    /platform.*.handler -> /bus
+  }
+
+  // Parent-relative prefix before a middle glob, resolved from inside platform.
+  gateway: {
+    ../bill*.* -> ../auth.handler
+  }
+}
+
+// `**` stays final-only, but may follow a middle wildcard: every descendant of
+// each matched parent, in pre-order.
+lanes: {
+  @label: "Lanes"
+  lane1: { cam1: {} cam2: {} }
+  lane2: { camA: { lens: {} } }
+}
+switch: { @label: "Switch" }
+lanes.lane*.** -> switch
+
+// Both sides wildcarded through a middle segment: a cross product with the
+// self-pairs omitted — 3 x 3 = 9, minus 3 = 6 edges.
+lanes.lane*.cam* -> lanes.lane*.cam*
