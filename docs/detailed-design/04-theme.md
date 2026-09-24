@@ -140,7 +140,12 @@ Text properties for the element's label resolve the same way but starting from `
 
 A container is a node with children; it takes `rules.container` instead of `rules.node`. Everything else is identical.
 
-**Cascade inputs (pinned by Stage L's F7 re-baseline).** Everything steps 1–5 read from the element itself, rather than from the theme, is its *cascade signature*: its role (`node`, `container`, `edge`, or the label role `node.title` / `container.title` / `edge.label`), its shape (step 2; nodes and containers), its classes in linearised order (steps 3 and 4 look both the theme's `byClass` and the document's `@classes` up by name), and its inline `@style` bag (step 5). Under one theme and one document, two elements with the same signature get the same paint. DD-07 §6 names the renderer's paint classes after this signature so that they are the same under every theme; a new input to steps 1–5 must therefore be added to `cascadeSignature` (`@sgl/render-svg`'s `style.ts`) as well. Step 6 (`@size`) is geometry only and is not an input to paint.
+**Cascade inputs (pinned by Stage L's F7 re-baseline).** Everything steps 1–5 read from the element itself, rather than from the theme, is its *cascade signature*: its role (`node`, `container`, `edge`, or the label role `node.title` / `container.title` / `edge.label`), its shape (step 2; nodes and containers), its classes in linearised order (steps 3 and 4 look both the theme's `byClass` and the document's `@classes` up by name), and its inline `@style` bag (step 5). Under one theme and one document, two elements with the same signature get the same paint. DD-07 §6 names the renderer's paint classes after this signature so that they are the same under every theme, and `styleGraph` resolves each distinct signature once (§5); a new input to steps 1–5 must therefore be added to `cascadeSignature` as well. It lives here, in `@sgl/theme`'s `cascade.ts`, next to the cascade whose inputs it names (moved from `@sgl/render-svg`, which re-exports it, by F9's `feat/theme-fast-path`):
+
+```ts
+type SignatureRole = 'node' | 'container' | 'edge' | 'node.title' | 'container.title' | 'edge.label';
+cascadeSignature(role: SignatureRole, shape: string | undefined, classes: readonly string[], config: ConfigBag | undefined): string
+``` Step 6 (`@size`) is geometry only and is not an input to paint.
 
 Document-class and inline values may also be `@token` references, resolved against the active theme. This is what lets `@style.stroke: "@danger"` in a document work under every theme.
 
@@ -168,6 +173,8 @@ interface StyledGraph {
 ```
 
 `styleGraph(graph, theme)` is pure and synchronous. Two `StyledGraph`s with equal `geometryHash` produce identical layout inputs; the application uses this to skip re-layout on a paint-only change (DD-08 §3). Two with equal `paintHash` and equal layout produce identical SVG.
+
+**Cost (F9, `feat/theme-fast-path`).** `styleGraph(graph, theme, documentClasses?, options?)` resolves each distinct cascade signature (§4) once: an element with no `@size` key (step 6, the only per-element input the signature leaves out) reuses the `ComputedStyle` of the first element with its signature, hashes included, and a label likewise by its own signature. A signature whose resolution reported a diagnostic is never reused, because a diagnostic points at its own element, so every diagnostic and its order are as before. What depends only on the graph — the signatures, which elements have `@size`, the `id=` prefixes the graph hashes are taken over — is kept per `SemanticGraph` object (graphs are immutable), with the last graph `geometryHash` and the per-element geometry hashes it came from: styling the same graph again under a theme of equal geometry reuses it. The graph `paintHash` is computed on first read (a getter; JSON and `structuredClone` see the plain value), since nothing on a theme switch's path reads it. `options.memo: false` computes every element afresh, the pre-F9 algorithm, and exists as the reference `test/memo.test.ts` compares against: the corpus under both themes, the synthetic theme pair, 150 random documents and the same graph restyled across a geometry change, all equal as JSON. Node, n2000: ~75 ms afresh; memoised, ~12 ms the first time for a graph (a keystroke; the lazy `paintHash` adds ~7 ms when read) and ~2–3.5 ms for a theme switch on the same graph.
 
 **Node sizing inputs** (consumed by DD-05/DD-06) are derived from `geometry`:
 

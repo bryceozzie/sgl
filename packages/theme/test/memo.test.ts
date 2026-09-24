@@ -8,7 +8,7 @@ import { SYNTHETIC_A, SYNTHETIC_B, SYNTHETIC_DOC } from '../../render-svg/test/f
 import { corpusGraph, listCorpusDocs } from './corpus.js';
 
 /**
- * F9 (execution plan §2.1): `styleGraph` resolves each distinct cascade
+ * F9 (execution plan §2): `styleGraph` resolves each distinct cascade
  * signature once and reuses the style for every element with no `@size` that
  * shares it. That must be invisible: every style, both graph hashes, every
  * diagnostic and its order equal what resolving every element afresh gives

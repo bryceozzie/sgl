@@ -18,7 +18,7 @@ import n500 from '../../../corpus/n500.sgl?raw';
 import n2000 from '../../../corpus/n2000.sgl?raw';
 
 /**
- * F9, end to end (execution plan §2.1; orchestrator decisions, Stage L phase
+ * F9, end to end (execution plan §1, §2; orchestrator decisions, Stage L phase
  * 2a and its fix round 1): a theme switch timed from the **user's action** to
  * the last new paint being in the canvas with its style and layout forced.
  *

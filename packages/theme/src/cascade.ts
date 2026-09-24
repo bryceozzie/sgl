@@ -630,7 +630,7 @@ export interface StyleGraphOptions {
  * compiles; without it steps 1–3, 5 and 6 apply and document classes contribute
  * nothing, because `SemanticGraph` carries class *names* only (DD-03 §4).
  *
- * **Once per distinct cascade signature** (F9, execution plan §2.1). A
+ * **Once per distinct cascade signature** (F9, execution plan §2). A
  * document has thousands of elements and a handful of distinct signatures
  * (`cascadeSignature`: DD-04 §4 steps 1–5), and equal signatures resolve to
  * the same bag, so an element with no `@size` (step 6, the only per-element

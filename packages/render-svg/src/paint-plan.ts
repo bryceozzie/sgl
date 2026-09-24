@@ -1,5 +1,6 @@
 /**
- * The paint-only path (F9 P3/P4, execution plan §2.1; DD-07 §6, §11).
+ * The paint-only path (F9 P3/P4, `feat/theme-fast-path`, execution plan §2;
+ * DD-07 §6, §11).
  *
  * Since F7 a render's structure — every element, every `class` attribute,
  * every marker id and reference, the `<defs>` text — is a function of the

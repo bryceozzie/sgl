@@ -5,7 +5,7 @@ import { SYNTHETIC_A, SYNTHETIC_B, SYNTHETIC_DOC } from './fixtures/synthetic.js
 import { corpusSource, listCorpusDocs, runPipeline, type RenderedDoc } from './pipeline.js';
 
 /**
- * F9 P3/P4 (execution plan §2.1; DD-07 §6, §11): the paint-only path.
+ * F9 P3/P4 (execution plan §2; DD-07 §6, §11): the paint-only path.
  * `renderPaintOnly(previous, styled, layout)` turns a full render into the
  * render of the same layout under new paint without walking the elements: it
  * recomputes only the `<style>` text, one rule per paint class the previous
