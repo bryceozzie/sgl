@@ -130,8 +130,8 @@ very next (correct) run still sees it false.
 Runs when `styled.geometryHash`, `table`, `effectiveEngineId` or `engineOptions` changes (`effectiveEngineId`, not the raw `engineId` — see "effective ids" above). Debounced 120 ms after the last change; aborts any in-flight request first.
 
 ```
-if styled.geometryHash === lastGood?.styled.geometryHash && engine/options unchanged:
-    skip — a paint-only change; fall through to render
+if engine, options and LayoutInput (spans aside, see below) equal those of the layout that landed:
+    skip — the layout would be the same one; fall through to render
 else:
     inFlight = true
     try
@@ -164,6 +164,18 @@ open rather than contradicting them:**
   same constant (`apps/web/src/state/metrics.ts`) rather than inventing a second
   one. Actually wiring per-theme metrics is an open gap for whichever stage next
   touches `ResolvedTheme`.
+- **What the skip compares (F9 fix round 1, item 1; a blocker found on `main`).** It used to
+  compare `geometryHash` with the engine and its options, which misses the graph and the measured
+  label sizes that the `LayoutInput` is also built from: a label text edit never laid out again, and
+  the box kept its old size around the new text. It now compares what `host.run` is handed — the
+  engine, its options, the `LayoutInput` as JSON (plain data built in a fixed order) and the measure
+  table's keys (metrics are a constant). Source spans are kept out of that key and compared only when
+  the landed layout reported diagnostics: no engine or host step reads a span to place anything,
+  only to locate a diagnostic, so an edit that only moves text keeps the layout, unless that would
+  leave a diagnostic pointing at the wrong place. The key is not built when it cannot differ: the
+  same graph object, the same table object and the same `geometryHash` (a theme switch between
+  themes of equal geometry). A skip also aborts a request still in flight, which would otherwise
+  land after it with an input since superseded.
 - **The paint-only skip condition's "engine/options unchanged" half.** `lastGood`'s
   shape (`{ styled, layout, svg, styleBlock }`, above) has no field to compare
   `engineId`/`engineOptions` against, so the app tracks the engine id and a
@@ -181,12 +193,12 @@ When `svg` produces a result **and** `diags` contains no `error`, it becomes `la
 
 A paint-only change (`geometryHash` equal, `paintHash` different) skips *layout* — the layout effect's skip condition above. **Since F9 (`feat/theme-fast-path`) it skips the render too, when that is safe.** Since Stage L's F7/F14 re-baseline paint class names are cascade signatures and marker ids name no colour (DD-07 §6), so two renders of the same layout with equal `RenderResult.structureHash` differ only in the `<style>` (and, in principle, `<defs>`) text; before it they could not (paint classes were `s-{paintHash}`, and a marker baked its stroke colour into its `fill` and its `id`, F7).
 
-- **When:** only the effective theme has changed since the last render — the same `graph` object (so the same document; a document whose own `@theme` is edited has a new graph and takes the full path), the same `layout` object and the same `geometryHash` — and `renderPaintOnly` (DD-07 §6) finds `structureHash` unchanged too.
+- **When:** only the effective theme has changed since the last render — the same `graph` object (so the same document; a document whose own `@theme` is edited has a new graph and takes the full path), the same `layout` object and the same `geometryHash` (an early exit: `structureHash` covers it) — and `renderPaintOnly` (DD-07 §6) finds `structureHash` unchanged too. "The same layout object" means the frames the last full render was drawn with, not frames current for the graph: after a text edit the full render uses the old frames until the new layout lands, and a theme switch in between restyles those frames exactly as a full render would; the layout effect lays out again whenever the `LayoutInput` differs (above), and the landed layout is a new object, so the next render is full.
 - **What:** `renderPaintOnly(last.result, styled, layout)`: the new `<style>` text from one style per paint rule of the last render (one per distinct cascade signature; `styleGraph` itself resolved each signature once, DD-04 §5), no `render()`, and the same `paintPlan`, which tells the canvas it can swap that text into the tree it already shows (§6) instead of replacing `innerHTML`.
 - **Otherwise,** or when `renderPaintOnly` refuses, a full `render()`, as before.
 - **`lastGood.svg`** is a getter onto the result's own: after a paint-only render it is derived on first read, by replacing the `<style>` text in the last full string (`withStyleBlock`, byte-exact, DD-07 §6), and nothing on the switch's own path reads it (P4). Export, Save ▾ SVG, autosave's `lastGoodSvg` and so the next boot's J6 paint all read the exact bytes `render()` would give; §9 says how autosave avoids reading it early.
 
-Either way the result is exactly what `render()` gives. `apps/web/test/theme-fast-path.test.ts` covers the choice and every consumer's bytes; `apps/web/test/paint-swap.browser.test.ts` the DOM (§6). On the bench (`pnpm bench:theme`, execution plan §2) a Theme ▾ pick with no `@theme` now costs, at 2 000 nodes, ~3–4 ms of script and ~39–42 ms of Chromium's own style recalculation, the floor.
+Either way the result is exactly what `render()` gives. `apps/web/test/theme-fast-path.test.ts` covers the choice and every consumer's bytes; `apps/web/test/paint-swap.browser.test.ts` the DOM (§6). On the bench (`pnpm bench:theme`, execution plan §2.1 F9) a Theme ▾ pick with no `@theme` now costs, at 2 000 nodes, ~3–4 ms of script and ~40 ms of Chromium's own style recalculation, the floor: met on a quiet machine, marginally.
 
 ### Timing budget on a keystroke (500-node document)
 
@@ -305,6 +317,7 @@ https://…/#s={base64url(deflate-raw(utf8(source)))}&e={engineId}&t={themeId}
 - **Invalid link → the hash is cleared too**, not only on success, so a reload does not repeat the toast; then boot carries on as if there were no link (`lastOpenDocId`, else the example).
 - **`e`/`t`** carry the *effective* engine and theme (what the sharer sees). A receiver that does not know one — an engine not registered, a theme not built in — uses its default instead; the document's own `@layout.engine`/`@theme`, if any, travel in the source anyway.
 - The dialog (`toolbar/FileMenu.tsx`) says the diagram is inside the link and nothing is uploaded; it offers Copy (falling back to selecting the text, with a toast, where the clipboard API is refused) and, for a long link, "Save as a file instead" (the SGL item). A successful open says so in a toast ("Opened the shared diagram as a new document. Your previous document is in Documents.") — §11's "toasts for share outcomes". Opening the dialog moves focus to the link (selected); Escape closes it without tabbing in first, and Escape or Close returns focus to the Share button (fix round 1).
+- **A lazy chunk** (F9 fix round 1): `share.ts` and `base64url.ts` are loaded by dynamic `import()` — at boot only when the hash has an `s=` payload, and by Share and a pasted link when used — to keep the core bundle under DD-09 §2's 180 kB; they are precached like every chunk, and `e2e/offline.spec.ts` shows Share and opening a link working offline from the precache alone.
 - **Encoding never rejects** (fix round 1): where `CompressionStream` is missing or fails, `encodeShareFragment` returns `{ ok: false }` and the Share button toasts, pointing at Save ▾ → SGL source instead of doing nothing.
 - **A link pasted into an already-open tab** (fix round 1). A same-document fragment change fires `hashchange` and never reloads, so "decode on load" alone would ignore it. The app decodes the new hash (`io/app-boot.ts`, `watchShareLinks`): an invalid link toasts, clears the hash and leaves the open document alone; a valid one flushes the open document's pending autosave (§9) and reloads with the hash in place, so boot imports it exactly as above — a new local document, the toast, the hash cleared. One import path, not a second in-page one.
 

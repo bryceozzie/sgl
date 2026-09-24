@@ -22,9 +22,10 @@ vi.mock('@sgl/render-svg', async (importOriginal) => {
 
 /**
  * Theme ▾ end to end over the real pipeline (DD-08 §10). P1 (human decision,
- * 2026-09-24): the picker is a view preference — with no `@theme` it sets
- * `themeId` and nothing else, which the record persists and a share link's
- * `t=` carries; with `@theme` it edits that entry in place. P2
+ * 2026-09-24): the picker is a view preference — it always sets `themeId`,
+ * which the record persists and a share link's `t=` carries; with no
+ * `@theme` that is all it does, and with `@theme` it also edits that entry
+ * in place (which then overrides `themeId`). P2
  * (orchestrator): one pick is one paint, whichever it does.
  */
 

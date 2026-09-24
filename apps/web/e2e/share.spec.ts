@@ -91,8 +91,8 @@ test('criterion 6: a share link opens identically in a fresh browser context', a
 test('criterion 6, theme half: with no @theme in the source, the receiver renders the t= theme', async ({ page, browser }) => {
   await page.goto('/');
   await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
-  // With no @theme in the document the picker is a view preference (DD-08
-  // §10, F9 P1): it leaves the source alone, and the choice travels as t=.
+  // The picker always sets themeId (DD-08 §10, F9 P1), which travels as t=;
+  // with no @theme in the document it leaves the source alone.
   const exampleText = await editorText(page);
   await page.locator('.theme-picker select').selectOption('neutral-dark');
   await waitForTheme(page, 'neutral-dark');

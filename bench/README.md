@@ -81,8 +81,9 @@ decision on this (keep the budget, met before Gate 4, Stage L).
 already-styled graph, so they leave out everything upstream of `render()`
 that a real theme switch runs. F9 is now judged end to end by `pnpm
 bench:theme` (`apps/web/bench/theme-switch.bench.ts`: a Theme ▾ pick as the
-picker makes it, on the real editor, pipeline and canvas). F9 is cleared
-(`feat/theme-fast-path`): a pick on a document without `@theme` is a
-paint-only `<style>` swap that meets the budget at every size; execution plan
-§1 Verification and §2 have the numbers.
+picker makes it, on the real editor, pipeline and canvas). Since
+`feat/theme-fast-path` a pick on a document without `@theme` is a paint-only
+`<style>` swap that meets the budget on a quiet machine, marginally at 2 000
+nodes; execution plan §1 Verification and §2.1 **F9** have the numbers and
+the gate policy.
 `morphdom` was measured and dropped (slower than the `innerHTML` swap).

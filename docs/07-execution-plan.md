@@ -127,12 +127,17 @@ pnpm build && pnpm bench:theme     # Chromium only; prints one [F9-E2E] line per
 It times a Theme ▾ pick, `neutral-light` → `neutral-dark`, exactly as the picker does it
 (`selectTheme` with the real CodeMirror editor's dispatch), on the real pipeline and canvas at
 n50/n500/n2000, until `getBBox()` after the paint, plus any pre-measure the pick causes. Two cases
-since `feat/theme-fast-path` (§2): a document **without** `@theme` (the picker sets only `themeId`,
-the ordinary path) and one **with** it (the picker edits that entry, so the document reparses),
-each on a *first* pick (after a full render) and a *repeat* one (after another pick). Each point's
-gate judges the no-`@theme` case's slower pick against DD-09 §2's budget; `KNOWN_MISSES` in
-`apps/web/bench/theme-switch.bench.ts` (empty since F9 cleared) would hold a point still missed, whose
-gate then asserts the miss persists. The `@theme` case is measured and printed, not gated.
+since `feat/theme-fast-path` (§2): a document **without** `@theme` (the picker's `themeId` write
+changes the view and nothing else: the ordinary path) and one **with** it (the picker also edits
+that entry, so the document reparses), each on a *first* pick (after a full render) and a *repeat*
+one (after another pick). The gate (fix round 1; DD-09 §2, §3.1) judges the no-`@theme` case's
+slower pick in **three samples** per point, three full median measurements in one run: the **best**
+of the three must be under the budget, and the **median** of the three under the hard ceiling (50 ms
+up to 500 nodes, 100 ms at 2 000). Every run also checks that a node's computed `fill` is the new
+theme's. Run it on a quiet machine (check `uptime`; no other vitest or Playwright running): it is
+not part of `pnpm check` or CI. `KNOWN_MISSES` in `apps/web/bench/theme-switch.bench.ts` (empty)
+would hold a point still missed, whose gate then asserts the miss persists. The `@theme` case is
+measured and printed, not gated.
 
 The e2e server is `vite preview` on port 4173 and is **never reused** (Stage J): if the port is
 taken, the run fails instead of testing whatever build is already listening there. Set
@@ -1341,17 +1346,18 @@ left for a catalogue decision. `pnpm bench:theme` (median `work`, ms, first / re
 numbers above.
 
 **The theme fast path** (Stage L, `feat/theme-fast-path`, branched from `main` at `681729f`; no
-golden changed; **F9 cleared** and deleted from §2.1). **P1 (human decision, 2026-09-24):** Theme ▾
-is a view preference — `selectTheme(pipeline, id, dispatch)` sets `themeId` (the record persists it,
-a share link's `t=` carries it) and edits `@theme` in place only when the document already sets it
-(never an insertion); `@theme` still overrides the picker (DD-08 §10).
+golden changed; F9's budget met on a quiet machine, marginally at n2000: §2.1 **F9** stays open,
+to watch). **P1 (human decision, 2026-09-24):** Theme ▾ is a view preference —
+`selectTheme(pipeline, id, dispatch)` always sets `themeId` (the record persists it, a share link's
+`t=` carries it), and when the document already sets `@theme` it also edits that entry in place
+(never an insertion), which then overrides `themeId` (DD-08 §10).
 **P2:** the `themeId` write and the dispatch are one `@preact/signals` `batch()` (effects wait for the
 batch's end, computeds are lazy), so a pick is one paint: a non-string `@theme`, where both halves
 repaint, painted twice before. **P3:** `styleGraph` resolves each distinct cascade signature once
 (reusing the style for every `@size`-free element that shares it; a signature that reported a
 diagnostic is never reused), keeps the signatures per graph object, reuses the graph `geometryHash`
 when every element's is unchanged, and takes `paintHash` on first read; `main`'s own `cascade.ts`,
-kept verbatim as a test fixture, is the reference, compared as JSON over the corpus, the synthetic
+kept (trimmed) as a test fixture, is the reference, compared as JSON over the corpus, the synthetic
 pair, 150 random documents and repeated restyles (DD-04 §5). `cascadeSignature` moved to `@sgl/theme` (render-svg re-exports it).
 `render()` returns a `PaintPlan`; `renderPaintOnly(previous, styled, layout)` rebuilds only the
 `<style>` text, one style per paint rule, and refuses unless the layout is the same object and
@@ -1389,6 +1395,31 @@ is real but thin. With `@theme` (the document's own text changes, a known cost, 
 CodeMirror 2.9, `buildAst` 9.2, `resolve` 3.9, `compile` 26.2, `styleGraph` 6.4, `render` 51.4, the
 `innerHTML` swap 51.3, style + layout 78.6 and the pre-measure 14.5 ms at n2000 (first pick).
 
+**Theme fast path, fix round 1** (`feat/theme-fast-path`, two reviews; no golden changed).
+**Item 1, a blocker already on `main`:** editing a label's text never laid out again — the layout
+skip compared `geometryHash`, the engine and its options, and a label's measured size is in none
+of them (`a: "short"` → a long label kept its 72 px box around ~260 px of text, on screen, in
+Save ▾ SVG and in storage). The skip now compares what `host.run` is handed: the engine, its
+options, the `LayoutInput` (as JSON) and the measure table's keys; source spans are compared only
+when the landed layout reported diagnostics (they place nothing; they only locate diagnostics), so
+a blank line or a `@theme` value of another length does not lay out again, while an inline
+`@style` edit does (it is in the graph the engine gets). The key is not even built for the same
+graph, table and `geometryHash` (a theme switch). A skip also aborts a request still in flight.
+The paint-only path's "same layout object" now means the frames of the last full render, and a
+new layout always comes after a text edit (DD-08 §3). **Bundle:** that fix took the core to 180.11
+kB; `state/share.ts` + `base64url.ts` became a lazy chunk (boot loads it only for a link with a
+payload; Share and a pasted link when used), excluded by name in `.size-limit.js` like `elk`, and
+the core is **179.68 kB**; `e2e/offline.spec.ts` proves Share and opening a link work offline from
+the precache alone. **Item 2:** tests that kill the surviving mutants — a different plan on screen
+never gets a style swap, the wrapper's `data-theme`/`data-origin`/`data-paint-hash` after a swap
+and the J6 path resetting the canvas's on-screen plan (`canvas.browser.test.ts`, the real `Canvas`),
+a document switch with A's paint-only record queued keeping A's picture, and a text edit with the
+same `geometryHash` still pre-measuring. **Items 3, 5:** the bench's three-sample gate with a hard
+ceiling (§1) and a computed-`fill` check on every run. **Items 4, 6–9:** §2.1 F9 reopened as a
+watch item; P1's wording (the picker always sets `themeId`); the redundant `geometryHash` guard
+commented as an early exit; the cascade reference fixture trimmed, with a keep-in-step header;
+a DD-04 code fence.
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
@@ -1400,6 +1431,7 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 |---|---|---|
 | **F3** | `linearizeClasses` recurses `@extends` with no visited-set guard. Safe **only** because `resolve()` splices every cycle's back-edge first, so no `DocumentModel` reaching `compile()` can contain one. A second producer of class tables would turn bad input into a stack overflow — which §1 reserves for invariant violations. | Stage L (A9) |
 | **F6** | `renderNode`'s port-circle template (DD-07 §3) is live, correctly `aria-hidden`, and unit-tested directly — but unreachable through the real pipeline: `grid` declares `capabilities.ports: false` and no host fallback places ports (DD-06 §4 covers labels and routing, not ports), so `LayoutResult.nodes[id].ports` is never populated end to end. Found during Stage F's accessibility pass. **Since Stage K the port circles are reachable under `elk`**, which declares `ports: true` and fills `NodeLayout.ports`; still not under `grid`, and the row's owner is still to be assigned. | unassigned — whichever stage next reconsiders `ports: false` for `grid`, or ships a port-aware engine |
+| **F9** | **The paint-only theme-switch budget is met on a quiet machine, marginally.** Budget (DD-09 §2, kept by human decision 2026-09-23): `< 16 ms` up to 500 nodes, `< 50 ms` at 2 000, Chromium; hard ceilings 50 / 100 ms. Measured end to end by `pnpm bench:theme` on the ordinary path, a Theme ▾ pick on a document with no `@theme` (`feat/theme-fast-path`, §2: the pick sets `themeId`; `styleGraph` once per cascade signature; `renderPaintOnly` and a `<style>`-text swap; no re-parse, no re-measure, no layout). Slower-pick median `work`, ms: orchestrator's three runs on a quiet machine n500 13.2 / 12.8 / 13.0, n2000 48.9 / 44.3 / 44.8; MYRUN. A reviewer running alongside another test suite (load ≈ 6) saw n2000 50–56 and one n500 at 17.5. **Where the time goes at n2000:** ~3–4 ms of script; the rest is Chromium's style recalculation for the new `<style>` text, ~40 ms, which is the floor (replacing even one rule's text costs ~24 ms at that size, and replacing the `<style>` element instead of its text measured the same), so the headroom is a few ms and within machine noise. **Not gated:** a document that sets its own `@theme` is edited by the pick and re-parsed and re-rendered in full, ~250–275 ms at n2000 (~65–70 ms at n500): the document's own text changing. **Gate policy (fix round 1; DD-09 §3.1 "perf: nightly + release"):** the bench is not part of `check` or CI; run on demand on a quiet machine; three samples per point in one run, the best of the three slower-pick medians under the budget and the median of the three under the hard ceiling; all three reported. | watch; re-measure before Gate 4 |
 | **F10** | `ctx.random`'s seed (`host.ts`'s `SEED = 1`) is one fixed constant, shared by every request for every document — `LayoutHost.run()`'s frozen signature has no per-call seed parameter, so Stage H could not add one unilaterally (DD-06 §3). Where a per-document seed should come from — a new `run()` parameter, or something content-addressed from a graph hash so the same document always seeds the same way without threading a value through every call site — is undecided, and is an orchestrator/design decision to make, not Stage H's to settle unilaterally. No engine shipped so far reads `ctx.random` at all (`grid` is fully deterministic; `elk` is unbuilt), so nothing depends on the answer yet. | Stage L (B5 `radial`/`force`, the first seed-consuming engines) |
 | **F12** | After a service-worker update is accepted in one tab, other open tabs keep running the old JS while `cleanupOutdatedCaches` has already removed the old precache, so a lazy chunk the old code has not yet loaded (from Stage K, `elk`) can fail to load offline in those tabs. Found in Stage J's review; `pwa.ts` has no cross-tab coordination (e.g. reloading other clients on `controllerchange`). | Stage L |
 | **F13** | A share link pasted into an already-open tab (Stage J fix round 1, item 14) imports by flushing autosave and **reloading**, not by switching in place like Open and Documents ▾ (fix round 2). That loses undo history, and when IndexedDB is unavailable (memory-store fallback) the reload loses the tab's documents outright. Also: criterion 5's offline test is falsifiable against the HTTP cache in Chromium and WebKit but not in Firefox, which has neither mechanism the spec uses; and error toasts persist until closed with no cap on how many pile up. | Stage L (E17, alongside the rest of the Documents UI) |
@@ -1854,7 +1886,7 @@ complete the Playwright suite's engine-switch cases (DD-08 §14 test 4).
 | F2 drag-and-drop, F5 `.sglpack` | Conveniences on F1. |
 | E17 multiple documents | Storage is already a list; this is UI. **Partly pulled into Stage J by human decision (2026-09-23):** Open creating a new local document, and a minimal Documents ▾ list (switch to any stored document, New document). **Remaining here:** delete, rename, search, tabs and multi-select. |
 | D10 SVG export options UI | Background on/off and scale for Save ▾ SVG (DD-08 §7); today it saves the defaults, `render()`'s own output. |
-| **F9 — the theme-switch budget** | **Done (`feat/theme-fast-path`, §2; F9 cleared).** Measured end to end by `pnpm bench:theme` (a Theme ▾ pick made as the picker makes it, on the real editor, pipeline and canvas, until `getBBox()` after the paint, any pre-measure included); the gate (median `work` of the slower pick of a document without `@theme`: n500 < 16 ms **and** n2000 < 50 ms, Chromium) is on, `KNOWN_MISSES` is empty. The path: the picker as a view preference and one batch per pick (human decision P1, orchestrator P2), `styleGraph` once per cascade signature, `renderPaintOnly` and the canvas's `<style>` swap guarded by `structureHash` (P3), `lastGood.svg` derived when read (P4). The overlay stays a sibling of the exported tree. |
+| **F9 — the theme-switch budget** | **Met on a quiet machine, marginally at n2000; watch and re-measure before Gate 4** (`feat/theme-fast-path` and its fix round 1, §2; §2.1 **F9**). Measured end to end by `pnpm bench:theme` (a Theme ▾ pick made as the picker makes it, on the real editor, pipeline and canvas, until `getBBox()` after the paint, any pre-measure included); the gate takes three samples per point of the slower pick of a document without `@theme`: the best under the budget (n500 < 16 ms, n2000 < 50 ms, Chromium), the median under the hard ceiling (50 / 100 ms); `KNOWN_MISSES` is empty. The path: the picker as a view preference and one batch per pick (human decision P1, orchestrator P2), `styleGraph` once per cascade signature, `renderPaintOnly` and the canvas's `<style>` swap guarded by `structureHash` (P3), `lastGood.svg` derived when read (P4). The overlay stays a sibling of the exported tree. |
 
 **Gate 4 — v1.0.** Every Must in [04](04-feature-backlog.md) done, all gates green, bench inside the
 DD-09 §2 budgets on the 50/500/2000-node corpus.

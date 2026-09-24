@@ -16,8 +16,9 @@ export function ThemePicker({ pipeline, view }: ThemePickerProps) {
   const overridden = pipeline.documentThemeId.value !== undefined;
   const selected = options.find((o) => o.selected);
 
-  // DD-08 §10; the logic (a view preference unless the document sets its own
-  // `@theme`, P1) lives in `state/picker-actions.ts`, Node-tested.
+  // DD-08 §10; the logic (P1: always sets `themeId`, the view preference;
+  // edits `@theme` in place too when the document sets one) lives in
+  // `state/picker-actions.ts`, Node-tested.
   function select(id: string): void {
     selectTheme(pipeline, id, view === null ? null : (change) => dispatchTextChange(view, change));
   }
