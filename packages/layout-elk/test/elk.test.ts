@@ -77,7 +77,7 @@ describe('elk over the corpus (DD-06 §6, Stage K gate)', () => {
 
     it(`${doc}: every label is ELK's, not the host fallback's (K5)`, async () => {
       const input = layoutInputFor(doc);
-      const { raw } = await runHostSequence(elkEngine, input, {}, METRICS);
+      const { raw, result: hosted } = await runHostSequence(elkEngine, input, {}, METRICS);
       // Compared before `quantize`: its host-computed `bounds` (DD-06 §5, F14)
       // translate every coordinate by an amount that depends on everything
       // drawn — the host's own teardrops included — so the engine-only and the
@@ -96,6 +96,28 @@ describe('elk over the corpus (DD-06 §6, Stage K gate)', () => {
         expect(label).toEqual(fromElk.get(label.labelId));
       }
       expect(result.labels.map((l) => l.labelId).sort()).toEqual([...fromElk.keys()].sort());
+
+      // And on the whole host path (fix round 1, item 9): the real
+      // `runHostSequence` result, with `quantize`'s translation undone, still
+      // carries ELK's own labels, quantized. The translation is read off a
+      // node frame, which no host fallback moves.
+      const q = (v: number): number => Math.round(v * 64) / 64;
+      const anyNode = Object.keys(raw.nodes).sort()[0];
+      if (anyNode === undefined) return;
+      const rawFrame = raw.nodes[anyNode as keyof typeof raw.nodes]!.frame;
+      const hostFrame = hosted.nodes[anyNode as keyof typeof hosted.nodes]!.frame;
+      const dx = hostFrame.x - q(rawFrame.x);
+      const dy = hostFrame.y - q(rawFrame.y);
+      expect(Number.isInteger(dx * 64) && Number.isInteger(dy * 64)).toBe(true);
+      for (const label of hosted.labels) {
+        if (replaced.has(label.labelId)) continue;
+        const elk = fromElk.get(label.labelId)!;
+        expect({ ...label, frame: { ...label.frame, x: label.frame.x - dx, y: label.frame.y - dy } }).toEqual({
+          ...elk,
+          frame: { x: q(elk.frame.x), y: q(elk.frame.y), w: q(elk.frame.w), h: q(elk.frame.h) },
+        });
+      }
+      expect(hosted.labels.map((l) => l.labelId).sort()).toEqual([...fromElk.keys()].sort());
     });
   }
 });
