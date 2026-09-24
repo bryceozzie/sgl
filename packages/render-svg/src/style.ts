@@ -1,11 +1,16 @@
 /**
- * The generated `<style>` block (DD-07 §6).
+ * The generated `<style>` blocks (DD-07 §6).
  *
  * Identical styles across elements share one class, so a 500-node diagram with
  * three visual variants emits three rules rather than 500 attribute sets. Tokens
  * are emitted as custom properties so a consumer can re-theme an exported file,
  * but every generated rule uses literal resolved values, never `var()`, so the
  * file renders identically in tools that ignore custom properties.
+ *
+ * The tokens go in a `<style>` element of their own, after the main one (F17):
+ * Inkscape 1.2.2 does not ignore a rule of custom properties, it discards the
+ * **whole** `<style>` element that holds one, and every shape falls back to the
+ * default black fill. Kept apart, such a tool loses only the tokens.
  */
 
 import { shortHash } from '@sgl/core';
@@ -147,9 +152,8 @@ export class ClassTable {
   }
 }
 
-/** The fixed rules every document gets, in a fixed order. */
+/** The fixed rules every document gets after `.canvas`, in a fixed order. */
 const PREAMBLE: readonly string[] = [
-  '.canvas{fill:var(--sgl-canvas)}',
   '.c-shape,.n-shape{stroke-linejoin:round}',
   '.e-path{fill:none;stroke-linecap:round}',
   '.el-plate{stroke:none}',
@@ -158,14 +162,23 @@ const PREAMBLE: readonly string[] = [
 ];
 
 /**
- * Build the `<style>` text. Returned separately from the tree so the live view can
- * replace it alone on a paint-only change (DD-07 §2, DD-08 §3).
+ * Build the main `<style>` text: every rule that paints the diagram, with
+ * literal resolved values and **no** custom property, declared or read (F17).
+ * The canvas gets its colour directly rather than through `var(--sgl-canvas)`:
+ * a tool that drops the token element must still paint the canvas.
  */
-export function buildStyleBlock(
-  theme: ResolvedTheme,
-  canvasBackground: string,
-  generated: readonly string[],
-): string {
+export function buildStyleBlock(canvasBackground: string, generated: readonly string[]): string {
+  return [`.canvas{fill:${cssColor(canvasBackground)}}`, ...PREAMBLE, ...generated].join('\n');
+}
+
+/**
+ * Build the token `<style>` text: one `svg.sgl` rule — scoped to the root svg,
+ * never `:root` — declaring every theme token as a custom property, plus
+ * `--sgl-canvas`. Nothing in the main block reads them; they are there for a
+ * consumer to override when re-theming an exported file (DD-07 §6). The render
+ * writes this into its own `<style>` element, after the main one (F17).
+ */
+export function buildTokenBlock(theme: ResolvedTheme, canvasBackground: string): string {
   const tokens: string[] = [`--sgl-canvas:${cssColor(canvasBackground)}`];
   for (const name of Object.keys(theme.tokens).sort()) {
     const property = cssCustomProperty(name);
@@ -175,15 +188,14 @@ export function buildStyleBlock(
     if (rendered === null) continue;
     tokens.push(`${property}:${rendered}`);
   }
-
-  return [`svg.sgl{${tokens.join(';')}}`, ...PREAMBLE, ...generated].join('\n');
+  return `svg.sgl{${tokens.join(';')}}`;
 }
 
 /**
  * A token can be any `StyleValue`, and it is emitted as a custom property purely
  * for a consumer to override — nothing in the generated rules reads it. It still
  * goes through the same validation as a used value, because `'unsafe-inline'`
- * makes the `<style>` block the one place CSP does not protect (DD-09 §1.2).
+ * makes the `<style>` elements the one place CSP does not protect (DD-09 §1.2).
  */
 function tokenValue(value: StyleValue | undefined): string | null {
   if (typeof value === 'number') return Number.isFinite(value) ? num(value) : null;
