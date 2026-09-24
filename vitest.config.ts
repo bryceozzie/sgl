@@ -38,6 +38,31 @@ export default defineConfig({
           },
         },
       },
+      {
+        // F9's end-to-end theme-switch bench (execution plan §2.1): the real
+        // `apps/web` pipeline and canvas in Chromium, where DD-09 §2's budget
+        // is defined. Minutes long and timing-bound, so it is not part of
+        // `pnpm test`/`pnpm check`: run it with `pnpm bench:theme`.
+        // Rooted in the app so its own dependencies (Preact, signals) resolve.
+        root: 'apps/web',
+        esbuild: { jsx: 'automatic', jsxImportSource: 'preact' },
+        // Pre-bundled up front: discovered mid-run (a cold `node_modules/.vite`,
+        // as after the standard clean command), Vite reloads the page under
+        // the running test and the first render never lands.
+        optimizeDeps: {
+          include: ['preact', 'preact/hooks', 'preact/jsx-dev-runtime', 'preact/jsx-runtime', '@preact/signals', '@sgl/layout-elk > elkjs/lib/elk.bundled.js'],
+        },
+        test: {
+          name: 'bench',
+          include: ['bench/**/*.bench.ts'],
+          browser: {
+            enabled: true,
+            provider: 'playwright',
+            headless: true,
+            instances: [{ browser: 'chromium' }],
+          },
+        },
+      },
     ],
   },
 });

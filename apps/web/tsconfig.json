@@ -17,6 +17,7 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     "build/**/*.ts",
-    "vite.config.ts"
+    "vite.config.ts",
+    "bench/**/*.ts"
   ]
 }
