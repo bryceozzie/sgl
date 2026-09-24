@@ -2,6 +2,8 @@ import { asEdgeId, asLabelId, asNodeId, NO_SPAN, type GraphEdge, type GraphNode,
 import { describe, expect, it } from 'vitest';
 import { LAYOUT_API_VERSION, type EdgeLayout, type LayoutEngine, type LayoutInput, type LayoutResult, type ResolvedThemeMetricsView } from '../src/contract.js';
 import { applyHostFallbacks, finishEngineRoutes, MIN_SELF_LOOP_HEIGHT } from '../src/fallbacks.js';
+import { CANVAS_MARGIN } from '../src/bounds.js';
+import { quantize } from '../src/validate.js';
 import type { WorkerToHost } from '../src/protocol.js';
 import { EngineRegistry } from '../src/registry.js';
 import { createWorkerRuntime } from '../src/worker-runtime.js';
@@ -152,7 +154,7 @@ describe('finishEngineRoutes (DD-06 §4.4 on an engine route)', () => {
     expect(finishEngineRoutes(inputOf([edge('e1', 'a', 'b')]), r, METRICS)).toBe(r);
   });
 
-  it(`replaces a self-loop under ${MIN_SELF_LOOP_HEIGHT} px with the teardrop, moves its label to the apex and grows bounds`, () => {
+  it(`replaces a self-loop under ${MIN_SELF_LOOP_HEIGHT} px with the teardrop and moves its label to the apex; the host bounds take both in`, () => {
     const labelId = asLabelId('l:loop');
     const spec: LabelSpec = { id: labelId, owner: { kind: 'edge', id: asEdgeId('loop') }, role: 'edge', runs: [{ text: 'x' }] };
     const input = inputOf([edge('loop', 'a', 'a', 'forward', 'l:loop')], { [labelId]: spec });
@@ -174,17 +176,34 @@ describe('finishEngineRoutes (DD-06 §4.4 on an engine route)', () => {
     expect(loop.route.length).toBeGreaterThanOrEqual(2);
     const moved = out.labels.find((l) => l.labelId === labelId)!;
     expect(moved.frame).not.toEqual(engineLabel.frame);
-    // Everything the host drew is inside the (grown) bounds.
-    const b = out.bounds;
-    for (const seg of loop.route) {
-      for (const p of seg.t === 'C' ? [seg.c1, seg.c2, seg.to] : [seg.to]) {
-        expect(p.x).toBeGreaterThanOrEqual(b.x);
-        expect(p.x).toBeLessThanOrEqual(b.x + b.w);
-        expect(p.y).toBeGreaterThanOrEqual(b.y);
-        expect(p.y).toBeLessThanOrEqual(b.y + b.h);
+    // `finishEngineRoutes` leaves `bounds` alone; `quantize` recomputes it
+    // from everything drawn (DD-06 §5, F14): the whole teardrop, sampled
+    // along its curve, and its label sit at least CANVAS_MARGIN inside.
+    expect(out.bounds).toEqual(result({}).bounds);
+    const q = quantize(out, 64);
+    const b = q.bounds;
+    expect({ x: b.x, y: b.y }).toEqual({ x: 0, y: 0 });
+    const inside = (p: { x: number; y: number }): void => {
+      expect(p.x).toBeGreaterThanOrEqual(CANVAS_MARGIN - 1 / 64);
+      expect(p.x).toBeLessThanOrEqual(b.w - CANVAS_MARGIN + 1 / 64);
+      expect(p.y).toBeGreaterThanOrEqual(CANVAS_MARGIN - 1 / 64);
+      expect(p.y).toBeLessThanOrEqual(b.h - CANVAS_MARGIN + 1 / 64);
+    };
+    const qLoop = q.edges[asEdgeId('loop')]!;
+    let at = qLoop.start;
+    for (const seg of qLoop.route) {
+      if (seg.t !== 'C') throw new Error('teardrop is cubic');
+      for (let i = 0; i <= 32; i += 1) {
+        const t = i / 32;
+        const u = 1 - t;
+        const bez = (a: number, c1: number, c2: number, d: number): number => u * u * u * a + 3 * u * u * t * c1 + 3 * u * t * t * c2 + t * t * t * d;
+        inside({ x: bez(at.x, seg.c1.x, seg.c2.x, seg.to.x), y: bez(at.y, seg.c1.y, seg.c2.y, seg.to.y) });
       }
+      at = seg.to;
     }
-    expect(moved.frame.x + moved.frame.w).toBeLessThanOrEqual(b.x + b.w);
+    const qLabel = q.labels.find((l) => l.labelId === labelId)!;
+    inside(qLabel.frame);
+    inside({ x: qLabel.frame.x + qLabel.frame.w, y: qLabel.frame.y + qLabel.frame.h });
   });
 
   it('keeps a self-loop the engine drew at least 16 px tall (reserving its head), and its label', () => {

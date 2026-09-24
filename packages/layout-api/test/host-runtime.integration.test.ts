@@ -84,7 +84,9 @@ function makeRegistry(extra?: LayoutEngine): EngineRegistry {
     capabilities: capabilities(),
     layout: async (_input, ctx) => {
       const layout = (await ctx.measure.layoutRunsAsync([{ text: 'probe' }], { maxWidth: 100 })) as { size: { w: number; h: number } };
-      return { bounds: { x: 0, y: 0, w: layout.size.w, h: layout.size.h }, nodes: {}, edges: {}, labels: [] };
+      // The measured size comes back as node `a`'s frame: `bounds` itself is
+      // recomputed by the host (DD-06 §5, F14), so it cannot carry it.
+      return { bounds: { x: 0, y: 0, w: 1, h: 1 }, nodes: { a: { frame: { x: 0, y: 0, w: layout.size.w, h: layout.size.h } } }, edges: {}, labels: [] };
     },
   });
   if (extra !== undefined) registry.register(extra);
@@ -212,10 +214,11 @@ describe('createWorkerHost + createWorkerRuntime, wired through an async in-memo
     const measure = vi.fn().mockResolvedValue({ size: { w: 33, h: 7 }, lines: [] });
     const host = createWorkerHost(spawnFor(registry), { measure });
     try {
-      const outcome = await run(host, 'test.measuring', OK_INPUT);
+      const outcome = await run(host, 'test.measuring', INPUT);
       expect(measure).toHaveBeenCalledWith([{ text: 'probe' }], { maxWidth: 100 });
       expect(outcome.diagnostics).toEqual([]);
-      expect(outcome.value?.bounds).toMatchObject({ w: 33, h: 7 });
+      expect(outcome.value?.nodes[A]?.frame).toEqual({ x: 16, y: 16, w: 33, h: 7 });
+      expect(outcome.value?.bounds).toEqual({ x: 0, y: 0, w: 33 + 32, h: 7 + 32 });
     } finally {
       host.dispose();
     }

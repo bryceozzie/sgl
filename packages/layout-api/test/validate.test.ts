@@ -1,6 +1,7 @@
 import { asEdgeId, asLabelId, asNodeId, NO_SPAN, type GraphEdge, type GraphNode, type SemanticGraph } from '@sgl/core';
 import { describe, expect, it } from 'vitest';
 import type { LayoutResult } from '../src/contract.js';
+import { CANVAS_MARGIN } from '../src/bounds.js';
 import { quantize, validateResult } from '../src/validate.js';
 
 const A = asNodeId('a');
@@ -262,5 +263,83 @@ describe('quantize (ADR-0004)', () => {
     const once = quantize(result, 64);
     const twice = quantize(once, 64);
     expect(twice).toEqual(once);
+  });
+});
+
+describe('quantize: host-computed bounds (DD-06 §5, F14)', () => {
+  const E = asEdgeId('e');
+  const one = (frame: { x: number; y: number; w: number; h: number }): LayoutResult => ({
+    bounds: { x: 0, y: 0, w: 1, h: 1 },
+    nodes: { [A]: { frame } },
+    edges: {},
+    labels: [],
+  });
+
+  it("ignores the engine's bounds: the content grown by CANVAS_MARGIN, translated to the origin", () => {
+    const q = quantize({ ...one({ x: 12, y: 12, w: 72, h: 36 }), bounds: { x: 0, y: 0, w: 96, h: 60 } }, 64);
+    expect(CANVAS_MARGIN).toBe(16);
+    expect(q.bounds).toEqual({ x: 0, y: 0, w: 72 + 32, h: 36 + 32 });
+    expect(q.nodes[A]!.frame).toEqual({ x: 16, y: 16, w: 72, h: 36 });
+  });
+
+  it('translates every coordinate by the same amount: frames, content frames, ports, routes, labels', () => {
+    const result: LayoutResult = {
+      bounds: { x: 0, y: 0, w: 0, h: 0 },
+      nodes: {
+        [A]: { frame: { x: -40, y: 10, w: 20, h: 20 }, contentFrame: { x: -38, y: 12, w: 16, h: 16 }, ports: { p: { point: { x: -20, y: 20 }, normal: { x: 1, y: 0 } } } },
+        [B]: { frame: { x: 40, y: 10, w: 20, h: 20 } },
+      },
+      edges: { [E]: { start: { x: -20, y: 20 }, end: { x: 40, y: 20 }, route: [{ t: 'Q', c: { x: 10, y: 20 }, to: { x: 40, y: 20 } }], clip: 'none' } },
+      labels: [{ labelId: asLabelId('l:a'), frame: { x: 0, y: 0, w: 10, h: 5 }, align: 'middle', baseline: 'middle' }],
+    };
+    const q = quantize(result, 64);
+    // min x = -40 (a's frame), min y = 0 (the label): shifted by (56, 16).
+    expect(q.nodes[A]!.frame).toEqual({ x: 16, y: 26, w: 20, h: 20 });
+    expect(q.nodes[A]!.contentFrame).toEqual({ x: 18, y: 28, w: 16, h: 16 });
+    expect(q.nodes[A]!.ports!['p']!.point).toEqual({ x: 36, y: 36 });
+    expect(q.edges[E]!.start).toEqual({ x: 36, y: 36 });
+    expect(q.edges[E]!.route).toEqual([{ t: 'Q', c: { x: 66, y: 36 }, to: { x: 96, y: 36 } }]);
+    expect(q.labels[0]!.frame).toEqual({ x: 56, y: 16, w: 10, h: 5 });
+    expect(q.bounds).toEqual({ x: 0, y: 0, w: 100 + 32, h: 30 + 32 });
+  });
+
+  it('bounds a curve by its own extrema, not its control polygon', () => {
+    // A cubic from (0,0) to (100,0) with both controls at y = -40 peaks at
+    // y = -30 (3/4 of the control height), not -40.
+    const result: LayoutResult = {
+      bounds: { x: 0, y: 0, w: 0, h: 0 },
+      nodes: {},
+      edges: { [E]: { start: { x: 0, y: 0 }, end: { x: 100, y: 0 }, route: [{ t: 'C', c1: { x: 0, y: -40 }, c2: { x: 100, y: -40 }, to: { x: 100, y: 0 } }], clip: 'none' } },
+      labels: [],
+    };
+    const q = quantize(result, 64);
+    expect(q.bounds).toEqual({ x: 0, y: 0, w: 100 + 32, h: 30 + 32 });
+    expect(q.edges[E]!.start).toEqual({ x: 16, y: 46 });
+  });
+
+  it('a rotated label is bounded as drawn, rotated about its centre', () => {
+    const q = quantize({ bounds: { x: 0, y: 0, w: 0, h: 0 }, nodes: {}, edges: {}, labels: [{ labelId: asLabelId('l:a'), frame: { x: 0, y: 0, w: 40, h: 10 }, align: 'middle', baseline: 'middle', rotation: 90 }] }, 64);
+    expect(q.bounds).toEqual({ x: 0, y: 0, w: 10 + 32, h: 40 + 32 });
+  });
+
+  it('an arc is bounded conservatively by its chord grown by its larger radius', () => {
+    const q = quantize({ bounds: { x: 0, y: 0, w: 0, h: 0 }, nodes: {}, edges: { [E]: { start: { x: 0, y: 0 }, end: { x: 20, y: 0 }, route: [{ t: 'A', r: { w: 10, h: 10 }, sweep: 1, to: { x: 20, y: 0 } }], clip: 'none' } }, labels: [] }, 64);
+    expect(q.bounds).toEqual({ x: 0, y: 0, w: 40 + 32, h: 20 + 32 });
+  });
+
+  it('a result that draws nothing gets empty bounds at the origin', () => {
+    expect(quantize({ bounds: { x: 3, y: 4, w: 50, h: 60 }, nodes: {}, edges: {}, labels: [] }, 64).bounds).toEqual({ x: 0, y: 0, w: 0, h: 0 });
+  });
+
+  it('rounds the grown box outward to the grid, and a second pass changes nothing', () => {
+    const result: LayoutResult = {
+      bounds: { x: 0, y: 0, w: 0, h: 0 },
+      nodes: { [A]: { frame: { x: 1 / 7, y: 2 / 7, w: 10, h: 10 } } },
+      edges: { [E]: { start: { x: 0.3, y: 0.1 }, end: { x: 9.1, y: 0.2 }, route: [{ t: 'C', c1: { x: 1 / 3, y: -7.7 }, c2: { x: 8.9, y: -9.13 }, to: { x: 9.1, y: 0.2 } }], clip: 'none' } },
+      labels: [],
+    };
+    const once = quantize(result, 64);
+    for (const v of [once.bounds.w, once.bounds.h]) expect(v * 64).toBe(Math.round(v * 64));
+    expect(quantize(once, 64)).toEqual(once);
   });
 });

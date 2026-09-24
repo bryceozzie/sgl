@@ -8,6 +8,7 @@ import {
   type SemanticGraph,
   type SourceSpan,
 } from '@sgl/core';
+import { CANVAS_MARGIN, contentExtent } from './bounds.js';
 import type { EdgeLayout, LabelPlacement, LayoutResult, NodeLayout } from './contract.js';
 
 type Missing = (span: SourceSpan, detail: string) => Diagnostic;
@@ -261,15 +262,51 @@ function byKey<T>(a: readonly [string, T], b: readonly [string, T]): number {
   return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0;
 }
 
-/** Quantize coordinates to the engine's declared determinism class (ADR-0004).
+/** Quantize coordinates to the engine's declared determinism class (ADR-0004),
+ *  and recompute `bounds` from the result (DD-06 §5, F14).
+ *
  *  Every `x y w h`, path point, and label frame is rounded to a fixed grid — 1/64
- *  by default (`places = 64`) — as the final step of layout. */
+ *  by default (`places = 64`) — as the final step of layout. Then the engine's
+ *  `bounds` is discarded: the host measures what the quantized result draws
+ *  (`contentExtent`, `bounds.ts`), grows it by `CANVAS_MARGIN` on every side,
+ *  rounded outward to the same grid, and translates every coordinate so that
+ *  box starts at the origin. The translation is a whole number of grid steps, so
+ *  the result is still on the grid, and quantizing it again changes nothing. A
+ *  result that draws nothing gets `{ x: 0, y: 0, w: 0, h: 0 }`. */
 export function quantize(result: LayoutResult, places: number): LayoutResult {
   const q = (v: number): number => Math.round(v * places) / places;
-  const qPoint = (p: Point): Point => ({ x: q(p.x), y: q(p.y) });
-  const qRect = <R extends { readonly x: number; readonly y: number; readonly w: number; readonly h: number }>(
+  const quantized = mapGeometry(result, q, q, q);
+
+  const extent = contentExtent(quantized);
+  if (extent === null) return { ...quantized, bounds: { x: 0, y: 0, w: 0, h: 0 } };
+  // Outward to the grid. The epsilon keeps a value already on the grid (every
+  // frame and path point) exactly where it is despite floating-point noise in a
+  // curve's extremum, which is what makes a second pass a no-op.
+  const floorQ = (v: number): number => Math.floor(v * places + 1e-6) / places;
+  const ceilQ = (v: number): number => Math.ceil(v * places - 1e-6) / places;
+  const x0 = floorQ(extent.x) - CANVAS_MARGIN;
+  const y0 = floorQ(extent.y) - CANVAS_MARGIN;
+  const x1 = ceilQ(extent.x + extent.w) + CANVAS_MARGIN;
+  const y1 = ceilQ(extent.y + extent.h) + CANVAS_MARGIN;
+  const bounds = { x: 0, y: 0, w: x1 - x0, h: y1 - y0 };
+  if (x0 === 0 && y0 === 0) return { ...quantized, bounds };
+  const same = (v: number): number => v;
+  return { ...mapGeometry(quantized, (x) => x - x0, (y) => y - y0, same), bounds };
+}
+
+/** `result` with every x coordinate through `fx`, every y through `fy` and
+ *  every width, height and arc radius through `fLen`; `bounds` through the
+ *  same (the caller replaces it). */
+function mapGeometry(
+  result: LayoutResult,
+  fx: (v: number) => number,
+  fy: (v: number) => number,
+  fLen: (v: number) => number,
+): LayoutResult {
+  const mPoint = (p: Point): Point => ({ x: fx(p.x), y: fy(p.y) });
+  const mRect = <R extends { readonly x: number; readonly y: number; readonly w: number; readonly h: number }>(
     r: R,
-  ): R => ({ ...r, x: q(r.x), y: q(r.y), w: q(r.w), h: q(r.h) });
+  ): R => ({ ...r, x: fx(r.x), y: fy(r.y), w: fLen(r.w), h: fLen(r.h) });
 
   const nodes: Record<string, NodeLayout> = {};
   for (const [id, layout] of Object.entries(result.nodes)) {
@@ -277,12 +314,12 @@ export function quantize(result: LayoutResult, places: number): LayoutResult {
       layout.ports === undefined
         ? undefined
         : Object.fromEntries(
-            Object.entries(layout.ports).map(([pid, p]) => [pid, { point: qPoint(p.point), normal: p.normal }]),
+            Object.entries(layout.ports).map(([pid, p]) => [pid, { point: mPoint(p.point), normal: p.normal }]),
           );
     nodes[id] = {
       ...layout,
-      frame: qRect(layout.frame),
-      ...(layout.contentFrame !== undefined && { contentFrame: qRect(layout.contentFrame) }),
+      frame: mRect(layout.frame),
+      ...(layout.contentFrame !== undefined && { contentFrame: mRect(layout.contentFrame) }),
       ...(ports !== undefined && { ports }),
     };
   }
@@ -291,29 +328,28 @@ export function quantize(result: LayoutResult, places: number): LayoutResult {
   for (const [id, layout] of Object.entries(result.edges)) {
     edges[id] = {
       ...layout,
-      start: qPoint(layout.start),
-      end: qPoint(layout.end),
-      route: layout.route.map(qSeg(q)),
+      start: mPoint(layout.start),
+      end: mPoint(layout.end),
+      route: layout.route.map(mSeg(mPoint, fLen)),
     };
   }
 
-  const labels: LabelPlacement[] = result.labels.map((l) => ({ ...l, frame: qRect(l.frame) }));
+  const labels: LabelPlacement[] = result.labels.map((l) => ({ ...l, frame: mRect(l.frame) }));
 
-  return { ...result, bounds: qRect(result.bounds), nodes, edges, labels };
+  return { ...result, bounds: mRect(result.bounds), nodes, edges, labels };
 }
 
-function qSeg(q: (v: number) => number) {
+function mSeg(mp: (p: Point) => Point, fLen: (v: number) => number) {
   return (seg: PathSeg): PathSeg => {
-    const qp = (p: Point): Point => ({ x: q(p.x), y: q(p.y) });
     switch (seg.t) {
       case 'L':
-        return { t: 'L', to: qp(seg.to) };
+        return { t: 'L', to: mp(seg.to) };
       case 'Q':
-        return { t: 'Q', c: qp(seg.c), to: qp(seg.to) };
+        return { t: 'Q', c: mp(seg.c), to: mp(seg.to) };
       case 'C':
-        return { t: 'C', c1: qp(seg.c1), c2: qp(seg.c2), to: qp(seg.to) };
+        return { t: 'C', c1: mp(seg.c1), c2: mp(seg.c2), to: mp(seg.to) };
       case 'A':
-        return { t: 'A', r: { w: q(seg.r.w), h: q(seg.r.h) }, sweep: seg.sweep, to: qp(seg.to) };
+        return { t: 'A', r: { w: fLen(seg.r.w), h: fLen(seg.r.h) }, sweep: seg.sweep, to: mp(seg.to) };
     }
   };
 }
