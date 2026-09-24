@@ -2,11 +2,14 @@ import { asEdgeId, asLabelId, asNodeId, NO_SPAN, type GraphEdge, type GraphNode,
 import { describe, expect, it } from 'vitest';
 import { LAYOUT_API_VERSION, type EdgeLayout, type LayoutEngine, type LayoutInput, type LayoutResult, type ResolvedThemeMetricsView } from '../src/contract.js';
 import { applyHostFallbacks, finishEngineRoutes, MIN_SELF_LOOP_HEIGHT } from '../src/fallbacks.js';
-import { CANVAS_MARGIN } from '../src/bounds.js';
 import { quantize } from '../src/validate.js';
+
 import type { WorkerToHost } from '../src/protocol.js';
 import { EngineRegistry } from '../src/registry.js';
 import { createWorkerRuntime } from '../src/worker-runtime.js';
+
+/** DD-06 §5's margin, a literal rather than the code's own constant. */
+const CANVAS_MARGIN = 16;
 
 /**
  * Stage K: DD-06 §6.2's "then the host applies §4.4 (arrow reserve) and §4.5

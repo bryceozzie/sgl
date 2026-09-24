@@ -1,5 +1,5 @@
 import type { PathSeg, Point, Rect } from '@sgl/core';
-import { CANVAS_MARGIN, type LayoutEngine, type LayoutResult } from '@sgl/layout-api';
+import type { LayoutEngine, LayoutResult } from '@sgl/layout-api';
 import { elkEngine } from '@sgl/layout-elk';
 import { gridEngine } from '@sgl/layout-std';
 import { neutralLight } from '@sgl/theme';
@@ -23,6 +23,9 @@ import { corpusSource, runPipeline } from './pipeline.js';
  */
 
 const ENGINES: readonly LayoutEngine[] = [gridEngine, elkEngine];
+/** DD-06 §5's canvas margin, as a literal: the package's own `CANVAS_MARGIN`
+ *  would move with the code under test (fix round 1, item 6). */
+const CANVAS_MARGIN = 16;
 const EPS = 1 / 64;
 
 /** Every point `result` draws, curves sampled at 33 points each. */
