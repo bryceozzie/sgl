@@ -1,15 +1,22 @@
 /**
  * Arrowhead markers (DD-07 §6).
  *
- * One `<marker>` per distinct (arrowhead, stroke colour, size) actually used.
- * `context-stroke` is deliberately not relied on — Safari support arrived late and
- * resvg lacks it entirely — so the colour is baked into the marker and the id
- * carries a hash of it.
+ * One `<marker>` per distinct (arrowhead, start/end, size, edge paint class)
+ * actually used, with the id built from exactly those:
+ * `m-{arrowhead}[-s]-{size}-{token}`, where `token` is the edge's own
+ * theme-invariant paint-class token (`cascadeSignature`, `style.ts`). The id
+ * never names a colour (F7): the marker's shape carries a class,
+ * `mf-{token}` (filled) or `ms-{token}` (`open`, stroked), and its colour is a
+ * rule in the `<style>` element (`ClassTable.markerPaint`), so a theme switch
+ * changes a rule body and never a marker id, a `marker-end`/`marker-start`
+ * reference or the `<defs>` text. `context-stroke` is deliberately not relied
+ * on — Safari support arrived late and resvg lacks it entirely. A class rule
+ * inside `<marker>` is honoured by Chromium, Inkscape 1.2.2 and resvg
+ * (checked when this landed; `test/browser/markers.browser.test.ts` holds
+ * Chromium to it).
  */
 
-import { shortHash } from '@sgl/core';
 import { num, nums } from './num.js';
-import { cssColor, hashToken } from './security.js';
 
 export type Arrowhead = 'triangle' | 'open' | 'diamond' | 'circle' | 'none';
 
@@ -17,6 +24,19 @@ const ARROWHEADS: readonly string[] = ['triangle', 'open', 'diamond', 'circle', 
 
 export function isArrowhead(v: unknown): v is Arrowhead {
   return typeof v === 'string' && ARROWHEADS.includes(v);
+}
+
+/** The class on a marker's shape that its paint rule targets: `open` is
+ *  stroked, every other arrowhead filled. */
+export function markerPaintClass(arrowhead: Arrowhead, token: string): string {
+  return `${arrowhead === 'open' ? 'ms' : 'mf'}-${token}`;
+}
+
+/** The marker id for these arguments (DD-07 §6), or `null` when nothing is
+ *  drawn. `token` is the edge's paint-class token. */
+export function markerId(arrowhead: Arrowhead, size: number, start: boolean, token: string): string | null {
+  if (arrowhead === 'none' || !(size > 0)) return null;
+  return `m-${arrowhead}${start ? '-s' : ''}-${num(size)}-${token}`;
 }
 
 /**
@@ -28,30 +48,21 @@ export function isArrowhead(v: unknown): v is Arrowhead {
  */
 export class MarkerTable {
   private readonly markers = new Map<string, string>();
-  /** The id already computed for these exact arguments (F9, execution plan
-   *  §2.1): every directed edge asks, but a document uses a handful of
-   *  distinct markers, and an id costs a colour validation and a hash. */
-  private readonly ids = new Map<string, string>();
 
   /**
    * Register a marker and return its id, or `null` when nothing should be drawn.
+   * The id is a pure function of the arguments, and so is the element, so
+   * registering the same id again is a map lookup.
    *
    * `start` flips the geometry rather than relying on `orient="auto-start-reverse"`
    * alone, because a reversed marker still needs its `refX` on the other side.
    */
-  add(arrowhead: Arrowhead, color: string, size: number, start: boolean): string | null {
-    if (arrowhead === 'none' || size <= 0) return null;
-
-    const key = `${arrowhead}|${start ? 's' : 'e'}|${size}|${color}`;
-    const known = this.ids.get(key);
-    if (known !== undefined) return known;
-
-    const fill = cssColor(color);
-    const id = `m-${arrowhead}${start ? '-s' : ''}-${hashToken(shortHash(`${fill}|${num(size)}`))}`;
+  add(arrowhead: Arrowhead, size: number, start: boolean, token: string): string | null {
+    const id = markerId(arrowhead, size, start, token);
+    if (id === null) return null;
     if (!this.markers.has(id)) {
-      this.markers.set(id, markerElement(id, arrowhead, fill, size, start));
+      this.markers.set(id, markerElement(id, arrowhead, markerPaintClass(arrowhead, token), size, start));
     }
-    this.ids.set(key, id);
     return id;
   }
 
@@ -67,7 +78,7 @@ export class MarkerTable {
 function markerElement(
   id: string,
   arrowhead: Arrowhead,
-  fill: string,
+  paintClass: string,
   size: number,
   start: boolean,
 ): string {
@@ -90,14 +101,14 @@ function markerElement(
         // §4.4 reserve, which reasons about the path's own geometry) knows
         // about, and the sub-pixel round-join overshoot is a pre-existing,
         // separate cosmetic rounding this fix does not change.
-        return `<path d="M0 0L${nums(w, h / 2)}L0 ${num(h)}" fill="none" stroke="${fill}" stroke-width="${num(Math.max(1, size / 6))}" stroke-linecap="round" stroke-linejoin="round" ${flip}/>`;
+        return `<path class="${paintClass}" d="M0 0L${nums(w, h / 2)}L0 ${num(h)}" fill="none" stroke-width="${num(Math.max(1, size / 6))}" stroke-linecap="round" stroke-linejoin="round" ${flip}/>`;
       case 'diamond':
-        return `<path d="M0 ${num(h / 2)}L${nums(w / 2, 0)}L${nums(w, h / 2)}L${nums(w / 2, h)}Z" fill="${fill}" ${flip}/>`;
+        return `<path class="${paintClass}" d="M0 ${num(h / 2)}L${nums(w / 2, 0)}L${nums(w, h / 2)}L${nums(w / 2, h)}Z" ${flip}/>`;
       case 'circle':
-        return `<circle cx="${num(w / 2)}" cy="${num(h / 2)}" r="${num(Math.min(w, h) / 2)}" fill="${fill}"/>`;
+        return `<circle class="${paintClass}" cx="${num(w / 2)}" cy="${num(h / 2)}" r="${num(Math.min(w, h) / 2)}"/>`;
       case 'triangle':
       default:
-        return `<path d="M0 0L${nums(w, h / 2)}L0 ${num(h)}Z" fill="${fill}" ${flip}/>`;
+        return `<path class="${paintClass}" d="M0 0L${nums(w, h / 2)}L0 ${num(h)}Z" ${flip}/>`;
     }
   })();
 

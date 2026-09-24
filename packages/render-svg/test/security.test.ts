@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   ALLOWED_LINK_SCHEMES,
   cssColor,
-  cssCustomProperty,
   cssFontFamily,
   cssKeyword,
   edgeElementId,
@@ -177,15 +176,5 @@ describe('cssKeyword()', () => {
   it('rejects anything with special characters', () => {
     expect(cssKeyword('italic;color:red')).toBeNull();
     expect(cssKeyword('')).toBeNull();
-  });
-});
-
-describe('cssCustomProperty()', () => {
-  it('turns a dotted token name into a dashed custom property', () => {
-    expect(cssCustomProperty('surface.sunken')).toBe('--surface-sunken');
-  });
-
-  it('rejects an empty or all-invalid name', () => {
-    expect(cssCustomProperty('')).toBe('');
   });
 });

@@ -44,6 +44,16 @@ export const CONFIG_REGISTRY: readonly ConfigKeySpec[] = [
   { key: 'meta', scope: ALL_SCOPES, type: 'any', order: 17 },
 ] as const;
 
+/** The keys `@size` may carry (language spec §4's `@size.*` row, plus
+ *  `minHeight`, which the style registry, DD-04 §4 and `buildLayoutInput` have
+ *  always treated as a size key; the spec row now lists it). Any other
+ *  key under `@size` is kept with `SGL2010` (an unknown key within a known
+ *  namespace, spec §4) and has no effect: DD-04 §4 step 6 applies these and
+ *  nothing else, so `@size` can never carry paint (fix round 1 of the Stage L
+ *  re-baseline — `@size.fill` used to paint, behind the cascade signature's
+ *  back, DD-07 §6). */
+export const SIZE_KEYS: ReadonlySet<string> = new Set(['width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'aspectRatio']);
+
 /** The language's full twelve-shape vocabulary (language spec §4), derived from
  *  the `shape` row's `enum` so it has exactly one definition in the codebase.
  *  Stage C (`compile.ts`) checks a resolved `@shape` against this and against

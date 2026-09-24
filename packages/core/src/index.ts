@@ -18,6 +18,7 @@ export * from './not-implemented.js';
 export * from './parse.js';
 export * from './resolve.js';
 export * from './span.js';
+export { SIZE_KEYS } from './config-registry.js';
 
 /** The language version this build implements. Independent of package versions (NFR-6). */
 export const SGL_LANGUAGE_VERSION = '1.0' as const;

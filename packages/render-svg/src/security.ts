@@ -155,13 +155,3 @@ export function cssFontFamily(raw: string): string {
 export function cssKeyword(raw: string): string | null {
   return /^[A-Za-z][A-Za-z0-9-]{0,31}$/.test(raw) ? raw : null;
 }
-
-/**
- * A CSS custom-property name. Theme token names are dotted (`surface.sunken`,
- * `font.sans`) and a `.` is not legal in a CSS identifier, so dots become dashes.
- * DD-07 §6 shows `--bg` and does not say what happens to a dotted token.
- */
-export function cssCustomProperty(raw: string): string {
-  const name = raw.replace(/[^A-Za-z0-9_-]/g, '-');
-  return /^[A-Za-z0-9_-]{1,64}$/.test(name) ? `--${name}` : '';
-}

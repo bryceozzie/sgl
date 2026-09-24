@@ -73,7 +73,9 @@ registry.register({
   capabilities: capabilities(),
   layout: async (_input, ctx) => {
     const layout = (await ctx.measure.layoutRunsAsync([{ text: 'probe' }], { maxWidth: 100 })) as { size: { w: number; h: number } };
-    return { bounds: { x: 0, y: 0, w: layout.size.w, h: layout.size.h }, nodes: {}, edges: {}, labels: [] };
+    // The measured size comes back as node `a`'s frame: `bounds` itself is
+    // recomputed by the host (DD-06 §5, F14), so it cannot carry it.
+    return { bounds: { x: 0, y: 0, w: 1, h: 1 }, nodes: { a: { frame: { x: 0, y: 0, w: layout.size.w, h: layout.size.h } } }, edges: {}, labels: [] };
   },
 });
 

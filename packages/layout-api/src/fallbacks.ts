@@ -179,49 +179,9 @@ export function finishEngineRoutes(input: LayoutInput, result: LayoutResult, met
   const labels = relabel.size === 0 ? next.labels : next.labels.map((l) => relabel.get(l.labelId) ?? l);
 
   // The teardrop reaches past the node, where the engine's `bounds` never
-  // allowed for anything, so the canvas would clip it. Grow `bounds` to take
-  // in what the host just drew (plus DD-06 §5's 16 px canvas margin). Only
-  // here, where the host replaced an engine's own geometry: DD-06 §5's
-  // general bounds recomputation is not implemented, and doing it for every
-  // engine would move `grid`'s existing goldens.
-  let bounds = next.bounds;
-  for (const edge of replacedLoops) {
-    const layout = edges[edge.id];
-    if (layout !== undefined) bounds = unionRect(bounds, pointsBox(controlPoints(layout)), HOST_GEOMETRY_MARGIN);
-    const label = edge.labelId === null ? undefined : relabel.get(edge.labelId);
-    if (label !== undefined) bounds = unionRect(bounds, label.frame, HOST_GEOMETRY_MARGIN);
-  }
-  return { ...next, labels, bounds };
-}
-
-/** DD-06 §5's `canvas.margin`. */
-const HOST_GEOMETRY_MARGIN = 16;
-
-function controlPoints(layout: EdgeLayout): Point[] {
-  const pts: Point[] = [layout.start];
-  for (const seg of layout.route) {
-    if (seg.t === 'C') pts.push(seg.c1, seg.c2);
-    else if (seg.t === 'Q') pts.push(seg.c);
-    pts.push(seg.to);
-  }
-  return pts;
-}
-
-function pointsBox(points: readonly Point[]): Rect {
-  const xs = points.map((p) => p.x);
-  const ys = points.map((p) => p.y);
-  const x = Math.min(...xs);
-  const y = Math.min(...ys);
-  return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
-}
-
-/** `a` grown to contain `b` inflated by `margin`; `a` unchanged if it already does. */
-function unionRect(a: Rect, b: Rect, margin: number): Rect {
-  const x0 = Math.min(a.x, b.x - margin);
-  const y0 = Math.min(a.y, b.y - margin);
-  const x1 = Math.max(a.x + a.w, b.x + b.w + margin);
-  const y1 = Math.max(a.y + a.h, b.y + b.h + margin);
-  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  // allowed for anything. No growth here: `quantize` recomputes `bounds` from
+  // everything the result draws (DD-06 §5, F14), this loop and label included.
+  return { ...next, labels };
 }
 
 function isShortLoop(layout: EdgeLayout): boolean {

@@ -1,7 +1,9 @@
 import { asNodeId, type LabelId, type NodeId } from '@sgl/core';
 import {
+  applyHostFallbacks,
   createWorkerRuntime,
   EngineRegistry,
+  MIN_SELF_LOOP_HEIGHT,
   placeLabels,
   quantize,
   validateResult,
@@ -31,6 +33,14 @@ const DOCS = listCorpusDocs();
  *  fallback. */
 async function engineOutput(input: LayoutInput, options: Readonly<Record<string, unknown>> = {}) {
   return (await runHostSequence(elkEngine, input, options, METRICS)).raw;
+}
+
+/** `finishEngineRoutes`' own test for a self-loop the host replaces (DD-06 §4.5). */
+function isShortLoopRoute(layout: { readonly route: readonly { readonly to: { readonly y: number } }[]; readonly start: { readonly y: number } } | undefined): boolean {
+  if (layout === undefined) return false;
+  if (layout.route.length < 2) return true;
+  const ys = [layout.start.y, ...layout.route.map((s) => s.to.y)];
+  return Math.max(...ys) - Math.min(...ys) < MIN_SELF_LOOP_HEIGHT;
 }
 
 describe('loading elkjs (K1, K11)', () => {
@@ -67,13 +77,18 @@ describe('elk over the corpus (DD-06 §6, Stage K gate)', () => {
 
     it(`${doc}: every label is ELK's, not the host fallback's (K5)`, async () => {
       const input = layoutInputFor(doc);
-      const { raw, result } = await runHostSequence(elkEngine, input, {}, METRICS);
-      const fromElk = new Map(quantize(raw, 64).labels.map((l) => [l.labelId, l]));
+      const { raw, result: hosted } = await runHostSequence(elkEngine, input, {}, METRICS);
+      // Compared before `quantize`: its host-computed `bounds` (DD-06 §5, F14)
+      // translate every coordinate by an amount that depends on everything
+      // drawn — the host's own teardrops included — so the engine-only and the
+      // hosted results are translated differently.
+      const result = applyHostFallbacks(input, raw, elkEngine.capabilities, METRICS);
+      const fromElk = new Map(raw.labels.map((l) => [l.labelId, l]));
       // The one exception: a self-loop ELK drew under 16 px is replaced by the
       // host's teardrop (DD-06 §6.2), and its label follows the new route.
       const replaced = new Set<LabelId>(
         input.graph.edges
-          .filter((e) => e.from.node === e.to.node && e.labelId !== null && JSON.stringify(result.edges[e.id]?.route) !== JSON.stringify(quantize(raw, 64).edges[e.id]?.route))
+          .filter((e) => e.from.node === e.to.node && e.labelId !== null && isShortLoopRoute(raw.edges[e.id]))
           .map((e) => e.labelId!),
       );
       for (const label of result.labels) {
@@ -81,6 +96,28 @@ describe('elk over the corpus (DD-06 §6, Stage K gate)', () => {
         expect(label).toEqual(fromElk.get(label.labelId));
       }
       expect(result.labels.map((l) => l.labelId).sort()).toEqual([...fromElk.keys()].sort());
+
+      // And on the whole host path (fix round 1, item 9): the real
+      // `runHostSequence` result, with `quantize`'s translation undone, still
+      // carries ELK's own labels, quantized. The translation is read off a
+      // node frame, which no host fallback moves.
+      const q = (v: number): number => Math.round(v * 64) / 64;
+      const anyNode = Object.keys(raw.nodes).sort()[0];
+      if (anyNode === undefined) return;
+      const rawFrame = raw.nodes[anyNode as keyof typeof raw.nodes]!.frame;
+      const hostFrame = hosted.nodes[anyNode as keyof typeof hosted.nodes]!.frame;
+      const dx = hostFrame.x - q(rawFrame.x);
+      const dy = hostFrame.y - q(rawFrame.y);
+      expect(Number.isInteger(dx * 64) && Number.isInteger(dy * 64)).toBe(true);
+      for (const label of hosted.labels) {
+        if (replaced.has(label.labelId)) continue;
+        const elk = fromElk.get(label.labelId)!;
+        expect({ ...label, frame: { ...label.frame, x: label.frame.x - dx, y: label.frame.y - dy } }).toEqual({
+          ...elk,
+          frame: { x: q(elk.frame.x), y: q(elk.frame.y), w: q(elk.frame.w), h: q(elk.frame.h) },
+        });
+      }
+      expect(hosted.labels.map((l) => l.labelId).sort()).toEqual([...fromElk.keys()].sort());
     });
   }
 });

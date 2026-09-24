@@ -8,14 +8,14 @@ import { listCorpusDocs, renderCorpusDoc } from './pipeline.js';
 
 /**
  * F17 (execution plan §2.1, DD-07 §6): Inkscape 1.2.2 discards a **whole**
- * `<style>` element when it meets the theme-token rule
- * `svg.sgl{--sgl-canvas:…;--accent:…}`, so every shape in an exported SVG fell
- * back to the default black fill. The fix keeps the tokens (a consumer can
- * still override them) but moves them into a `<style>` element of their own,
- * after the main one, so a tool that drops that element loses only the tokens,
- * never the rules that paint the diagram. And no rule outside the token element
- * may read a token with `var()`: a tool that dropped the token element would
- * leave that rule with nothing to resolve against.
+ * `<style>` element when it meets a rule of custom properties
+ * (`svg.sgl{--sgl-canvas:…;--accent:…}`), so every shape in an exported SVG
+ * fell back to the default black fill. F17 moved the tokens into an element of
+ * their own; F18 (human decision 2026-09-24) then dropped re-theming an
+ * exported file by overriding them, and the Stage L re-baseline removed that
+ * vestigial element. What stays is F17's guarantee: the file has exactly one
+ * `<style>` element and it never contains a custom property, declared or read
+ * with `var()`, and nothing else in the file names one either.
  *
  * Asserted over the whole corpus — every document under `neutral-light`, the
  * clean ones under `neutral-dark` too (the same split as `render.test.ts`'s
@@ -81,40 +81,30 @@ const RUNS: readonly { readonly doc: string; readonly theme: ThemeDoc }[] = [
   ...CLEAN_DOCS.map((doc) => ({ doc, theme: neutralDark })),
 ];
 
-describe('F17: theme tokens live in their own <style> element, after the main one (DD-07 §6)', () => {
+describe('F17/F18: one <style> element, with no custom property in it (DD-07 §6)', () => {
   for (const { doc, theme } of RUNS) {
     it(`${doc} under ${theme.id}`, async () => {
-      const { rendered } = await renderCorpusDoc(doc, theme);
+      const { rendered, styled } = await renderCorpusDoc(doc, theme);
       const elements = styleElements(rendered.svg);
-      expect(elements, 'exactly two <style> elements: main, then tokens').toHaveLength(2);
-      const [main, tokens] = elements.map(parseCss) as [readonly CssRule[], readonly CssRule[]];
+      expect(elements, 'exactly one <style> element').toHaveLength(1);
+      const main = parseCss(elements[0]!);
 
-      // The main element: no custom-property declaration anywhere in it — the
-      // bisected cause of Inkscape dropping the whole element — and no `var()`.
+      // No custom-property declaration anywhere in it — the bisected cause of
+      // Inkscape dropping the whole element — and no `var()`.
       const mainTokens = main.flatMap((r) => r.declarations.filter((d) => isToken(d.property)).map((d) => `${r.selector} ${d.property}`));
-      expect(mainTokens, 'custom properties in the main <style>').toEqual([]);
+      expect(mainTokens, 'custom properties in the <style>').toEqual([]);
       const mainVars = main.flatMap((r) => r.declarations.filter((d) => d.value.includes('var(')).map((d) => `${r.selector} ${d.property}`));
-      expect(mainVars, 'var() in the main <style>').toEqual([]);
+      expect(mainVars, 'var() in the <style>').toEqual([]);
+      expect(main.some((r) => r.selector === 'svg.sgl' || r.selector === ':root'), 'a token rule').toBe(false);
       expect(main.length).toBeGreaterThan(0);
 
-      // The canvas gets its literal resolved colour, the same one `--sgl-canvas` carries.
+      // The canvas gets its literal resolved colour.
       const canvas = main.find((r) => r.selector === '.canvas');
-      const canvasToken = tokens[0]?.declarations.find((d) => d.property === '--sgl-canvas');
-      expect(canvas?.declarations).toEqual([{ property: 'fill', value: canvasToken?.value }]);
+      expect(canvas?.declarations).toEqual([{ property: 'fill', value: styled.canvas.background }]);
 
-      // The token element: exactly one rule, scoped to the root `svg.sgl`
-      // (never `:root`), holding custom properties and nothing else.
-      expect(tokens).toHaveLength(1);
-      expect(tokens[0]!.selector).toBe('svg.sgl');
-      expect(tokens[0]!.declarations.filter((d) => !isToken(d.property))).toEqual([]);
-      expect(tokens[0]!.declarations.filter((d) => d.value.includes('var('))).toEqual([]);
-      expect(tokens[0]!.declarations.length).toBeGreaterThan(1);
-
-      // `RenderResult.styleBlock` is the main element's text and `tokenBlock`
-      // the token element's, so a caller re-theming an exported file gets
-      // exactly what is in it.
+      // `RenderResult.styleBlock` is exactly that element's text.
       expect(rendered.styleBlock).toBe(elements[0]);
-      expect(rendered.tokenBlock).toBe(elements[1]);
+      expect(Object.keys(rendered).sort()).not.toContain('tokenBlock');
 
       // Nothing else in the file names a custom property either.
       const outsideStyles = rendered.svg.replace(/<style(?:\s[^>]*)?>[\s\S]*?<\/style>/g, '');
@@ -123,21 +113,20 @@ describe('F17: theme tokens live in their own <style> element, after the main on
     });
   }
 
-  it('the token element comes right after the main one, before <defs>', async () => {
+  it('the <style> element comes right after <desc>, before <defs>', async () => {
     const { rendered } = await renderCorpusDoc('checkout.sgl');
-    expect(rendered.svg).toMatch(/<\/desc><style>[^<]*<\/style><style>svg\.sgl\{[^<]*\}<\/style><defs>/);
+    expect(rendered.svg).toMatch(/<\/desc><style>\.canvas\{[^<]*<\/style><defs>/);
   });
 });
 
 /**
- * The injection half (DD-07 §8, DD-09 §1.2): the token element is new markup, so
- * prove no hostile string reaches it raw. Token names and values come from the
- * theme, and `--sgl-canvas` from `canvas.background`, not from document text —
- * but a theme is a document too once custom themes land, so both are driven
- * with break-out attempts here, straight into `render()`.
+ * The injection half (DD-07 §8, DD-09 §1.2): the theme's tokens never reach the
+ * output now, so a hostile token name or value cannot either; the canvas
+ * background still does, through `cssColor`. Driven with break-out attempts,
+ * straight into `render()`.
  */
-describe('F17: nothing hostile reaches the token <style> unescaped (DD-07 §8)', () => {
-  it('hostile token names, token values and canvas background stay inside one svg.sgl rule', () => {
+describe('F17/F18: nothing hostile from the theme reaches the <style> unescaped (DD-07 §8)', () => {
+  it('hostile token names and values are not emitted, and a hostile canvas background is the loud fallback', () => {
     const { value: base } = resolveTheme(neutralLight, (id) => (id === neutralLight.id ? neutralLight : undefined));
     const breakOut = '</style><script>alert(1)</script><style>';
     const theme: ResolvedTheme = {
@@ -168,27 +157,21 @@ describe('F17: nothing hostile reaches the token <style> unescaped (DD-07 §8)',
       geometryHash: 'g',
       paintHash: 'p',
     };
-    const { svg, tokenBlock, styleBlock } = render(styled, { bounds: { x: 0, y: 0, w: 10, h: 10 }, nodes: {}, edges: {}, labels: [] }, theme);
+    const { svg, styleBlock } = render(styled, { bounds: { x: 0, y: 0, w: 10, h: 10 }, nodes: {}, edges: {}, labels: [] }, theme);
 
     expect(XMLValidator.validate(svg)).toBe(true);
     const tree = new XMLParser({ preserveOrder: true }).parse(svg) as { svg?: { style?: unknown; script?: unknown }[] }[];
     const children = tree.find((n) => n.svg !== undefined)!.svg!;
     expect(children.filter((c) => 'script' in c)).toEqual([]);
-    expect(children.filter((c) => 'style' in c)).toHaveLength(2);
+    expect(children.filter((c) => 'style' in c)).toHaveLength(1);
     expect(svg).not.toMatch(/<script/i);
+    expect(svg).not.toContain('evil');
 
     const elements = styleElements(svg);
-    expect(elements).toEqual([styleBlock, tokenBlock]);
-    const tokens = parseCss(tokenBlock);
-    expect(tokens).toHaveLength(1);
-    expect(tokens[0]!.selector).toBe('svg.sgl');
-    expect(tokens[0]!.declarations.every((d) => isToken(d.property))).toBe(true);
-    // The hostile canvas colour is the loud fallback in both elements.
-    expect(tokens[0]!.declarations[0]).toEqual({ property: '--sgl-canvas', value: '#FF00FF' });
+    expect(elements).toEqual([styleBlock]);
     expect(styleBlock.split('\n')[0]).toBe('.canvas{fill:#FF00FF}');
-    for (const text of elements) {
-      expect(text).not.toContain('<');
-      expect(text).not.toContain('javascript:');
-    }
+    expect(styleBlock).not.toContain('<');
+    expect(styleBlock).not.toContain('javascript:');
+    expect(styleBlock).not.toContain('--');
   });
 });

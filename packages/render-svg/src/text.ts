@@ -105,10 +105,11 @@ function baselineY(placement: LabelPlacementView, block: TextLayoutView): number
  *
  * `className` carries the font, which lives in the generated class and never
  * inline (DD-07 §5), so font declarations are not repeated on every element that
- * shares them. That is de-duplication, not a paint-only-swap key: the `hash` in
- * `t-{hash}` is `paintHash`, so a colour change produces a new *class name* too,
- * not just a new declaration inside the same class (F7; DD-07 §11). Font *size*
- * is geometry and lives in its own `g-{hash}`, which a paint change never touches.
+ * shares them. The text colour is the `t-{token}` class, named after the
+ * label's cascade signature rather than its paint (F7; DD-07 §6), so a colour
+ * change is a new declaration inside the same class, never a new class name.
+ * Font *size* is geometry and lives in its own `g-{hash}`, which a paint change
+ * never touches.
  */
 export function renderText(
   placement: LabelPlacementView,

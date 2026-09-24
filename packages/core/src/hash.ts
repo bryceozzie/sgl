@@ -76,11 +76,29 @@ export function shortHash(input: string): string {
   return fnv1a64(input).slice(0, 8);
 }
 
-/** Canonical `k=v` serialisation of a flat style bag, sorted by key.
- *  Sorting is what makes the geometry/paint hashes independent of insertion order. */
+/** Canonical `k=v` serialisation of a style bag, sorted by key.
+ *  Sorting is what makes the geometry/paint hashes independent of insertion order.
+ *  A value is `JSON.stringify`'s, except that an object's keys are sorted at
+ *  every depth (fix round 1 of the Stage L re-baseline: the renderer names a
+ *  paint class after a canonicalised inline `@style`, DD-07 §6, so `{a, b}` and
+ *  `{b, a}` one level down must not name two classes). For a flat bag — every
+ *  theme and corpus style today — the output is exactly what it was. */
 export function canonicalise(bag: Readonly<Record<string, unknown>>): string {
   return Object.keys(bag)
     .sort()
-    .map((k) => `${k}=${JSON.stringify(bag[k])}`)
+    .map((k) => `${k}=${stableJson(bag[k])}`)
     .join(';');
+}
+
+/** `JSON.stringify` with object keys sorted at every depth. */
+function stableJson(value: unknown): string | undefined {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map((v) => stableJson(v) ?? 'null').join(',')}]`;
+  const o = value as Readonly<Record<string, unknown>>;
+  const parts: string[] = [];
+  for (const k of Object.keys(o).sort()) {
+    const v = stableJson(o[k]);
+    if (v !== undefined) parts.push(`${JSON.stringify(k)}:${v}`);
+  }
+  return `{${parts.join(',')}}`;
 }

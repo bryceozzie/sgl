@@ -1,6 +1,6 @@
 # DD-07 — SVG Renderer
 
-**Package:** `@sgl/render-svg` · **Inputs:** `StyledGraph` (DD-04), `LayoutResult` (DD-06), `ResolvedTheme` · **Output:** `RenderResult { svg: string; styleBlock: string; tokenBlock: string; bounds: Rect; diagnostics: readonly Diagnostic[] }`
+**Package:** `@sgl/render-svg` · **Inputs:** `StyledGraph` (DD-04), `LayoutResult` (DD-06), `ResolvedTheme` · **Output:** `RenderResult { svg: string; styleBlock: string; structureHash: string; bounds: Rect; diagnostics: readonly Diagnostic[] }`
 
 A pure string renderer. No DOM, no virtual DOM. The same function serves the live view (DD-08 §6 sets `innerHTML`), export, the CLI and, later, the Worker.
 
@@ -15,7 +15,7 @@ A pure string renderer. No DOM, no virtual DOM. The same function serves the liv
 | Emit text as positioned `<tspan>`s from `TextLayout` — no `<foreignObject>` | Embed fonts (**⟶ C8**) |
 | Assign stable, sanitised element IDs | Add interaction chrome (DD-08 §6 overlays it *outside* this tree) |
 | Escape every string that reaches markup; allowlist link schemes | |
-| Return `styleBlock` and `tokenBlock` separately, for export and for re-theming an exported file | Support swapping just the `<style>` block against a *retained* live-view tree on a paint-only change — not implementable today; see §11 |
+| Return `styleBlock` (the `<style>` element's text) and `structureHash` separately, so a paint-only change can be a `<style>`-text swap (§6, §11) | Perform that swap: the live view's canvas does (DD-08 §3, §6; execution plan §2.1 F9) |
 
 ---
 
@@ -29,7 +29,6 @@ A pure string renderer. No DOM, no virtual DOM. The same function serves the liv
   <title id="sgl-t">{title or 'Diagram'}</title>
   <desc id="sgl-d">{n} nodes, {m} connections, {c} groups.</desc>
   <style>{styleBlock}</style>
-  <style>{tokenBlock}</style>
   <defs>{markers}</defs>
   <rect class="canvas" width="100%" height="100%"/>
   <g class="L-containers">{containers in order}</g>
@@ -41,7 +40,7 @@ A pure string renderer. No DOM, no virtual DOM. The same function serves the liv
 
 Layer order is fixed: containers, edges, nodes, edge labels. Node and container titles are emitted inside their own element's `<g>` so they move with it; edge labels are a separate top layer so plates never sit under a node.
 
-The renderer returns the whole string **and** `styleBlock` and `tokenBlock` (the two `<style>` elements' text, §6) separately, for export and for re-theming an exported file. This is *not* the same thing as the live view keeping its tree and swapping only `<style>` on a paint-only change (`geometryHash` equal, `paintHash` different): that property does not hold, for two independent reasons spelled out in §11, and DD-08 §3 has been corrected accordingly (F7, execution plan §2.1).
+The renderer returns the whole string **and** `styleBlock` (the `<style>` element's text, §6) separately, with `structureHash` (§6). Since Stage L's F7/F14 re-baseline the output has the **paint-only property**: two renders of the same layout whose `structureHash` is equal differ only in the text of `<style>` (and `<defs>`), so a live view can keep its tree and swap that text alone (§6 "Structure", §11). Whether the application does so is DD-08 §3's business (execution plan §2.1 F9).
 
 ---
 
@@ -50,31 +49,31 @@ The renderer returns the whole string **and** `styleBlock` and `tokenBlock` (the
 **Container**
 ```svg
 <g id="{nid}" class="c {classes}" role="group" aria-label="{title}">
-  <path class="c-shape s-{paintHash}" d="{shapePath}"/>
-  <text class="c-title t-{labelPaintHash}" ...>{tspans}</text>
+  <path class="c-shape [g-{geometry}] s-{signature token}" d="{shapePath}"/>
+  <text class="c-title [g-{geometry}] t-{signature token}" ...>{tspans}</text>
 </g>
 ```
 
 **Leaf node**
 ```svg
 <g id="{nid}" class="n sh-{shape} {classes}" role="group" aria-label="{title}">
-  <path class="n-shape s-{paintHash}" d="{shapePath}"/>
+  <path class="n-shape [g-{geometry}] s-{signature token}" d="{shapePath}"/>
   {ports: <circle class="n-port" cx cy r/>}
-  <text class="n-title t-{labelPaintHash}" ...>{tspans}</text>
+  <text class="n-title [g-{geometry}] t-{signature token}" ...>{tspans}</text>
 </g>
 ```
 
 **Edge**
 ```svg
 <g id="{eid}" class="e {classes}" role="graphics-symbol" aria-label="{from} to {to}{: label}">
-  <path class="e-path s-{paintHash}" d="{routePath}" marker-end="url(#m-{arrowhead}-{colorHash})" [marker-start=…]/>
+  <path class="e-path [g-{geometry}] s-{signature token}" d="{routePath}" marker-end="url(#m-{arrowhead}-{arrowSize}-{signature token})" [marker-start="url(#m-{arrowhead}-s-{arrowSize}-{signature token})"]/>
 </g>
 ```
 Edge label (in `L-labels`):
 ```svg
 <g class="el" data-for="{eid}">
-  <rect class="el-plate p-{plateHash}" x y width height rx="2"/>
-  <text class="el-text t-{labelPaintHash}" ...>{tspans}</text>
+  <rect class="el-plate p-{edge signature token}" x y width height/>
+  <text class="el-text [g-{geometry}] t-{signature token}" ...>{tspans}</text>
 </g>
 ```
 
@@ -129,41 +128,67 @@ For a `LabelPlacement` and its `TextLayout`:
 - `y` also honours `placement.baseline`: `top` → `frame.y + ascent` (the formula above); `middle` → `frame.y + (frame.h − block.height) / 2 + ascent`; `bottom` → `frame.y + frame.h − block.height + ascent`. Found missing during Stage F's review round — the renderer always computed `top` regardless of `baseline`, latent only because the host fallbacks (DD-06 §4.1) always emit a frame sized exactly to the label, where `top` and `middle` coincide.
 - `align` and `baseline` are enumerated fields (DD-06 §0's `contract.ts`), but that is a compile-time guarantee only: an engine's output is untrusted at runtime (worker-boundary JSON from Stage H erases the union). `align` is mapped to one of `start|middle|end` before it reaches `text-anchor`, falling back to `middle` for anything else — the one attribute in this package that took a raw union member straight from `LayoutView` without going through `escapeXml` or an allowlist, and the one place `corpus/injection/*.sgl` could not catch the gap, since every producer in the real pipeline already emits a literal union member. `validateResult` (DD-06 §5) rejects an out-of-range value before it reaches here at all; the renderer's own guard is defence in depth for a caller that skips validation.
 - `rotation` → `transform="rotate(deg cx cy)"` on the `<text>`.
-- Font properties come from the `t-{hash}` class, never inline — but the `hash` in `t-{hash}` is `style.paintHash` (`style.ts`'s `classesFor`), so a font-*colour* change still produces a new class name, not just a new declaration inside the same class. This class split is about not repeating font declarations across elements that share them, not about enabling a paint-only swap against a retained tree (§11 explains why that property does not hold). (Font *size* is geometry and lives in its own `g-{hash}` class, which a paint change does not touch.)
+- Font properties come from the generated classes, never inline: the family, size, weight and spacing (geometry) from `g-{hash}`, the colour and opacity (paint) from `t-{token}`, whose name is the label's cascade signature (§6), so a font-*colour* change is a new declaration inside the same class, never a new class name (F7).
 - `xml:space="preserve"` on `<text>` so leading spaces in a line survive.
 
 **⟶ A18:** runs with `style: code|strong|em` become nested `<tspan class="r-code">` etc. inside the line `tspan`. Same emitter.
 
 ---
 
-## 6. IDs, classes and the `<style>` elements
+## 6. IDs, classes, markers and the `<style>` element
 
 **IDs.** `n-` + sanitised `NodeId`; `e-` + the hash part of `EdgeId`. Sanitise = replace any character outside `[A-Za-z0-9_.-]` with `_`, then if the result differs from the original append `-` + 6 chars of `fnv1a64(original)` to prevent collisions (`a b` and `a_b` must not both become `n-a_b`). IDs are unique per document by construction because paths are unique.
 
-**Generated style classes.** `s-{paintHash}` for shape fill/stroke, `t-{hash}` for text, `p-{hash}` for plates. Identical styles across elements share one class — a 500-node diagram with three visual variants emits three rules, not 500 attributes.
+**Generated style classes.** Two families, each element carrying at most one of each, geometry first:
 
-**Two `<style>` elements.** The main one, `styleBlock`, holds every rule that paints the diagram; the token one, `tokenBlock`, follows it immediately and holds the theme tokens and nothing else:
+- **Geometry**, `g-{shortHash(declarations)}`: the visual properties DD-04 §2 classifies as geometry (`stroke-width`, the font family, size, style, weight and letter spacing), named after the declaration text itself.
+- **Paint**, `s-{token}` (shape fill, stroke, opacity, dash), `t-{token}` (text fill and opacity), `p-{token}` (label plate fill). **The name never derives from a resolved value** (F7, Stage L re-baseline): `token` is `fnv1a64` of the element's **cascade signature** (`cascadeSignature`, `style.ts`) — the inputs DD-04 §4's cascade reads from the element itself before any theme value applies:
+
+  ```
+  signature = role | shape | classes | inline
+    role    = node | container | edge                    (step 1: rules.<role>)
+            | node.title | container.title | edge.label  (a label: rules.<role>.title / rules.edge.label)
+    shape   = the node's shape, '' for an edge or a label (step 2: byShape; nodes and containers only)
+    classes = the element's classes, in linearised order  (steps 3 and 4: theme byClass[c] and the
+                                                            document's @classes[c].style, both keyed by name)
+    inline  = canonicalise(@style), or ''                 (step 5; keys sorted at every depth,
+                                                            values JSON, so 1 and "1" differ)
+  ```
+
+  Step 6 (`@size`) is geometry and not part of it. Within one render (one document, one theme) equal signatures resolve to equal paint, so the signature is a sound de-duplication key — a 500-node diagram with three visual variants still emits three rules, not 500 attributes — and nothing in it comes from a theme, so **the same element has the same class name under every theme** and a theme switch changes only rule bodies. A plate takes its edge's signature (`labelPlate` is an edge property). The theme's resolved values appear only inside the `<style>` rules. DD-04 §4 pins the cascade steps this list mirrors; a new cascade input added there must be added here.
+
+**One `<style>` element.** `styleBlock` holds every rule that paints the diagram, markers included, with literal resolved values:
 ```css
 /* <style> — styleBlock: literal values only, no custom property declared or read */
-.canvas { fill:#F7F8FA }                                  /* the resolved canvas colour, not var(--sgl-canvas) */
+.canvas { fill:#F7F8FA }                                  /* the resolved canvas colour, never var() */
 .c-shape, .n-shape { stroke-linejoin: round }
 .e-path   { fill:none; stroke-linecap:round }
 .g-8ab4…  { stroke-width:1.5px }
-.s-8f2a…  { fill:#FFFFFF; stroke:#8A96A8 }
-.t-0c41…  { fill:#1B2330 }
+.mf-6176… { fill:#8A96A8 }                                /* a marker's own paint (below) */
+.p-6176…  { fill:#F7F8FA }
+.s-6176…  { stroke:#8A96A8 }
+.s-f87f…  { fill:#FFFFFF; stroke:#8A96A8 }
+.t-5e01…  { fill:#1B2330 }
 …
-
-/* <style> — tokenBlock: one rule, every theme token, scoped to the root svg — never :root */
-svg.sgl { --sgl-canvas:#F7F8FA; --accent:#1F5F80; --bg:#F7F8FA; --ink:#1B2330; … }
 ```
 
-**Re-theming an exported SVG by overriding its tokens is not supported** (human decision, 2026-09-24; §2.1 F18 of the execution plan, now closed). Every generated rule, `.canvas` included, uses literal resolved values, never `var()`, so the file renders identically in tools that ignore custom properties — and so nothing in the file reads a token. The `tokenBlock` element is therefore vestigial: it is removed in Stage L's F7/F14 re-baseline, which re-baselines every SVG golden anyway, rather than in a golden churn of its own. To change an exported diagram's colours, re-export it under another theme.
+**No token element, and no custom property anywhere** (F17, F18). Re-theming an exported SVG by overriding its tokens is not supported (human decision, 2026-09-24; §2.1 F18 of the execution plan, closed): to change an exported diagram's colours, re-export it under another theme. Until Stage L's F7/F14 re-baseline the file carried a second, vestigial `<style>` element (`tokenBlock`, one `svg.sgl{--…}` rule of theme tokens that nothing read); the re-baseline removed it and `RenderResult.tokenBlock` with it.
 
-The tokens sit in an element of their own because some tools do **not** merely ignore a rule they cannot parse: they discard the **whole** `<style>` element that holds it. Inkscape 1.2.2 does exactly that with a rule of custom properties, and when the tokens were the first rule of a single block, every shape in an exported file fell back to the default black fill (**F17**, found at T5 on 2026-09-23 and bisected with Inkscape 1.2.2; `var()` use was not the cause). Kept apart, and after the main element, such a tool loses only the tokens, never the paint. So `styleBlock` must never contain a custom property, declared or read, and `tokenBlock` must never contain anything else — `packages/render-svg/test/style-elements.test.ts` holds both over the whole corpus.
+`styleBlock` must never contain a custom property, declared or read. Some tools do **not** merely ignore a rule they cannot parse: they discard the **whole** `<style>` element that holds it. Inkscape 1.2.2 does exactly that with a rule of custom properties, and when the tokens were the first rule of the single block, every shape in an exported file fell back to the default black fill (**F17**, found at T5 on 2026-09-23 and bisected with Inkscape 1.2.2; `var()` use was not the cause). `packages/render-svg/test/style-elements.test.ts` holds this over the whole corpus: exactly one `<style>` element, no custom property or `var()` in it or anywhere else in the file.
 
-**Markers.** One `<marker id="m-{arrowhead}-{colorHash}">` per distinct (arrowhead, stroke colour) actually used. `context-stroke` is deliberately not relied on (Safari support arrived late; resvg lacks it). Marker geometry is in user units with `markerUnits="userSpaceOnUse"` sized by `arrowSize`. A start marker (`both`) is drawn flipped 180° about its own centre and given its own `refX`, rather than relying on `orient="auto-start-reverse"` alone — a reversed marker still needs its `refX` on the other side — so every marker uses plain `orient="auto"`.
+**Markers.** One `<marker id="m-{arrowhead}[-s]-{arrowSize}-{token}">` per distinct (arrowhead kind, start/end, `arrowSize`, edge signature token) actually used — `token` is the edge's own `s-` token, so the id names no colour (F7). The colour is the marker's **own paint**, a class rule in `<style>`: the marker's shape carries `class="mf-{token}"` (triangle, diamond, circle: `.mf-{token}{fill:<the edge's stroke>}`) or `class="ms-{token}"` (`open`, which is stroked: `.ms-{token}{stroke:…}`, with `fill="none"` on the element), and no colour attribute. So a theme switch changes a rule body and leaves every marker id, every `marker-end`/`marker-start` reference and the `<defs>` text as they were. Two edges with different stroke colours still get different markers — they have different signatures, hence different tokens — while the colour itself never reaches the id. `context-stroke` is deliberately not relied on (Safari support arrived late; resvg lacks it). A class rule on an element inside `<marker>` was checked at the re-baseline in **Chromium**, **Inkscape 1.2.2** and **resvg** (resvg-js 2.6.2), both themes, every arrowhead drawn its edge's colour (and, as a control, black once the rule is deleted); `test/browser/markers.browser.test.ts` holds Chromium to it for every kind. Marker geometry is in user units with `markerUnits="userSpaceOnUse"` sized by `arrowSize`. A start marker (`both`) is drawn flipped 180° about its own centre and given its own `refX`, rather than relying on `orient="auto-start-reverse"` alone — a reversed marker still needs its `refX` on the other side — so every marker uses plain `orient="auto"`.
 
 `refX`/`refY` anchor the marker's own **base**, not its tip, to the same path vertex that `orient="auto"` orients the marker's local +x axis along (the direction of travel there): the host's arrow reserve (DD-06 §4.4) already shortens the path's head — and, for `both`, tail — end by `arrowSize` along that same direction, so the tip must sit `arrowSize` beyond the anchored point for it to land back on the node boundary the reserve pulled away from. Anchoring the tip itself instead (`markers.ts`'s bug, fixed by `fix/arrowhead-gap`) put the tip at the already-shortened path end — still `arrowSize` short of the boundary on every directed edge. `triangle`/`open`/`diamond` reach their own point at the marker box's far edge, so their base is the near edge (`refX = start ? w : 0`); `circle` is capped to fit inside `markerHeight` and so falls short of the far edge by `(w - h) / 2`, which `refX` folds in the same way (`packages/render-svg/src/markers.ts`).
+
+**Structure is independent of paint** (F7). Outside the text of `<style>` and `<defs>`, the output is a function of the graph, the layout and the **geometry** of the styles, plus one paint property by design. Three places where a resolved paint value could otherwise decide what is emitted each have a fixed rule:
+
+| Where | Rule |
+|---|---|
+| A paint class whose declarations are empty under a theme (a text style with no colour, say) | The class stays on the element; only its rule is omitted. |
+| `labelPlate: none` (or no plate colour at all) | The plate `<rect>` is still emitted whenever the placement asks for a plate (`occlusion: 'plate'`); its rule is `fill:none`. |
+| `arrowhead: none` | The arrowhead kind is part of the marker id (above), so the kind is the one paint property the structure follows: `none` draws no marker and the `marker-end`/`marker-start` attribute is omitted. `structureHash` includes it. |
+
+**`structureHash`** (`RenderResult.structureHash`; also exported as `structureHash(styled)`, which needs no render) hashes everything that decides the output outside the `<style>` and `<defs>` text **except the layout**: `styled.geometryHash` (the `g-` classes, text metrics, radii, arrow sizes), the title, and per element in document order its id, its cascade signature (which names its paint classes and markers, and carries its shape and classes — so an inline `@style` edit changes it), its hidden flag, its label text and the config the output shows (`@link`, `@a11y`); per edge also its endpoints, direction and arrowhead kind. The guarantee is one-way and conservative: **for the same `LayoutResult`, equal `structureHash` ⇒ the SVG outside the `<style>` and `<defs>` text is byte-identical**, so replacing those texts turns one render into the other. Unequal hashes may still render the same bytes (a geometry change the renderer does not emit, such as `padding`, changes the hash). It does not rely on the caller knowing the graph is unchanged — the application's layout skip compares only `geometryHash`, engine and options (DD-08 §3), which an inline `@style.fill` edit passes — but the layout must be the same one (the application reuses it on a paint-only change). Its hash is two 32-bit multiplicative hashes over UTF-16 code units, not `fnv1a64` (which is part of the output's compatibility surface and ~6× slower here); it never leaves the process. Cost, Node, n2000: ~2.2 ms (n500 ~0.45 ms), against ~15 ms for hashing the structural bytes themselves and ~62 ms for `render()`; `test/paint-only.test.ts` holds that an inline `@style` edit, a class, a label, a link and a direction change it and a theme switch does not. The two built-in themes share geometry and arrowheads, so switching between them is always paint-only (`test/paint-only.test.ts`, over the whole corpus).
 
 ---
 
@@ -198,7 +223,7 @@ There is no path by which document text becomes markup. The injection corpus in 
 
 - `background: 'theme' | 'transparent'` → `.canvas` rect present or omitted.
 - `scale` → `width`/`height` attributes multiplied; `viewBox` unchanged.
-- Fonts: by reference in MVP — the `font-family` stack includes system fallbacks, so the file is legible everywhere and pixel-faithful where Inter is installed. **⟶ C8** embeds a subsetted `@font-face` into the main `<style>` element (`styleBlock`, never the token element, §6); nothing else changes.
+- Fonts: by reference in MVP — the `font-family` stack includes system fallbacks, so the file is legible everywhere and pixel-faithful where Inter is installed. **⟶ C8** embeds a subsetted `@font-face` into the `<style>` element (`styleBlock`, §6); nothing else changes.
 
 The live view's pan/zoom `<g transform>` and selection overlay live in a *host* `<svg>` around this one and are never part of the exported string.
 
@@ -219,9 +244,5 @@ The live view's pan/zoom `<g transform>` and selection overlay live in a *host* 
 - Text: `y` from ascent, multi-line `dy`, rotation transform.
 - ID sanitisation: collision pair, unicode key, dotted quoted key.
 - Injection corpus: labels, keys, links, tooltips, class names containing `<script>`, `"`, `javascript:`, `&#x` — assert no element or attribute other than the intended text is produced, via an XML parser over the output.
-- ~~Paint-only swap: render A, render B differing only in paint → trees identical when `<style>` is stripped.~~ **Not implementable, for two independent reasons — not tested here, and not just "deliberately left out" of the test suite (execution plan §2):**
-  1. `s-{paintHash}` / `t-{paintHash}` / `p-{paintHash}` (`style.ts`'s `ClassTable.classesFor`) name paint rules after the paint hash itself, so a paint change gives every element referencing them a *different* class attribute, not just a different rule body. This is fixable in principle — the class name only needs to be a stable key, so keying it on something theme-invariant instead would let the block swap alone repaint the tree — but that is a class-naming-scheme change (a lever for Stage I to pull, not pulled here) and would churn every golden.
-  2. Independently of (1), `markers.ts` bakes the stroke colour into a `<defs>` marker's `fill` and hashes it into the marker's `id` (and therefore into every `marker-end`/`marker-start` reference), so any document with a directed edge changes tree bytes outside `<style>` on a paint change regardless of (1). This has no fix without an ADR: `context-stroke` is deliberately rejected (resvg lacks it; Safari support arrived late), and a `<defs>` marker is shared by `url(#id)` reference, so two edges with different stroke colours need two distinct marker elements — the paint stays encoded in the id whatever the fill mechanism.
-
-  See F7 (execution plan §2.1) and DD-08 §3, which now describes what this actually lets Stage I build.
+- **Paint-only swap** (holds since Stage L's F7/F14 re-baseline): render A, render B differing only in paint → the SVGs are identical once the `<style>` and `<defs>` texts are removed, and replacing A's `<style>` text with B's gives B. `test/paint-only.test.ts` asserts it for every corpus document, `neutral-light` against `neutral-dark`, with equal `structureHash`; that a document differing only in its `@theme` gets the same class names and marker ids; that stripping every paint declaration and turning plates off leaves the structure alone; and that changing the arrowhead kind changes both the structure and `structureHash`. The class and marker naming is pinned by `test/naming-memo.test.ts` (the whole corpus, plus the marker key's cross product) and the marker colour in Chromium by `test/browser/markers.browser.test.ts`. Until the re-baseline this did not hold, for two reasons: paint classes were named after `paintHash`, and a marker baked its stroke colour into its `fill` and its id (F7); both are gone.
 - Manual gate (release checklist): open a golden in Inkscape, Figma and Safari; labels within 1 px.

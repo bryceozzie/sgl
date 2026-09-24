@@ -209,7 +209,7 @@ gives every expanded edge that label and that style. There is no way to tell, do
 | `@tooltip`, `@link` | node, edge | `@link` restricted to `https:` and `mailto:`; anything else, including in-document `#path`, is dropped with `SGL6001` (DD-07 §8) |
 | `@style.*` | any | Paint overrides: `fill`, `stroke`, `strokeWidth`, `strokeDash`, `opacity`, `font*`, `radius`, `shadow` |
 | `@layout.*` | any | Engine hints. `@layout.engine`, plus free-form engine-specific keys |
-| `@size.*` | node | `width`, `height`, `minWidth`, `maxWidth`, `aspectRatio` |
+| `@size.*` | node | `width`, `height`, `minWidth`, `minHeight`, `maxWidth`, `aspectRatio` (any other key: `SGL2010`, and no effect) |
 | `@pin` | node | `{ x, y }` — absolute position auto-layout must respect |
 | `@ports` | node | Named anchors |
 | `@direction` | container | Sugar for `@layout.direction`: `down` `up` `left` `right` |

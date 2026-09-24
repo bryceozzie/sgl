@@ -7,6 +7,7 @@
  */
 
 export * from './anchor.js';
+export * from './bounds.js';
 export * from './content-insets.js';
 export * from './contract.js';
 export * from './fallbacks.js';

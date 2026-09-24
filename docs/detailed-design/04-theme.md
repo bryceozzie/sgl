@@ -132,11 +132,15 @@ Per element, lowest to highest precedence. Each step is a `StyleSet`; later keys
 | 3 | `byClass[c]` for `c` in `classes` (linearised order) | ✔ | ✔ | ✔ |
 | 4 | Document `@classes[c].style` for `c` in `classes` | ✔ | ✔ | ✔ |
 | 5 | Inline `config.style` | ✔ | ✔ | ✔ |
-| 6 | Inline `config.size` → `width height minWidth …` | ✔ | ✔ | — |
+| 6 | Inline `config.size`, **only** the size keys (`SIZE_KEYS`: `width height minWidth minHeight maxWidth aspectRatio`) | ✔ | ✔ | — |
+
+Step 6 is geometry only. Any other key under `@size` — `@size.fill`, say — is kept by the resolver with `SGL2010` (language spec §4: an unknown key in a known namespace) and never reaches the bag. Until fix round 1 of the Stage L re-baseline, step 6 applied any key, so `@size.fill` painted; and because the renderer names paint classes after the cascade signature, which leaves `@size` out (below; DD-07 §6), such an element shared its paint class with an unstyled sibling and repainted it.
 
 Text properties for the element's label resolve the same way but starting from `rules.<role>.title` / `rules.edge.label` at step 1, then the *same* steps 3–5 filtered to `appliesTo: text`. So `@style.fontSize: 16` on a node applies to its title; `@style.fill` does not.
 
 A container is a node with children; it takes `rules.container` instead of `rules.node`. Everything else is identical.
+
+**Cascade inputs (pinned by Stage L's F7 re-baseline).** Everything steps 1–5 read from the element itself, rather than from the theme, is its *cascade signature*: its role (`node`, `container`, `edge`, or the label role `node.title` / `container.title` / `edge.label`), its shape (step 2; nodes and containers), its classes in linearised order (steps 3 and 4 look both the theme's `byClass` and the document's `@classes` up by name), and its inline `@style` bag (step 5). Under one theme and one document, two elements with the same signature get the same paint. DD-07 §6 names the renderer's paint classes after this signature so that they are the same under every theme; a new input to steps 1–5 must therefore be added to `cascadeSignature` (`@sgl/render-svg`'s `style.ts`) as well. Step 6 (`@size`) is geometry only and is not an input to paint.
 
 Document-class and inline values may also be `@token` references, resolved against the active theme. This is what lets `@style.stroke: "@danger"` in a document work under every theme.
 

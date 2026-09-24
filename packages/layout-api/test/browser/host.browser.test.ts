@@ -117,9 +117,10 @@ describe('createWorkerHost against a real Worker (DD-06 §10)', () => {
       },
     });
     try {
-      const outcome = await run(host, 'test.measuring', OK_INPUT);
+      const outcome = await run(host, 'test.measuring', INPUT);
       expect(outcome.diagnostics).toEqual([]);
-      expect(outcome.value?.bounds).toMatchObject({ w: 33, h: 7 });
+      expect(outcome.value?.nodes[A]?.frame).toEqual({ x: 16, y: 16, w: 33, h: 7 });
+      expect(outcome.value?.bounds).toEqual({ x: 0, y: 0, w: 33 + 32, h: 7 + 32 });
     } finally {
       host.dispose();
     }

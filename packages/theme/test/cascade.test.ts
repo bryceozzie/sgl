@@ -440,6 +440,14 @@ describe('styleGraph: the cascade (DD-04 §4)', () => {
     expect(value.styles['n']?.geometry['minHeight']).toBe(48);
   });
 
+  it('step 6 applies only the `@size` keys (SIZE_KEYS): a paint key under `@size` never paints (fix round 1, item 1)', () => {
+    const config: ConfigBag = { size: { width: 200, fill: '#FF0000', stroke: '#00FF00' } };
+    const graph = fixture({ nodes: [node('n', { config }), node('m')] });
+    const { value } = styleGraph(graph, light, {});
+    expect(value.styles['n']?.geometry['width']).toBe(200);
+    expect(value.styles['n']?.paint).toEqual(value.styles['m']?.paint);
+  });
+
   it('reports an unknown or mistyped inline property against the element span', () => {
     const config: ConfigBag = { style: { fill: 42, sparkle: true } };
     const graph = fixture({ nodes: [node('n', { config, span: { from: 10, to: 20 } })] });

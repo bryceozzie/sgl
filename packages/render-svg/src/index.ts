@@ -11,7 +11,7 @@
 import {
   diagnostic,
   type Diagnostic,
-  type EdgeId,
+  type GraphEdge,
   type LabelId,
   type NodeId,
   type PathSeg,
@@ -21,11 +21,11 @@ import {
 import type { ComputedStyle, ResolvedTheme, StyledGraph } from '@sgl/theme';
 
 import type { EdgeLayoutView, LabelPlacementView, LayoutView } from './layout-view.js';
-import { isArrowhead, MarkerTable, type Arrowhead } from './markers.js';
+import { isArrowhead, markerPaintClass, MarkerTable, type Arrowhead } from './markers.js';
 import { num, nums } from './num.js';
 import { escapeXml, edgeElementId, nodeElementId, safeUrl } from './security.js';
 import { DEFAULT_SHAPE, resolveShape } from './shapes.js';
-import { buildStyleBlock, buildTokenBlock, ClassTable } from './style.js';
+import { buildStyleBlock, cascadeSignature, ClassTable } from './style.js';
 import { renderText, textBlock } from './text.js';
 
 export * from './layout-view.js';
@@ -38,20 +38,16 @@ export * from './text.js';
 
 export interface RenderResult {
   readonly svg: string;
-  /** The main `<style>` element's text: every rule that paints the diagram,
-   *  with literal values and no custom property (F17, DD-07 §6).
-   *  Returned separately for export and for re-theming an exported file. It is
-   *  *not* a paint-only live-view swap key: `s-`/`t-`/`p-` class names embed
-   *  `paintHash`, so a paint change also changes every element's `class`
-   *  attribute, and a directed edge's marker id embeds the stroke colour too
-   *  (`markers.ts`). See DD-07 §2, §6, §11 and DD-08 §3 for what is and is not
-   *  implementable here. */
+  /** The `<style>` element's text: every rule that paints the diagram, with
+   *  literal values and no custom property (F17, DD-07 §6). Every paint the
+   *  output carries is here, markers' included (F7). */
   readonly styleBlock: string;
-  /** The token `<style>` element's text — one `svg.sgl{--…}` rule holding the
-   *  theme tokens as custom properties, for a consumer to override. It is its
-   *  own element, after the main one, because Inkscape discards a whole
-   *  `<style>` element that declares a custom property (F17, DD-07 §6). */
-  readonly tokenBlock: string;
+  /** `structureHash(styled)` (DD-07 §6): of two renders of the same
+   *  `LayoutResult`, equal `structureHash` ⇒ the SVG outside the `<style>` and
+   *  `<defs>` text is byte-identical, so swapping those two texts alone turns
+   *  one into the other (F7; DD-07 §11). Conservative: unequal hashes may
+   *  still render the same bytes. */
+  readonly structureHash: string;
   readonly bounds: Rect;
   readonly diagnostics: readonly Diagnostic[];
 }
@@ -66,6 +62,105 @@ function geometryNumber(style: ComputedStyle | undefined, key: string, fallback:
 function paintString(style: ComputedStyle | undefined, key: string): string | null {
   const v = style?.paint[key];
   return typeof v === 'string' ? v : null;
+}
+
+/** The config keys `render()` writes into the output (links, a11y text). */
+const RENDERED_CONFIG = ['link', 'a11y'] as const;
+
+function renderedConfig(config: Readonly<Record<string, unknown>>): string {
+  let out = '';
+  for (const key of RENDERED_CONFIG) {
+    const v = config[key];
+    if (v !== undefined) out += `${key}=${JSON.stringify(v)};`;
+  }
+  return out;
+}
+
+function labelText(styled: StyledGraph, labelId: LabelId | null): string {
+  if (labelId === null) return '';
+  const spec = styled.graph.labels[labelId];
+  return spec === undefined ? '' : labelLines(spec.runs).join('\n');
+}
+
+/**
+ * A hash of everything that decides the output **outside** the `<style>`
+ * and `<defs>` text, except the layout (DD-07 §6): the geometry of every style
+ * (`geometryHash` — the `g-` classes, text metrics, radii, arrow sizes); per
+ * element, in document order, its id, its cascade signature (which names its
+ * paint classes and, for an edge, its markers, and carries the element's
+ * shape and classes), its hidden flag, its label text and the config the
+ * output shows (`@link`, `@a11y`); per edge, its endpoints, direction and
+ * arrowhead kind (it names the marker; `none` drops the attribute); and the
+ * title. So, for the same `LayoutResult`, **equal `structureHash` ⇒ the
+ * output outside `<style>`/`<defs>` is byte-identical** (a hash is
+ * conservative: unequal hashes can still render the same bytes). A theme
+ * switch between themes of equal geometry and arrowheads leaves it unchanged;
+ * an inline `@style` edit, a class, a label or a link changes it (fix round 1,
+ * item 4). One pass over the elements and no render (DD-07 §6 has the cost).
+ */
+export function structureHash(styled: StyledGraph): string {
+  const { graph } = styled;
+  const h = new StructureHasher();
+  h.add(styled.geometryHash);
+  h.add(graph.title ?? '');
+  for (const id of graph.order) {
+    const node = graph.nodes[id];
+    if (node === undefined) continue;
+    const role = node.children.length > 0 ? 'container' : 'node';
+    h.add('n');
+    h.add(id);
+    h.add(node.hidden ? '1' : '0');
+    h.add(cascadeSignature(role, node.shape, node.classes, node.config));
+    h.add(labelText(styled, node.labelId));
+    h.add(renderedConfig(node.config));
+  }
+  for (const edge of graph.edges) {
+    const value = styled.styles[edge.id]?.paint['arrowhead'];
+    h.add('e');
+    h.add(edge.id);
+    h.add(edge.from.node);
+    h.add(edge.to.node);
+    h.add(edge.directed);
+    h.add(edge.directed === 'none' ? '' : isArrowhead(value) ? value : 'triangle');
+    h.add(cascadeSignature('edge', undefined, edge.classes, edge.config));
+    h.add(labelText(styled, edge.labelId));
+    h.add(renderedConfig(edge.config));
+  }
+  return h.digest();
+}
+
+/**
+ * Two independent 32-bit multiplicative hashes over UTF-16 code units, with a
+ * separator after every field, as 16 hex digits. Not `fnv1a64`: that is part
+ * of the output's compatibility surface (DD-00 §3) and byte-at-a-time over
+ * UTF-8, ~12 ns a character; this never leaves the process, and at 2 000
+ * nodes it is the difference between ~7 ms and well under 1 ms.
+ */
+class StructureHasher {
+  private a = 0x811c9dc5;
+  private b = 0x01000193;
+
+  add(text: string): void {
+    let a = this.a;
+    let b = this.b;
+    for (let i = 0; i < text.length; i += 1) {
+      const c = text.charCodeAt(i);
+      a = Math.imul(a ^ c, 0x01000193);
+      b = Math.imul(b ^ c, 0x5bd1e995);
+      b ^= b >>> 15;
+    }
+    // A separator no string can forge: the field length, then a sentinel.
+    a = Math.imul(a ^ (text.length + 0x10000), 0x01000193);
+    b = Math.imul(b ^ (text.length + 0x10000), 0x5bd1e995);
+    b ^= b >>> 15;
+    this.a = a;
+    this.b = b;
+  }
+
+  digest(): string {
+    const hex = (v: number): string => (v >>> 0).toString(16).padStart(8, '0');
+    return hex(this.a) + hex(this.b);
+  }
 }
 
 /** Path data for an edge route: `M start` then each segment (DD-06 §2). */
@@ -163,7 +258,8 @@ function renderNode(id: NodeId, isContainer: boolean, ctx: Ctx): string {
   }
 
   const radius = geometryNumber(style, 'radius', 0);
-  const shapeClass = style === undefined ? '' : ctx.classes.shapeClasses(style);
+  const role = isContainer ? 'container' : 'node';
+  const shapeClass = style === undefined ? '' : ctx.classes.shapeClasses(style, cascadeSignature(role, node.shape, node.classes, node.config));
   const kind = isContainer ? 'c' : 'n';
 
   const parts: string[] = [
@@ -190,7 +286,7 @@ function renderNode(id: NodeId, isContainer: boolean, ctx: Ctx): string {
     if (placement !== undefined && labelStyle !== undefined) {
       const block = textBlock(labelLines(title.runs), labelStyle, placement.text);
       parts.push(
-        renderText(placement, block, ctx.classes.textClasses(labelStyle), `${kind}-title`, true),
+        renderText(placement, block, ctx.classes.textClasses(labelStyle, cascadeSignature(`${role}.title`, undefined, node.classes, node.config)), `${kind}-title`, true),
       );
     }
   }
@@ -218,20 +314,23 @@ function renderEdge(edgeIndex: number, ctx: Ctx): string {
   const arrowValue = style?.paint['arrowhead'];
   const arrowhead: Arrowhead = isArrowhead(arrowValue) ? arrowValue : 'triangle';
   const size = geometryNumber(style, 'arrowSize', 8);
+  const signature = cascadeSignature('edge', undefined, edge.classes, edge.config);
 
   const attrs: string[] = [
-    `class="${escapeXml(['e-path', style === undefined ? '' : ctx.classes.shapeClasses(style)].filter(Boolean).join(' '))}"`,
+    `class="${escapeXml(['e-path', style === undefined ? '' : ctx.classes.shapeClasses(style, signature)].filter(Boolean).join(' '))}"`,
     `d="${routePath(geom)}"`,
   ];
 
   // `forward` puts a head at `to`; `both` puts one at each end; `none` neither.
+  // The marker is named after the edge's paint-class token, never its colour;
+  // the colour is a `<style>` rule on the marker's own shape (DD-07 §6).
   if (edge.directed === 'forward' || edge.directed === 'both') {
-    const id = ctx.markers.add(arrowhead, stroke, size, false);
-    if (id !== null) attrs.push(`marker-end="url(#${id})"`);
-  }
-  if (edge.directed === 'both') {
-    const id = ctx.markers.add(arrowhead, stroke, size, true);
-    if (id !== null) attrs.push(`marker-start="url(#${id})"`);
+    const token = ctx.classes.token(signature);
+    const end = ctx.markers.add(arrowhead, size, false, token);
+    const start = edge.directed === 'both' ? ctx.markers.add(arrowhead, size, true, token) : null;
+    if (end !== null) attrs.push(`marker-end="url(#${end})"`);
+    if (start !== null) attrs.push(`marker-start="url(#${start})"`);
+    if (end !== null || start !== null) ctx.classes.markerPaint(markerPaintClass(arrowhead, token), arrowhead === 'open', stroke);
   }
 
   const from = String(edge.from.node);
@@ -254,7 +353,7 @@ function renderEdge(edgeIndex: number, ctx: Ctx): string {
 }
 
 /** Edge labels are their own top layer so a plate never sits under a node. */
-function renderEdgeLabel(edgeId: EdgeId, labelId: LabelId, ctx: Ctx): string {
+function renderEdgeLabel(edge: GraphEdge, labelId: LabelId, ctx: Ctx): string {
   const spec = ctx.styled.graph.labels[labelId];
   const placement = ctx.placements.get(labelId as string);
   const style = ctx.styled.labelStyles[labelId];
@@ -262,10 +361,13 @@ function renderEdgeLabel(edgeId: EdgeId, labelId: LabelId, ctx: Ctx): string {
 
   const block = textBlock(labelLines(spec.runs), style, placement.text);
   const parts: string[] = [];
+  const labelSignature = cascadeSignature('edge.label', undefined, edge.classes, edge.config);
 
+  // The plate is drawn whenever the placement asks for one, whatever the
+  // theme's `labelPlate` (F7: `none` is `fill:none`, DD-07 §6).
   if (placement.occlusion === 'plate') {
-    const edgeStyle = ctx.styled.styles[edgeId];
-    const plate = edgeStyle === undefined ? '' : ctx.classes.plateClasses(edgeStyle);
+    const edgeStyle = ctx.styled.styles[edge.id];
+    const plate = edgeStyle === undefined ? '' : ctx.classes.plateClasses(edgeStyle, cascadeSignature('edge', undefined, edge.classes, edge.config));
     if (plate !== '') {
       parts.push(
         `<rect class="${escapeXml(`el-plate ${plate}`)}" x="${num(placement.frame.x)}" y="${num(placement.frame.y)}"` +
@@ -274,7 +376,7 @@ function renderEdgeLabel(edgeId: EdgeId, labelId: LabelId, ctx: Ctx): string {
     }
   }
 
-  parts.push(renderText(placement, block, ctx.classes.textClasses(style), 'el-text', true));
+  parts.push(renderText(placement, block, ctx.classes.textClasses(style, labelSignature), 'el-text', true));
   return `<g class="el" aria-hidden="true">${parts.join('')}</g>`;
 }
 
@@ -284,8 +386,13 @@ function renderEdgeLabel(edgeId: EdgeId, labelId: LabelId, ctx: Ctx): string {
  * Layer order is fixed (DD-07 §2): containers, edges, nodes, edge labels. Document
  * order within the node layers is `graph.order`, so a screen reader walks the
  * diagram in declaration order — the author's intended reading order.
+ *
+ * `_theme` is part of DD-07's signature but no longer read: everything the
+ * output needs from it is already resolved into `styled` (its only reader was
+ * the token `<style>` element, removed with F18).
  */
-export function render(styled: StyledGraph, layout: LayoutView, theme: ResolvedTheme): RenderResult {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- DD-07's signature; see above.
+export function render(styled: StyledGraph, layout: LayoutView, _theme: ResolvedTheme): RenderResult {
   const ctx: Ctx = {
     styled,
     layout,
@@ -311,7 +418,7 @@ export function render(styled: StyledGraph, layout: LayoutView, theme: ResolvedT
     const svg = renderEdge(i, ctx);
     if (svg === '') return;
     edges.push(svg);
-    if (edge.labelId !== null) edgeLabels.push(renderEdgeLabel(edge.id, edge.labelId, ctx));
+    if (edge.labelId !== null) edgeLabels.push(renderEdgeLabel(edge, edge.labelId, ctx));
   });
 
   const { bounds } = layout;
@@ -322,7 +429,6 @@ export function render(styled: StyledGraph, layout: LayoutView, theme: ResolvedT
   // Built after the layers, because rendering is what discovers which classes and
   // markers the document actually uses.
   const styleBlock = buildStyleBlock(styled.canvas.background, ctx.classes.emit());
-  const tokenBlock = buildTokenBlock(theme, styled.canvas.background);
   const defs = ctx.markers.emit();
 
   const svg =
@@ -334,7 +440,6 @@ export function render(styled: StyledGraph, layout: LayoutView, theme: ResolvedT
     `<title id="sgl-t">${escapeXml(title)}</title>` +
     `<desc id="sgl-d">${escapeXml(desc)}</desc>` +
     `<style>${escapeXml(styleBlock)}</style>` +
-    `<style>${escapeXml(tokenBlock)}</style>` +
     `<defs>${defs}</defs>` +
     `<rect class="canvas" x="${num(bounds.x)}" y="${num(bounds.y)}" width="${num(bounds.w)}" height="${num(bounds.h)}" aria-hidden="true"/>` +
     `<g class="L-containers">${containers.join('')}</g>` +
@@ -343,7 +448,7 @@ export function render(styled: StyledGraph, layout: LayoutView, theme: ResolvedT
     `<g class="L-labels">${edgeLabels.join('')}</g>` +
     `</svg>`;
 
-  return { svg, styleBlock, tokenBlock, bounds, diagnostics: ctx.diagnostics };
+  return { svg, styleBlock, structureHash: structureHash(styled), bounds, diagnostics: ctx.diagnostics };
 }
 
 export { DEFAULT_SHAPE };

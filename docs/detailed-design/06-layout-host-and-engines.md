@@ -183,7 +183,7 @@ Stage E's brief (07 §5) named only clipping and self-loops for `routeStraight`,
 
 If an engine returns a self-loop route of fewer than two segments (or none), replace it with a loop: exit the node's top-right at 45°, three `C` segments forming a teardrop of radius `max(24, node.h/2)`, re-enter at the right. Label at the loop's apex.
 
-**Engine self-loops (Stage K).** `finishEngineRoutes` also applies this to a self-loop an engine *did* route, when the route has fewer than two segments or is under `MIN_SELF_LOOP_HEIGHT` (16 px) tall — §6.2's rule for ELK, whose unlabelled loops are a 10 px box. Because the host now owns that route, it owns its label too: an engine's label for a replaced loop is re-placed at the apex, as `placeLabels` would. The teardrop reaches outside the engine's `bounds`, so `bounds` is grown to include it and its label plus 16 px (§5). A loop the engine drew at least 16 px tall is kept (and reserved like any engine route), with its label.
+**Engine self-loops (Stage K).** `finishEngineRoutes` also applies this to a self-loop an engine *did* route, when the route has fewer than two segments or is under `MIN_SELF_LOOP_HEIGHT` (16 px) tall — §6.2's rule for ELK, whose unlabelled loops are a 10 px box. Because the host now owns that route, it owns its label too: an engine's label for a replaced loop is re-placed at the apex, as `placeLabels` would. The teardrop reaches outside the engine's `bounds`; `quantize`'s host-computed `bounds` (§5) takes it and its label in, like everything else drawn. A loop the engine drew at least 16 px tall is kept (and reserved like any engine route), with its label.
 
 ### 4.6 Aspect lock
 
@@ -215,9 +215,15 @@ For nodes with `aspectRatio`, after layout: `w = h = max(w, h)` (ratio 1) or the
 
 **Quantization** (ADR-0004): every `x y w h`, every path point, every label frame → `Math.round(v * 64) / 64`. Applied to the validated result; the `LayoutResult` the renderer sees is always quantized.
 
-`bounds` is recomputed by the host from the quantized frames and routes plus `canvas.margin` (16 px), so engines may leave it approximate.
+**Bounds (F14, Stage L re-baseline).** `bounds` is recomputed by the host from the quantized result plus `canvas.margin` (`CANVAS_MARGIN`, 16 px), so engines may leave it approximate — whatever an engine returns is discarded. `quantize` (`validate.ts`) does it as its last step, so it holds for every engine and for every caller of `quantize` (`host.ts`, the conformance harness, the goldens):
 
-**Not implemented in general (found in Stage K).** No stage has done this recomputation: `host.ts` passes the engine's `bounds` through, and doing it now for every engine would move `grid`'s existing goldens (its teardrops already reach past its `bounds`). The only place the host grows `bounds` is where it replaces engine geometry: a teardrop swapped in for an engine's self-loop (§4.5). Recomputing `bounds` for all engines — and re-baselining `grid`'s goldens with it — is left for a human decision.
+1. **Extent** (`contentExtent`, `bounds.ts`): the box around every node `frame`, `contentFrame` and port point, every label `frame` (rotated about its centre when it has a `rotation`, as DD-07 §5 draws it), and every edge's `start`, `end` and route — a `C`/`Q` segment by its own extrema, not its control polygon, so the margin round a self-loop teardrop (§4.5) is the same 16 px as round a frame; an `A` segment (no shipped engine emits one) conservatively by its chord grown by its larger radius. Markers and strokes are **not** measured: the extent is the geometry's, not the ink's, and the 16 px margin absorbs the ink (see the limit below).
+2. **Margin**: the extent grown by 16 on every side, rounded **outward** to the 1/64 grid.
+3. **Origin**: every coordinate (frames, content frames, ports, routes, label frames) is translated so that box starts at `(0, 0)`; `bounds` is `{ x: 0, y: 0, w, h }`. The translation is a whole number of grid steps, so the result stays on the grid and a second `quantize` is a no-op. Keeping the origin at zero is what lets the application's overlay and hit-testing (DD-08 §6) keep placing `NodeLayout.frame` directly in the rendered `<svg>`'s coordinates.
+
+**Limit: ink the extent does not measure (fix round 1 of the re-baseline, item 10).** `quantize` sees only the `LayoutResult`, not the styles, so it bounds geometry, not ink: a stroke reaches `strokeWidth / 2` past the path or frame it strokes, and an arrowhead's base reaches `0.375 · arrowSize` to either side of the (reserved) path end, `0.375 · arrowSize + max(1, arrowSize / 6) / 2` for the stroked `open` head. The margin covers that while **`strokeWidth ≤ 32` and `arrowSize ≤ 42` (`≤ 34` for `open`)** — the built-in themes use 1–1.5 and 8. Past it, ink at the outermost element can be clipped by up to the excess. Measuring the ink instead was considered and not done: node frames touch the margin in every corpus document, so adding even the built-ins' `0.75` px of stroke would move every layout and SVG golden again, outside this re-baseline's approved scope. A theme-validation warning for values past the limit needs a diagnostic code the catalogue does not have (`SGL5004` means "wrong type; ignored"), so it is left for a catalogue decision, not added here.
+
+A result that draws nothing gets `{ x: 0, y: 0, w: 0, h: 0 }`. Before F14, `host.ts` passed an engine's `bounds` through: `elk`'s margin was ELK's own 12 px root padding, `grid`'s was 0, and `grid`'s self-loop teardrops were clipped at the canvas's top edge; the only growth was `finishEngineRoutes` taking in a teardrop it swapped in for an engine's loop, which the general recomputation replaced. Tests: `layout-api/test/validate.test.ts` (the rule), `render-svg/test/bounds.test.ts` (the corpus under both engines, curves sampled along their length, and `parallel-selfloop.sgl`'s teardrops under `grid`).
 
 ---
 
@@ -321,7 +327,7 @@ LabelPlacement (cont.)  = frame at frame + (contentInset.l, contentInset.t), siz
 (a coordinate or size ELK left out — x, y, width, height, of a node, port or label — maps to NaN, never 0, so
  validateResult rejects the result with SGL4002; fix round 1, item 5)
 LabelPlacement (edge)   = frame at abs(container) + label.x/y, align 'middle', baseline 'top', occlusion 'plate'
-bounds                  = { 0, 0, root.width, root.height }
+bounds                  = { 0, 0, root.width, root.height }   (advisory: the host replaces it, §5)
 (an edge ELK returns without a section is left out, so routeStraight fills it; an id ELK returns that was never sent throws → SGL4011)
 ```
 

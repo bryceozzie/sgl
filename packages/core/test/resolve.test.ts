@@ -293,6 +293,13 @@ describe('config-key registry (DD-02 §7)', () => {
     expect(diagnostics.map((d) => d.code)).toEqual(['SGL2010']);
   });
 
+  it('an unknown key under @size is kept with SGL2010 naming it (spec §4; fix round 1, item 1)', () => {
+    const { model, diagnostics } = resolveSrc('a: { @size: { width: 80, fill: "#FF0000", aspectRatio: 1 } }\n');
+    const a = model.root.children[0] as ContainerModel;
+    expect(a.config.size).toEqual({ width: 80, fill: '#FF0000', aspectRatio: 1 });
+    expect(diagnostics.map((d) => [d.code, d.message])).toEqual([['SGL2010', expect.stringContaining('`@size.fill`')]]);
+  });
+
   it('a wrong-type value is dropped with SGL2011', () => {
     const { model, diagnostics } = resolveSrc('a: { @hidden: "yes" }\n');
     const a = model.root.children[0] as ContainerModel;
