@@ -40,7 +40,7 @@ object-src 'none'; base-uri 'none'; frame-ancestors 'none';
 
 **Implemented (Stage J), `apps/web/build/headers.ts`**: the header is DD-10 §5's `_headers`, emitted into `dist/` by the build; the `<meta>` mirror is injected into the built `index.html` and leaves out `frame-ancestors`, which CSP ignores in a `<meta>` policy (Chromium logs an error for it). `apps/web/test/headers.test.ts` holds the directives to the block above, and `apps/web/e2e/csp.spec.ts` runs the production build under both with no violation.
 
-`'unsafe-inline'` for styles is the one concession, and it is why the rendered SVG's `<style>` block must still be generated only from validated values — CSP does not protect a document from its own inline styles.
+`'unsafe-inline'` for styles is the one concession, and it is why the rendered SVG's `<style>` elements (the main block and the token block, DD-07 §6) must still be generated only from validated values — CSP does not protect a document from its own inline styles.
 
 ### 1.3 Exported SVG
 

@@ -9,11 +9,12 @@ import fixtures from '../../../../bench/render-fixtures.json';
 /**
  * F17 (execution plan §2.1, DD-07 §6): the theme tokens moved out of the main
  * `<style>` into an element of their own, and `.canvas` now carries a literal
- * colour. This checks, in a real CSS engine, that the move kept DD-07's
- * re-theme promise: the token element is CSS a browser accepts whole — one
- * `svg.sgl` rule whose every declaration survives parsing — the diagram is
- * painted by the main element alone, and a consumer's own `svg.sgl{--…}` rule
- * overrides a token on the exported root.
+ * colour. This checks, in a real CSS engine, that the token element is CSS a
+ * browser accepts whole — one `svg.sgl` rule whose every declaration survives
+ * parsing — and that the diagram is painted by the main element alone. The
+ * override case only shows a consumer's `svg.sgl{--…}` rule sets the custom
+ * property on the root; nothing in the SVG reads the tokens, so an override
+ * does not repaint the diagram (DD-07 §6; §2.1 F18).
  */
 
 interface Fixture {
@@ -50,7 +51,7 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-describe('F17: the separate token <style> keeps the re-theme promise (DD-07 §6)', () => {
+describe('F17: the separate token <style> (DD-07 §6)', () => {
   it('has the n50 fixtures under both themes', () => {
     expect(FIXTURES.map((f) => f.themeName).sort()).toEqual(['neutral-dark', 'neutral-light']);
   });
