@@ -8,7 +8,8 @@
   "files": ["dist"],
   "exports": {
     ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-    "./editor": { "types": "./dist/editor.d.ts", "default": "./dist/editor.js" }
+    "./editor": { "types": "./dist/editor.d.ts", "default": "./dist/editor.js" },
+    "./json": { "types": "./dist/json.d.ts", "default": "./dist/json.js" }
   },
   "scripts": {
     "grammar": "lezer-generator src/grammar/sgl.grammar -o src/grammar/sgl.parser.js",

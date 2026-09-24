@@ -1,4 +1,5 @@
-import { toJson, type Diagnostic, type DocumentModel } from '@sgl/core';
+import type { Diagnostic, DocumentModel } from '@sgl/core';
+import { toJson } from '@sgl/core/json';
 import { openableExtension, saveFileName, type OpenableExtension, type SaveKind } from './filename.js';
 
 /** DD-08 §7, DOM-free: what Open accepts and what each Save ▾ item writes.

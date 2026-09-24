@@ -1,7 +1,9 @@
 import { defineConfig } from 'tsdown';
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/editor.ts'],
+  // `src/json.ts` (A8 fix round 2): canonical JSON as `@sgl/core/json`, so an
+  // app bundle that never saves `.sgl.json` at boot keeps `toJson` out of it.
+  entry: ['src/index.ts', 'src/editor.ts', 'src/json.ts'],
   format: 'esm',
   dts: true,
   clean: true,

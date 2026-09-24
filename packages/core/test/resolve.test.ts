@@ -7,7 +7,8 @@ import type { DiagnosticCode } from '../src/diagnostics.js';
 import { nodeIdFromPath } from '../src/ids.js';
 import type { ClassModel, ConfigBag, ContainerModel, DocumentModel, EdgeModel } from '../src/model.js';
 import { parse } from '../src/parse.js';
-import { fromJson, resolve, toJson } from '../src/resolve.js';
+import { fromJson, toJson } from '../src/json.js';
+import { resolve } from '../src/resolve.js';
 import { CLEAN_DOCS } from './corpus-docs.js';
 
 const corpusDir = fileURLToPath(new URL('../../../corpus/', import.meta.url));

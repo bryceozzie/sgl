@@ -166,6 +166,8 @@ toJson(model: DocumentModel): string
 fromJson(text: string): ResolveResult      // = resolve(parse(text)) — the grammar accepts JSON
 ```
 
+Both live in `packages/core/src/json.ts`, exported as the subpath **`@sgl/core/json`**, not from the package root (A8 fix round 2, execution plan §2.1 F20): only Save ▾ → Canonical JSON uses them, from the app's lazy `file-actions` chunk, so the writers stay out of the boot bundle. Reading `.sgl.json` needs none of it — boot parses stored, opened and shared documents as source, since the grammar reads JSON.
+
 `toJson` is the only new code. Serialisation rules, so that output is stable and diffable:
 
 1. Root object. `"@sgl": "1.0"` first, then root config keys in **registry order** (§7), then `"@classes"`, then children in declaration order, then `"@edges"` last.

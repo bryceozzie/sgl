@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { compile } from '../src/compile.js';
 import type { ConfigBag, ContainerModel, DocumentModel } from '../src/model.js';
 import { parse } from '../src/parse.js';
-import { fromJson, resolve, toJson } from '../src/resolve.js';
+import { fromJson, toJson } from '../src/json.js';
+import { resolve } from '../src/resolve.js';
 
 /**
  * A8 fix round 1: variables under hostile or unusual input — exponential
