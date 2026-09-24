@@ -264,6 +264,7 @@ describe('createWorkerHost (DD-06 §3, Stage H decision D1)', () => {
     await vi.advanceTimersByTimeAsync(ABORT_ESCALATION_MS);
     expect(workers[0]!.terminated).toBe(true);
     expect(workers).toHaveLength(2);
+    expect(workers[1]!.posted).toEqual([]); // nothing was current, so nothing is re-posted (F21)
   });
 
   it('abort: a reply within 250 ms cancels the escalation (no respawn), and is discarded', async () => {
@@ -306,6 +307,49 @@ describe('createWorkerHost (DD-06 §3, Stage H decision D1)', () => {
 
     workers[0]!.emit({ t: 'result', id: 1, result: GOOD_RESULT, ms: 1 });
     expect((await second).value).not.toBeNull();
+  });
+
+  // F21: the superseding request is posted to the same worker as the one it
+  // aborts. When that worker cannot answer the abort within 250 ms (busy
+  // importing elkjs, or inside ELK's synchronous run, under CPU load), the
+  // escalation terminates it — and the superseding request with it. It must be
+  // posted again to the respawned worker, not left to time out as SGL4001.
+  it('abort escalation while a superseding request is in flight re-posts that request to the respawned worker', async () => {
+    const { spawn, workers } = makeSpawn();
+    const host = createWorkerHost(spawn, { timeoutMs: 10_000 });
+
+    const first = run(host);
+    const second = run(host); // id 1 — posted to workers[0], which is still busy with id 0
+    await first.catch(() => {});
+
+    await vi.advanceTimersByTimeAsync(ABORT_ESCALATION_MS); // no answer for id 0: escalate
+    expect(workers[0]!.terminated).toBe(true);
+    expect(workers).toHaveLength(2);
+    expect(workers[1]!.posted).toEqual([workers[0]!.posted[2]]); // the same 'layout' message for id 1
+    expect(workers[1]!.posted[0]).toMatchObject({ t: 'layout', id: 1 });
+
+    workers[1]!.emit({ t: 'result', id: 1, result: GOOD_RESULT, ms: 1 });
+    const result = await second;
+    expect(result.diagnostics).toEqual([]);
+    expect(result.value).not.toBeNull();
+    expect(workers).toHaveLength(2); // no further respawn
+  });
+
+  it('a re-posted request keeps its original deadline (the clock starts at run())', async () => {
+    const { spawn, workers } = makeSpawn();
+    const host = createWorkerHost(spawn, { timeoutMs: 1_000 });
+
+    void run(host).catch(() => {});
+    const second = run(host);
+    await vi.advanceTimersByTimeAsync(ABORT_ESCALATION_MS);
+    expect(workers[1]!.posted).toHaveLength(1);
+
+    await vi.advanceTimersByTimeAsync(1_000 - ABORT_ESCALATION_MS);
+    const result = await second;
+    expect(result.value).toBeNull();
+    expect(result.diagnostics.map((d) => d.code)).toEqual(['SGL4001']);
+    expect(workers).toHaveLength(3); // the timeout respawns once more; nothing is re-posted to it
+    expect(workers[2]!.posted).toEqual([]);
   });
 
   it('measure-miss round trip: the host answers a worker\'s "measure" RPC', async () => {

@@ -1,6 +1,6 @@
 import { diagnostic, NO_SPAN, type StageResult } from '@sgl/core';
 import type { LayoutInput, LayoutResult, ResolvedThemeMetricsView } from './contract.js';
-import type { WorkerToHost } from './protocol.js';
+import type { HostToWorker, WorkerToHost } from './protocol.js';
 import { quantize, validateResult } from './validate.js';
 
 /** Default hard timeout. On expiry the host terminates the worker, respawns it,
@@ -73,6 +73,8 @@ interface InFlight {
   readonly id: number;
   readonly engineId: string;
   readonly input: LayoutInput;
+  /** The `'layout'` message as posted, kept so a respawn can post it again. */
+  readonly message: Extract<HostToWorker, { t: 'layout' }>;
   readonly timer: ReturnType<typeof setTimeout>;
   readonly signal: AbortSignal;
   readonly onAbort: () => void;
@@ -132,6 +134,17 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
     return engineTimeoutMs[engineId] ?? defaultTimeoutMs;
   }
 
+  /** Replaces the worker. The current request, if there is one, was posted
+   *  to the worker being terminated, so it is posted again to the new one
+   *  (F21): an abort escalation terminates the worker because it did not
+   *  answer the *previous* request's abort in time — typically still importing
+   *  elkjs or inside ELK's synchronous run — while the request that superseded
+   *  it is queued behind on that same worker. Dropping it left the caller
+   *  waiting for the full timeout and then an SGL4001 with no layout, for a
+   *  request no engine had even started. It keeps its timer: the deadline runs
+   *  from `run()` (§3's lifecycle), so a re-post cannot extend it, and a
+   *  request is re-posted at most once per respawn. A timeout's respawn takes
+   *  the request first (`takeCurrent`), so nothing is re-posted after one. */
   function respawn(): void {
     try {
       worker.terminate();
@@ -143,6 +156,7 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
     pendingAborts.clear();
     worker = spawn();
     wireWorker(worker);
+    if (current !== null) worker.postMessage(current.message);
   }
 
   /** Detaches `id`'s timer/abort-listener and hands back its state, but only if
@@ -268,8 +282,9 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
         };
         signal.addEventListener('abort', onAbort, { once: true });
 
-        current = { id, engineId, input, timer, signal, onAbort, resolve, reject };
-        worker.postMessage({ t: 'layout', id, engine: engineId, input, options, metrics, table, seed: SEED });
+        const message: Extract<HostToWorker, { t: 'layout' }> = { t: 'layout', id, engine: engineId, input, options, metrics, table, seed: SEED };
+        current = { id, engineId, input, message, timer, signal, onAbort, resolve, reject };
+        worker.postMessage(message);
       });
     },
 
