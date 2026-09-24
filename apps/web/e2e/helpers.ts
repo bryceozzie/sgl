@@ -305,6 +305,42 @@ export async function saveAs(page: Page, kind: 'sgl' | 'json' | 'svg'): Promise<
   return { name: file.suggestedFilename(), text: readFileSync(await file.path(), 'utf8') };
 }
 
+/** Save ▾ → PNG image at `scale` (D6; the menu's own default when omitted):
+ *  the download's file name and bytes. */
+export async function savePng(page: Page, scale?: 1 | 2 | 3): Promise<{ readonly name: string; readonly bytes: Buffer }> {
+  await page.locator('.save-menu > summary').click();
+  if (scale !== undefined) await page.locator('.save-menu .png-scale').getByLabel(`${scale}×`).check();
+  const download = page.waitForEvent('download');
+  await page.locator('.save-menu .save-png').click();
+  const file = await download;
+  return { name: file.suggestedFilename(), bytes: readFileSync(await file.path()) };
+}
+
+/** A PNG's pixel size, from its IHDR chunk (bytes 16–23, big-endian). */
+export function pngSize(bytes: Buffer): { readonly width: number; readonly height: number } {
+  expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+  return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+}
+
+/** A PNG's pixel at (`x`, `y`) as `#RRGGBB` plus alpha, decoded by the page. */
+export async function pngPixel(page: Page, bytes: Buffer, x: number, y: number): Promise<{ readonly hex: string; readonly alpha: number }> {
+  return page.evaluate(
+    async ({ b64, x, y }) => {
+      const bin = atob(b64);
+      const data = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) data[i] = bin.charCodeAt(i);
+      const bitmap = await createImageBitmap(new Blob([data], { type: 'image/png' }));
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(bitmap, 0, 0);
+      const [r, g, b, a] = ctx.getImageData(x, y, 1, 1).data;
+      const hex = `#${[r!, g!, b!].map((v) => v.toString(16).padStart(2, '0')).join('')}`.toUpperCase();
+      return { hex, alpha: a! };
+    },
+    { b64: bytes.toString('base64'), x, y },
+  );
+}
+
 /** The toast region's messages. */
 export function toastMessages(page: Page): Locator {
   return page.locator('.toasts .toast-message');

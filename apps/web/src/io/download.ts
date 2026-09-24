@@ -3,10 +3,15 @@ import type { SaveFile } from '../state/files.js';
 /** DD-08 §7: "Blob download via a transient `<a download>`." (⟶ F3 swaps in
  *  `showSaveFilePicker` here, same call site.) */
 export function downloadFile(file: SaveFile): void {
-  const url = URL.createObjectURL(new Blob([file.text], { type: file.mime }));
+  downloadBlob(new Blob([file.text], { type: file.mime }), file.name);
+}
+
+/** The same, for content that is already a Blob (Save ▾ PNG, D6). */
+export function downloadBlob(blob: Blob, name: string): void {
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = file.name;
+  a.download = name;
   a.rel = 'noopener';
   a.style.display = 'none';
   document.body.append(a);

@@ -46,8 +46,11 @@ export function sanitizeFileStem(title: string): string {
   return stem.replace(RESERVED, '$1_');
 }
 
-/** The three Save ▾ items in scope (DD-08 §7; PNG is D6). */
-export type SaveKind = 'sgl' | 'json' | 'svg';
+/** The Save ▾ items that download a file (DD-08 §7; PNG is D6). */
+export type SaveKind = 'sgl' | 'json' | 'svg' | 'png';
+/** The ones whose content is text (`files.ts`'s `saveContent`); PNG is drawn
+ *  (`io/png.ts`). */
+export type TextSaveKind = Exclude<SaveKind, 'png'>;
 
 /**
  * The default file name for a Save ▾ item. "The extension is remembered on the
@@ -65,5 +68,7 @@ export function saveFileName(kind: SaveKind, title: string, rememberedExtension?
       return stem + (rememberedExtension === '.json' || rememberedExtension === '.sgl.json' ? rememberedExtension : '.sgl.json');
     case 'svg':
       return `${stem}.svg`;
+    case 'png':
+      return `${stem}.png`;
   }
 }
