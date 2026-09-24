@@ -1,7 +1,8 @@
 import { elkDescriptor } from '@sgl/layout-elk/descriptor';
 import { gridEngine } from '@sgl/layout-std';
 import { describe, expect, it } from 'vitest';
-import { defaultOptionsFor, editOption, engineForm, formValues, optionsForEngine, withOption } from '../src/state/engine-options.js';
+import { editOption, engineForm, formValues, withOption } from '../src/state/engine-form.js';
+import { defaultOptionsFor, optionsForEngine } from '../src/state/engine-options.js';
 
 /** F11 (DD-08 §10, Stage K decision K9): one hand-built form per engine,
  *  DOM-free. `toolbar/EngineOptions.tsx` only renders this. */

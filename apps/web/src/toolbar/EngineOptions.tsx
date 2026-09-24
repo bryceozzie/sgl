@@ -1,5 +1,5 @@
 import { useRef, useState } from 'preact/hooks';
-import { editOption, engineForm, formValues, type OptionField, type OptionValue } from '../state/engine-options.js';
+import { engineOptionRules } from '../state/engine-options.js';
 import type { Pipeline } from '../state/pipeline.js';
 import { useDisclosure } from './disclosure.js';
 
@@ -7,127 +7,41 @@ export interface EngineOptionsProps {
   readonly pipeline: Pipeline;
 }
 
+type FormModule = typeof import('./engine-options-form.js');
+let formModule: Promise<FormModule> | undefined;
+
+/** The lazy `engine-options-form` chunk (the form, `state/engine-form.ts`),
+ *  imported once, the first time Options ▾ is opened. Off the first paint;
+ *  precached like every chunk, so it works offline (`e2e/offline.spec.ts`). */
+function loadForm(): Promise<FormModule> {
+  formModule ??= import('./engine-options-form.js');
+  return formModule;
+}
+
 /**
- * F11 (DD-08 §10): the per-engine options form, beside Engine ▾ (K9). A plain
- * disclosure, the pattern Stage J settled for Save ▾ (`disclosure.ts`): no
- * menu roles, Escape and an outside pointer-down close it, and every input
- * has a `<label>`. The form is the effective engine's own hand-built one
- * (`state/engine-options.ts`, Node-tested); every change writes the whole,
- * normalised bag through the pipeline's `engineOptions` signal, which the
- * document record persists (Stage J).
+ * F11 (DD-08 §10): Options ▾, beside Engine ▾ (K9). A plain disclosure, the
+ * pattern Stage J settled for Save ▾ (`disclosure.ts`): no menu roles, Escape
+ * and an outside pointer-down close it, and every input has a `<label>`.
  *
- * A refused value (fix round 1, item 22) — out of range, not a number — is
- * not written: the field is marked `aria-invalid`, a message beside it says
- * why and which value is in use, and the box goes back to showing that value,
- * so it never shows one the engine is not using.
+ * This is the part the first paint needs: the disclosure itself, shown only
+ * for an engine with a hand-built form. The form inside is a lazy chunk
+ * (`engine-options-form.tsx`), loaded when Options ▾ is first opened and kept
+ * mounted from then on, as the form always was.
  */
 export function EngineOptions({ pipeline }: EngineOptionsProps) {
   const ref = useRef<HTMLDetailsElement | null>(null);
-  const disclosure = useDisclosure(ref);
-  const [rejected, setRejected] = useState<Readonly<Record<string, string>>>({});
-  const engineId = pipeline.effectiveEngineId.value;
-  const form = engineForm(engineId);
-  if (form === null) return null;
-  const values = formValues(engineId, pipeline.engineOptions.value);
-
-  function change(key: string, raw: string, control: HTMLInputElement | HTMLSelectElement): void {
-    const edit = editOption(engineId, pipeline.engineOptions.peek(), key, raw);
-    pipeline.engineOptions.value = edit.bag;
-    const { [key]: _previous, ...others } = rejected;
-    void _previous;
-    setRejected(edit.rejected === null ? others : { ...others, [key]: edit.rejected });
-    // The box shows what is in use, even when that did not change (a refused
-    // value leaves the signal as it was, so nothing else would re-render it).
-    const shown = edit.bag[key];
-    control.value = shown === 'auto' ? '' : String(shown);
-  }
+  const [Form, setForm] = useState<FormModule['EngineOptionsForm'] | null>(null);
+  const disclosure = useDisclosure(ref, () => {
+    if (Form === null) void loadForm().then((m) => setForm(() => m.EngineOptionsForm));
+  });
+  if (engineOptionRules(pipeline.effectiveEngineId.value) === null) return null;
 
   return (
     <details class="engine-options" ref={ref} onToggle={disclosure.onToggle}>
       <summary class="toolbar-button">
         Options <span aria-hidden="true">▾</span>
       </summary>
-      <form class="options-form" aria-label={form.title} onSubmit={(e) => e.preventDefault()}>
-        {form.fields.map((field) => (
-          <Field
-            key={`${engineId}:${field.key}`}
-            engineId={engineId}
-            field={field}
-            value={values[field.key]}
-            error={rejected[field.key] ?? null}
-            onChange={change}
-          />
-        ))}
-      </form>
+      {Form !== null ? <Form pipeline={pipeline} /> : null}
     </details>
-  );
-}
-
-function Field({
-  engineId,
-  field,
-  value,
-  error,
-  onChange,
-}: {
-  readonly engineId: string;
-  readonly field: OptionField;
-  readonly value: OptionValue | undefined;
-  readonly error: string | null;
-  readonly onChange: (key: string, raw: string, control: HTMLInputElement | HTMLSelectElement) => void;
-}) {
-  const id = `opt-${engineId.replace(/\W/g, '-')}-${field.key}`;
-  const errorId = `${id}-error`;
-  const invalid = error !== null ? { 'aria-invalid': 'true' as const, 'aria-describedby': errorId } : {};
-  const handle = (e: Event) => {
-    const control = e.currentTarget as HTMLInputElement | HTMLSelectElement;
-    onChange(field.key, control.value, control);
-  };
-  let control;
-  switch (field.kind) {
-    case 'select':
-      control = (
-        <select id={id} name={field.key} value={String(value)} onChange={handle} {...invalid}>
-          {field.choices.map((c) => (
-            <option key={c.value} value={c.value}>
-              {c.label}
-            </option>
-          ))}
-        </select>
-      );
-      break;
-    case 'number':
-      control = (
-        <input id={id} name={field.key} type="number" min={field.min} max={field.max} step={field.step} value={String(value)} onChange={handle} {...invalid} />
-      );
-      break;
-    case 'columns':
-      // `auto`, or a whole number of columns: an empty box means automatic.
-      control = (
-        <input
-          id={id}
-          name={field.key}
-          type="number"
-          min={1}
-          max={field.max}
-          step={1}
-          placeholder="auto"
-          value={value === 'auto' ? '' : String(value)}
-          onChange={handle}
-          {...invalid}
-        />
-      );
-      break;
-  }
-  return (
-    <div class="options-field">
-      <label for={id}>{field.label}</label>
-      {control}
-      {error !== null ? (
-        <p class="options-error" id={errorId} role="alert">
-          {error}
-        </p>
-      ) : null}
-    </div>
   );
 }
