@@ -16,9 +16,10 @@
  * file by overriding them is not supported; re-export under another theme).
  */
 
-import { canonicalise, fnv1a64, shortHash } from '@sgl/core';
+import { fnv1a64, shortHash } from '@sgl/core';
 import type { ComputedStyle, StyleValue } from '@sgl/theme';
 import { num } from './num.js';
+import type { PaintRule, StyleRef } from './paint-plan.js';
 import { cssColor, cssFontFamily, cssKeyword, hashToken } from './security.js';
 
 /** Which family of declarations a `ComputedStyle` is being rendered into. */
@@ -107,35 +108,15 @@ function mapLength(v: StyleValue | undefined): string | null {
   return n === null ? null : `${num(n)}px`;
 }
 
-/** The role a cascade signature is for: an element's own style (DD-04 §4
- *  steps 1–5) or its label's (`rules.<role>.title` / `rules.edge.label`, then
- *  steps 3–5). */
-export type SignatureRole = 'node' | 'container' | 'edge' | 'node.title' | 'container.title' | 'edge.label';
-
 /**
- * The theme-invariant key a paint class is named after (F7, DD-07 §6): every
- * input DD-04 §4's cascade reads from the element itself before the theme's
- * values apply — the role (step 1), the shape (step 2, nodes and containers
- * only), the author classes in linearised order (steps 3 and 4: `byClass[c]`
- * and the document's `@classes[c].style`, both keyed by the class name), and
- * the inline `@style` bag (step 5), canonicalised. Step 6 (`@size`) is
- * geometry only. Under one theme and one document, equal signatures give equal
- * paint, so the signature is a sound de-duplication key; and nothing in it
- * comes from a theme, so the class name is the same under every theme.
+ * `cascadeSignature` and `SignatureRole` (F7, DD-07 §6) are defined in
+ * `@sgl/theme`, next to the cascade whose inputs they name: `styleGraph`
+ * computes each distinct signature's style once (F9) with the same function
+ * the renderer names paint classes after, so the two can never disagree about
+ * what "the same cascade inputs" means. Re-exported here, where they have
+ * always been imported from.
  */
-export function cascadeSignature(
-  role: SignatureRole,
-  shape: string | undefined,
-  classes: readonly string[],
-  config: Readonly<Record<string, unknown>> | undefined,
-): string {
-  const style = config?.['style'];
-  const inline =
-    typeof style === 'object' && style !== null && !Array.isArray(style)
-      ? canonicalise(style as Readonly<Record<string, unknown>>)
-      : '';
-  return `${role}|${shape ?? ''}|${classes.join(',')}|${inline}`;
-}
+export { cascadeSignature, type SignatureRole } from '@sgl/theme';
 
 /** The class token for a signature: the whole `fnv1a64`, as the paint hash's
  *  token was before F7, so the collision odds are unchanged. */
@@ -165,6 +146,16 @@ export class ClassTable {
   private readonly paintNames = new Map<string, string>();
   private readonly tokens = new Map<string, string>();
   private readonly geometryTokens = new Map<string, string>();
+  /**
+   * For the paint-only path (F9 P3, `paint-plan.ts`): every paint rule's
+   * name, kind and the element its first use came from (the one whose paint
+   * the rule was made from), and every geometry rule. `planned` turns false
+   * if any paint class was asked for without saying where its style lives,
+   * and then there is no plan.
+   */
+  private readonly paintRules: PaintRule[] = [];
+  private readonly geometryRules = new Map<string, string>();
+  private planned = true;
 
   /** The token for `signature`, hashed once per table. */
   token(signature: string): string {
@@ -176,21 +167,22 @@ export class ClassTable {
     return token;
   }
 
-  /** `s-{signature token}` plus the geometry companion (DD-07 §6). */
-  shapeClasses(style: ComputedStyle, signature: string): string {
-    return this.classesFor(style, 'shape', 's', signature);
+  /** `s-{signature token}` plus the geometry companion (DD-07 §6). `ref`
+   *  says where `style` lives in the styled graph, for the paint-only path. */
+  shapeClasses(style: ComputedStyle, signature: string, ref?: StyleRef): string {
+    return this.classesFor(style, 'shape', 's', signature, ref);
   }
 
   /** `t-{signature token}` plus the geometry companion, which is where the
    *  font lives — DD-07 §5: font properties come from the class, never inline. */
-  textClasses(style: ComputedStyle, signature: string): string {
-    return this.classesFor(style, 'text', 't', signature);
+  textClasses(style: ComputedStyle, signature: string, ref?: StyleRef): string {
+    return this.classesFor(style, 'text', 't', signature, ref);
   }
 
   /** `p-{signature token}` (DD-07 §6), keyed on the edge's own signature
    *  (`labelPlate` is an edge property). Plates carry no geometry. */
-  plateClasses(style: ComputedStyle, signature: string): string {
-    return this.classesFor(style, 'plate', 'p', signature);
+  plateClasses(style: ComputedStyle, signature: string, ref?: StyleRef): string {
+    return this.classesFor(style, 'plate', 'p', signature, ref);
   }
 
   /**
@@ -199,12 +191,14 @@ export class ClassTable {
    * `token` is the edge's signature token, so the rule, like the marker id,
    * never names a colour.
    */
-  markerPaint(className: string, open: boolean, color: string): void {
+  markerPaint(className: string, open: boolean, color: string, edge?: StyleRef): void {
     if (this.rules.has(className)) return;
     this.rules.set(className, open ? `stroke:${cssColor(color)}` : `fill:${cssColor(color)}`);
+    if (edge === undefined) this.planned = false;
+    else this.paintRules.push({ name: className, kind: open ? 'marker-stroke' : 'marker-fill', ref: edge });
   }
 
-  private classesFor(style: ComputedStyle, kind: RuleKind, prefix: string, signature: string): string {
+  private classesFor(style: ComputedStyle, kind: RuleKind, prefix: string, signature: string, ref: StyleRef | undefined): string {
     const key = `${prefix}\u0000${signature}`;
     let paint = this.paintNames.get(key);
     if (paint === undefined) {
@@ -215,6 +209,8 @@ export class ClassTable {
       // the rule is omitted when there is nothing to put in it.
       const declarations = paintDeclarations(style.paint, kind);
       if (declarations.length > 0) this.rules.set(paint, declarations.join(';'));
+      if (ref === undefined) this.planned = false;
+      else this.paintRules.push({ name: paint, kind, ref });
     }
     const geometryDecls = geometryDeclarations(style.geometry, kind);
     // Keyed by the declarations themselves rather than by `geometryHash`: two
@@ -229,7 +225,18 @@ export class ClassTable {
     if (geometryDecls.length === 0) return paint;
     const geometry = `g-${geometryToken}`;
     this.rules.set(geometry, geometryText);
+    this.geometryRules.set(geometry, geometryText);
     return `${geometry} ${paint}`;
+  }
+
+  /**
+   * The paint rules (each with where its style came from) and the geometry
+   * rules this table emitted, for `PaintPlan`; `null` when some paint class
+   * was named without a `StyleRef`.
+   */
+  plan(): { readonly paint: readonly PaintRule[]; readonly fixed: readonly (readonly [string, string])[] } | null {
+    if (!this.planned) return null;
+    return { paint: [...this.paintRules], fixed: [...this.geometryRules.entries()] };
   }
 
   /** Every generated rule, sorted by class name. */

@@ -458,6 +458,44 @@ export function resolveTheme(
 }
 
 // ---------------------------------------------------------------------------
+// The cascade signature (DD-04 §4, DD-07 §6)
+// ---------------------------------------------------------------------------
+
+/** The role a cascade signature is for: an element's own style (DD-04 §4
+ *  steps 1–5) or its label's (`rules.<role>.title` / `rules.edge.label`, then
+ *  steps 3–5). */
+export type SignatureRole = 'node' | 'container' | 'edge' | 'node.title' | 'container.title' | 'edge.label';
+
+/**
+ * Every input DD-04 §4's cascade reads from the element itself before the
+ * theme's values apply — the role (step 1), the shape (step 2, nodes and
+ * containers only), the author classes in linearised order (steps 3 and 4:
+ * `byClass[c]` and the document's `@classes[c].style`, both keyed by the class
+ * name), and the inline `@style` bag (step 5), canonicalised. Step 6 (`@size`)
+ * is geometry only and not part of it.
+ *
+ * Under one theme and one document, equal signatures give equal steps 1–5,
+ * hence equal paint (and, without `@size`, an equal style altogether). Two
+ * things rely on that: `styleGraph` computes each distinct signature's style
+ * once (F9), and the renderer names its paint classes after it (F7, DD-07 §6:
+ * nothing in it comes from a theme, so a class name is the same under every
+ * theme). A new input to steps 1–5 must be added here.
+ */
+export function cascadeSignature(
+  role: SignatureRole,
+  shape: string | undefined,
+  classes: readonly string[],
+  config: Readonly<Record<string, unknown>> | undefined,
+): string {
+  const style = config?.['style'];
+  const inline =
+    typeof style === 'object' && style !== null && !Array.isArray(style)
+      ? canonicalise(style as Readonly<Record<string, unknown>>)
+      : '';
+  return `${role}|${shape ?? ''}|${classes.join(',')}|${inline}`;
+}
+
+// ---------------------------------------------------------------------------
 // styleGraph (DD-04 §4, §5)
 // ---------------------------------------------------------------------------
 
@@ -534,6 +572,16 @@ function computeStyle(bag: Readonly<Record<string, ResolvedValue>>): ComputedSty
   return { geometry, paint, geometryHash, paintHash };
 }
 
+/** Options for `styleGraph`. */
+export interface StyleGraphOptions {
+  /**
+   * `false` computes every element's style afresh, as `styleGraph` did before
+   * F9's memo: the reference the memo is tested against
+   * (`test/memo.test.ts`), never needed otherwise. Default `true`.
+   */
+  readonly memo?: boolean;
+}
+
 /**
  * Apply the cascade per element and compute the two hashes.
  *
@@ -546,18 +594,38 @@ function computeStyle(bag: Readonly<Record<string, ResolvedValue>>): ComputedSty
  * compiles; without it steps 1–3, 5 and 6 apply and document classes contribute
  * nothing, because `SemanticGraph` carries class *names* only (DD-03 §4).
  *
+ * **Once per distinct cascade signature** (F9, execution plan §2.1). A
+ * document has thousands of elements and a handful of distinct signatures
+ * (`cascadeSignature`: DD-04 §4 steps 1–5), and equal signatures resolve to
+ * the same bag, so an element with no `@size` (step 6, the only per-element
+ * input the signature leaves out) reuses the `ComputedStyle` of the first
+ * element with its signature, hashes and all; a label likewise, by its own
+ * signature. The one other thing that differs per element is where a
+ * diagnostic points (its span, and its id in the message), so a signature
+ * whose resolution reported anything is never reused: every element that
+ * would report a diagnostic still resolves, and reports, on its own. The
+ * result — every style, both graph hashes, every diagnostic and its order —
+ * is exactly what resolving each element afresh gives (`options.memo:
+ * false`; `test/memo.test.ts` compares them over the corpus under both
+ * themes, the synthetic theme pair and random documents).
+ *
  * Design: DD-04 §4, §5.
  */
 export function styleGraph(
   graph: SemanticGraph,
   theme: ResolvedTheme,
   documentClasses: DocumentClasses = {},
+  options: StyleGraphOptions = {},
 ): StageResult<StyledGraph> {
+  const memo = options.memo ?? true;
   const diagnostics: Diagnostic[] = [];
   const styles: Record<string, ComputedStyle> = {};
   const labelStyles: Record<string, ComputedStyle> = {};
   const geometryParts: string[] = [];
   const paintParts: string[] = [];
+  /** By cascade signature: styles whose resolution reported nothing. */
+  const elementMemo = new Map<string, ComputedStyle>();
+  const labelMemo = new Map<string, ComputedStyle>();
 
   const record = (id: string, style: ComputedStyle): void => {
     geometryParts.push(`${id}=${style.geometryHash}`);
@@ -632,37 +700,82 @@ export function styleGraph(
     return bag;
   };
 
+  /**
+   * One element and its label. `sizeFree`: the element has no `@size` key
+   * (always, for an edge), so its own style is a function of its signature
+   * alone. Layers (steps 3–6) are resolved at most once, and only when a
+   * style is not reused; `clean` records whether resolving them reported
+   * anything, and only a clean resolution is ever reused.
+   */
+  const styleElement = (
+    role: RoleKind,
+    shape: string | undefined,
+    classes: readonly string[],
+    config: ConfigBag | undefined,
+    span: SourceSpan,
+    id: string,
+    withSize: boolean,
+  ): { readonly style: ComputedStyle; readonly label: () => ComputedStyle } => {
+    let layers: ElementLayers | null = null;
+    let clean = true;
+    const layersNow = (): ElementLayers => {
+      if (layers === null) {
+        const before = diagnostics.length;
+        layers = layersOf(classes, config, span, `\`${id}\``, withSize);
+        clean = diagnostics.length === before;
+      }
+      return layers;
+    };
+    const sizeFree = !withSize || sortedKeys(sizeKeysOnly(styleSetFromConfig(config?.size))).length === 0;
+
+    let style: ComputedStyle | undefined;
+    const signature = memo ? cascadeSignature(role, shape, classes, config) : '';
+    if (memo && sizeFree) style = elementMemo.get(signature);
+    if (style === undefined) {
+      style = computeStyle(elementBag(role, shape, layersNow()));
+      if (memo && sizeFree && clean) elementMemo.set(signature, style);
+    }
+
+    const label = (): ComputedStyle => {
+      const labelRole: SignatureRole = role === 'edge' ? 'edge.label' : role === 'container' ? 'container.title' : 'node.title';
+      const labelSignature = memo ? cascadeSignature(labelRole, undefined, classes, config) : '';
+      let labelStyle = memo ? labelMemo.get(labelSignature) : undefined;
+      if (labelStyle === undefined) {
+        labelStyle = computeStyle(labelBag(role, layersNow()));
+        if (memo && clean) labelMemo.set(labelSignature, labelStyle);
+      }
+      return labelStyle;
+    };
+    return { style, label };
+  };
+
   // ---- nodes and containers ------------------------------------------------
   for (const id of graph.order) {
     const node: GraphNode | undefined = graph.nodes[id];
     if (node === undefined) continue;
     const role: RoleKind = node.children.length > 0 ? 'container' : 'node';
-    const layers = layersOf(node.classes, node.config, node.span, `\`${id}\``, true);
-
-    const style = computeStyle(elementBag(role, node.shape, layers));
+    const { style, label } = styleElement(role, node.shape, node.classes, node.config, node.span, id, true);
     styles[id] = style;
     record(id, style);
 
     if (node.labelId !== null) {
-      const label = computeStyle(labelBag(role, layers));
-      labelStyles[node.labelId] = label;
-      record(node.labelId, label);
+      const labelStyle = label();
+      labelStyles[node.labelId] = labelStyle;
+      record(node.labelId, labelStyle);
     }
   }
 
   // ---- edges ---------------------------------------------------------------
   for (const edge of graph.edges) {
     const e: GraphEdge = edge;
-    const layers = layersOf(e.classes, e.config, e.span, `\`${e.id}\``, false);
-
-    const style = computeStyle(elementBag('edge', undefined, layers));
+    const { style, label } = styleElement('edge', undefined, e.classes, e.config, e.span, e.id, false);
     styles[e.id] = style;
     record(e.id, style);
 
     if (e.labelId !== null) {
-      const label = computeStyle(labelBag('edge', layers));
-      labelStyles[e.labelId] = label;
-      record(e.labelId, label);
+      const labelStyle = label();
+      labelStyles[e.labelId] = labelStyle;
+      record(e.labelId, labelStyle);
     }
   }
 
