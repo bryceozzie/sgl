@@ -185,7 +185,7 @@ orchestrator: 2139 Vitest passed (unit + browser project, Chromium only), e2e 55
 `size-limit` 177.22 kB gz of 180 (the same figure under Node 20.19.0, CI's `.nvmrc`). **All six
 MVP criteria are automated with both engines registered: Gate 3 is next**, and its only
 remaining step is T5, by hand. **T5 so far (human, 2026-09-23):** golden SVGs render correctly in Edge but rendered **all black in
-Inkscape** (F17, since fixed on `fix/svg-inkscape`, below — **Inkscape needs re-checking by hand** against the re-baselined goldens); Figma and Safari not checked (no access); PWA install could not be completed and
+Inkscape** (F17, since fixed on `fix/svg-inkscape`, below — re-checked by hand after the fix: **Inkscape renders the goldens correctly**, human, 2026-09-24); Figma and Safari not checked (no access); PWA install could not be completed and
 is set aside for now. CI (`.github/workflows/ci.yml`) is active on GitHub but has **no recorded
 runs**, so Firefox/WebKit and the Node 20 path are not yet verified there. The orchestrator accepted two things the gate text does not say
 literally, both recorded here: (1) container titles are placed by the elk adapter in the band
