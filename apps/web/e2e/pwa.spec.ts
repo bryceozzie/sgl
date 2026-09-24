@@ -58,7 +58,10 @@ test.describe('PWA (DD-08 §12)', () => {
 
   test('skipWaiting is gated: the worker waits for the "reload" chip to message it', () => {
     const sw = readFileSync(`${DIST}sw.js`, 'utf8');
-    expect(sw).toContain('"SKIP_WAITING"===e.data.type&&self.skipWaiting()');
+    // The message parameter's minified name is terser's to pick, and it picks
+    // by character frequency over the whole file, precache manifest (asset
+    // hashes) included: C5's build named it `s`, not `e`.
+    expect(sw).toMatch(/"SKIP_WAITING"===[\w$]+\.data\.type&&self\.skipWaiting\(\)/);
     expect(sw).not.toMatch(/self\.skipWaiting\(\),/); // not called unconditionally at install
     expect(sw).not.toContain('clientsClaim');
     expect(sw).toContain('createHandlerBoundToURL("index.html")'); // navigateFallback
