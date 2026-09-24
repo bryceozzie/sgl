@@ -4,6 +4,7 @@ import type { NodeId } from '@sgl/core';
 import type { PaintPlan } from '@sgl/render-svg';
 import { StatusChip } from '../panels/StatusChip.js';
 import type { Pipeline } from '../state/pipeline.js';
+import type { LastGood } from '../state/types.js';
 import { hitTestNode } from './hit-test.js';
 import { showLastGood } from './paint.js';
 import { fitViewport, panBy, screenToDiagram, svgExtent, zoomAt, IDENTITY_VIEWPORT, type Extent, type Viewport } from './viewport.js';
@@ -74,6 +75,26 @@ export function Canvas({ pipeline, onFitReady, storedSvg, fitRequest = 0 }: Canv
     if (bounds !== undefined) pipeline.fitDone(); // records the baseline for DD-08 §6's 40% "Fit" offer.
   }
 
+  /** After the next frame, `data-paint-hash` for `good` — if it is still
+   *  what the canvas shows. */
+  const paintStampRef = useRef<{ cancel: () => void } | null>(null);
+  function stampPaintHashLater(wrapper: SVGGElement, good: LastGood): void {
+    paintStampRef.current?.cancel();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const frame = requestAnimationFrame(() => {
+      timer = setTimeout(() => {
+        paintStampRef.current = null;
+        if (pipeline.lastGood.peek() === good) wrapper.setAttribute('data-paint-hash', good.styled.paintHash);
+      }, 0);
+    });
+    paintStampRef.current = {
+      cancel: () => {
+        cancelAnimationFrame(frame);
+        if (timer !== null) clearTimeout(timer);
+      },
+    };
+  }
+
   function updateOverlayRect(ref: { current: SVGRectElement | null }, id: NodeId | null): void {
     const rect = ref.current;
     if (rect === null) return;
@@ -129,12 +150,14 @@ export function Canvas({ pipeline, onFitReady, storedSvg, fitRequest = 0 }: Canv
       // geometry a test could wait on, so the e2e suite awaits `data-theme`
       // reaching the new theme instead of sleeping (Stage I fix round 1,
       // item 8). Not part of the exported SVG — it sits on the wrapper `<g>`.
-      if (lastGood === null) {
-        wrapper.removeAttribute('data-paint-hash');
-        wrapper.removeAttribute('data-theme');
-      } else {
-        wrapper.setAttribute('data-paint-hash', lastGood.styled.paintHash);
+      // `data-paint-hash` is removed now and stamped after the frame: it
+      // reads `StyledGraph.paintHash`, which is hashed on first read (F9),
+      // and nothing on screen depends on it.
+      wrapper.removeAttribute('data-paint-hash');
+      if (lastGood === null) wrapper.removeAttribute('data-theme');
+      else {
         wrapper.setAttribute('data-theme', lastGood.styled.themeId);
+        stampPaintHashLater(wrapper, lastGood);
       }
 
       // The first live render fits even after a stored picture did: that
@@ -146,7 +169,10 @@ export function Canvas({ pipeline, onFitReady, storedSvg, fitRequest = 0 }: Canv
       }
       updateOverlayRect(selectedRectRef, selectedRef.current);
     });
-    return () => disposeRenderEffect();
+    return () => {
+      disposeRenderEffect();
+      paintStampRef.current?.cancel();
+    };
   }, [pipeline]);
 
   useEffect(() => {

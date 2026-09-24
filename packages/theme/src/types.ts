@@ -59,5 +59,7 @@ export interface StyledGraph {
   /** Hash of every element geometry hash in `graph.order` — one number answering
    *  "does layout need to re-run?". */
   readonly geometryHash: string;
+  /** Computed on first read (F9; DD-04 §5): nothing on a theme switch's own
+   *  path needs it. */
   readonly paintHash: string;
 }

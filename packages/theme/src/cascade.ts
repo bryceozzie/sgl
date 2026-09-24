@@ -572,6 +572,42 @@ function computeStyle(bag: Readonly<Record<string, ResolvedValue>>): ComputedSty
   return { geometry, paint, geometryHash, paintHash };
 }
 
+/**
+ * What `styleGraph` keeps per `SemanticGraph` object between calls (F9): a
+ * graph is immutable, and a theme switch styles the same graph again, so
+ * everything that is a function of the graph alone is worked out once.
+ */
+interface GraphKeys {
+  /** Per element, in traversal order (nodes in `order`, then edges): its
+   *  cascade signature, its label's, and whether it has no `@size` key. */
+  readonly element: readonly string[];
+  readonly label: readonly string[];
+  readonly sizeFree: readonly boolean[];
+  /** `${id}=` for every hashed part (element, then its label), in order. */
+  readonly prefixes: readonly string[];
+  /** The last call's per-part geometry hashes and the graph `geometryHash`
+   *  they gave: a later call whose per-part hashes are all the same (a theme
+   *  switch between themes of equal geometry) gives the same hash, without
+   *  hashing ~190 000 characters again at 2 000 nodes. */
+  geometry: { readonly parts: readonly string[]; readonly hash: string } | null;
+}
+
+const GRAPH_KEYS = new WeakMap<SemanticGraph, GraphKeys>();
+
+function sameStrings(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+/** `fnv1a64` of `prefix+hash` parts joined by `;`, then `tail` if any. */
+function hashParts(prefixes: readonly string[], hashes: readonly string[], tail?: string): string {
+  const parts = new Array<string>(hashes.length + (tail === undefined ? 0 : 1));
+  for (let i = 0; i < hashes.length; i += 1) parts[i] = (prefixes[i] as string) + (hashes[i] as string);
+  if (tail !== undefined) parts[hashes.length] = tail;
+  return fnv1a64(parts.join(';'));
+}
+
 /** Options for `styleGraph`. */
 export interface StyleGraphOptions {
   /**
@@ -609,6 +645,14 @@ export interface StyleGraphOptions {
  * false`; `test/memo.test.ts` compares them over the corpus under both
  * themes, the synthetic theme pair and random documents).
  *
+ * What depends on the graph alone — each element's signatures, whether it
+ * has `@size`, the `id=` prefixes the graph hashes are taken over — is kept
+ * per graph object (`GraphKeys`), and so is the last graph `geometryHash`
+ * with the per-element hashes it came from: styling the same graph again
+ * under a theme of equal geometry (a theme switch) reuses it rather than
+ * hashing every element's again. The graph `paintHash` is taken on first
+ * read, not before (DD-04 §5).
+ *
  * Design: DD-04 §4, §5.
  */
 export function styleGraph(
@@ -621,15 +665,22 @@ export function styleGraph(
   const diagnostics: Diagnostic[] = [];
   const styles: Record<string, ComputedStyle> = {};
   const labelStyles: Record<string, ComputedStyle> = {};
-  const geometryParts: string[] = [];
-  const paintParts: string[] = [];
+  const geometryHashes: string[] = [];
+  const paintHashes: string[] = [];
   /** By cascade signature: styles whose resolution reported nothing. */
   const elementMemo = new Map<string, ComputedStyle>();
   const labelMemo = new Map<string, ComputedStyle>();
+  /** This graph's keys, when an earlier (memoised) call worked them out;
+   *  otherwise they are collected below as this call goes. */
+  const known = memo ? GRAPH_KEYS.get(graph) : undefined;
+  const collected = { element: [] as string[], label: [] as string[], sizeFree: [] as boolean[], prefixes: [] as string[] };
+  /** The element being styled, by traversal position. */
+  let position = -1;
 
   const record = (id: string, style: ComputedStyle): void => {
-    geometryParts.push(`${id}=${style.geometryHash}`);
-    paintParts.push(`${id}=${style.paintHash}`);
+    geometryHashes.push(style.geometryHash);
+    paintHashes.push(style.paintHash);
+    if (known === undefined) collected.prefixes.push(`${id}=`);
   };
 
   /** Steps 3–5, resolved once. */
@@ -726,10 +777,24 @@ export function styleGraph(
       }
       return layers;
     };
-    const sizeFree = !withSize || sortedKeys(sizeKeysOnly(styleSetFromConfig(config?.size))).length === 0;
+    position += 1;
+    const at = position;
+    const sizeFree = known !== undefined ? (known.sizeFree[at] as boolean) : !withSize || sortedKeys(sizeKeysOnly(styleSetFromConfig(config?.size))).length === 0;
+    const labelRole: SignatureRole = role === 'edge' ? 'edge.label' : role === 'container' ? 'container.title' : 'node.title';
+    let signature = '';
+    let labelSignature = '';
+    if (known !== undefined) {
+      signature = known.element[at] as string;
+      labelSignature = known.label[at] as string;
+    } else if (memo) {
+      signature = cascadeSignature(role, shape, classes, config);
+      labelSignature = cascadeSignature(labelRole, undefined, classes, config);
+      collected.element.push(signature);
+      collected.label.push(labelSignature);
+      collected.sizeFree.push(sizeFree);
+    }
 
     let style: ComputedStyle | undefined;
-    const signature = memo ? cascadeSignature(role, shape, classes, config) : '';
     if (memo && sizeFree) style = elementMemo.get(signature);
     if (style === undefined) {
       style = computeStyle(elementBag(role, shape, layersNow()));
@@ -737,8 +802,6 @@ export function styleGraph(
     }
 
     const label = (): ComputedStyle => {
-      const labelRole: SignatureRole = role === 'edge' ? 'edge.label' : role === 'container' ? 'container.title' : 'node.title';
-      const labelSignature = memo ? cascadeSignature(labelRole, undefined, classes, config) : '';
       let labelStyle = memo ? labelMemo.get(labelSignature) : undefined;
       if (labelStyle === undefined) {
         labelStyle = computeStyle(labelBag(role, layersNow()));
@@ -786,17 +849,37 @@ export function styleGraph(
   // (packages/render-svg/test/pipeline.test.ts) surfaced on `empty.sgl`, whose
   // paintHash was `fnv1a64('')` under both themes. Geometry has no canvas
   // analogue (DD-04's split has nothing geometric at canvas scope), so only
-  // paintParts gets this extra entry.
-  paintParts.push(`canvas=${theme.canvas.background}`);
+  // the paint hash gets this extra entry (`canvas=…`, last).
+  let keys: GraphKeys | undefined = known;
+  if (memo && keys === undefined) {
+    keys = { ...collected, geometry: null };
+    GRAPH_KEYS.set(graph, keys);
+  }
+  const prefixes = keys?.prefixes ?? collected.prefixes;
+  let geometryHash: string;
+  if (keys !== undefined && keys.geometry !== null && sameStrings(keys.geometry.parts, geometryHashes)) {
+    geometryHash = keys.geometry.hash;
+  } else {
+    geometryHash = hashParts(prefixes, geometryHashes);
+    if (keys !== undefined) keys.geometry = { parts: geometryHashes, hash: geometryHash };
+  }
 
+  // The graph `paintHash` is hashed on first read (F9): nothing on a theme
+  // switch's own path reads it — the layout skip reads `geometryHash`, the
+  // paint-only guard `structureHash` — and at 2 000 nodes it is ~190 000
+  // characters of `fnv1a64`. Its value is exactly the eager one; a getter on
+  // the object serialises (JSON, `structuredClone`) as the plain property.
+  let paintHash: string | undefined;
   const value: StyledGraph = {
     graph,
     styles: styles as Readonly<Record<NodeId | EdgeId, ComputedStyle>>,
     labelStyles: labelStyles as Readonly<Record<LabelId, ComputedStyle>>,
     canvas: { background: theme.canvas.background },
     themeId: theme.id,
-    geometryHash: fnv1a64(geometryParts.join(';')),
-    paintHash: fnv1a64(paintParts.join(';')),
+    geometryHash,
+    get paintHash(): string {
+      return (paintHash ??= hashParts(prefixes, paintHashes, `canvas=${theme.canvas.background}`));
+    },
   };
   return { value, diagnostics };
 }

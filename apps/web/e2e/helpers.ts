@@ -189,9 +189,14 @@ export async function waitForTheme(page: Page, themeId: string): Promise<void> {
   await expect(page.locator('.canvas-host g.rendered')).toHaveAttribute('data-theme', themeId);
 }
 
-/** The rendered wrapper's current paint hash (see `waitForTheme`). */
+/** The rendered wrapper's current paint hash (see `waitForTheme`). The
+ *  canvas stamps it after the frame that shows a render (F9: the graph paint
+ *  hash is taken on first read, off the switch's path), and removes it at
+ *  the swap, so this waits for it to be there. */
 export async function paintHash(page: Page): Promise<string | null> {
-  return page.locator('.canvas-host g.rendered').getAttribute('data-paint-hash');
+  const wrapper = page.locator('.canvas-host g.rendered');
+  await expect(wrapper).toHaveAttribute('data-paint-hash', /^[0-9a-f]{16}$/);
+  return wrapper.getAttribute('data-paint-hash');
 }
 
 /** A document record as `state/storage.ts` stores it (DD-08 §9). */

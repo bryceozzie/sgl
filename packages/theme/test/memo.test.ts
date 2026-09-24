@@ -48,6 +48,31 @@ describe('styleGraph: the per-signature memo is exact (F9)', () => {
     });
   }
 
+  it('the same graph object styled again and again (a theme switch) stays exact, through geometry changes both ways', () => {
+    const wide: ThemeDoc = { ...neutralLight, id: 'wide', extends: 'neutral-dark', tokens: {}, rules: { node: { strokeWidth: 4 }, 'edge.label': { fontSize: 15 } }, byShape: {}, byClass: {} };
+    const themes = [neutralLight, neutralDark, neutralDark, wide, neutralLight, wide, wide, neutralDark, SYNTHETIC_A, SYNTHETIC_B];
+    for (const doc of ['checkout.sgl', 'classes.sgl', 'containers-edges.sgl', 'n500.sgl']) {
+      const { graph, classes } = corpusGraph(doc);
+      const hashes = new Set<string>();
+      for (const themeDoc of themes) {
+        const { value: theme } = resolveTheme(themeDoc, (id) => (id === wide.id ? wide : lookup(id)));
+        const memo = styleGraph(graph, theme, classes);
+        expect(JSON.stringify(memo), `${doc} under ${themeDoc.id}`).toBe(JSON.stringify(styleGraph(graph, theme, classes, { memo: false })));
+        hashes.add(memo.value.geometryHash);
+      }
+      expect(hashes.size, doc).toBe(2); // wide's geometry, and everyone else's
+    }
+  });
+
+  it('the graph paintHash is taken on first read, and is the eager value', () => {
+    const { graph, classes } = corpusGraph('checkout.sgl');
+    const { value: theme } = resolveTheme(neutralDark, lookup);
+    const { value: styled } = styleGraph(graph, theme, classes);
+    expect(typeof Object.getOwnPropertyDescriptor(styled, 'paintHash')?.get).toBe('function');
+    expect(styled.paintHash).toBe(styleGraph(graph, theme, classes, { memo: false }).value.paintHash);
+    expect(structuredClone(styled).paintHash).toBe(styled.paintHash);
+  });
+
   it('really reuses: elements that share a signature share one ComputedStyle; @size and a reported diagnostic opt out', () => {
     const source = [
       'a: { @label: "a" }',
