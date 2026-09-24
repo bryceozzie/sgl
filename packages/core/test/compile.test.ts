@@ -722,6 +722,55 @@ describe('wildcards in parent path segments (language spec §3, human decision 2
     ]);
   });
 
+  it('the self-pair rule applies when only middle segments are wildcards (`*.api -> *.api`)', () => {
+    const { graph, diagnostics } = compileSrc('s1: { api: {} }\ns2: { api: {} }\n*.api -> *.api\n');
+    expect(diagnostics).toEqual([]);
+    expect(pairs(graph.edges)).toEqual([
+      ['s1.api', 's2.api'],
+      ['s2.api', 's1.api'],
+    ]);
+  });
+
+  it('a middle glob is case-sensitive: `store*.api` does not match `Store1` (SGL3003)', () => {
+    const { graph, diagnostics } = compileSrc('z\nStore1: { api: {} }\nstore*.api -> z\n');
+    expect(diagnostics.map((d) => d.code)).toEqual(['SGL3003']);
+    expect(graph.edges).toHaveLength(0);
+  });
+
+  it('a middle glob matches the key, not the label', () => {
+    const { graph, diagnostics } = compileSrc('z\nx1: { @label: "store", api: {} }\nstore*.api -> z\n');
+    expect(diagnostics.map((d) => d.code)).toEqual(['SGL3003']);
+    expect(graph.edges).toHaveLength(0);
+  });
+
+  it('a literal step after a middle wildcard matches the key, not the label', () => {
+    const src = 'z\ns1: { cam: { @label: "Camera" } }\n';
+    const byKey = compileSrc(`${src}s*.cam -> z\n`);
+    expect(byKey.diagnostics).toEqual([]);
+    expect(pairs(byKey.graph.edges)).toEqual([['s1.cam', 'z']]);
+    const byLabel = compileSrc(`${src}s*.Camera -> z\n`);
+    expect(byLabel.diagnostics.map((d) => d.code)).toEqual(['SGL3003']);
+    expect(byLabel.graph.edges).toHaveLength(0);
+  });
+
+  it('descendants of a hidden node are never reached (`a.**` skips `a.h` and `a.h.x`)', () => {
+    const { graph, diagnostics } = compileSrc('z\na: { h: { @hidden: true, x: {} } v: {} }\na.** -> z\n');
+    expect(diagnostics).toEqual([]);
+    expect(pairs(graph.edges)).toEqual([['a.v', 'z']]);
+  });
+
+  it('a bare middle `*` inside a nested container resolves in that container’s scope', () => {
+    const { graph, diagnostics } = compileSrc('g: {\n  s1: { api: {} }\n  db: {}\n  *.api -> db\n}\n');
+    expect(diagnostics).toEqual([]);
+    expect(pairs(graph.edges)).toEqual([['g.s1.api', 'g.db']]);
+  });
+
+  it('a mid-path `**` is SGL3004 even when its prefix does not resolve (`nope.**.b`)', () => {
+    const { graph, diagnostics } = compileSrc('x\nnope.**.b -> x\n');
+    expect(diagnostics.map((d) => d.code)).toEqual(['SGL3004']);
+    expect(graph.edges).toHaveLength(0);
+  });
+
   it('ports attach per expansion, with one SGL2003 per matched node lacking the port', () => {
     const src =
       'switch\nlane1: { cam1: { @ports: { out: east } } cam2: {} }\nlane2: { camA: { @ports: { out: east } } }\n' +

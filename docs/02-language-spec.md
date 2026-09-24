@@ -158,7 +158,7 @@ platform.**.api -> db            // error (SGL3004): ** only as the last part
 
 **Parent segments.** Each wildcard segment matches the **direct children**, by key, of every node the path has reached so far — exactly as a final glob does — and a literal segment after it names that child of each of them. So `lane1.*.handler` is "the `handler` of every child of `lane1`", and `store*.api*` is "every `api*` child of every `store*` child of the enclosing container".
 
-- **`**` stays last.** `platform.**.api` is an error (`SGL3004`), not a search: "every `api` at any depth" is a selector, and selectors are §7. `platform.*.**` is valid — every descendant of every child of `platform`.
+- **`**` stays last.** `platform.**.api` is an error (`SGL3004`), not a search: "every `api` at any depth" is a selector, and selectors are §7. `platform.*.**` is valid — every descendant of every child of `platform`. A path with `**` in a non-final position is reported as `SGL3004` whether or not its prefix resolves: `nope.**.b` is `SGL3004`, not `SGL2001`.
 - **Partial matches are skipped silently.** A node matched by a parent segment that has no child matching the next segment, or has no children at all, contributes nothing and gets no diagnostic: `store*.api` over a `store3` without an `api` simply leaves `store3` out. `SGL3003` is only for an endpoint whose **whole** expansion is empty (below).
 - **Expansion order** is depth-first, in child declaration order at each level: every match under the first matched parent, in order, before any under the second. `store*.api*` over `store1 { api, apiV2 }` and `store2 { api-edge }` gives `store1.api`, `store1.apiV2`, `store2.api-edge`.
 
