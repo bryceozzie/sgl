@@ -1,5 +1,8 @@
-import { neutralDark, neutralLight, type ThemeDoc } from '@sgl/theme';
+import type { SemanticGraph } from '@sgl/core';
+import { neutralDark, neutralLight, resolveTheme, type ResolvedTheme, type StyledGraph, type ThemeDoc } from '@sgl/theme';
+import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { describe, expect, it } from 'vitest';
+import { render } from '../src/index.js';
 import { CLEAN_DOCS } from '../../core/test/corpus-docs.js';
 import { listCorpusDocs, renderCorpusDoc } from './pipeline.js';
 
@@ -123,5 +126,69 @@ describe('F17: theme tokens live in their own <style> element, after the main on
   it('the token element comes right after the main one, before <defs>', async () => {
     const { rendered } = await renderCorpusDoc('checkout.sgl');
     expect(rendered.svg).toMatch(/<\/desc><style>[^<]*<\/style><style>svg\.sgl\{[^<]*\}<\/style><defs>/);
+  });
+});
+
+/**
+ * The injection half (DD-07 §8, DD-09 §1.2): the token element is new markup, so
+ * prove no hostile string reaches it raw. Token names and values come from the
+ * theme, and `--sgl-canvas` from `canvas.background`, not from document text —
+ * but a theme is a document too once custom themes land, so both are driven
+ * with break-out attempts here, straight into `render()`.
+ */
+describe('F17: nothing hostile reaches the token <style> unescaped (DD-07 §8)', () => {
+  it('hostile token names, token values and canvas background stay inside one svg.sgl rule', () => {
+    const { value: base } = resolveTheme(neutralLight, (id) => (id === neutralLight.id ? neutralLight : undefined));
+    const breakOut = '</style><script>alert(1)</script><style>';
+    const theme: ResolvedTheme = {
+      ...base,
+      tokens: {
+        ...base.tokens,
+        [`x}${breakOut}`]: '#ffffff',
+        'evil.color': `#fff;}${breakOut}svg{fill:red`,
+        'evil.font': `Inter, '${breakOut}', sans-serif`,
+        'evil.keyword': `bold}${breakOut}`,
+        'evil.url': 'url(javascript:alert(1))',
+      },
+    };
+    const graph: SemanticGraph = {
+      nodes: {},
+      edges: [],
+      rootChildren: [],
+      order: [],
+      labels: {},
+      meta: { nodeCount: 0, edgeCount: 0, containerCount: 0 },
+    };
+    const styled: StyledGraph = {
+      graph,
+      styles: {},
+      labelStyles: {},
+      canvas: { background: `#fff}${breakOut}` },
+      themeId: 'neutral-light',
+      geometryHash: 'g',
+      paintHash: 'p',
+    };
+    const { svg, tokenBlock, styleBlock } = render(styled, { bounds: { x: 0, y: 0, w: 10, h: 10 }, nodes: {}, edges: {}, labels: [] }, theme);
+
+    expect(XMLValidator.validate(svg)).toBe(true);
+    const tree = new XMLParser({ preserveOrder: true }).parse(svg) as { svg?: { style?: unknown; script?: unknown }[] }[];
+    const children = tree.find((n) => n.svg !== undefined)!.svg!;
+    expect(children.filter((c) => 'script' in c)).toEqual([]);
+    expect(children.filter((c) => 'style' in c)).toHaveLength(2);
+    expect(svg).not.toMatch(/<script/i);
+
+    const elements = styleElements(svg);
+    expect(elements).toEqual([styleBlock, tokenBlock]);
+    const tokens = parseCss(tokenBlock);
+    expect(tokens).toHaveLength(1);
+    expect(tokens[0]!.selector).toBe('svg.sgl');
+    expect(tokens[0]!.declarations.every((d) => isToken(d.property))).toBe(true);
+    // The hostile canvas colour is the loud fallback in both elements.
+    expect(tokens[0]!.declarations[0]).toEqual({ property: '--sgl-canvas', value: '#FF00FF' });
+    expect(styleBlock.split('\n')[0]).toBe('.canvas{fill:#FF00FF}');
+    for (const text of elements) {
+      expect(text).not.toContain('<');
+      expect(text).not.toContain('javascript:');
+    }
   });
 });
