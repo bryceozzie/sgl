@@ -25,7 +25,7 @@ import { isArrowhead, MarkerTable, type Arrowhead } from './markers.js';
 import { num, nums } from './num.js';
 import { escapeXml, edgeElementId, nodeElementId, safeUrl } from './security.js';
 import { DEFAULT_SHAPE, resolveShape } from './shapes.js';
-import { buildStyleBlock, buildTokenBlock, ClassTable } from './style.js';
+import { buildStyleBlock, ClassTable } from './style.js';
 import { renderText, textBlock } from './text.js';
 
 export * from './layout-view.js';
@@ -38,20 +38,14 @@ export * from './text.js';
 
 export interface RenderResult {
   readonly svg: string;
-  /** The main `<style>` element's text: every rule that paints the diagram,
-   *  with literal values and no custom property (F17, DD-07 §6).
-   *  Returned separately for export and for re-theming an exported file. It is
-   *  *not* a paint-only live-view swap key: `s-`/`t-`/`p-` class names embed
+  /** The `<style>` element's text: every rule that paints the diagram, with
+   *  literal values and no custom property (F17, DD-07 §6). It is *not* a
+   *  paint-only live-view swap key: `s-`/`t-`/`p-` class names embed
    *  `paintHash`, so a paint change also changes every element's `class`
    *  attribute, and a directed edge's marker id embeds the stroke colour too
    *  (`markers.ts`). See DD-07 §2, §6, §11 and DD-08 §3 for what is and is not
    *  implementable here. */
   readonly styleBlock: string;
-  /** The token `<style>` element's text — one `svg.sgl{--…}` rule holding the
-   *  theme tokens as custom properties, for a consumer to override. It is its
-   *  own element, after the main one, because Inkscape discards a whole
-   *  `<style>` element that declares a custom property (F17, DD-07 §6). */
-  readonly tokenBlock: string;
   readonly bounds: Rect;
   readonly diagnostics: readonly Diagnostic[];
 }
@@ -284,8 +278,13 @@ function renderEdgeLabel(edgeId: EdgeId, labelId: LabelId, ctx: Ctx): string {
  * Layer order is fixed (DD-07 §2): containers, edges, nodes, edge labels. Document
  * order within the node layers is `graph.order`, so a screen reader walks the
  * diagram in declaration order — the author's intended reading order.
+ *
+ * `_theme` is part of DD-07's signature but no longer read: everything the
+ * output needs from it is already resolved into `styled` (its only reader was
+ * the token `<style>` element, removed with F18).
  */
-export function render(styled: StyledGraph, layout: LayoutView, theme: ResolvedTheme): RenderResult {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- DD-07's signature; see above.
+export function render(styled: StyledGraph, layout: LayoutView, _theme: ResolvedTheme): RenderResult {
   const ctx: Ctx = {
     styled,
     layout,
@@ -322,7 +321,6 @@ export function render(styled: StyledGraph, layout: LayoutView, theme: ResolvedT
   // Built after the layers, because rendering is what discovers which classes and
   // markers the document actually uses.
   const styleBlock = buildStyleBlock(styled.canvas.background, ctx.classes.emit());
-  const tokenBlock = buildTokenBlock(theme, styled.canvas.background);
   const defs = ctx.markers.emit();
 
   const svg =
@@ -334,7 +332,6 @@ export function render(styled: StyledGraph, layout: LayoutView, theme: ResolvedT
     `<title id="sgl-t">${escapeXml(title)}</title>` +
     `<desc id="sgl-d">${escapeXml(desc)}</desc>` +
     `<style>${escapeXml(styleBlock)}</style>` +
-    `<style>${escapeXml(tokenBlock)}</style>` +
     `<defs>${defs}</defs>` +
     `<rect class="canvas" x="${num(bounds.x)}" y="${num(bounds.y)}" width="${num(bounds.w)}" height="${num(bounds.h)}" aria-hidden="true"/>` +
     `<g class="L-containers">${containers.join('')}</g>` +
@@ -343,7 +340,7 @@ export function render(styled: StyledGraph, layout: LayoutView, theme: ResolvedT
     `<g class="L-labels">${edgeLabels.join('')}</g>` +
     `</svg>`;
 
-  return { svg, styleBlock, tokenBlock, bounds, diagnostics: ctx.diagnostics };
+  return { svg, styleBlock, bounds, diagnostics: ctx.diagnostics };
 }
 
 export { DEFAULT_SHAPE };

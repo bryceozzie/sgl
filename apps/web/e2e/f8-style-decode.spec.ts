@@ -30,11 +30,11 @@ test('F8: the innerHTML-inserted <style> decodes &apos; — computed font-family
   // of *which* parsing mode actually happened: literal `&apos;` proves
   // RAWTEXT (the failure mode); a real apostrophe proves the SVG reading.
   //
-  // Since F17 the rendered SVG has two `<style>` elements — the main one, then
-  // the theme tokens in their own (DD-07 §6) — and both carry the font stack
-  // (`.g-…{font-family:…}` and `--font-sans`), so both are checked.
+  // The rendered SVG has one `<style>` element (DD-07 §6: F17 split the theme
+  // tokens into a second one; F18's re-baseline removed it), and it carries
+  // the font stack in its `.g-…{font-family:…}` rules.
   const styleTexts = await svg.locator('style').allTextContents();
-  expect(styleTexts).toHaveLength(2);
+  expect(styleTexts).toHaveLength(1);
   for (const styleText of styleTexts) {
     expect(styleText).not.toContain('&apos;');
     expect(styleText).toContain("'Segoe UI'");

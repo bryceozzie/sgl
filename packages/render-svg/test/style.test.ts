@@ -1,6 +1,6 @@
-import type { ComputedStyle, ResolvedTheme } from '@sgl/theme';
+import type { ComputedStyle } from '@sgl/theme';
 import { describe, expect, it } from 'vitest';
-import { buildStyleBlock, buildTokenBlock, ClassTable, geometryDeclarations, paintDeclarations } from '../src/style.js';
+import { buildStyleBlock, ClassTable, geometryDeclarations, paintDeclarations } from '../src/style.js';
 
 function style(paint: Readonly<Record<string, unknown>>, geometry: Readonly<Record<string, unknown>> = {}): ComputedStyle {
   return { paint, geometry, paintHash: 'p1', geometryHash: 'g1' } as ComputedStyle;
@@ -98,11 +98,7 @@ describe('ClassTable', () => {
   });
 });
 
-describe('buildStyleBlock() / buildTokenBlock() (F17, DD-07 §6)', () => {
-  const theme = {
-    tokens: { 'surface.sunken': '#f0f0f0', 'font.sans': 'Inter, sans-serif' },
-  } as unknown as ResolvedTheme;
-
+describe('buildStyleBlock() (F17, F18, DD-07 §6)', () => {
   it('the main block is .canvas with its literal colour, the fixed preamble, then generated rules, in that order', () => {
     const block = buildStyleBlock('#ffffff', ['.s-1{fill:#fff}']);
     const lines = block.split('\n');
@@ -117,18 +113,7 @@ describe('buildStyleBlock() / buildTokenBlock() (F17, DD-07 §6)', () => {
     expect(block).not.toContain('svg.sgl');
   });
 
-  it('the token block is one svg.sgl rule: --sgl-canvas first, then every token', () => {
-    const block = buildTokenBlock(theme, '#ffffff');
-    expect(block).toBe('svg.sgl{--sgl-canvas:#ffffff;--font-sans:Inter, sans-serif;--surface-sunken:#f0f0f0}');
-  });
-
-  it('tokens are sorted by name for determinism', () => {
-    const block = buildTokenBlock(theme, '#fff');
-    expect(block.indexOf('--font-sans')).toBeLessThan(block.indexOf('--surface-sunken'));
-  });
-
-  it('a bad canvas background gets the loud fallback in both blocks, not passed through', () => {
+  it('a bad canvas background gets the loud fallback, not passed through', () => {
     expect(buildStyleBlock('javascript:alert(1)', [])).toContain('.canvas{fill:#FF00FF}');
-    expect(buildTokenBlock(theme, 'javascript:alert(1)')).toContain('--sgl-canvas:#FF00FF');
   });
 });

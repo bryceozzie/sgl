@@ -391,7 +391,7 @@ Code-backed shape renderers are deliberately deferred; they would drag the sandb
 
 `"@accent"` resolves against `paint.tokens`. Cycles and unknown tokens are `SGL5xxx` diagnostics. The full cascade is in the language spec §6; the renderer applies it once, producing a flat `ComputedStyle` per element.
 
-In the SVG output, identical styles share one generated class, so the exported file is small (no repeated per-element paint attributes). Generated rules carry **literal** resolved values, not `var()`, so the file renders the same in tools that ignore custom properties; the theme tokens are also emitted as custom properties, in a **separate** trailing `<style>` element, because some tools (Inkscape 1.2) discard a whole style element they cannot parse rather than one rule (F17). A paint-only theme change is a full re-render, not a CSS rewrite (F7). Detail: DD-07 §6.
+In the SVG output, identical styles share one generated class, so the exported file is small (no repeated per-element paint attributes). Generated rules carry **literal** resolved values, not `var()`, so the file renders the same in tools that ignore custom properties; the theme tokens are not emitted at all (F18: re-theming an exported file means re-exporting it), and the one `<style>` element never holds a custom property, because some tools (Inkscape 1.2) discard a whole style element they cannot parse rather than one rule (F17). A paint-only theme change is a full re-render, not a CSS rewrite (F7). Detail: DD-07 §6.
 
 ---
 

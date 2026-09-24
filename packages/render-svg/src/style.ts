@@ -1,22 +1,19 @@
 /**
- * The generated `<style>` blocks (DD-07 §6).
+ * The generated `<style>` element (DD-07 §6).
  *
  * Identical styles across elements share one class, so a 500-node diagram with
- * three visual variants emits three rules rather than 500 attribute sets. Tokens
- * are emitted as custom properties so a consumer can re-theme an exported file,
- * but every generated rule uses literal resolved values, never `var()`, so the
- * file renders identically in tools that ignore custom properties.
- *
- * The tokens go in a `<style>` element of their own, after the main one (F17):
- * Inkscape 1.2.2 does not ignore a rule of custom properties, it discards the
- * **whole** `<style>` element that holds one, and every shape falls back to the
- * default black fill. Kept apart, such a tool loses only the tokens.
+ * three visual variants emits three rules rather than 500 attribute sets. Every
+ * rule uses literal resolved values and the element holds no custom property,
+ * declared or read (F17): Inkscape 1.2.2 discards a **whole** `<style>` element
+ * that declares one, and every shape falls back to the default black fill. The
+ * theme tokens are therefore not emitted at all (F18: re-theming an exported
+ * file by overriding them is not supported; re-export under another theme).
  */
 
 import { shortHash } from '@sgl/core';
-import type { ComputedStyle, ResolvedTheme, StyleValue } from '@sgl/theme';
+import type { ComputedStyle, StyleValue } from '@sgl/theme';
 import { num } from './num.js';
-import { cssColor, cssCustomProperty, cssFontFamily, cssKeyword, hashToken } from './security.js';
+import { cssColor, cssFontFamily, cssKeyword, hashToken } from './security.js';
 
 /** Which family of declarations a `ComputedStyle` is being rendered into. */
 export type RuleKind = 'shape' | 'text' | 'plate';
@@ -188,50 +185,8 @@ const PREAMBLE: readonly string[] = [
 /**
  * Build the main `<style>` text: every rule that paints the diagram, with
  * literal resolved values and **no** custom property, declared or read (F17).
- * The canvas gets its colour directly rather than through `var(--sgl-canvas)`:
- * a tool that drops the token element must still paint the canvas.
+ * The canvas gets its colour directly, never through `var()`.
  */
 export function buildStyleBlock(canvasBackground: string, generated: readonly string[]): string {
   return [`.canvas{fill:${cssColor(canvasBackground)}}`, ...PREAMBLE, ...generated].join('\n');
-}
-
-/**
- * Build the token `<style>` text: one `svg.sgl` rule — scoped to the root svg,
- * never `:root` — declaring every theme token as a custom property, plus
- * `--sgl-canvas`. Nothing in the main block reads them; they are there for a
- * consumer to override when re-theming an exported file (DD-07 §6). The render
- * writes this into its own `<style>` element, after the main one (F17).
- */
-export function buildTokenBlock(theme: ResolvedTheme, canvasBackground: string): string {
-  const tokens: string[] = [`--sgl-canvas:${cssColor(canvasBackground)}`];
-  for (const name of Object.keys(theme.tokens).sort()) {
-    const property = cssCustomProperty(name);
-    if (property === '') continue;
-    const value = theme.tokens[name];
-    const rendered = tokenValue(value);
-    if (rendered === null) continue;
-    tokens.push(`${property}:${rendered}`);
-  }
-  return `svg.sgl{${tokens.join(';')}}`;
-}
-
-/**
- * A token can be any `StyleValue`, and it is emitted as a custom property purely
- * for a consumer to override — nothing in the generated rules reads it. It still
- * goes through the same validation as a used value, because `'unsafe-inline'`
- * makes the `<style>` elements the one place CSP does not protect (DD-09 §1.2).
- */
-function tokenValue(value: StyleValue | undefined): string | null {
-  if (typeof value === 'number') return Number.isFinite(value) ? num(value) : null;
-  if (typeof value === 'boolean') return null;
-  if (Array.isArray(value)) {
-    const parts = (value as readonly number[]).filter((n) => typeof n === 'number' && Number.isFinite(n));
-    return parts.length === (value as readonly number[]).length && parts.length > 0
-      ? parts.map(num).join(' ')
-      : null;
-  }
-  if (typeof value !== 'string') return null;
-  if (value.startsWith('#') || /^(?:rgb|rgba|hsl|hsla)\(/.test(value)) return cssColor(value);
-  // Anything else a theme holds as a string is a font stack or a keyword.
-  return value.includes(',') ? cssFontFamily(value) : (cssKeyword(value) ?? cssFontFamily(value));
 }
