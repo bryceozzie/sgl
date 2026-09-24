@@ -1377,16 +1377,17 @@ numbers above (before: `main`'s bench, one case, 23.4 / 14.1, 144.7 / 82.1, 589.
 
 | | n50 | n500 | n2000 |
 |---|---|---|---|
-| no `@theme` (gated) | 2.3 / 2.2 | 12.4 / 12.5 | 44.0 / 46.0 |
-| `@theme` (not gated) | 13.2 / 11.4 | 66.3 / 72.6 | 265.7 / 267.7 |
+| no `@theme` (gated) | 2.5 / 2.6 | 13.0 / 12.7 | 42.7 / 44.5 |
+| `@theme` (not gated) | 13.0 / 11.9 | 64.4 / 67.9 | 249.6 / 262.8 |
 
-n2000 without `@theme`: script 3.4 ms (`styleGraph` 2.3, `renderPaintOnly` 0.6, `resolveTheme` 0.1,
-the swap 0.2, effects 0.2) and Chromium's style recalculation 40–43 ms, the floor (replacing a single
+n2000 without `@theme` (first / repeat): script 3.8 / 2.9 ms (`styleGraph` 2.2 / 1.4,
+`renderPaintOnly` 0.6, `resolveTheme` 0.1, the swap 0.1, effects 0.8 / 0.7) and Chromium's style
+recalculation 38.8 / 41.5 ms, the floor (replacing a single
 rule's text costs ~24 ms at that size; replacing the `<style>` element instead of its text measured
 the same); run-to-run the slower pick's median ranged 44–52 ms while this was built, so the headroom
 is real but thin. With `@theme` (the document's own text changes, a known cost, not optimised here):
-CodeMirror 2.9, `buildAst` 9.4, `resolve` 4.0, `compile` 31.3, `styleGraph` 7.6, `render` 51.8, the
-`innerHTML` swap 53.1, style + layout 80.5 and the pre-measure 16.0 ms at n2000.
+CodeMirror 2.9, `buildAst` 9.2, `resolve` 3.9, `compile` 26.2, `styleGraph` 6.4, `render` 51.4, the
+`innerHTML` swap 51.3, style + layout 78.6 and the pre-measure 14.5 ms at n2000 (first pick).
 
 ### 2.1 Open findings
 

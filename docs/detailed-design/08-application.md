@@ -186,7 +186,7 @@ A paint-only change (`geometryHash` equal, `paintHash` different) skips *layout*
 - **Otherwise,** or when `renderPaintOnly` refuses, a full `render()`, as before.
 - **`lastGood.svg`** is a getter onto the result's own: after a paint-only render it is derived on first read, by replacing the `<style>` text in the last full string (`withStyleBlock`, byte-exact, DD-07 §6), and nothing on the switch's own path reads it (P4). Export, Save ▾ SVG, autosave's `lastGoodSvg` and so the next boot's J6 paint all read the exact bytes `render()` would give; §9 says how autosave avoids reading it early.
 
-Either way the result is exactly what `render()` gives. `apps/web/test/theme-fast-path.test.ts` covers the choice and every consumer's bytes; `apps/web/test/paint-swap.browser.test.ts` the DOM (§6). On the bench (`pnpm bench:theme`, execution plan §2) a Theme ▾ pick with no `@theme` now costs, at 2 000 nodes, ~3–4 ms of script and ~40 ms of Chromium's own style recalculation, the floor.
+Either way the result is exactly what `render()` gives. `apps/web/test/theme-fast-path.test.ts` covers the choice and every consumer's bytes; `apps/web/test/paint-swap.browser.test.ts` the DOM (§6). On the bench (`pnpm bench:theme`, execution plan §2) a Theme ▾ pick with no `@theme` now costs, at 2 000 nodes, ~3–4 ms of script and ~39–42 ms of Chromium's own style recalculation, the floor.
 
 ### Timing budget on a keystroke (500-node document)
 
