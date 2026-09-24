@@ -289,6 +289,33 @@ now uses `lane1.**.handler`. Docs: language spec §3/§7, FR-L15, A21, DD-01/02/
 the new document's 4 elk title crossings. Stage C's checklist in §5 below is left as the record of
 what that stage built.
 
+**D6 PNG export and D7 copy to clipboard, on `feat/export-png`** (branched from `main` at `270f257`;
+not merged). Save ▾ gains **PNG image** with a scale (1×/2×/3×, 2× by default; a native radio group,
+still no menu roles), **Copy SVG** (`clipboard.writeText` of `lastGood.svg`) and **Copy PNG**
+(`ClipboardItem` with a promised `image/png` at 2×, written inside the click for Safari). The PNG is
+`round(width × scale)` × `round(height × scale)` px. Its background is the SVG's own `.canvas` rect. It is
+refused with a toast past 16 384 px a side or 8192² px in all. **The font trap:** an SVG drawn through
+`<img>` cannot use the page's Inter, so it rasterises a copy with the used Inter weights embedded as
+`data:` `@font-face` rules. The WOFF2 files are the ones `fonts.css` loads, fetched from `'self'` or the
+precache. The exported SVG is unchanged. **CSP:** nothing changed. `img-src blob:` covers the `<img>`, and in
+Chromium under the real `_headers` the `data:` fonts inside the image document raise no `font-src`
+violation (DD-09 §1.2). **D2 is not met:** Save ▾ SVG references Inter by name (`font-family:Inter,
+system-ui, …`) and embeds no font. That is DD-07 §9's "by reference in MVP", deferred to C8. No external
+reference is emitted. Code: `apps/web/src/state/png.ts` (DOM-free), `io/png.ts`, `toolbar/file-actions.tsx`
+(`SaveExtras`, `savePng`, `copySvg`, `copyPng`), `toolbar/FileMenu.tsx` (renders `SaveExtras` once the lazy
+chunk has loaded, which opening Save ▾ starts), `io/download.ts` (`downloadBlob`). All of it is in the lazy
+`file-actions` chunk: 5.96 → 11.60 kB minified. **Core bundle 178.63 → 178.66 kB** (178 631 → 178 658 B
+gzipped, +27 B: the `FileMenu` hook-up). Tests: `apps/web/test/png.test.ts` (Node),
+`test/png.browser.test.ts` (Chromium: pixel size, the `.canvas` background under both themes, and the
+text is Inter, the ink of a probe line at each weight within 3 px of `measureText` with the same WOFF2,
+where the unembedded copy misses by ~30 px), `e2e/png-export.spec.ts` (menu, sizes, background against
+the resolved theme, font embedded in the build, clipboard round trips with permissions granted, a
+refused clipboard, both caps), plus a PNG case in `e2e/offline.spec.ts` (the fonts come from the
+service worker) and PNG at every scale and both Copy items in `e2e/csp.spec.ts`. Docs: DD-08 §7 and §11,
+DD-09 §1.1 (three threat rows) and §1.2. One unrelated test fix: `e2e/pwa.spec.ts` matched the built
+`sw.js` against the minifier's variable name (`e.data.type`), which changes with the precache list, so
+any new asset hash could break it. It now matches any name.
+
 **Stage K merged to `main` at `0e9ecfc`** (`--no-ff`, 2026-09-23) after a three-lens review and
 one fix round (23 items). `pnpm check`'s steps from clean are green on `main`, run by the
 orchestrator: 2139 Vitest passed (unit + browser project, Chromium only), e2e 55/55 in Chromium,
@@ -1527,7 +1554,7 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F13** | A share link pasted into an already-open tab (Stage J fix round 1, item 14) imports by flushing autosave and **reloading**, not by switching in place like Open and Documents ▾ (fix round 2). That loses undo history, and when IndexedDB is unavailable (memory-store fallback) the reload loses the tab's documents outright. Also: criterion 5's offline test is falsifiable against the HTTP cache in Chromium and WebKit but not in Firefox, which has neither mechanism the spec uses; and error toasts persist until closed with no cap on how many pile up. | Stage L (E17, alongside the rest of the Documents UI) |
 | **F15** | `elk` misses DD-09 §2's performance budget as measured in Node by Stage K's review: `elkEngine.layout` alone takes 0.5–0.8 s warm / 1.4 s cold at n500 (budget: 400 ms for the whole pipeline) and ~1.9 s warm / 3.8 s cold at n2000 (budget 3 s). Gate 3 is not timed. **Decision (human, 2026-09-23): record it and measure in the browser before Gate 4; the budget is not reopened.** | Stage L, before Gate 4 (the Gate 4 bench) |
 | **F16** | Under `elk`, some edges enter a container through its own title (the endpoint's ancestor, so the K4 hierarchy-crossing check does not count them): `checkout` 2, `containers-edges` 1, `nesting-3` 1, `wildcards` 4, `wildcard-paths` 4 (added 2026-09-24 with the document), pinned by `titleCrossings` in `packages/layout-elk/test/elk.test.ts`. No ELK option tried removes them (`considerModelOrder` crashes ELK on 8 documents; `FIXED_SIDE` moves them). Candidates: a host-side nudge of the final segment, or port placement once ports are real (F6). | Stage L |
-| **F20** | **Bundle headroom.** After A8's fix round 2 the core bundle is **178.63 kB** of 180 (1.37 kB under, 0.13 kB short of the 1.5 kB aimed for): `@sgl/core/json` and the lazy `engine-options-form` chunk are done. Next candidate on the boot path: `DocumentsMenu` (about 1.75 kB minified) as a lazy chunk. | Stage L, before the next feature on the boot path |
+| **F20** | **Bundle headroom.** After A8's fix round 2 the core bundle is **178.63 kB** of 180 (1.37 kB under, 0.13 kB short of the 1.5 kB aimed for): `@sgl/core/json` and the lazy `engine-options-form` chunk are done. `feat/export-png` (D6/D7) adds 27 B at boot, so **178.66 kB** there. Next candidate on the boot path: `DocumentsMenu` (about 1.75 kB minified) as a lazy chunk. | Stage L, before the next feature on the boot path |
 
 ---
 
@@ -1973,7 +2000,7 @@ complete the Playwright suite's engine-switch cases (DD-08 §14 test 4).
 | **A18 markdown labels + `@sgl/text`** | The largest non-engine subsystem. The `Measurer` is run-based already, so this is an addition, not a rewrite. |
 | B5 `fixed`, `tree`, `radial`, `force` | `fixed` first — about a day, and the escape hatch people ask for. `force` last, and it is the first thing to cut. |
 | C5 `high-contrast`, `print` themes | Tokens only. |
-| D6/D7 PNG and clipboard export | Canvas `drawImage` of the SVG blob. |
+| D6/D7 PNG and clipboard export | **Built on `feat/export-png` (§2), not merged.** Save ▾ PNG at 1×/2×/3× (2× default) through a rasterisation-only copy of `lastGood.svg` with Inter embedded as `data:` fonts, since an `<img>` SVG cannot use the page's fonts. Capped at 16 384 px a side and 8192² px in all. Copy SVG (text) and Copy PNG (2×). No CSP change. D2 (fonts embedded in the exported SVG) is still open: C8. |
 | F2 drag-and-drop, F5 `.sglpack` | Conveniences on F1. |
 | E17 multiple documents | Storage is already a list; this is UI. **Partly pulled into Stage J by human decision (2026-09-23):** Open creating a new local document, and a minimal Documents ▾ list (switch to any stored document, New document). **Remaining here:** delete, rename, search, tabs and multi-select. |
 | D10 SVG export options UI | Background on/off and scale for Save ▾ SVG (DD-08 §7); today it saves the defaults, `render()`'s own output. |
