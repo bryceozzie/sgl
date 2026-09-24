@@ -343,3 +343,32 @@ describe('quantize: host-computed bounds (DD-06 §5, F14)', () => {
     expect(quantize(once, 64)).toEqual(once);
   });
 });
+
+describe('quantize: every kind of extent reaches the bounds (fix round 1, item 7)', () => {
+  const E = asEdgeId('e');
+  const frameAt0 = { [A]: { frame: { x: 0, y: 0, w: 100, h: 20 } } };
+
+  it('a quadratic route that bulges past everything else is bounded by its own extremum', () => {
+    // From (0,10) to (100,10) with its control at y = -90: the curve peaks at
+    // y = 10 + (-90 - 10) / 2 = -40, 40 px above the node.
+    const q = quantize({ bounds: { x: 0, y: 0, w: 0, h: 0 }, nodes: frameAt0, edges: { [E]: { start: { x: 0, y: 10 }, end: { x: 100, y: 10 }, route: [{ t: 'Q', c: { x: 50, y: -90 }, to: { x: 100, y: 10 } }], clip: 'none' } }, labels: [] }, 64);
+    expect(q.nodes[A]!.frame.y).toBe(16 + 40);
+    expect(q.bounds).toEqual({ x: 0, y: 0, w: 100 + 32, h: 60 + 32 });
+  });
+
+  it('a quadratic bulging sideways is bounded in x too', () => {
+    const q = quantize({ bounds: { x: 0, y: 0, w: 0, h: 0 }, nodes: frameAt0, edges: { [E]: { start: { x: 0, y: 0 }, end: { x: 0, y: 20 }, route: [{ t: 'Q', c: { x: -60, y: 10 }, to: { x: 0, y: 20 } }], clip: 'none' } }, labels: [] }, 64);
+    expect(q.nodes[A]!.frame.x).toBe(16 + 30);
+  });
+
+  it('a port point outside its frame is inside the bounds', () => {
+    const q = quantize({ bounds: { x: 0, y: 0, w: 0, h: 0 }, nodes: { [A]: { frame: { x: 0, y: 0, w: 10, h: 10 }, ports: { p: { point: { x: 40, y: 5 }, normal: { x: 1, y: 0 } } } } }, edges: {}, labels: [] }, 64);
+    expect(q.bounds).toEqual({ x: 0, y: 0, w: 40 + 32, h: 10 + 32 });
+  });
+
+  it('a contentFrame outside its frame is inside the bounds', () => {
+    const q = quantize({ bounds: { x: 0, y: 0, w: 0, h: 0 }, nodes: { [A]: { frame: { x: 0, y: 0, w: 10, h: 10 }, contentFrame: { x: -20, y: 0, w: 5, h: 30 } } }, edges: {}, labels: [] }, 64);
+    expect(q.nodes[A]!.frame.x).toBe(16 + 20);
+    expect(q.bounds).toEqual({ x: 0, y: 0, w: 30 + 32, h: 30 + 32 });
+  });
+});

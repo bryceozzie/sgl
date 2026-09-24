@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { LAYOUT_API_VERSION, type EdgeLayout, type LayoutEngine, type LayoutInput, type LayoutResult, type ResolvedThemeMetricsView } from '../src/contract.js';
 import { applyHostFallbacks, finishEngineRoutes, MIN_SELF_LOOP_HEIGHT } from '../src/fallbacks.js';
 import { quantize } from '../src/validate.js';
-
 import type { WorkerToHost } from '../src/protocol.js';
 import { EngineRegistry } from '../src/registry.js';
 import { createWorkerRuntime } from '../src/worker-runtime.js';
