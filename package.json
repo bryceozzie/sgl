@@ -21,7 +21,7 @@
     "test": "pnpm generate:corpus && pnpm generate:bench-fixtures && pnpm generate:grid-fixture && vitest run --project unit --project browser",
     "test:unit": "pnpm generate:corpus && vitest run --project unit",
     "test:browser": "pnpm generate:corpus && pnpm generate:bench-fixtures && pnpm generate:grid-fixture && vitest run --project browser",
-    "test:watch": "pnpm generate:corpus && vitest",
+    "test:watch": "pnpm generate:corpus && vitest --project unit --project browser",
     "test:e2e": "pnpm --filter @sgl/web exec playwright test --project=chromium",
     "bench:theme": "pnpm generate:corpus && vitest run --project bench",
     "test:e2e:all-browsers": "pnpm --filter @sgl/web run test:e2e:all-browsers",
