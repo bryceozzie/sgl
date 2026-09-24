@@ -244,7 +244,7 @@ them after a theme switch instead of sleeping.
 - **Pan**: pointer drag on empty space; **zoom**: wheel (ctrl/⌘ + wheel or pinch on trackpads) centred on the cursor; `k ∈ [0.1, 8]`.
 - **Fit**: on document open and on the toolbar button — `k = min(vw / bounds.w, vh / bounds.h) × 0.94`, centred. **Not** on every render: the viewport is preserved across re-renders so the diagram does not jump while typing. When `bounds` changes size by more than 40 % the chip offers "Fit".
 - **Hover** on a node adds `.hover` to the overlay outline computed from the node's frame (read from `lastGood.layout`, not from the DOM). **Click** selects (outline) — the hook for **⟶ E7** source mapping, which will scroll the editor to `graph.nodes[id].span`.
-- `innerHTML` replacement: the wrapper `<g>` is replaced wholesale. For a 2 000-node diagram this is ~20 ms in Chromium; if measured above budget, swap in `morphdom` on the wrapper. Not pre-emptively.
+- `innerHTML` replacement: the wrapper `<g>` is replaced wholesale. At 2 000 nodes that update measures ~41 ms in Chromium, plus ~64 ms of the style recalculation and layout it causes (`pnpm bench:theme`, a repeat Theme ▾ pick; execution plan §2.1 **F9** has the full breakdown). `morphdom` on the wrapper, the earlier plan for going over budget, measured **slower** than this at every size and is dropped; how the live view meets DD-09 §2's theme-switch budget is execution plan §2.1 **F9**.
 
 ---
 

@@ -28,6 +28,10 @@ export function isArrowhead(v: unknown): v is Arrowhead {
  */
 export class MarkerTable {
   private readonly markers = new Map<string, string>();
+  /** The id already computed for these exact arguments (F9, execution plan
+   *  §2.1): every directed edge asks, but a document uses a handful of
+   *  distinct markers, and an id costs a colour validation and a hash. */
+  private readonly ids = new Map<string, string>();
 
   /**
    * Register a marker and return its id, or `null` when nothing should be drawn.
@@ -38,11 +42,16 @@ export class MarkerTable {
   add(arrowhead: Arrowhead, color: string, size: number, start: boolean): string | null {
     if (arrowhead === 'none' || size <= 0) return null;
 
+    const key = `${arrowhead}|${start ? 's' : 'e'}|${size}|${color}`;
+    const known = this.ids.get(key);
+    if (known !== undefined) return known;
+
     const fill = cssColor(color);
     const id = `m-${arrowhead}${start ? '-s' : ''}-${hashToken(shortHash(`${fill}|${num(size)}`))}`;
     if (!this.markers.has(id)) {
       this.markers.set(id, markerElement(id, arrowhead, fill, size, start));
     }
+    this.ids.set(key, id);
     return id;
   }
 
