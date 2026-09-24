@@ -36,25 +36,32 @@ test.describe('MVP acceptance', () => {
     const svgTextBefore = await renderedSvg(page).innerHTML();
     const paintBefore = await paintHash(page);
 
+    const textBefore = await editorText(page);
     await page.locator('.theme-picker select').selectOption('neutral-dark');
-    await expect(page.locator('.theme-picker .picker-label')).toContainText('set by document');
     // Not a sleep: `data-theme` on the rendered wrapper changes only once the
     // canvas has swapped in a `lastGood` rendered under the new theme.
     await waitForTheme(page, 'neutral-dark');
+    // The example names no theme, so the pick is a view preference (F9 P1,
+    // DD-08 §10): the document is not edited.
+    await expect(page.locator('.theme-picker .picker-label')).toHaveText('Theme');
+    expect(await editorText(page)).toBe(textBefore);
 
     const geomAfter = await nodeGeometry(page);
     const edgesAfter = await edgePaths(page);
     const viewBoxAfter = await viewBox(page);
     const svgTextAfter = await renderedSvg(page).innerHTML();
 
-    // I2 / F7: assert geometry, not "only <style> differs" — the tree really
-    // does change (paint class names, marker ids), so the negative half of
-    // this assertion (svgTextAfter !== svgTextBefore) is expected, not a bug.
+    // I2: geometry is asserted directly. Since F7 the paint class names and
+    // marker ids no longer change with the theme, and since F9 the switch is
+    // a swap of the `<style>` text alone (DD-08 §6), so everything outside
+    // that element is identical too.
     expect(geomAfter).toEqual(geomBefore);
     expect(edgesAfter).toEqual(edgesBefore);
     expect(viewBoxAfter).toBe(viewBoxBefore);
     expect(await paintHash(page)).not.toBe(paintBefore); // paint changed…
-    expect(svgTextAfter).not.toBe(svgTextBefore); // …and so did the markup carrying it.
+    expect(svgTextAfter).not.toBe(svgTextBefore); // …and so did the markup carrying it,
+    const withoutStyle = (markup: string): string => markup.replace(/<style>[\s\S]*?<\/style>/, '<style></style>');
+    expect(withoutStyle(svgTextAfter)).toBe(withoutStyle(svgTextBefore)); // …which is the <style> text alone.
   });
 
   test('criterion 3: a syntax error mid-edit shows a squiggle at the right span and keeps the last diagram', async ({ page }) => {

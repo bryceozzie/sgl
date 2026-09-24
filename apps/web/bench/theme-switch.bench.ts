@@ -22,62 +22,76 @@ import n2000 from '../../../corpus/n2000.sgl?raw';
  * 2a and its fix round 1): a theme switch timed from the **user's action** to
  * the last new paint being in the canvas with its style and layout forced.
  *
- * **The action is the Theme ▾ picker's own.** `ThemePicker.select` calls
- * `selectTheme` (`src/state/picker-actions.ts`), which writes
- * `pipeline.themeId` **and** returns the text change that writes `@theme`
- * into the document's root config, then dispatches that change into
- * CodeMirror (`dispatchTextChange`). Both run synchronously:
+ * **The action is the Theme ▾ picker's own**: `ThemePicker.select` is
+ * `selectTheme(pipeline, id, dispatch)` (`src/state/picker-actions.ts`), with
+ * `dispatch` the editor's `dispatchTextChange`. Since `feat/theme-fast-path`
+ * the picker is a view preference (P1, human decision 2026-09-24) and one
+ * pick is one signal batch (P2), so there are two cases, each timed as one
+ * synchronous action:
  *
- *   pass 1  the `themeId` write: `resolveTheme` → `styleGraph` → `render` →
- *           the canvas effect's `innerHTML` swap — **only** when it changes
- *           the effective theme, i.e. when the document has no `@theme` yet
- *           (a `first` pick). Once it has one (every pick after the first
- *           writes it: a `repeat` pick), the document's `@theme` overrides
- *           `themeId` (DD-08 §10) and pass 1 changes nothing;
- *   pass 2  the dispatch: CodeMirror's transaction, incremental reparse and
- *           view update → its `updateListener` → `pipeline.setDocument` →
- *           `buildAst` → `resolve` → `compile` → `resolveTheme` →
- *           `styleGraph` → `render` → a swap, plus the effects the signal
- *           graph runs synchronously (the editor's `setDiagnostics`
- *           dispatch, the diagnostics and chip computeds, `lastGood`).
+ *   `no @theme`  the document names no theme — the ordinary path, and **the
+ *                one the gate judges**. The pick sets `themeId` and nothing
+ *                else: `resolveTheme` → `styleGraph` (once per distinct
+ *                cascade signature) → `renderPaintOnly` (the `<style>` text
+ *                only, P3) → the canvas swaps that text into the tree it
+ *                shows. No re-parse, no `render()`, no `innerHTML`, no
+ *                pre-measure (the labels and their geometry are unchanged).
+ *   `@theme`     the document names one (`@theme: "neutral-light"` on its
+ *                first line), so the pick edits that entry in place:
+ *                CodeMirror's transaction and incremental reparse → its
+ *                `updateListener` → `pipeline.setDocument` → `buildAst` →
+ *                `resolve` → `compile` → `resolveTheme` → `styleGraph` →
+ *                `render` (a new graph is a full render) → the `innerHTML`
+ *                swap, plus the pre-measure the new graph triggers. The
+ *                document's own text changing: reported, as a known cost,
+ *                not gated.
  *
- * Both picks are measured. This bench does exactly what the picker does
- * (`selectTheme` + `dispatchTextChange` on the real `EditorView`), with the
- * real `Editor` and `Canvas` components mounted by Preact into Chromium's DOM
- * around the real `createPipeline` (real `CanvasMeasurer` with the app's
- * Inter faces; the real layout host and worker runtime, run in the page, see
- * `inPageWorker`). Left out, as small or off the path: the `<select>` change
- * event itself, and `App`'s document-session `record` computed and autosave
- * (debounced 500 ms, DD-08 §9).
+ * Each case is timed on two picks:
+ * - `first`: the pick right after a full render is on screen, as after
+ *   opening or editing the document (the reset makes an edit that ends on
+ *   the case's text, which a full render follows);
+ * - `repeat`: the pick right after another pick (the reset is the picker's
+ *   own pick back to light).
+ *
+ * This bench does exactly what the picker does, with the real `Editor` and
+ * `Canvas` components mounted by Preact into Chromium's DOM around the real
+ * `createPipeline` (real `CanvasMeasurer` with the app's Inter faces; the
+ * real layout host and worker runtime, run in the page, see `inPageWorker`).
+ * Left out, as small or off the path: the `<select>` change event itself, and
+ * `App`'s document-session `record` computed and autosave (debounced 500 ms,
+ * DD-08 §9; the record never reads the SVG on a switch, P4).
  *
  * **Breakdown.** The stage functions are wrapped with `vi.mock` (the same
- * functions, timed at their boundary, per call so the passes are told apart),
- * `pipeline.setDocument` is wrapped on the pipeline object, and the wrapper
- * `<g>`'s `innerHTML` setter is timed on the element; nothing is instrumented
- * in production code. `P2 CodeMirror` is pass 2 minus `setDocument`;
- * `P2 effects+other` is `setDocument` minus the stages and the swap.
+ * functions, timed at their boundary), `pipeline.setDocument` is wrapped on
+ * the pipeline object, the wrapper `<g>`'s `innerHTML` setter is timed on the
+ * element, and the `<style>` text swap is timed at `Node.prototype`'s
+ * `textContent` setter for a `<style>` inside the wrapper; nothing is
+ * instrumented in production code. `CodeMirror` is the dispatch minus
+ * `setDocument` (inside the pick's signal batch the stages run when the batch
+ * ends, after the dispatch has returned); `effects+other` is the synchronous
+ * action minus everything timed inside it (the signal graph, the other
+ * effects, the editor's `setDiagnostics`).
  *
- * **When the switch is over.** After the dispatch returns, `getBBox()` forces
- * style + layout (`t2`). Asynchronously, the measure effect's latest run
- * awaits `measurer.ready()` and pre-measures, and the layout effect debounces
- * 120 ms and then, geometry being unchanged, skips layout (DD-08 §3). Each run
- * then waits for **idle** — the pre-measure has landed, no layout is in
- * flight, and nothing has been swapped into the canvas for 400 ms — and
- * asserts that no swap happened after the synchronous part and no layout was
- * requested. So the last synchronous swap is provably the last paint, and
- * `t2` ends it; a run with a later swap fails rather than being mis-timed.
+ * **When the switch is over.** After the action returns, `getBBox()` forces
+ * style + layout (`t2`). Asynchronously, a pre-measure may run (the `@theme`
+ * case: its latest run awaits `measurer.ready()` and pre-measures), and the
+ * layout effect debounces 120 ms and then, geometry being unchanged, skips
+ * layout (DD-08 §3). Each run then waits for **idle** — no layout in flight,
+ * and nothing painted into the canvas for 400 ms — and asserts that nothing
+ * was painted after the synchronous part and no layout was requested. So
+ * the synchronous paint is provably the last one, and `t2` ends it; a run
+ * with a later paint fails rather than being mis-timed.
  *
- * `work` = (t2 − t0) + the pre-measure's own main-thread time: everything the
+ * `work` = (t2 − t0) + the pre-measures' own main-thread time: everything the
  * pick makes the main thread do. The budget (DD-09 §2: < 16 ms up to 500
  * nodes, < 50 ms at 2 000, Chromium) is judged on median `work` of the slower
- * pick.
+ * pick of the `no @theme` case.
  *
- * **The gate** (one test per point) awaits the same shared measurement as the
- * measurement tests, and starts it itself when run alone (`-t "meets the
- * budget"`), so a failed or missing measurement fails the gate. For the
+ * **The gate** (one test per point) awaits the same shared measurements as
+ * the measurement tests, and starts them itself when run alone (`-t "meets
+ * the budget"`), so a failed or missing measurement fails the gate. For the
  * points in `KNOWN_MISSES` it asserts the miss **persists**, and fails,
  * saying so, once the budget is met; for the rest it asserts the budget.
- * Turning F9's gate on is emptying `KNOWN_MISSES`.
  */
 
 interface Calls {
@@ -87,11 +101,12 @@ interface Calls {
   resolveTheme: number[];
   styleGraph: number[];
   render: number[];
+  paintOnly: number[];
   premeasure: number[];
   premeasureDone: number;
   setDocument: number[];
 }
-const calls: Calls = { buildAst: [], resolve: [], compile: [], resolveTheme: [], styleGraph: [], render: [], premeasure: [], premeasureDone: 0, setDocument: [] };
+const calls: Calls = { buildAst: [], resolve: [], compile: [], resolveTheme: [], styleGraph: [], render: [], paintOnly: [], premeasure: [], premeasureDone: 0, setDocument: [] };
 
 function timed<A extends unknown[], R>(fn: (...args: A) => R, into: () => number[], after?: (end: number) => void): (...args: A) => R {
   return (...args: A): R => {
@@ -127,7 +142,7 @@ vi.mock('@sgl/theme', async (importOriginal) => {
 
 vi.mock('@sgl/render-svg', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@sgl/render-svg')>();
-  return { ...actual, render: timed(actual.render, () => calls.render) };
+  return { ...actual, render: timed(actual.render, () => calls.render), renderPaintOnly: timed(actual.renderPaintOnly, () => calls.paintOnly) };
 });
 
 vi.mock('@sgl/measure', async (importOriginal) => {
@@ -147,37 +162,35 @@ const DARK = 'neutral-dark';
 
 /** DD-09 §2's budget for a theme switch, Chromium. */
 const BUDGET_MS: Readonly<Record<string, number>> = { n50: 16, n500: 16, n2000: 50 };
-/** Budget points currently missed: their gate asserts the miss persists.
- *  Turning F9's gate fully on is emptying this set. n50 is here since the
- *  bench follows the picker's real path: a first pick is two paints. */
-const KNOWN_MISSES: ReadonlySet<string> = new Set(['n50', 'n500', 'n2000']);
+/** Budget points currently missed (the `no @theme` case, slower pick): their
+ *  gate asserts the miss persists. Empty since `feat/theme-fast-path`: F9's
+ *  gate is on at every point. */
+const KNOWN_MISSES: ReadonlySet<string> = new Set<string>([]);
 const SOURCES: Readonly<Record<string, string>> = { n50, n500, n2000 };
 
 vi.setConfig({ testTimeout: 600_000, hookTimeout: 120_000 });
 
 interface Run {
-  /** Pass 1: the `themeId` write. */
-  readonly p1ResolveTheme: number;
-  readonly p1StyleGraph: number;
-  readonly p1Render: number;
-  readonly p1Swap: number;
-  readonly p1Total: number;
-  /** Pass 2: the dispatched `@theme` edit. */
-  readonly p2BuildAst: number;
-  readonly p2Resolve: number;
-  readonly p2Compile: number;
-  readonly p2ResolveTheme: number;
-  readonly p2StyleGraph: number;
-  readonly p2Render: number;
-  readonly p2Swap: number;
+  readonly buildAst: number;
+  readonly resolve: number;
+  readonly compile: number;
+  readonly resolveTheme: number;
+  readonly styleGraph: number;
+  readonly render: number;
+  readonly paintOnly: number;
+  /** The `innerHTML` swap (the full path). */
+  readonly swap: number;
+  /** The `<style>` text swap (the paint-only path). */
+  readonly styleSwap: number;
   /** CodeMirror's own share: the transaction, the incremental reparse, the
-   *  view update (pass 2 minus `pipeline.setDocument`). */
-  readonly p2CodeMirror: number;
-  /** Inside `setDocument`, besides the stages and the swap: the signal graph
-   *  and the effects it runs synchronously (the editor's `setDiagnostics`
-   *  dispatch, the diagnostics and chip computeds, `lastGood`). */
-  readonly p2EffectsOther: number;
-  readonly p2Total: number;
+   *  view update (the dispatch minus `pipeline.setDocument`, which inside the
+   *  pick's batch only stores the text). */
+  readonly codeMirror: number;
+  /** The synchronous action minus everything timed inside it: the signal
+   *  graph and the effects it runs synchronously. */
+  readonly effectsOther: number;
+  /** The whole synchronous action: `selectTheme` and everything it runs. */
+  readonly action: number;
   readonly styleLayout: number;
   readonly premeasure: number;
   readonly paintReady: number;
@@ -189,19 +202,18 @@ const COLUMNS: readonly (readonly [keyof Run, string])[] = [
   ['work', 'work'],
   ['paintReady', 'paint-ready'],
   ['wall', 'wall'],
-  ['p1Total', 'P1 total'],
-  ['p1StyleGraph', 'P1 styleGraph'],
-  ['p1Render', 'P1 render'],
-  ['p1Swap', 'P1 swap'],
-  ['p2Total', 'P2 total'],
-  ['p2BuildAst', 'P2 buildAst'],
-  ['p2Resolve', 'P2 resolve'],
-  ['p2Compile', 'P2 compile'],
-  ['p2StyleGraph', 'P2 styleGraph'],
-  ['p2Render', 'P2 render'],
-  ['p2Swap', 'P2 swap'],
-  ['p2CodeMirror', 'P2 CodeMirror'],
-  ['p2EffectsOther', 'P2 effects+other'],
+  ['action', 'action'],
+  ['buildAst', 'buildAst'],
+  ['resolve', 'resolve'],
+  ['compile', 'compile'],
+  ['resolveTheme', 'resolveTheme'],
+  ['styleGraph', 'styleGraph'],
+  ['render', 'render'],
+  ['paintOnly', 'renderPaintOnly'],
+  ['swap', 'innerHTML swap'],
+  ['styleSwap', '<style> swap'],
+  ['codeMirror', 'CodeMirror'],
+  ['effectsOther', 'effects+other'],
   ['styleLayout', 'style+layout'],
   ['premeasure', 'premeasure'],
 ];
@@ -227,10 +239,6 @@ async function until(what: string, test: () => boolean, timeoutMs = 60_000): Pro
 }
 
 const sum = (xs: readonly number[]): number => xs.reduce((a, b) => a + b, 0);
-const only = (xs: readonly number[], what: string): number => {
-  if (xs.length !== 1) throw new Error(`expected exactly one ${what} call in this pass, saw ${xs.length}`);
-  return xs[0]!;
-};
 
 interface Harness {
   readonly pipeline: Pipeline;
@@ -238,6 +246,10 @@ interface Harness {
   readonly wrapper: SVGGElement;
   /** Durations of every `innerHTML` swap into the wrapper since the last reset. */
   readonly swaps: number[];
+  /** Durations of every `<style>` text swap inside the wrapper since the last reset. */
+  readonly styleSwaps: number[];
+  /** Every paint into the canvas, of either kind, since the last reset. */
+  paints(): number;
   /** How many layout requests the worker host received since the last reset. */
   layoutRequests(): number;
   resetCounters(): void;
@@ -304,8 +316,8 @@ async function mountApp(source: string): Promise<Harness> {
   };
   const pipeline = createPipeline({ measurer, host: layoutHost, metrics: APP_METRICS, defaultEngineId: 'sgl.grid', defaultThemeId: LIGHT }, source);
   // `Editor`'s `updateListener` calls `pipeline.setDocument(tree, source)` by
-  // property lookup, so timing it here splits pass 2 into CodeMirror's share
-  // and the pipeline's, with `Editor.tsx` unchanged.
+  // property lookup, so timing it here splits the dispatch into CodeMirror's
+  // share and the pipeline's, with `Editor.tsx` unchanged.
   const setDocument = pipeline.setDocument.bind(pipeline);
   (pipeline as { setDocument: Pipeline['setDocument'] }).setDocument = timed(setDocument, () => calls.setDocument);
 
@@ -317,19 +329,35 @@ async function mountApp(source: string): Promise<Harness> {
   if (wrapper === null) throw new Error('Canvas did not mount its wrapper <g>.');
   await until('the editor view', () => view !== null);
 
-  // Time the canvas effect's swap at the element itself: an own accessor that
-  // defers to the native one, so `Canvas.tsx` runs unchanged.
-  const native = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML')!;
+  // Time the canvas's two kinds of paint at the DOM itself, so `Canvas.tsx`
+  // and `canvas/paint.ts` run unchanged: the `innerHTML` swap as an own
+  // accessor on the wrapper, and the `<style>` text swap at `Node.prototype`'s
+  // `textContent` setter, counted only for a `<style>` inside the wrapper.
+  const nativeHtml = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML')!;
   const swaps: number[] = [];
   Object.defineProperty(wrapper, 'innerHTML', {
     configurable: true,
     get(this: Element) {
-      return native.get!.call(this);
+      return nativeHtml.get!.call(this);
     },
     set(this: Element, value: string) {
       const t = performance.now();
-      native.set!.call(this, value);
+      nativeHtml.set!.call(this, value);
       swaps.push(performance.now() - t);
+    },
+  });
+  const nativeText = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent')!;
+  const styleSwaps: number[] = [];
+  Object.defineProperty(Node.prototype, 'textContent', {
+    configurable: true,
+    get(this: Node) {
+      return nativeText.get!.call(this);
+    },
+    set(this: Node, value: string | null) {
+      const counted = this instanceof SVGStyleElement && wrapper.contains(this);
+      const t = performance.now();
+      nativeText.set!.call(this, value);
+      if (counted) styleSwaps.push(performance.now() - t);
     },
   });
 
@@ -345,20 +373,24 @@ async function mountApp(source: string): Promise<Harness> {
     };
     throw new Error(`${String(err)}: ${JSON.stringify(state)}`);
   }
+  const paints = (): number => swaps.length + styleSwaps.length;
   // Boot can lay out more than once (the font-gated pre-measure, DD-08 §5);
   // let all of it finish before the first pick.
-  await quiet(pipeline, swaps, 1000);
+  await quiet(pipeline, paints, 1000);
 
   return {
     pipeline,
     view: view!,
     wrapper,
     swaps,
+    styleSwaps,
+    paints,
     layoutRequests: () => layoutRequests,
     resetCounters() {
       swaps.length = 0;
+      styleSwaps.length = 0;
       layoutRequests = 0;
-      for (const k of ['buildAst', 'resolve', 'compile', 'resolveTheme', 'styleGraph', 'render', 'premeasure', 'setDocument'] as const) calls[k] = [];
+      for (const k of ['buildAst', 'resolve', 'compile', 'resolveTheme', 'styleGraph', 'render', 'paintOnly', 'premeasure', 'setDocument'] as const) calls[k] = [];
       calls.premeasureDone = 0;
     },
     dispose() {
@@ -367,6 +399,7 @@ async function mountApp(source: string): Promise<Harness> {
       pipeline.dispose();
       realHost.dispose();
       root.remove();
+      Object.defineProperty(Node.prototype, 'textContent', nativeText);
     },
   };
 }
@@ -376,20 +409,18 @@ function pick(app: Harness, id: string): void {
   selectTheme(app.pipeline, id, (change) => dispatchTextChange(app.view, change));
 }
 
-/**
- * Which pick is timed:
- * - `first`: the document has no `@theme` yet, the common case for a fresh
- *   document, so the `themeId` write changes the effective theme and pass 1
- *   paints, then pass 2 paints again;
- * - `repeat`: the document already carries `@theme` (every pick after the
- *   first writes it), which overrides `themeId` (DD-08 §10), so pass 1
- *   changes nothing and only pass 2 paints.
- */
-type Scenario = 'first' | 'repeat';
-const SCENARIOS: readonly Scenario[] = ['first', 'repeat'];
+/** The two documents: the corpus text as is, and the same with its own
+ *  `@theme` on the first line. */
+type Case = 'no-theme' | 'theme';
+const CASES: readonly Case[] = ['no-theme', 'theme'];
+const CASE_LABEL: Readonly<Record<Case, string>> = { 'no-theme': 'no @theme', theme: '@theme' };
+const caseSource = (source: string, c: Case): string => (c === 'theme' ? `@theme: "${LIGHT}"\n${source}` : source);
+
+type Pick = 'first' | 'repeat';
+const PICKS: readonly Pick[] = ['first', 'repeat'];
 
 /** Idle: the canvas shows `theme` with every node, no layout is in flight,
- *  and nothing has been swapped into the canvas for 400 ms (over three times
+ *  and nothing has been painted into the canvas for 400 ms (over three times
  *  the layout effect's 120 ms debounce, so a layout it schedules has been
  *  requested, answered and painted, or was never going to be). */
 async function settle(app: Harness, theme: string, nodes: number): Promise<void> {
@@ -409,16 +440,16 @@ async function settle(app: Harness, theme: string, nodes: number): Promise<void>
     };
     throw new Error(`${String(err)}: ${JSON.stringify(state)}`);
   }
-  await quiet(app.pipeline, app.swaps, 400);
+  await quiet(app.pipeline, app.paints, 400);
 }
 
-/** No layout in flight, and no swap into the canvas, for `ms` in a row. */
-async function quiet(pipeline: Pipeline, swaps: readonly number[], ms: number): Promise<void> {
+/** No layout in flight, and no paint into the canvas, for `ms` in a row. */
+async function quiet(pipeline: Pipeline, paints: () => number, ms: number): Promise<void> {
   let seen = -1;
   let since = performance.now();
   await until('the pipeline to go idle', () => {
-    if (swaps.length !== seen || pipeline.inFlight.peek()) {
-      seen = swaps.length;
+    if (paints() !== seen || pipeline.inFlight.peek()) {
+      seen = paints();
       since = performance.now();
       return false;
     }
@@ -426,123 +457,134 @@ async function quiet(pipeline: Pipeline, swaps: readonly number[], ms: number): 
   });
 }
 
-/** Back to light, untimed, in the state `scenario` starts from. */
-async function reset(app: Harness, scenario: Scenario, original: string, nodes: number): Promise<void> {
-  if (scenario === 'first') {
-    // The original text (no `@theme`), and the picker signal back on light.
-    // A minimal edit (drop the `@theme` entry the last pick wrote), not a
-    // whole-document replacement, which would make the editor reparse all of
-    // it (`completeSyntaxTree`, F19) for an untimed step.
-    const current = app.view.state.doc.toString();
-    if (current !== original) {
-      let from = 0;
-      while (from < current.length && from < original.length && current[from] === original[from]) from += 1;
-      let tail = 0;
-      while (tail < current.length - from && tail < original.length - from && current[current.length - 1 - tail] === original[original.length - 1 - tail]) tail += 1;
-      app.view.dispatch({ changes: { from, to: current.length - tail, insert: original.slice(from, original.length - tail) } });
-    }
+/** A minimal edit turning the editor's text into `text` (not a whole-document
+ *  replacement, which would make the editor reparse all of it for an untimed
+ *  step, F19). */
+function editTo(app: Harness, text: string): void {
+  const current = app.view.state.doc.toString();
+  if (current === text) return;
+  let from = 0;
+  while (from < current.length && from < text.length && current[from] === text[from]) from += 1;
+  let tail = 0;
+  while (tail < current.length - from && tail < text.length - from && current[current.length - 1 - tail] === text[text.length - 1 - tail]) tail += 1;
+  app.view.dispatch({ changes: { from, to: current.length - tail, insert: text.slice(from, text.length - tail) } });
+}
+
+/** Back to light, untimed, in the state `p` starts from. */
+async function reset(app: Harness, c: Case, p: Pick, text: string, nodes: number): Promise<void> {
+  if (p === 'first') {
+    // The picker back on light, and the case's text restored by an edit —
+    // a trailing newline added and taken away again — so what is on screen
+    // is a full render of it, as after opening or editing the document.
     app.pipeline.themeId.value = LIGHT;
-    await settle(app, LIGHT, nodes);
-    expect(app.pipeline.documentThemeId.peek()).toBeUndefined();
+    editTo(app, `${text}\n`);
+    editTo(app, text);
   } else {
     pick(app, LIGHT);
-    await settle(app, LIGHT, nodes);
-    expect(app.pipeline.documentThemeId.peek()).toBe(LIGHT);
   }
+  await settle(app, LIGHT, nodes);
+  expect(app.view.state.doc.toString()).toBe(text);
+  expect(app.pipeline.documentThemeId.peek()).toBe(c === 'theme' ? LIGHT : undefined);
   app.wrapper.getBBox();
 }
 
-async function switchOnce(app: Harness, scenario: Scenario, original: string, nodes: number): Promise<Run> {
-  await reset(app, scenario, original, nodes);
+async function switchOnce(app: Harness, c: Case, p: Pick, text: string, nodes: number): Promise<Run> {
+  await reset(app, c, p, text, nodes);
   app.resetCounters();
   const table = app.pipeline.table.peek();
 
+  // The picker's own action (`pick`), with its dispatch timed: inside the
+  // batch the dispatch is CodeMirror's alone (the pipeline's `setDocument`
+  // only stores the text), and the stages run when the batch ends.
+  let dispatchMs = 0;
   const t0 = performance.now();
-  // Interim (P1/P2 checkpoint): the two halves of the pick, unbatched, until
-  // the bench is rebuilt around the picker's single batched action.
-  const change = selectTheme(app.pipeline, DARK, null) ?? { from: 0, to: 0, insert: '' }; // pass 1: the `themeId` write
-  const tMid = performance.now();
-  const n1 = { resolveTheme: calls.resolveTheme.length, styleGraph: calls.styleGraph.length, render: calls.render.length, swaps: app.swaps.length };
-  dispatchTextChange(app.view, change); // pass 2: the `@theme` edit
+  selectTheme(app.pipeline, DARK, (change) => {
+    const t = performance.now();
+    dispatchTextChange(app.view, change);
+    dispatchMs += performance.now() - t;
+  });
   const t1 = performance.now();
-  app.wrapper.getBBox(); // style + layout of the (last) swap, forced now
+  app.wrapper.getBBox(); // style + layout of the paint, forced now
   const t2 = performance.now();
 
-  const paints = scenario === 'first' ? 1 : 0;
-  expect({ styleGraph: n1.styleGraph, render: n1.render, swaps: n1.swaps }, `pass 1 of a ${scenario} pick`).toEqual({ styleGraph: paints, render: paints, swaps: paints });
-  const p1 = {
-    resolveTheme: sum(calls.resolveTheme.slice(0, n1.resolveTheme)),
-    styleGraph: sum(calls.styleGraph.slice(0, n1.styleGraph)),
-    render: sum(calls.render.slice(0, n1.render)),
-    swap: sum(app.swaps.slice(0, n1.swaps)),
+  const sync = {
+    buildAst: sum(calls.buildAst),
+    resolve: sum(calls.resolve),
+    compile: sum(calls.compile),
+    resolveTheme: sum(calls.resolveTheme),
+    styleGraph: sum(calls.styleGraph),
+    render: sum(calls.render),
+    paintOnly: sum(calls.paintOnly),
+    swap: sum(app.swaps),
+    styleSwap: sum(app.styleSwaps),
+    setDocument: sum(calls.setDocument),
   };
-  const p2 = {
-    buildAst: only(calls.buildAst, 'buildAst'),
-    resolve: only(calls.resolve, 'resolve'),
-    compile: only(calls.compile, 'compile'),
-    resolveTheme: sum(calls.resolveTheme.slice(n1.resolveTheme)),
-    styleGraph: only(calls.styleGraph.slice(n1.styleGraph), 'styleGraph'),
-    render: only(calls.render.slice(n1.render), 'render'),
-    swap: only(app.swaps.slice(n1.swaps), 'swap'),
-    setDocument: only(calls.setDocument, 'setDocument'),
-  };
-  const syncSwaps = app.swaps.length;
-
-  // Wait for idle, then prove the second synchronous swap was the last paint.
-  await until('the pre-measure to land', () => app.pipeline.table.peek() !== table);
-  await settle(app, DARK, nodes);
-  expect(calls.premeasure.length, 'the switch must trigger exactly one pre-measure').toBe(1);
-  expect(calls.premeasureDone, 'the pre-measure must have run after the pick').toBeGreaterThan(t1);
+  // One paint, of the kind the case calls for, all in the synchronous action.
+  const paint = c === 'no-theme' ? { styleGraph: 1, render: 0, paintOnly: 1, swaps: 0, styleSwaps: 1, buildAst: 0 } : { styleGraph: 1, render: 1, paintOnly: 0, swaps: 1, styleSwaps: 0, buildAst: 1 };
   expect(
-    app.swaps.length,
-    `a swap after the synchronous part: the second swap was not the last (layout requests ${app.layoutRequests()}, styleGraph calls ${calls.styleGraph.length}, buildAst calls ${calls.buildAst.length}, render calls ${calls.render.length})`,
-  ).toBe(syncSwaps);
-  expect(app.layoutRequests(), 'a theme switch must not re-lay out').toBe(0);
-  expect(app.pipeline.documentThemeId.peek()).toBe(DARK);
+    {
+      styleGraph: calls.styleGraph.length,
+      render: calls.render.length,
+      paintOnly: calls.paintOnly.length,
+      swaps: app.swaps.length,
+      styleSwaps: app.styleSwaps.length,
+      buildAst: calls.buildAst.length,
+    },
+    `a ${p} pick, ${CASE_LABEL[c]}`,
+  ).toEqual(paint);
+  const syncPaints = app.paints();
 
-  const p2Total = t1 - tMid;
-  const premeasure = calls.premeasure[0]!;
+  // Wait for idle, then prove the synchronous paint was the last one.
+  if (c === 'theme') await until('the pre-measure to land', () => app.pipeline.table.peek() !== table);
+  await settle(app, DARK, nodes);
+  expect(calls.premeasure.length, c === 'theme' ? 'a new graph is pre-measured once' : 'the same labels and geometry are not pre-measured again').toBe(c === 'theme' ? 1 : 0);
+  if (c === 'theme') expect(calls.premeasureDone, 'the pre-measure must have run after the pick').toBeGreaterThan(t1);
+  expect(app.paints(), `a paint after the synchronous part (layout requests ${app.layoutRequests()}, styleGraph calls ${calls.styleGraph.length}, render calls ${calls.render.length})`).toBe(syncPaints);
+  expect(app.layoutRequests(), 'a theme switch must not re-lay out').toBe(0);
+  expect(app.pipeline.effectiveThemeId.peek()).toBe(DARK);
+  expect(app.view.state.doc.toString()).toBe(c === 'theme' ? text.replace(`"${LIGHT}"`, `"${DARK}"`) : text);
+
+  const action = t1 - t0;
+  const codeMirror = dispatchMs - sync.setDocument;
+  const premeasure = sum(calls.premeasure);
   return {
-    p1ResolveTheme: p1.resolveTheme,
-    p1StyleGraph: p1.styleGraph,
-    p1Render: p1.render,
-    p1Swap: p1.swap,
-    p1Total: tMid - t0,
-    p2BuildAst: p2.buildAst,
-    p2Resolve: p2.resolve,
-    p2Compile: p2.compile,
-    p2ResolveTheme: p2.resolveTheme,
-    p2StyleGraph: p2.styleGraph,
-    p2Render: p2.render,
-    p2Swap: p2.swap,
-    p2CodeMirror: p2Total - p2.setDocument,
-    p2EffectsOther: p2.setDocument - p2.buildAst - p2.resolve - p2.compile - p2.resolveTheme - p2.styleGraph - p2.render - p2.swap,
-    p2Total,
+    buildAst: sync.buildAst,
+    resolve: sync.resolve,
+    compile: sync.compile,
+    resolveTheme: sync.resolveTheme,
+    styleGraph: sync.styleGraph,
+    render: sync.render,
+    paintOnly: sync.paintOnly,
+    swap: sync.swap,
+    styleSwap: sync.styleSwap,
+    codeMirror,
+    effectsOther: action - codeMirror - sync.buildAst - sync.resolve - sync.compile - sync.resolveTheme - sync.styleGraph - sync.render - sync.paintOnly - sync.swap - sync.styleSwap,
+    action,
     styleLayout: t2 - t1,
     premeasure,
     paintReady: t2 - t0,
     work: t2 - t0 + premeasure,
-    // Asserted above: the pre-measure ran, after the dispatch.
-    wall: calls.premeasureDone - t0,
+    wall: (calls.premeasure.length > 0 ? Math.max(calls.premeasureDone, t2) : t2) - t0,
   };
 }
 
-/** One measurement per document and scenario, shared by the measurement and
- *  gate tests; whichever runs first starts it, and a failure rejects both. */
+/** One measurement per document, case and pick, shared by the measurement
+ *  and gate tests; whichever runs first starts it, and a failure rejects
+ *  both. */
 const measurements = new Map<string, Promise<readonly Run[]>>();
 
-function measure(name: string, scenario: Scenario): Promise<readonly Run[]> {
-  const key = `${name}|${scenario}`;
-  let p = measurements.get(key);
-  if (p === undefined) {
-    p = (async () => {
-      const original = SOURCES[name]!;
-      const app = await mountApp(original);
+function measure(name: string, c: Case, p: Pick): Promise<readonly Run[]> {
+  const key = `${name}|${c}|${p}`;
+  let promise = measurements.get(key);
+  if (promise === undefined) {
+    promise = (async () => {
+      const text = caseSource(SOURCES[name]!, c);
+      const app = await mountApp(text);
       try {
         const nodes = app.pipeline.lastGood.peek()!.styled.graph.meta.nodeCount;
         const runs: Run[] = [];
         for (let i = 0; i < WARMUP + RUNS; i += 1) {
-          const run = await switchOnce(app, scenario, original, nodes);
+          const run = await switchOnce(app, c, p, text, nodes);
           if (i >= WARMUP) runs.push(run);
         }
         return runs;
@@ -550,30 +592,34 @@ function measure(name: string, scenario: Scenario): Promise<readonly Run[]> {
         app.dispose();
       }
     })();
-    measurements.set(key, p);
+    measurements.set(key, promise);
   }
-  return p;
+  return promise;
 }
 
 describe.skipIf(navigator.userAgent.includes('Firefox'))("F9 end to end: Theme ▾ neutral-light → neutral-dark, the picker's real path (Chromium)", () => {
   for (const name of ['n50', 'n500', 'n2000']) {
-    for (const scenario of SCENARIOS) {
-      it(`${name} (${scenario} pick): measure`, async () => {
-        const runs = await measure(name, scenario);
-        const line = `[F9-E2E] ${name} ${scenario} | ${COLUMNS.map(([k, label]) => `${label} ${fmt(runs.map((r) => r[k]))}`).join(' | ')} | budget ${BUDGET_MS[name]} ms`;
-        console.log(`[F9-E2E] (ms, median (min–max) of ${RUNS} runs after ${WARMUP} warmups)\n${line}`);
-        expect(runs).toHaveLength(RUNS);
-      });
+    for (const c of CASES) {
+      for (const p of PICKS) {
+        it(`${name} (${CASE_LABEL[c]}, ${p} pick): measure`, async () => {
+          const runs = await measure(name, c, p);
+          const gated = c === 'no-theme' ? `budget ${BUDGET_MS[name]} ms` : 'not gated: the document text changes';
+          const line = `[F9-E2E] ${name} ${CASE_LABEL[c]} ${p} | ${COLUMNS.map(([k, label]) => `${label} ${fmt(runs.map((r) => r[k]))}`).join(' | ')} | ${gated}`;
+          console.log(`[F9-E2E] (ms, median (min–max) of ${RUNS} runs after ${WARMUP} warmups)\n${line}`);
+          expect(runs).toHaveLength(RUNS);
+        });
+      }
     }
 
-    // The F9 gate for this point: the slower of the two picks. It measures
-    // for itself when run alone, so it can never pass without a measurement.
-    it(`${name}: meets the budget (< ${BUDGET_MS[name]} ms, median work, slower pick)${KNOWN_MISSES.has(name) ? ' [known miss]' : ''}`, async () => {
+    // The F9 gate for this point: the slower pick of the ordinary, no-@theme
+    // case. It measures for itself when run alone, so it can never pass
+    // without a measurement.
+    it(`${name}: meets the budget (< ${BUDGET_MS[name]} ms, median work, no @theme, slower pick)${KNOWN_MISSES.has(name) ? ' [known miss]' : ''}`, async () => {
       // One after the other: the timing wrappers are shared, so two
       // measurements must never overlap.
       const medians: number[] = [];
-      for (const s of SCENARIOS) {
-        const runs = await measure(name, s);
+      for (const p of PICKS) {
+        const runs = await measure(name, 'no-theme', p);
         expect(runs).toHaveLength(RUNS);
         medians.push(median(runs.map((r) => r.work)));
       }

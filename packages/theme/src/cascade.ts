@@ -752,11 +752,12 @@ export function styleGraph(
   };
 
   /**
-   * One element and its label. `sizeFree`: the element has no `@size` key
-   * (always, for an edge), so its own style is a function of its signature
-   * alone. Layers (steps 3–6) are resolved at most once, and only when a
-   * style is not reused; `clean` records whether resolving them reported
-   * anything, and only a clean resolution is ever reused.
+   * One element and its label, stored and recorded. `sizeFree`: the element
+   * has no `@size` key (always, for an edge), so its own style is a function
+   * of its signature alone. Layers (steps 3–6) are resolved at most once, and
+   * only when a style is not reused; `clean` records whether resolving them
+   * reported anything, and only a clean resolution is ever reused. (Plain
+   * locals, no closures: this runs once per element.)
    */
   const styleElement = (
     role: RoleKind,
@@ -766,27 +767,18 @@ export function styleGraph(
     span: SourceSpan,
     id: string,
     withSize: boolean,
-  ): { readonly style: ComputedStyle; readonly label: () => ComputedStyle } => {
-    let layers: ElementLayers | null = null;
-    let clean = true;
-    const layersNow = (): ElementLayers => {
-      if (layers === null) {
-        const before = diagnostics.length;
-        layers = layersOf(classes, config, span, `\`${id}\``, withSize);
-        clean = diagnostics.length === before;
-      }
-      return layers;
-    };
+    labelId: LabelId | null,
+  ): void => {
     position += 1;
     const at = position;
     const sizeFree = known !== undefined ? (known.sizeFree[at] as boolean) : !withSize || sortedKeys(sizeKeysOnly(styleSetFromConfig(config?.size))).length === 0;
-    const labelRole: SignatureRole = role === 'edge' ? 'edge.label' : role === 'container' ? 'container.title' : 'node.title';
     let signature = '';
     let labelSignature = '';
     if (known !== undefined) {
       signature = known.element[at] as string;
       labelSignature = known.label[at] as string;
     } else if (memo) {
+      const labelRole: SignatureRole = role === 'edge' ? 'edge.label' : role === 'container' ? 'container.title' : 'node.title';
       signature = cascadeSignature(role, shape, classes, config);
       labelSignature = cascadeSignature(labelRole, undefined, classes, config);
       collected.element.push(signature);
@@ -794,52 +786,46 @@ export function styleGraph(
       collected.sizeFree.push(sizeFree);
     }
 
+    let layers: ElementLayers | null = null;
+    let clean = true;
     let style: ComputedStyle | undefined;
     if (memo && sizeFree) style = elementMemo.get(signature);
     if (style === undefined) {
-      style = computeStyle(elementBag(role, shape, layersNow()));
+      const before = diagnostics.length;
+      layers = layersOf(classes, config, span, `\`${id}\``, withSize);
+      clean = diagnostics.length === before;
+      style = computeStyle(elementBag(role, shape, layers));
       if (memo && sizeFree && clean) elementMemo.set(signature, style);
     }
+    styles[id] = style;
+    record(id, style);
 
-    const label = (): ComputedStyle => {
-      let labelStyle = memo ? labelMemo.get(labelSignature) : undefined;
-      if (labelStyle === undefined) {
-        labelStyle = computeStyle(labelBag(role, layersNow()));
-        if (memo && clean) labelMemo.set(labelSignature, labelStyle);
+    if (labelId === null) return;
+    let labelStyle = memo ? labelMemo.get(labelSignature) : undefined;
+    if (labelStyle === undefined) {
+      if (layers === null) {
+        const before = diagnostics.length;
+        layers = layersOf(classes, config, span, `\`${id}\``, withSize);
+        clean = diagnostics.length === before;
       }
-      return labelStyle;
-    };
-    return { style, label };
+      labelStyle = computeStyle(labelBag(role, layers));
+      if (memo && clean) labelMemo.set(labelSignature, labelStyle);
+    }
+    labelStyles[labelId] = labelStyle;
+    record(labelId, labelStyle);
   };
 
   // ---- nodes and containers ------------------------------------------------
   for (const id of graph.order) {
     const node: GraphNode | undefined = graph.nodes[id];
     if (node === undefined) continue;
-    const role: RoleKind = node.children.length > 0 ? 'container' : 'node';
-    const { style, label } = styleElement(role, node.shape, node.classes, node.config, node.span, id, true);
-    styles[id] = style;
-    record(id, style);
-
-    if (node.labelId !== null) {
-      const labelStyle = label();
-      labelStyles[node.labelId] = labelStyle;
-      record(node.labelId, labelStyle);
-    }
+    styleElement(node.children.length > 0 ? 'container' : 'node', node.shape, node.classes, node.config, node.span, id, true, node.labelId);
   }
 
   // ---- edges ---------------------------------------------------------------
   for (const edge of graph.edges) {
     const e: GraphEdge = edge;
-    const { style, label } = styleElement('edge', undefined, e.classes, e.config, e.span, e.id, false);
-    styles[e.id] = style;
-    record(e.id, style);
-
-    if (e.labelId !== null) {
-      const labelStyle = label();
-      labelStyles[e.labelId] = labelStyle;
-      record(e.labelId, labelStyle);
-    }
+    styleElement('edge', undefined, e.classes, e.config, e.span, e.id, false, e.labelId);
   }
 
   // The canvas background is paint with nowhere else to live: it is not any

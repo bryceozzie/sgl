@@ -112,6 +112,15 @@ function emptyStages(): EmptyStages {
   return emptyStagesMemo;
 }
 
+/** Equal content: code, severity, message, span and related spans. */
+function sameDiagnostic(a: Diagnostic, b: Diagnostic): boolean {
+  if (a === b) return true;
+  if (a.code !== b.code || a.severity !== b.severity || a.message !== b.message || a.span.from !== b.span.from || a.span.to !== b.span.to) return false;
+  const ra = a.related ?? [];
+  const rb = b.related ?? [];
+  return ra.length === rb.length && ra.every((r, i) => r.message === rb[i]!.message && r.span.from === rb[i]!.span.from && r.span.to === rb[i]!.span.to);
+}
+
 /** A deterministic key for `engineOptions` equality — sorted so key order never
  *  matters (DD-00 §3's spirit, even though apps/web sits outside that lint ban). */
 function optionsKey(options: Readonly<Record<string, unknown>>): string {
@@ -404,16 +413,26 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     return layoutConfigDiagnostics(parsed.value.value, deps.engineSchemas?.(engineId) ?? { id: engineId });
   });
 
-  const diags = computed<readonly Diagnostic[]>(() => [
-    ...parsed.value.diagnostics,
-    ...model.value.diagnostics,
-    ...graph.value.diagnostics,
-    ...layoutConfigDiags.value,
-    ...theme.value.diagnostics,
-    ...styled.value.diagnostics,
-    ...layoutDiags.value,
-    ...(svg.value?.diagnostics ?? []),
-  ]);
+  // The same array while its content is the same (F9): a theme switch
+  // re-runs `styleGraph` and `resolveTheme`, which build their diagnostics
+  // afresh, and a new array would re-run everything that shows them (the
+  // editor's `setDiagnostics` transaction, the panel) for nothing.
+  let lastDiags: readonly Diagnostic[] = [];
+  const diags = computed<readonly Diagnostic[]>(() => {
+    const next = [
+      ...parsed.value.diagnostics,
+      ...model.value.diagnostics,
+      ...graph.value.diagnostics,
+      ...layoutConfigDiags.value,
+      ...theme.value.diagnostics,
+      ...styled.value.diagnostics,
+      ...layoutDiags.value,
+      ...(svg.value?.diagnostics ?? []),
+    ];
+    if (next.length === lastDiags.length && next.every((d, i) => sameDiagnostic(d, lastDiags[i]!))) return lastDiags;
+    lastDiags = next;
+    return next;
+  });
 
   const lastGood = signal<LastGood | null>(null);
 
