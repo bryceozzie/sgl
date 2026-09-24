@@ -17,12 +17,14 @@ import {
   type PathSeg,
   type Point,
   type Rect,
+  type SemanticGraph,
 } from '@sgl/core';
 import type { ComputedStyle, ResolvedTheme, StyledGraph } from '@sgl/theme';
 
 import type { EdgeLayoutView, LabelPlacementView, LayoutView } from './layout-view.js';
 import { isArrowhead, markerPaintClass, MarkerTable, type Arrowhead } from './markers.js';
 import { num, nums } from './num.js';
+import { paintOnlyStyleBlock, withStyleBlock, type PaintPlan } from './paint-plan.js';
 import { escapeXml, edgeElementId, nodeElementId, safeUrl } from './security.js';
 import { DEFAULT_SHAPE, resolveShape } from './shapes.js';
 import { buildStyleBlock, cascadeSignature, ClassTable } from './style.js';
@@ -31,6 +33,7 @@ import { renderText, textBlock } from './text.js';
 export * from './layout-view.js';
 export * from './markers.js';
 export * from './num.js';
+export * from './paint-plan.js';
 export * from './security.js';
 export * from './shapes.js';
 export * from './style.js';
@@ -50,6 +53,10 @@ export interface RenderResult {
   readonly structureHash: string;
   readonly bounds: Rect;
   readonly diagnostics: readonly Diagnostic[];
+  /** What `renderPaintOnly` needs to restyle this render (F9 P3,
+   *  `paint-plan.ts`). Its identity names the element tree: results that
+   *  share a plan differ only in their `<style>` text. Not output. */
+  readonly paintPlan: PaintPlan;
 }
 
 const NO_SPAN = { from: 0, to: 0 };
@@ -76,9 +83,9 @@ function renderedConfig(config: Readonly<Record<string, unknown>>): string {
   return out;
 }
 
-function labelText(styled: StyledGraph, labelId: LabelId | null): string {
+function labelText(graph: SemanticGraph, labelId: LabelId | null): string {
   if (labelId === null) return '';
-  const spec = styled.graph.labels[labelId];
+  const spec = graph.labels[labelId];
   return spec === undefined ? '' : labelLines(spec.runs).join('\n');
 }
 
@@ -96,12 +103,32 @@ function labelText(styled: StyledGraph, labelId: LabelId | null): string {
  * conservative: unequal hashes can still render the same bytes). A theme
  * switch between themes of equal geometry and arrowheads leaves it unchanged;
  * an inline `@style` edit, a class, a label or a link changes it (fix round 1,
- * item 4). One pass over the elements and no render (DD-07 §6 has the cost).
+ * item 4).
+ *
+ * Everything but `geometryHash` and the arrowhead kinds is a function of the
+ * `SemanticGraph` alone, which is immutable, so that part is hashed once per
+ * graph object and kept (F9: a theme switch re-styles the same graph, and
+ * then this costs one pass over the edges). DD-07 §6 has the cost.
  */
 export function structureHash(styled: StyledGraph): string {
   const { graph } = styled;
   const h = new StructureHasher();
   h.add(styled.geometryHash);
+  h.add(graphStructure(graph));
+  for (const edge of graph.edges) {
+    const value = styled.styles[edge.id]?.paint['arrowhead'];
+    h.add(edge.directed === 'none' ? '' : isArrowhead(value) ? value : 'triangle');
+  }
+  return h.digest();
+}
+
+/** `structureHash`'s graph-only part, by graph object. */
+const GRAPH_STRUCTURE = new WeakMap<SemanticGraph, string>();
+
+function graphStructure(graph: SemanticGraph): string {
+  let digest = GRAPH_STRUCTURE.get(graph);
+  if (digest !== undefined) return digest;
+  const h = new StructureHasher();
   h.add(graph.title ?? '');
   for (const id of graph.order) {
     const node = graph.nodes[id];
@@ -111,22 +138,58 @@ export function structureHash(styled: StyledGraph): string {
     h.add(id);
     h.add(node.hidden ? '1' : '0');
     h.add(cascadeSignature(role, node.shape, node.classes, node.config));
-    h.add(labelText(styled, node.labelId));
+    h.add(labelText(graph, node.labelId));
     h.add(renderedConfig(node.config));
   }
   for (const edge of graph.edges) {
-    const value = styled.styles[edge.id]?.paint['arrowhead'];
     h.add('e');
     h.add(edge.id);
     h.add(edge.from.node);
     h.add(edge.to.node);
     h.add(edge.directed);
-    h.add(edge.directed === 'none' ? '' : isArrowhead(value) ? value : 'triangle');
     h.add(cascadeSignature('edge', undefined, edge.classes, edge.config));
-    h.add(labelText(styled, edge.labelId));
+    h.add(labelText(graph, edge.labelId));
     h.add(renderedConfig(edge.config));
   }
-  return h.digest();
+  digest = h.digest();
+  GRAPH_STRUCTURE.set(graph, digest);
+  return digest;
+}
+
+/**
+ * The render of `styled` drawn with `layout`, made from `previous` — a render
+ * of the **same** `layout` object — by recomputing only its `<style>` text
+ * (F9 P3; DD-07 §6, §11): one style per paint rule `previous` emitted, i.e.
+ * one per distinct cascade signature, never a walk over the elements. Its
+ * `svg` is derived from the full render's string on first read
+ * (`withStyleBlock`, P4) and is then exactly `render(styled, layout).svg`,
+ * as is every other field.
+ *
+ * `null` — do a full `render()` — unless it is safe: `previous` was drawn with
+ * this very `layout` object (a copy, however equal, is refused) and
+ * `structureHash(styled)` equals `previous.structureHash` (so the geometry,
+ * the graph content the output shows and every arrowhead kind are the same).
+ * The `<defs>` text needs no recomputing under that guard: a marker is named
+ * and drawn from its arrowhead kind, size and edge signature token alone.
+ */
+export function renderPaintOnly(previous: RenderResult, styled: StyledGraph, layout: LayoutView): RenderResult | null {
+  const plan = previous.paintPlan;
+  if (plan.layout !== layout) return null;
+  const hash = structureHash(styled);
+  if (hash !== previous.structureHash) return null;
+  const styleBlock = paintOnlyStyleBlock(plan, styled);
+  if (styleBlock === null) return null;
+  let svg: string | undefined;
+  return {
+    get svg(): string {
+      return (svg ??= withStyleBlock(plan.svg, styleBlock));
+    },
+    styleBlock,
+    structureHash: hash,
+    bounds: previous.bounds,
+    diagnostics: previous.diagnostics,
+    paintPlan: plan,
+  };
 }
 
 /**
@@ -259,7 +322,7 @@ function renderNode(id: NodeId, isContainer: boolean, ctx: Ctx): string {
 
   const radius = geometryNumber(style, 'radius', 0);
   const role = isContainer ? 'container' : 'node';
-  const shapeClass = style === undefined ? '' : ctx.classes.shapeClasses(style, cascadeSignature(role, node.shape, node.classes, node.config));
+  const shapeClass = style === undefined ? '' : ctx.classes.shapeClasses(style, cascadeSignature(role, node.shape, node.classes, node.config), id);
   const kind = isContainer ? 'c' : 'n';
 
   const parts: string[] = [
@@ -286,7 +349,7 @@ function renderNode(id: NodeId, isContainer: boolean, ctx: Ctx): string {
     if (placement !== undefined && labelStyle !== undefined) {
       const block = textBlock(labelLines(title.runs), labelStyle, placement.text);
       parts.push(
-        renderText(placement, block, ctx.classes.textClasses(labelStyle, cascadeSignature(`${role}.title`, undefined, node.classes, node.config)), `${kind}-title`, true),
+        renderText(placement, block, ctx.classes.textClasses(labelStyle, cascadeSignature(`${role}.title`, undefined, node.classes, node.config), title.id), `${kind}-title`, true),
       );
     }
   }
@@ -317,7 +380,7 @@ function renderEdge(edgeIndex: number, ctx: Ctx): string {
   const signature = cascadeSignature('edge', undefined, edge.classes, edge.config);
 
   const attrs: string[] = [
-    `class="${escapeXml(['e-path', style === undefined ? '' : ctx.classes.shapeClasses(style, signature)].filter(Boolean).join(' '))}"`,
+    `class="${escapeXml(['e-path', style === undefined ? '' : ctx.classes.shapeClasses(style, signature, edge.id)].filter(Boolean).join(' '))}"`,
     `d="${routePath(geom)}"`,
   ];
 
@@ -330,7 +393,7 @@ function renderEdge(edgeIndex: number, ctx: Ctx): string {
     const start = edge.directed === 'both' ? ctx.markers.add(arrowhead, size, true, token) : null;
     if (end !== null) attrs.push(`marker-end="url(#${end})"`);
     if (start !== null) attrs.push(`marker-start="url(#${start})"`);
-    if (end !== null || start !== null) ctx.classes.markerPaint(markerPaintClass(arrowhead, token), arrowhead === 'open', stroke);
+    if (end !== null || start !== null) ctx.classes.markerPaint(markerPaintClass(arrowhead, token), arrowhead === 'open', stroke, edge.id);
   }
 
   const from = String(edge.from.node);
@@ -367,7 +430,7 @@ function renderEdgeLabel(edge: GraphEdge, labelId: LabelId, ctx: Ctx): string {
   // theme's `labelPlate` (F7: `none` is `fill:none`, DD-07 §6).
   if (placement.occlusion === 'plate') {
     const edgeStyle = ctx.styled.styles[edge.id];
-    const plate = edgeStyle === undefined ? '' : ctx.classes.plateClasses(edgeStyle, cascadeSignature('edge', undefined, edge.classes, edge.config));
+    const plate = edgeStyle === undefined ? '' : ctx.classes.plateClasses(edgeStyle, cascadeSignature('edge', undefined, edge.classes, edge.config), edge.id);
     if (plate !== '') {
       parts.push(
         `<rect class="${escapeXml(`el-plate ${plate}`)}" x="${num(placement.frame.x)}" y="${num(placement.frame.y)}"` +
@@ -376,7 +439,7 @@ function renderEdgeLabel(edge: GraphEdge, labelId: LabelId, ctx: Ctx): string {
     }
   }
 
-  parts.push(renderText(placement, block, ctx.classes.textClasses(style, labelSignature), 'el-text', true));
+  parts.push(renderText(placement, block, ctx.classes.textClasses(style, labelSignature, labelId), 'el-text', true));
   return `<g class="el" aria-hidden="true">${parts.join('')}</g>`;
 }
 
@@ -448,7 +511,14 @@ export function render(styled: StyledGraph, layout: LayoutView, _theme: Resolved
     `<g class="L-labels">${edgeLabels.join('')}</g>` +
     `</svg>`;
 
-  return { svg, styleBlock, structureHash: structureHash(styled), bounds, diagnostics: ctx.diagnostics };
+  return {
+    svg,
+    styleBlock,
+    structureHash: structureHash(styled),
+    bounds,
+    diagnostics: ctx.diagnostics,
+    paintPlan: { layout, svg, rules: ctx.classes.paintRules },
+  };
 }
 
 export { DEFAULT_SHAPE };

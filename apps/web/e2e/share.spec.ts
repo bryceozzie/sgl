@@ -59,11 +59,14 @@ const SHARED = 'shared: {\n  @label: "Shared"\n  a: "Alpha"\n  b: "Beta"\n  a ->
 test('criterion 6: a share link opens identically in a fresh browser context', async ({ page, browser }) => {
   await page.goto('/');
   await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
-  await setSource(page, SHARED);
-  await waitForExactNodeCount(page, visibleNodeCount(SHARED));
-  await page.locator('.theme-picker select').selectOption('neutral-dark'); // writes @theme into the source (DD-08 §10)
+  // A document that names its own theme: the picker edits that entry in
+  // place (DD-08 §10, F9 P1), so the link's source carries the pick.
+  const themed = `@theme: "neutral-light"\n${SHARED}`;
+  await setSource(page, themed);
+  await waitForExactNodeCount(page, visibleNodeCount(themed));
+  await page.locator('.theme-picker select').selectOption('neutral-dark');
   await waitForTheme(page, 'neutral-dark');
-  await expect.poll(async () => (await storedOpenDocument(page))?.source).toContain('@theme');
+  await expect.poll(async () => (await storedOpenDocument(page))?.source).toContain('@theme: "neutral-dark"');
   const source = (await storedOpenDocument(page))!.source;
   const sharedDiagram = await diagram(page);
   const link = await shareLinkFor(page, 'neutral-dark');
@@ -88,11 +91,12 @@ test('criterion 6: a share link opens identically in a fresh browser context', a
 test('criterion 6, theme half: with no @theme in the source, the receiver renders the t= theme', async ({ page, browser }) => {
   await page.goto('/');
   await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
-  // The picker writes @theme into the source (DD-08 §10); replacing the text
-  // afterwards takes it out again while the picker keeps its choice, so the
-  // effective theme is the picker's alone.
+  // The picker always sets themeId (DD-08 §10, F9 P1), which travels as t=;
+  // with no @theme in the document it leaves the source alone.
+  const exampleText = await editorText(page);
   await page.locator('.theme-picker select').selectOption('neutral-dark');
   await waitForTheme(page, 'neutral-dark');
+  expect(await editorText(page)).toBe(exampleText);
   await setSource(page, SHARED);
   await waitForExactNodeCount(page, visibleNodeCount(SHARED));
   await waitForTheme(page, 'neutral-dark');

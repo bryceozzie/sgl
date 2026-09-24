@@ -1,14 +1,15 @@
 /**
- * Theme resolution and the cascade — DD-04 §3, §4, §5.
+ * TEST FIXTURE, not shipped: the reference `test/memo.test.ts` holds
+ * `styleGraph` to. It is `packages/theme/src/cascade.ts`'s `styleGraph` as it
+ * was on `main` at 681729f, before F9's per-signature memo
+ * (`feat/theme-fast-path`) — every element resolved afresh — trimmed to what
+ * that function needs: the theme resolution (`resolveTheme` and its helpers)
+ * is gone, the import paths differ, and nothing else is changed.
  *
- * Two pure functions. `resolveTheme` turns an authored `ThemeDoc` into a
- * `ResolvedTheme` with inheritance followed, `@token` references dereferenced and
- * every value validated against the registry and normalised. `styleGraph` walks a
- * `SemanticGraph` and produces one `ComputedStyle` per element and per label,
- * partitioned on the registry's `affects` flag.
- *
- * Neither ever throws on bad input (DD-00 §3): both return `StageResult` with the
- * best partial value and a diagnostic for every thing they had to drop.
+ * **Keep it in step with the cascade.** When the cascade's *output* is meant
+ * to change (a new property, a new step, a new diagnostic), make the same
+ * change here in the same commit; this file exists only to catch a change to
+ * `styleGraph` that nobody meant.
  */
 
 import {
@@ -28,22 +29,18 @@ import {
   type SourceSpan,
   type StageResult,
 } from '@sgl/core';
-import { BY_NAME, COLOR_FALLBACK, type StyleProperty } from './registry.js';
+import { BY_NAME, COLOR_FALLBACK, type StyleProperty } from '../../src/registry.js';
 import type {
   ComputedStyle,
   ResolvedTheme,
   StyleSet,
   StyleValue,
   StyledGraph,
-  ThemeDoc,
-} from './types.js';
+} from '../../src/types.js';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-/** DD-04 §3 step 1: following `extends` further than this is `SGL5001`. */
-export const MAX_THEME_DEPTH = 8;
 
 /**
  * DD-04 §3 step 3: the dash keywords, normalised to SVG dash arrays.
@@ -51,14 +48,14 @@ export const MAX_THEME_DEPTH = 8;
  * The concrete numbers are this module's to choose — DD-04 names the keywords but
  * not their patterns — so they live here rather than in the normative registry.
  */
-export const DASH_PATTERNS: Readonly<Record<string, readonly number[]>> = {
+const DASH_PATTERNS: Readonly<Record<string, readonly number[]>> = {
   solid: [],
   dashed: [6, 3],
   dotted: [1, 3],
 };
 
 /** A normalised style value: no `@` references, no booleans, insets already `[t,r,b,l]`. */
-export type ResolvedValue = number | string | readonly number[];
+type ResolvedValue = number | string | readonly number[];
 
 /** Which half of the cascade an element draws its non-text properties from. */
 type RoleKind = 'node' | 'container' | 'edge';
@@ -70,10 +67,7 @@ type RoleKind = 'node' | 'container' | 'edge';
  * their *names* per element, so the class bodies have to arrive separately. The
  * application already holds them as `DocumentModel.classes`.
  */
-export type DocumentClasses = Readonly<Record<string, ClassModel>>;
-
-/** Theme-sourced diagnostics carry no span (DD-04 §6); `Diagnostic.span` is required. */
-const NO_SPAN: SourceSpan = { from: 0, to: 0 };
+type DocumentClasses = Readonly<Record<string, ClassModel>>;
 
 const hasOwn = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -205,52 +199,6 @@ function describe(raw: unknown): string {
 
 const isTokenRef = (v: unknown): v is string => typeof v === 'string' && v.startsWith('@');
 
-/**
- * Dereference the token table itself, transitively.
- *
- * Doing this once up front rather than per property is what keeps diagnostics
- * single: a broken token is reported where it is defined, and the twenty
- * properties that reference it inherit the fallback silently instead of shouting
- * twenty times about the same typo.
- */
-function resolveTokenTable(
-  raw: Readonly<Record<string, StyleValue>>,
-  diagnostics: Diagnostic[],
-): Record<string, StyleValue> {
-  const out: Record<string, StyleValue> = {};
-  const inProgress = new Set<string>();
-
-  const visit = (name: string, trail: readonly string[]): StyleValue => {
-    if (hasOwn(out, name)) return out[name] as StyleValue;
-    if (inProgress.has(name)) {
-      diagnostics.push(
-        diagnostic('SGL5006', NO_SPAN, { name, cycle: [...trail, name].join(' → ') }),
-      );
-      return COLOR_FALLBACK;
-    }
-    const value = raw[name] as StyleValue;
-    inProgress.add(name);
-    let resolved: StyleValue;
-    if (isTokenRef(value)) {
-      const ref = value.slice(1);
-      if (hasOwn(raw, ref)) {
-        resolved = visit(ref, [...trail, name]);
-      } else {
-        diagnostics.push(diagnostic('SGL5005', NO_SPAN, { name: ref }));
-        resolved = COLOR_FALLBACK;
-      }
-    } else {
-      resolved = value;
-    }
-    inProgress.delete(name);
-    out[name] = resolved;
-    return resolved;
-  };
-
-  for (const name of sortedKeys(raw)) visit(name, []);
-  return out;
-}
-
 interface Deref {
   readonly value: unknown;
   /** The reference named a token that does not exist; use the type's fallback. */
@@ -308,191 +256,6 @@ function resolveStyleSet(
     out[name] = coerced;
   }
   return out;
-}
-
-// ---------------------------------------------------------------------------
-// resolveTheme (DD-04 §3)
-// ---------------------------------------------------------------------------
-
-/** The `extends` chain, nearest first. Stops at depth, at a cycle, and at a parent
- *  the lookup cannot supply. */
-function inheritanceChain(
-  doc: ThemeDoc,
-  lookup: (id: string) => ThemeDoc | undefined,
-  diagnostics: Diagnostic[],
-): readonly ThemeDoc[] {
-  const chain: ThemeDoc[] = [doc];
-  const seen = new Set<string>([doc.id]);
-  let current = doc;
-
-  while (typeof current.extends === 'string') {
-    const parentId = current.extends;
-    if (seen.has(parentId)) {
-      diagnostics.push(
-        diagnostic('SGL5002', NO_SPAN, {
-          id: parentId,
-          cycle: [...chain.map((t) => t.id), parentId].join(' → '),
-        }),
-      );
-      break;
-    }
-    if (chain.length > MAX_THEME_DEPTH) {
-      diagnostics.push(
-        diagnostic('SGL5001', NO_SPAN, {
-          chain: chain.map((t) => t.id).join(' → '),
-          id: parentId,
-        }),
-      );
-      break;
-    }
-    const parent = lookup(parentId);
-    // An `extends` naming a theme nobody can supply has no code in the DD-04
-    // catalogue, so the chain simply stops: the child's own rules still resolve.
-    if (parent === undefined) break;
-    seen.add(parentId);
-    chain.push(parent);
-    current = parent;
-  }
-  return chain;
-}
-
-function mergeFlat(
-  into: Record<string, StyleValue>,
-  from: Readonly<Record<string, StyleValue>> | undefined,
-): void {
-  if (!isPlainObject(from)) return;
-  for (const key of sortedKeys(from)) into[key] = from[key] as StyleValue;
-}
-
-/** Deep-merge one level down: a child `StyleSet` merges into the parent's for the
- *  same key rather than replacing it (DD-04 §3 step 1). */
-function mergeNested(
-  into: Record<string, Record<string, StyleValue>>,
-  from: Readonly<Record<string, StyleSet>> | undefined,
-): void {
-  if (!isPlainObject(from)) return;
-  for (const key of sortedKeys(from)) {
-    const set = from[key];
-    if (!isPlainObject(set)) continue;
-    const target = into[key] ?? {};
-    for (const name of sortedKeys(set)) target[name] = (set as StyleSet)[name] as StyleValue;
-    into[key] = target;
-  }
-}
-
-/** Resolve a theme document: follow `extends`, resolve `@token` references,
- *  normalise insets, dashes and lengths. Design: DD-04 §3. */
-export function resolveTheme(
-  doc: ThemeDoc,
-  lookup: (id: string) => ThemeDoc | undefined = () => undefined,
-): StageResult<ResolvedTheme> {
-  const diagnostics: Diagnostic[] = [];
-  const chain = inheritanceChain(doc, lookup, diagnostics);
-
-  // 1. Inheritance — merge root ancestor first, so the child wins.
-  const rawTokens: Record<string, StyleValue> = {};
-  const rawRules: Record<string, Record<string, StyleValue>> = {};
-  const rawByShape: Record<string, Record<string, StyleValue>> = {};
-  const rawByClass: Record<string, Record<string, StyleValue>> = {};
-  let rawBackground = '';
-
-  for (let i = chain.length - 1; i >= 0; i -= 1) {
-    const t = chain[i] as ThemeDoc;
-    mergeFlat(rawTokens, t.tokens);
-    mergeNested(rawRules, t.rules);
-    mergeNested(rawByShape, t.byShape);
-    mergeNested(rawByClass, t.byClass);
-    if (isPlainObject(t.canvas) && typeof t.canvas.background === 'string') {
-      rawBackground = t.canvas.background;
-    }
-  }
-
-  // 2. Token references.
-  const tokens = resolveTokenTable(rawTokens, diagnostics);
-
-  // 3. Validate and normalise every rule set.
-  const resolveGroup = (
-    group: Readonly<Record<string, Record<string, StyleValue>>>,
-    kind: string,
-  ): Record<string, StyleSet> => {
-    const out: Record<string, StyleSet> = {};
-    for (const key of sortedKeys(group)) {
-      out[key] = resolveStyleSet(
-        group[key] as Record<string, StyleValue>,
-        tokens,
-        `theme \`${doc.id}\` ${kind} \`${key}\``,
-        NO_SPAN,
-        diagnostics,
-      );
-    }
-    return out;
-  };
-
-  const canvasDeref = deref(rawBackground, tokens);
-  let background: string;
-  if (canvasDeref.unresolved) {
-    diagnostics.push(diagnostic('SGL5005', NO_SPAN, { name: rawBackground.slice(1) }));
-    background = COLOR_FALLBACK;
-  } else if (isColor(canvasDeref.value)) {
-    background = canvasDeref.value.trim();
-  } else {
-    diagnostics.push(
-      diagnostic('SGL5004', NO_SPAN, {
-        name: 'canvas.background',
-        type: 'color',
-        value: describe(canvasDeref.value),
-      }),
-    );
-    background = COLOR_FALLBACK;
-  }
-
-  const value: ResolvedTheme = {
-    id: doc.id,
-    rules: resolveGroup(rawRules, 'rule'),
-    byShape: resolveGroup(rawByShape, 'byShape'),
-    byClass: resolveGroup(rawByClass, 'byClass'),
-    canvas: { background },
-    tokens,
-  };
-  return { value, diagnostics };
-}
-
-// ---------------------------------------------------------------------------
-// The cascade signature (DD-04 §4, DD-07 §6)
-// ---------------------------------------------------------------------------
-
-/** The role a cascade signature is for: an element's own style (DD-04 §4
- *  steps 1–5) or its label's (`rules.<role>.title` / `rules.edge.label`, then
- *  steps 3–5). */
-export type SignatureRole = 'node' | 'container' | 'edge' | 'node.title' | 'container.title' | 'edge.label';
-
-/**
- * Every input DD-04 §4's cascade reads from the element itself before the
- * theme's values apply — the role (step 1), the shape (step 2, nodes and
- * containers only), the author classes in linearised order (steps 3 and 4:
- * `byClass[c]` and the document's `@classes[c].style`, both keyed by the class
- * name), and the inline `@style` bag (step 5), canonicalised. Step 6 (`@size`)
- * is geometry only and not part of it.
- *
- * Under one theme and one document, equal signatures give equal steps 1–5,
- * hence equal paint (and, without `@size`, an equal style altogether). Two
- * things rely on that: `styleGraph` computes each distinct signature's style
- * once (F9), and the renderer names its paint classes after it (F7, DD-07 §6:
- * nothing in it comes from a theme, so a class name is the same under every
- * theme). A new input to steps 1–5 must be added here.
- */
-export function cascadeSignature(
-  role: SignatureRole,
-  shape: string | undefined,
-  classes: readonly string[],
-  config: Readonly<Record<string, unknown>> | undefined,
-): string {
-  const style = config?.['style'];
-  const inline =
-    typeof style === 'object' && style !== null && !Array.isArray(style)
-      ? canonicalise(style as Readonly<Record<string, unknown>>)
-      : '';
-  return `${role}|${shape ?? ''}|${classes.join(',')}|${inline}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -573,28 +336,6 @@ function computeStyle(bag: Readonly<Record<string, ResolvedValue>>): ComputedSty
 }
 
 /**
- * What `styleGraph` keeps per `SemanticGraph` object (F9). A graph is
- * immutable, and a theme switch styles the same graph again, so its cascade
- * signatures (in the order they are asked for) are worked out once; and the
- * last graph `geometryHash`, with the per-part geometry hashes it came from,
- * is reused when every part's hash is the same (themes of equal geometry),
- * without hashing ~190 000 characters again at 2 000 nodes.
- */
-interface GraphCache {
-  readonly signatures: string[];
-  /** The per-part geometry hashes, joined, and the graph hash they gave. */
-  geometry?: readonly [parts: string, hash: string];
-}
-const GRAPH_CACHE = new WeakMap<SemanticGraph, GraphCache>();
-
-/** `fnv1a64` of the `id=hash` parts joined by `;`, then `tail` if any. */
-function hashParts(ids: readonly string[], hashes: readonly string[], tail?: string): string {
-  const parts = hashes.map((h, i) => `${ids[i] as string}=${h}`);
-  if (tail !== undefined) parts.push(tail);
-  return fnv1a64(parts.join(';'));
-}
-
-/**
  * Apply the cascade per element and compute the two hashes.
  *
  * Pure and synchronous. Two `StyledGraph`s with equal `geometryHash` produce
@@ -606,28 +347,6 @@ function hashParts(ids: readonly string[], hashes: readonly string[], tail?: str
  * compiles; without it steps 1–3, 5 and 6 apply and document classes contribute
  * nothing, because `SemanticGraph` carries class *names* only (DD-03 §4).
  *
- * **Once per distinct cascade signature** (F9, execution plan §2). A
- * document has thousands of elements and a handful of distinct signatures
- * (`cascadeSignature`: DD-04 §4 steps 1–5), and equal signatures resolve to
- * the same bag, so an element with no `@size` (step 6, the only per-element
- * input the signature leaves out) reuses the `ComputedStyle` of the first
- * element with its signature, hashes and all; a label likewise, by its own
- * signature. The one other thing that differs per element is where a
- * diagnostic points (its span, and its id in the message), so a signature
- * whose resolution reported anything is never reused: every element that
- * would report a diagnostic still resolves, and reports, on its own. The
- * result — every style, both graph hashes, every diagnostic and its order —
- * is exactly what resolving each element afresh gives (`test/memo.test.ts`
- * compares them with the pre-F9 algorithm, kept as a test fixture,
- * over the corpus under both themes, the synthetic theme pair and random
- * documents).
- *
- * The last graph `geometryHash` is kept per graph object, with the
- * per-element hashes it came from: styling the same graph again under a
- * theme of equal geometry (a theme switch) reuses it rather than hashing
- * every element's again. The graph `paintHash` is taken on first read, not
- * before (DD-04 §5).
- *
  * Design: DD-04 §4, §5.
  */
 export function styleGraph(
@@ -638,25 +357,12 @@ export function styleGraph(
   const diagnostics: Diagnostic[] = [];
   const styles: Record<string, ComputedStyle> = {};
   const labelStyles: Record<string, ComputedStyle> = {};
-  const ids: string[] = [];
-  const geometryHashes: string[] = [];
-  const paintHashes: string[] = [];
-  /** By cascade signature: styles whose resolution reported nothing. */
-  const elementMemo = new Map<string, ComputedStyle>();
-  const labelMemo = new Map<string, ComputedStyle>();
-
-  let cache = GRAPH_CACHE.get(graph);
-  if (cache === undefined) GRAPH_CACHE.set(graph, (cache = { signatures: [] }));
-  let nextSignature = 0;
-  /** The next signature asked for, from this graph's cache (the order they
-   *  are asked in is a function of the graph). */
-  const signatureOf = (role: SignatureRole, shape: string | undefined, classes: readonly string[], config: ConfigBag | undefined): string =>
-    (cache.signatures[nextSignature++] ??= cascadeSignature(role, shape, classes, config));
+  const geometryParts: string[] = [];
+  const paintParts: string[] = [];
 
   const record = (id: string, style: ComputedStyle): void => {
-    ids.push(id);
-    geometryHashes.push(style.geometryHash);
-    paintHashes.push(style.paintHash);
+    geometryParts.push(`${id}=${style.geometryHash}`);
+    paintParts.push(`${id}=${style.paintHash}`);
   };
 
   /** Steps 3–5, resolved once. */
@@ -727,68 +433,38 @@ export function styleGraph(
     return bag;
   };
 
-  /**
-   * One element and its label, stored and recorded. `sizeFree`: the element
-   * has no `@size` key (always, for an edge), so its own style is a function
-   * of its signature alone. Layers (steps 3–6) are resolved at most once, and
-   * only when a style is not reused; `clean` records whether resolving them
-   * reported anything, and only a clean resolution is ever reused. (Plain
-   * locals, no closures: this runs once per element.)
-   */
-  const styleElement = (
-    role: RoleKind,
-    shape: string | undefined,
-    classes: readonly string[],
-    config: ConfigBag | undefined,
-    span: SourceSpan,
-    id: string,
-    withSize: boolean,
-    labelId: LabelId | null,
-  ): void => {
-    const sizeFree = !withSize || config?.size === undefined || sortedKeys(sizeKeysOnly(styleSetFromConfig(config.size))).length === 0;
-    const signature = signatureOf(role, shape, classes, config);
-
-    let layers: ElementLayers | null = null;
-    let clean = true;
-    let style: ComputedStyle | undefined;
-    if (sizeFree) style = elementMemo.get(signature);
-    if (style === undefined) {
-      const before = diagnostics.length;
-      layers = layersOf(classes, config, span, `\`${id}\``, withSize);
-      clean = diagnostics.length === before;
-      style = computeStyle(elementBag(role, shape, layers));
-      if (sizeFree && clean) elementMemo.set(signature, style);
-    }
-    styles[id] = style;
-    record(id, style);
-
-    if (labelId === null) return;
-    const labelSignature = signatureOf(role === 'edge' ? 'edge.label' : role === 'container' ? 'container.title' : 'node.title', undefined, classes, config);
-    let labelStyle = labelMemo.get(labelSignature);
-    if (labelStyle === undefined) {
-      if (layers === null) {
-        const before = diagnostics.length;
-        layers = layersOf(classes, config, span, `\`${id}\``, withSize);
-        clean = diagnostics.length === before;
-      }
-      labelStyle = computeStyle(labelBag(role, layers));
-      if (clean) labelMemo.set(labelSignature, labelStyle);
-    }
-    labelStyles[labelId] = labelStyle;
-    record(labelId, labelStyle);
-  };
-
   // ---- nodes and containers ------------------------------------------------
   for (const id of graph.order) {
     const node: GraphNode | undefined = graph.nodes[id];
     if (node === undefined) continue;
-    styleElement(node.children.length > 0 ? 'container' : 'node', node.shape, node.classes, node.config, node.span, id, true, node.labelId);
+    const role: RoleKind = node.children.length > 0 ? 'container' : 'node';
+    const layers = layersOf(node.classes, node.config, node.span, `\`${id}\``, true);
+
+    const style = computeStyle(elementBag(role, node.shape, layers));
+    styles[id] = style;
+    record(id, style);
+
+    if (node.labelId !== null) {
+      const label = computeStyle(labelBag(role, layers));
+      labelStyles[node.labelId] = label;
+      record(node.labelId, label);
+    }
   }
 
   // ---- edges ---------------------------------------------------------------
   for (const edge of graph.edges) {
     const e: GraphEdge = edge;
-    styleElement('edge', undefined, e.classes, e.config, e.span, e.id, false, e.labelId);
+    const layers = layersOf(e.classes, e.config, e.span, `\`${e.id}\``, false);
+
+    const style = computeStyle(elementBag('edge', undefined, layers));
+    styles[e.id] = style;
+    record(e.id, style);
+
+    if (e.labelId !== null) {
+      const label = computeStyle(labelBag('edge', layers));
+      labelStyles[e.labelId] = label;
+      record(e.labelId, label);
+    }
   }
 
   // The canvas background is paint with nowhere else to live: it is not any
@@ -798,27 +474,17 @@ export function styleGraph(
   // (packages/render-svg/test/pipeline.test.ts) surfaced on `empty.sgl`, whose
   // paintHash was `fnv1a64('')` under both themes. Geometry has no canvas
   // analogue (DD-04's split has nothing geometric at canvas scope), so only
-  // the paint hash gets this extra entry (`canvas=…`, last).
-  const parts = geometryHashes.join();
-  let geometryHash = cache.geometry?.[0] === parts ? cache.geometry[1] : '';
-  if (geometryHash === '') cache.geometry = [parts, (geometryHash = hashParts(ids, geometryHashes))];
+  // paintParts gets this extra entry.
+  paintParts.push(`canvas=${theme.canvas.background}`);
 
-  // The graph `paintHash` is hashed on first read (F9): nothing on a theme
-  // switch's own path reads it — the layout skip reads `geometryHash`, the
-  // paint-only guard `structureHash` — and at 2 000 nodes it is ~190 000
-  // characters of `fnv1a64`. Its value is exactly the eager one; a getter on
-  // the object serialises (JSON, `structuredClone`) as the plain property.
-  let paintHash: string | undefined;
   const value: StyledGraph = {
     graph,
     styles: styles as Readonly<Record<NodeId | EdgeId, ComputedStyle>>,
     labelStyles: labelStyles as Readonly<Record<LabelId, ComputedStyle>>,
     canvas: { background: theme.canvas.background },
     themeId: theme.id,
-    geometryHash,
-    get paintHash(): string {
-      return (paintHash ??= hashParts(ids, paintHashes, `canvas=${theme.canvas.background}`));
-    },
+    geometryHash: fnv1a64(geometryParts.join(';')),
+    paintHash: fnv1a64(paintParts.join(';')),
   };
   return { value, diagnostics };
 }

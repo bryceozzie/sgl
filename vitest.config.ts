@@ -29,9 +29,21 @@ export default defineConfig({
         },
       },
       {
+        // `apps/web/test/canvas.browser.test.ts` mounts the Preact `Canvas`.
+        esbuild: { jsx: 'automatic', jsxImportSource: 'preact' },
+        // The dependency scan must see the JSX runtime import esbuild injects
+        // into `.tsx`: discovered mid-run instead (a cold `node_modules/.vite`,
+        // as after the standard clean command), Vite re-optimises and reloads
+        // the page under the running tests. (`include` cannot name Preact
+        // here: it resolves from the repo root, where Preact is not installed.)
+        optimizeDeps: {
+          esbuildOptions: { jsx: 'automatic', jsxImportSource: 'preact', jsxDev: true },
+        },
         test: {
           name: 'browser',
-          include: ['packages/*/test/**/*.browser.test.ts'],
+          // apps/web/test's browser tests (F9 P3): the canvas's paint-only DOM
+          // swap, checked against a full render's DOM in a real browser.
+          include: ['packages/*/test/**/*.browser.test.ts', 'apps/web/test/**/*.browser.test.ts'],
           browser: {
             enabled: true,
             provider: 'playwright',

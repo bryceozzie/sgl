@@ -4,7 +4,6 @@ import type { DocumentSession } from '../state/document-session.js';
 import { OPEN_ACCEPT, type SaveKind } from '../state/filename.js';
 import { saveContent } from '../state/files.js';
 import type { Pipeline } from '../state/pipeline.js';
-import { encodeShareFragment, isLongShareLink, shareLink } from '../state/share.js';
 import type { Toasts } from '../state/toasts.js';
 import { useDisclosure } from './disclosure.js';
 
@@ -90,6 +89,8 @@ export function FileMenu({ pipeline, session, toasts, onOpen }: FileMenuProps) {
   }
 
   async function openShare(): Promise<void> {
+    // A lazy chunk (F9 fix round 1): off the first paint, precached for offline.
+    const { encodeShareFragment, isLongShareLink, shareLink } = await import('../state/share.js');
     const encoded = await encodeShareFragment({
       source: pipeline.source.peek(),
       engineId: pipeline.effectiveEngineId.peek(),

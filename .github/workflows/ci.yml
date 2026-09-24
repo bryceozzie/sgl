@@ -63,8 +63,11 @@ jobs:
 
       - name: Browser tests
         # vitest browser mode (Chromium, Firefox) — the worker host and worker
-        # runtime against a real Worker (DD-06 §10), plus the F9 bench
-        # (bench/README.md; prints, does not gate on timing).
+        # runtime against a real Worker (DD-06 §10), the canvas's paint-only
+        # swap, and render-svg's `render()`-alone bench (bench/README.md;
+        # prints, does not gate on timing). F9's end-to-end theme-switch bench
+        # is not part of this step or of CI at all: `pnpm bench:theme` is run
+        # on demand, on a quiet machine (DD-09 §2, §3.1).
         run: pnpm test:browser
 
       - name: Install WebKit (apps/web e2e needs all three; Chromium/Firefox already installed above)

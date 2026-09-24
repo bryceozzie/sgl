@@ -3,7 +3,6 @@ import { gridEngine } from '@sgl/layout-std';
 import { BUILT_IN, DEFAULT_THEME_ID } from '@sgl/theme';
 import EXAMPLE_SOURCE from '../examples/checkout.sgl?raw';
 import { bootDocument, fallbackBoot, newDocumentId, type BootResult, type IdSource } from '../state/boot.js';
-import { decodeShareFragment } from '../state/share.js';
 import { createMemoryStore, type DocumentStore } from '../state/storage.js';
 import { openIdbStore } from '../state/storage-idb.js';
 
@@ -117,7 +116,8 @@ export function watchShareLinks(watch: ShareLinkWatch): () => void {
   const onHashChange = (): void => {
     if (busy) return;
     const hash = window.location.hash;
-    void decodeShareFragment(hash).then(async (share) => {
+    // `share.ts` is a lazy chunk (F9 fix round 1), precached like the rest.
+    void import('../state/share.js').then(({ decodeShareFragment }) => decodeShareFragment(hash)).then(async (share) => {
       if (share.kind === 'none' || window.location.hash !== hash) return;
       if (share.kind === 'invalid') {
         clearHash();

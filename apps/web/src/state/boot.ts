@@ -1,5 +1,5 @@
 import { FALLBACK_TITLE } from './filename.js';
-import { decodeShareFragment, NATIVE_SHARE_CODEC, type ShareCodec } from './share.js';
+import type { ShareCodec } from './share.js';
 import type { DocumentRecord, DocumentStore } from './storage.js';
 
 /**
@@ -163,7 +163,12 @@ export async function bootDocument(deps: BootDeps): Promise<BootResult> {
     return record;
   }
 
-  const share = await decodeShareFragment(deps.hash, deps.codec ?? NATIVE_SHARE_CODEC);
+  // `share.ts` is loaded only for a link that has a payload (F9 fix round 1:
+  // it is off the ordinary boot path, and the core bundle has no room for
+  // it). A hash without `s=` is `none`, as `decodeShareFragment` says.
+  const share = new URLSearchParams(deps.hash.replace(/^#/, '')).has('s')
+    ? await (await import('./share.js')).decodeShareFragment(deps.hash, deps.codec)
+    : ({ kind: 'none' } as const);
   const clearHash = share.kind !== 'none';
   if (share.kind === 'ok') {
     const { source, engineId, themeId } = share.payload;

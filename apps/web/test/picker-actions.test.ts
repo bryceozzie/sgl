@@ -2,6 +2,7 @@ import { computed, signal } from '@preact/signals';
 import { parse, type Document as SglDocument, type StageResult } from '@sgl/core';
 import { describe, expect, it } from 'vitest';
 import { selectEngine, selectTheme, type PickerPipeline } from '../src/state/picker-actions.js';
+import type { TextChange } from '../src/state/root-config-edit.js';
 
 /** The slice of the pipeline the pickers touch, with `parsed` derived from
  *  `source`. (That the app itself never calls `parse` — DD-08 §4 — is
@@ -44,13 +45,34 @@ describe('picker actions (DD-08 §10)', () => {
     expect(pipeline.engineOptions.value).toEqual({ columns: 'auto', gap: 24, align: 'center' });
   });
 
-  it('selectTheme sets themeId, leaves engineOptions alone, and writes @theme', () => {
+  it('selectTheme with no @theme in the document is a view preference: it sets themeId and leaves the source alone (P1)', () => {
     const text = 'a: "A"\n';
     const pipeline = pickerPipeline(text);
-    const change = selectTheme(pipeline, 'neutral-dark');
+    const dispatched: TextChange[] = [];
+    const change = selectTheme(pipeline, 'neutral-dark', (c) => dispatched.push(c));
 
     expect(pipeline.themeId.value).toBe('neutral-dark');
     expect(pipeline.engineOptions.value).toEqual({ columns: 3, gap: 12 });
-    expect(apply(text, change)).toBe('@theme: "neutral-dark"\na: "A"\n');
+    expect(change).toBeNull();
+    expect(dispatched).toEqual([]);
+    expect(pipeline.source.value).toBe(text);
+  });
+
+  it('selectTheme edits an existing @theme entry in place, and still sets themeId (P1)', () => {
+    const text = 'a: "A"\n@theme: "neutral-light"\nb: "B"\n';
+    const pipeline = pickerPipeline(text);
+    const dispatched: TextChange[] = [];
+    const change = selectTheme(pipeline, 'neutral-dark', (c) => dispatched.push(c));
+
+    expect(pipeline.themeId.value).toBe('neutral-dark');
+    expect(dispatched).toEqual([change]);
+    expect(apply(text, change!)).toBe('a: "A"\n@theme: "neutral-dark"\nb: "B"\n');
+  });
+
+  it('selectTheme edits the last @theme entry, whatever its value, and never inserts a second one (P1)', () => {
+    const text = '@theme: "neutral-light"\na: "A"\n@theme: 42\n';
+    const pipeline = pickerPipeline(text);
+    const change = selectTheme(pipeline, 'neutral-dark', () => undefined);
+    expect(apply(text, change!)).toBe('@theme: "neutral-light"\na: "A"\n@theme: "neutral-dark"\n');
   });
 });
