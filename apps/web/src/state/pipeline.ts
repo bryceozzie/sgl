@@ -326,8 +326,22 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   // recomputes only the `<style>` text (one rule per distinct cascade
   // signature) and keeps the element tree (`paintPlan`); it also refuses
   // unless `structureHash` is unchanged. Anything else, or a refusal, is a
-  // full `render()`. Either way the result is exactly what `render()` gives;
-  // on the paint-only path its `svg` is derived only when read (P4).
+  // full `render()`. Either way the result is exactly what `render()` gives
+  // for this `styled` and this `layout`; on the paint-only path its `svg` is
+  // derived only when read (P4).
+  //
+  // "The same layout object" says the render is drawn with the layout the
+  // full render was, not that this layout is current for the graph: after a
+  // text edit, the full render is drawn with the old frames until the new
+  // layout lands, and a theme switch in between restyles those same frames,
+  // exactly as a full render would. Keeping the layout current is the layout
+  // effect's job, which since fix round 1 (item 1) lays out again whenever
+  // the `LayoutInput` differs from the one the landed layout was made from;
+  // when it lands, `layout` is a new object and the next render is full.
+  //
+  // `geometryHash` below is also covered by `renderPaintOnly`'s own guard
+  // (`structureHash` includes it): it is kept only as a cheap early exit
+  // that skips hashing the structure when the geometry has visibly changed.
   let lastRendered: Rendered | null = null;
   const svgOutcome = guardedStage<Rendered | null>(
     [styledOutcome, themeOutcome],
@@ -478,21 +492,76 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   let debounceCancel: Cancel | null = null;
   let currentAbort: AbortController | null = null;
   let layoutGeneration = 0;
-  // What the *last issued* layout request looked like, so the next change can
-  // tell whether it is paint-only. DD-08 §3 names `lastGood?.styled.geometryHash`
-  // for the geometry half of this comparison; `lastGood` has no field for the
-  // engine id/options half (its documented shape is exactly
-  // `{ styled, layout, svg, styleBlock }`), so that half is tracked here instead
-  // — a gap the surrounding design implies (the skip condition explicitly checks
-  // "engine/options unchanged") but does not say where to keep it.
-  let lastRequest: { readonly geometryHash: string; readonly engineId: string; readonly optionsKey: string } | null = null;
+  // What the last layout that landed was computed from, so the next change
+  // can tell whether its layout would be the same one (DD-08 §3's skip).
+  //
+  // Fix round 1, item 1: the skip compared only `geometryHash`, the engine
+  // and its options, but the `LayoutInput` is also built from the graph (its
+  // nodes, edges, labels and their spans) and the measured label sizes, so a
+  // label text edit — same geometry, new size — never laid out again. A
+  // layout is a function of exactly what `host.run` is handed: the engine,
+  // its options, the `LayoutInput`, the metrics (a constant) and the measure
+  // table (which an engine may read for runs it creates). So the skip now
+  // compares those, as `inputKey`: the `LayoutInput`'s JSON (it is plain
+  // data, built in a fixed order, so equal JSON is an equal input) and the
+  // table's keys — with one exception, source spans. They are kept apart in
+  // `spansKey`, because no engine and no host step reads a span to place
+  // anything (only diagnostics carry them: `validateResult`'s, and any an
+  // engine reports), so an edit that only moves text (a `@theme` value of
+  // another length, a blank line) gives the same frames. They count only
+  // when the landed layout reported diagnostics, whose spans would otherwise
+  // go stale. Building the keys costs a few ms at 2 000 nodes, off the
+  // keystroke path (this runs from the debounce timer). It is avoided when
+  // it cannot differ: the same graph object, the same table object and the
+  // same `geometryHash` give the same input (`buildLayoutInput` reads the
+  // graph, the styles' geometry and the label sizes, which are read from the
+  // table by label run keys, themselves from the graph's text and the label
+  // styles' geometry) — a theme switch between themes of equal geometry.
+  let lastRequest: {
+    readonly engineId: string;
+    readonly optionsKey: string;
+    readonly inputKey: string;
+    readonly spansKey: string;
+    graph: StyledGraph['graph'];
+    table: MeasureTable;
+    geometryHash: string;
+  } | null = null;
 
   function runLayout(styledSnapshot: StyledGraph, tableSnapshot: MeasureTable, engine: string, options: Readonly<Record<string, unknown>>): void {
     const geometryHash = styledSnapshot.geometryHash;
     const key = optionsKey(options);
-    const paintOnly =
-      lastRequest !== null && lastRequest.geometryHash === geometryHash && lastRequest.engineId === engine && lastRequest.optionsKey === key;
-    if (paintOnly) return; // fall through to render — the layout stays as is.
+    const sameRequest = lastRequest !== null && lastRequest.engineId === engine && lastRequest.optionsKey === key;
+    // Skipping keeps the layout that landed, so a request still in flight
+    // (for some other input, since superseded) must not land after it.
+    const keep = (): void => {
+      if (currentAbort === null) return;
+      currentAbort.abort();
+      currentAbort = null;
+      layoutGeneration += 1;
+      inFlight.value = false;
+    };
+    if (sameRequest && lastRequest!.graph === styledSnapshot.graph && lastRequest!.table === tableSnapshot && lastRequest!.geometryHash === geometryHash) return keep();
+
+    let input: LayoutInput;
+    let inputKey: string;
+    const spans: unknown[] = [];
+    try {
+      // Inside the boundary: this runs from the debounce timer, so a throw
+      // here (a `buildLayoutInput` invariant — e.g. an unknown node id) would
+      // otherwise escape as an uncaught timer exception.
+      input = buildLayoutInput(styledSnapshot, labelSizesOf(styledSnapshot, tableSnapshot));
+      inputKey = `${JSON.stringify(input, (k, v: unknown) => (k === 'span' ? void spans.push(v) : v))}\n${Object.keys(tableSnapshot).join()}`;
+    } catch (err) {
+      reportPipelineError(err, doc.peek().source);
+      return;
+    }
+    const spansKey = JSON.stringify(spans);
+    if (sameRequest && lastRequest!.inputKey === inputKey && (layoutDiags.peek().length === 0 || lastRequest!.spansKey === spansKey)) {
+      // The same layout: keep it, and remember this graph and table so the
+      // next unchanged call skips without building the input.
+      Object.assign(lastRequest!, { graph: styledSnapshot.graph, table: tableSnapshot, geometryHash, spansKey });
+      return keep();
+    }
 
     if (currentAbort !== null) currentAbort.abort();
     const controller = new AbortController();
@@ -507,11 +576,6 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
       if (currentAbort === controller) currentAbort = null;
     };
     try {
-      // Inside the boundary too: this runs from the debounce timer, so a throw
-      // here (a `buildLayoutInput` invariant — e.g. an unknown node id) would
-      // otherwise escape as an uncaught timer exception.
-      const labelSizes = labelSizesOf(styledSnapshot, tableSnapshot);
-      const input: LayoutInput = buildLayoutInput(styledSnapshot, labelSizes);
       void deps.host
         .run(engine, input, options, deps.metrics, tableSnapshot, controller.signal)
         .then((result) => {
@@ -519,7 +583,7 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
           layoutDiags.value = result.diagnostics;
           if (result.value !== null) {
             layout.value = result.value;
-            lastRequest = { geometryHash, engineId: engine, optionsKey: key };
+            lastRequest = { engineId: engine, optionsKey: key, inputKey, spansKey, graph: styledSnapshot.graph, table: tableSnapshot, geometryHash };
           }
           // else: keep layout.value as is (FR-E4) — layoutDiags already carries
           // SGL4001/SGL4002/SGL4011.
@@ -534,9 +598,8 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
         })
         .finally(settle);
     } catch (err) {
-      // Building the input threw, or a host whose `run()` throws synchronously
-      // instead of returning a rejected promise — neither reaches `.catch`
-      // above.
+      // A host whose `run()` throws synchronously instead of returning a
+      // rejected promise — it does not reach `.catch` above.
       reportPipelineError(err, sourceSnapshot);
       settle();
     }

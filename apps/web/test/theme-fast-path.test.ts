@@ -122,12 +122,18 @@ describe('anything else falls back to the full path (P3)', () => {
     const h = await harness(DOC);
     const before = snapshot(h);
     h.setSource(DOC.replace('#abcdef', '#123456'));
-    await h.settle();
+    // Synchronously, before the layout effect's debounce: drawn with the same
+    // layout object and the same geometry, so only `structureHash` refuses.
     expect(h.pipeline.lastGood.value!.styled.geometryHash).toBe(before.good.styled.geometryHash);
-    expect(h.pipeline.lastGood.value!.layout).toBe(before.good.layout); // layout skipped: same geometry
+    expect(h.pipeline.lastGood.value!.layout).toBe(before.good.layout);
     expect(counts.render - before.render).toBe(1);
     expect(counts.paintOnly - before.paintOnly).toBe(0);
     expect(h.pipeline.lastGood.value!.paintPlan).not.toBe(before.good.paintPlan);
+    // (The inline `@style` is in the graph the engine is handed, so the
+    // layout effect then lays out again, fix round 1 item 1: same frames.)
+    await h.settle();
+    expect(h.pipeline.lastGood.value!.layout).toEqual(before.good.layout);
+    expect(counts.paintOnly - before.paintOnly).toBe(0);
   });
 
   it('the graph differs: a document whose own @theme changes re-renders in full', async () => {

@@ -338,6 +338,39 @@ describe('pipeline (DD-08 §3)', () => {
     expect(env.pipeline.lastGood.value?.styled.themeId).toBe('neutral-dark');
   });
 
+  it('a label text edit lays out again; undoing it while that layout is out keeps the landed one and drops the other (fix round 1, item 1)', async () => {
+    const env = setup('a: "short"');
+    // The latest live debounce only (`fireByMs` would re-run fired ones too).
+    const fireDebounce = (): void => [...env.calls].reverse().find((c) => !c.cancelled && c.ms === 120)?.fn();
+    await completeOneLayout(env, 'a');
+    expect(env.pending).toHaveLength(1);
+    const landed = env.pipeline.layout.value;
+
+    // Same geometryHash, a longer label: a new request (the old skip made none).
+    const tableShort = env.pipeline.table.value;
+    env.pipeline.setDocument(parse('a: "a much longer label"').tree, 'a: "a much longer label"');
+    await flushUntil(() => env.pipeline.table.value !== tableShort);
+    fireDebounce();
+    await flush();
+    expect(env.pending).toHaveLength(2);
+    const longer = env.pending[1]!;
+    expect(env.pipeline.inFlight.value).toBe(true);
+
+    // Undo before it answers: the input is the landed one's again, so no new
+    // request, and the one in flight is aborted and can never land.
+    const tableBefore = env.pipeline.table.value;
+    env.pipeline.setDocument(parse('a: "short"').tree, 'a: "short"');
+    await flushUntil(() => env.pipeline.table.value !== tableBefore);
+    fireDebounce();
+    await flush();
+    expect(env.pending).toHaveLength(2);
+    expect(longer.signal.aborted).toBe(true);
+    expect(env.pipeline.inFlight.value).toBe(false);
+    longer.resolve({ value: fakeLayoutResult('a', 999, 60), diagnostics: [] });
+    await flush();
+    expect(env.pipeline.layout.value).toBe(landed);
+  });
+
   it('SGL4001 (timeout) keeps the previous layout and surfaces the diagnostic', async () => {
     const env = setup('a: "A"');
     await completeOneLayout(env, 'a');
