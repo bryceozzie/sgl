@@ -1,6 +1,6 @@
 # DD-07 — SVG Renderer
 
-**Package:** `@sgl/render-svg` · **Inputs:** `StyledGraph` (DD-04), `LayoutResult` (DD-06), `ResolvedTheme` · **Output:** `RenderResult { svg: string; styleBlock: string; bounds: Rect }`
+**Package:** `@sgl/render-svg` · **Inputs:** `StyledGraph` (DD-04), `LayoutResult` (DD-06), `ResolvedTheme` · **Output:** `RenderResult { svg: string; styleBlock: string; tokenBlock: string; bounds: Rect; diagnostics: readonly Diagnostic[] }`
 
 A pure string renderer. No DOM, no virtual DOM. The same function serves the live view (DD-08 §6 sets `innerHTML`), export, the CLI and, later, the Worker.
 
@@ -15,7 +15,7 @@ A pure string renderer. No DOM, no virtual DOM. The same function serves the liv
 | Emit text as positioned `<tspan>`s from `TextLayout` — no `<foreignObject>` | Embed fonts (**⟶ C8**) |
 | Assign stable, sanitised element IDs | Add interaction chrome (DD-08 §6 overlays it *outside* this tree) |
 | Escape every string that reaches markup; allowlist link schemes | |
-| Return `styleBlock` separately, for export and for re-theming an exported file | Support swapping just the `<style>` block against a *retained* live-view tree on a paint-only change — not implementable today; see §11 |
+| Return `styleBlock` and `tokenBlock` separately, for export and for re-theming an exported file | Support swapping just the `<style>` block against a *retained* live-view tree on a paint-only change — not implementable today; see §11 |
 
 ---
 
@@ -29,6 +29,7 @@ A pure string renderer. No DOM, no virtual DOM. The same function serves the liv
   <title id="sgl-t">{title or 'Diagram'}</title>
   <desc id="sgl-d">{n} nodes, {m} connections, {c} groups.</desc>
   <style>{styleBlock}</style>
+  <style>{tokenBlock}</style>
   <defs>{markers}</defs>
   <rect class="canvas" width="100%" height="100%"/>
   <g class="L-containers">{containers in order}</g>
@@ -40,7 +41,7 @@ A pure string renderer. No DOM, no virtual DOM. The same function serves the liv
 
 Layer order is fixed: containers, edges, nodes, edge labels. Node and container titles are emitted inside their own element's `<g>` so they move with it; edge labels are a separate top layer so plates never sit under a node.
 
-The renderer returns the whole string **and** `styleBlock` separately, for export and for re-theming an exported file. This is *not* the same thing as the live view keeping its tree and swapping only `<style>` on a paint-only change (`geometryHash` equal, `paintHash` different): that property does not hold, for two independent reasons spelled out in §11, and DD-08 §3 has been corrected accordingly (F7, execution plan §2.1).
+The renderer returns the whole string **and** `styleBlock` and `tokenBlock` (the two `<style>` elements' text, §6) separately, for export and for re-theming an exported file. This is *not* the same thing as the live view keeping its tree and swapping only `<style>` on a paint-only change (`geometryHash` equal, `paintHash` different): that property does not hold, for two independent reasons spelled out in §11, and DD-08 §3 has been corrected accordingly (F7, execution plan §2.1).
 
 ---
 
@@ -135,24 +136,30 @@ For a `LabelPlacement` and its `TextLayout`:
 
 ---
 
-## 6. IDs, classes and the `<style>` block
+## 6. IDs, classes and the `<style>` elements
 
 **IDs.** `n-` + sanitised `NodeId`; `e-` + the hash part of `EdgeId`. Sanitise = replace any character outside `[A-Za-z0-9_.-]` with `_`, then if the result differs from the original append `-` + 6 chars of `fnv1a64(original)` to prevent collisions (`a b` and `a_b` must not both become `n-a_b`). IDs are unique per document by construction because paths are unique.
 
 **Generated style classes.** `s-{paintHash}` for shape fill/stroke, `t-{hash}` for text, `p-{hash}` for plates. Identical styles across elements share one class — a 500-node diagram with three visual variants emits three rules, not 500 attributes.
 
-**`styleBlock`**:
+**Two `<style>` elements.** The main one, `styleBlock`, holds every rule that paints the diagram; the token one, `tokenBlock`, follows it immediately and holds the theme tokens and nothing else:
 ```css
-svg.sgl { --bg:#F7F8FA; --ink:#1B2330; … }              /* every theme token, scoped to the root svg — never :root */
-.canvas { fill: var(--bg) }
-.n-shape, .c-shape { stroke-linejoin: round }
-.s-8f2a…  { fill:#FFFFFF; stroke:#8A96A8; stroke-width:1.5 }
-.t-0c41…  { font-family:Inter,system-ui,sans-serif; font-size:13px; font-weight:500; fill:#1B2330 }
+/* <style> — styleBlock: literal values only, no custom property declared or read */
+.canvas { fill:#F7F8FA }                                  /* the resolved canvas colour, not var(--sgl-canvas) */
+.c-shape, .n-shape { stroke-linejoin: round }
 .e-path   { fill:none; stroke-linecap:round }
+.g-8ab4…  { stroke-width:1.5px }
+.s-8f2a…  { fill:#FFFFFF; stroke:#8A96A8 }
+.t-0c41…  { fill:#1B2330 }
 …
+
+/* <style> — tokenBlock: one rule, every theme token, scoped to the root svg — never :root */
+svg.sgl { --sgl-canvas:#F7F8FA; --accent:#1F5F80; --bg:#F7F8FA; --ink:#1B2330; … }
 ```
 
-Tokens are emitted as custom properties so a consumer can re-theme an *exported* SVG by overriding them, but generated rules use literal resolved values (not `var()`) so the file renders identically in tools that ignore custom properties (older Inkscape).
+Tokens are emitted as custom properties so a consumer can re-theme an *exported* SVG by overriding them (a later `svg.sgl{--ink:…}` rule of their own). Every generated rule, `.canvas` included, uses literal resolved values, never `var()`, so the file renders identically in tools that ignore custom properties. Nothing in `styleBlock` reads a token, so an override changes the token's value on the root for the consumer's own CSS to use; it does not by itself repaint the diagram.
+
+The tokens sit in an element of their own because some tools do **not** merely ignore a rule they cannot parse: they discard the **whole** `<style>` element that holds it. Inkscape 1.2.2 does exactly that with a rule of custom properties, and when the tokens were the first rule of a single block, every shape in an exported file fell back to the default black fill (**F17**, found at T5 on 2026-09-23 and bisected with Inkscape 1.2.2; `var()` use was not the cause). Kept apart, and after the main element, such a tool loses only the tokens, never the paint. So `styleBlock` must never contain a custom property, declared or read, and `tokenBlock` must never contain anything else — `packages/render-svg/test/style-elements.test.ts` holds both over the whole corpus.
 
 **Markers.** One `<marker id="m-{arrowhead}-{colorHash}">` per distinct (arrowhead, stroke colour) actually used. `context-stroke` is deliberately not relied on (Safari support arrived late; resvg lacks it). Marker geometry is in user units with `markerUnits="userSpaceOnUse"` sized by `arrowSize`. A start marker (`both`) is drawn flipped 180° about its own centre and given its own `refX`, rather than relying on `orient="auto-start-reverse"` alone — a reversed marker still needs its `refX` on the other side — so every marker uses plain `orient="auto"`.
 
@@ -191,7 +198,7 @@ There is no path by which document text becomes markup. The injection corpus in 
 
 - `background: 'theme' | 'transparent'` → `.canvas` rect present or omitted.
 - `scale` → `width`/`height` attributes multiplied; `viewBox` unchanged.
-- Fonts: by reference in MVP — the `font-family` stack includes system fallbacks, so the file is legible everywhere and pixel-faithful where Inter is installed. **⟶ C8** embeds a subsetted `@font-face` into the `<style>` block; nothing else changes.
+- Fonts: by reference in MVP — the `font-family` stack includes system fallbacks, so the file is legible everywhere and pixel-faithful where Inter is installed. **⟶ C8** embeds a subsetted `@font-face` into the main `<style>` element (`styleBlock`, never the token element, §6); nothing else changes.
 
 The live view's pan/zoom `<g transform>` and selection overlay live in a *host* `<svg>` around this one and are never part of the exported string.
 

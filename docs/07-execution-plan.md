@@ -184,8 +184,8 @@ one fix round (23 items). `pnpm check`'s steps from clean are green on `main`, r
 orchestrator: 2139 Vitest passed (unit + browser project, Chromium only), e2e 55/55 in Chromium,
 `size-limit` 177.22 kB gz of 180 (the same figure under Node 20.19.0, CI's `.nvmrc`). **All six
 MVP criteria are automated with both engines registered: Gate 3 is next**, and its only
-remaining step is T5, by hand. **T5 so far (human, 2026-09-23):** golden SVGs render correctly in Edge but **all black in
-Inkscape** (F17); Figma and Safari not checked (no access); PWA install could not be completed and
+remaining step is T5, by hand. **T5 so far (human, 2026-09-23):** golden SVGs render correctly in Edge but rendered **all black in
+Inkscape** (F17, since fixed on `fix/svg-inkscape`, below — **Inkscape needs re-checking by hand** against the re-baselined goldens); Figma and Safari not checked (no access); PWA install could not be completed and
 is set aside for now. CI (`.github/workflows/ci.yml`) is active on GitHub but has **no recorded
 runs**, so Firefox/WebKit and the Node 20 path are not yet verified there. The orchestrator accepted two things the gate text does not say
 literally, both recorded here: (1) container titles are placed by the elk adapter in the band
@@ -195,6 +195,20 @@ ELK reserves (the title is not sent to ELK, DD-06 §6.1 note 2), which meets the
 because no ELK option removes them — **F16**. History note: `7e5aed5` on the merged branch is a
 deliberately red `wip` commit (the worker-blocker reproduction, fixed in `344620e`), kept rather
 than rewritten because the branch was already pushed; `main`'s first-parent history is green.
+
+**F17 fixed on `fix/svg-inkscape`** (Gate 3 / T5). Exported SVGs rendered all black in Inkscape
+because Inkscape 1.2.2 discards the whole `<style>` element that holds the theme-token rule
+`svg.sgl{--sgl-canvas:…;…}`. `render()` now writes two `<style>` elements where it wrote one: the
+main one (`RenderResult.styleBlock`) with every painting rule, literal values only and no custom
+property declared or read — `.canvas` gets its literal resolved colour instead of
+`var(--sgl-canvas)` — and right after it the unchanged token rule in its own element (the new
+`RenderResult.tokenBlock`), so a consumer can still override the tokens (DD-07 §6, corrected).
+`packages/render-svg/test/style-elements.test.ts` holds that over the whole corpus, with an
+injection case for hostile token names, values and canvas colour; `test/browser/tokens.browser.test.ts`
+checks in Chromium that the token element parses whole, removing it leaves the paint unchanged, and
+an override applies. `apps/web/e2e/f8-style-decode.spec.ts` now reads both `<style>` elements.
+**Every SVG render golden (36) was re-baselined, by human decision on 2026-09-23**; with the
+`<style>` elements removed, each is byte-identical to its predecessor, and no other golden changed.
 
 **Gate 2 is cleared.** `feat/app-editor` cleared its review-fix round
 and merged to `main` at `b013aff`; `pnpm check` is green there (1772 Vitest + 6 skipped by design,
@@ -1191,7 +1205,6 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F13** | A share link pasted into an already-open tab (Stage J fix round 1, item 14) imports by flushing autosave and **reloading**, not by switching in place like Open and Documents ▾ (fix round 2). That loses undo history, and when IndexedDB is unavailable (memory-store fallback) the reload loses the tab's documents outright. Also: criterion 5's offline test is falsifiable against the HTTP cache in Chromium and WebKit but not in Firefox, which has neither mechanism the spec uses; and error toasts persist until closed with no cap on how many pile up. | Stage L (E17, alongside the rest of the Documents UI) |
 | **F14** | DD-06 §5 says the host recomputes `bounds` from the quantized frames and routes plus `canvas.margin` (16 px). Never implemented (since Stage E): `host.ts`/`validate.ts` pass the engine's `bounds` through and the renderer uses them as-is, so `elk`'s margin is ELK's 12 px root padding, `grid`'s is 0, and `grid`'s self-loop teardrops are clipped at the canvas edge. Implementing it re-baselines every `grid` golden. **Decision (human, 2026-09-23): do it in the same deliberate re-baseline as F7**, not before. | Stage L, with F7, before Gate 4 |
 | **F15** | `elk` misses DD-09 §2's performance budget as measured in Node by Stage K's review: `elkEngine.layout` alone takes 0.5–0.8 s warm / 1.4 s cold at n500 (budget: 400 ms for the whole pipeline) and ~1.9 s warm / 3.8 s cold at n2000 (budget 3 s). Gate 3 is not timed. **Decision (human, 2026-09-23): record it and measure in the browser before Gate 4; the budget is not reopened.** | Stage L, before Gate 4 (the Gate 4 bench) |
-| **F17** | **Exported SVG renders all black in Inkscape** (T5, human, 2026-09-23: `neutral-light` and `neutral-dark` `checkout.sgl.svg`; correct in Edge). Reproduced by the orchestrator with Inkscape 1.2.2 and bisected: the token rule `svg.sgl{--bg:…;--ink:…}` alone makes Inkscape discard the **whole** `<style>` block, so every shape falls back to the default black fill — DD-07 §6 assumed tools that do not understand custom properties merely *ignore* them. `var()` use is not the cause. Moving the token rule into its own trailing `<style>` element (and giving `.canvas` its literal colour, as DD-07 §6's own "literal resolved values" rule already requires) renders correctly in Inkscape and keeps the re-theme-by-override promise. Breaks FR-R2 / D2 (Must). The fix re-baselines every SVG golden. | **Awaiting human decision** — blocks Gate 3 (T5) |
 | **F16** | Under `elk`, some edges enter a container through its own title (the endpoint's ancestor, so the K4 hierarchy-crossing check does not count them): `checkout` 2, `containers-edges` 1, `nesting-3` 1, `wildcards` 4, pinned by `titleCrossings` in `packages/layout-elk/test/elk.test.ts`. No ELK option tried removes them (`considerModelOrder` crashes ELK on 8 documents; `FIXED_SIDE` moves them). Candidates: a host-side nudge of the final segment, or port placement once ports are real (F6). | Stage L |
 
 ---
