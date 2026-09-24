@@ -622,6 +622,33 @@ describe('error boundary (DD-08 §13)', () => {
     expect(env.pipeline.styled.value.value.graph.order).toEqual(['a', 'b', 'c', 'd']);
   });
 
+  it('refuses a tree shorter than its text (F19): no render and no diagnostic from a parse cut short; the next whole tree recovers', async () => {
+    const consoleError = spyConsoleError();
+    const env = setup('a: "A"');
+    await completeOneLayout(env, 'a');
+    const before = { parsed: env.pipeline.parsed.value, diags: env.pipeline.diags.value, lastGood: env.pipeline.lastGood.value };
+
+    // What an incremental parse that stopped early hands over: the tree of a
+    // prefix of the text. Read as a document it would simply lack `c`.
+    const text = 'a: "A"\nb: "B"\nc: "C"';
+    const prefix = parse('a: "A"\nb: "B"').tree;
+    expect(prefix.length).toBeLessThan(text.length);
+    env.pipeline.setDocument(prefix, text);
+    await flush();
+
+    expect(env.pipeline.parsed.value).toBe(before.parsed);
+    expect(env.pipeline.diags.value).toEqual(before.diags);
+    expect(env.pipeline.lastGood.value).toBe(before.lastGood);
+    expect(env.pipeline.pipelineError.value?.message).toBe("the editor's parse tree covers 13 of 20 characters (F19)");
+    expect(env.pipeline.chip.value.kind).toBe('crashed');
+    expect(loggedErrors(consoleError)).toHaveLength(1);
+
+    env.pipeline.setDocument(parse(text).tree, text);
+    await completeOneLayout(env, 'a');
+    expect(env.pipeline.parsed.value.value.entries).toHaveLength(3);
+    expect(env.pipeline.pipelineError.value).toBeNull();
+  });
+
   it('a throwing compile stage freezes compile and everything below it, while parse and resolve keep updating; it recovers', async () => {
     const consoleError = spyConsoleError();
     let armed = false;

@@ -1,17 +1,19 @@
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
-import { bracketMatching, defaultHighlightStyle, foldGutter, syntaxHighlighting, syntaxTree } from '@codemirror/language';
+import { bracketMatching, defaultHighlightStyle, foldGutter, syntaxHighlighting } from '@codemirror/language';
 import { lintGutter } from '@codemirror/lint';
 import { Compartment, EditorState, type Extension } from '@codemirror/state';
 import { EditorView, highlightActiveLine, keymap } from '@codemirror/view';
 import { sgl } from '@sgl/core/editor';
 import type { Tree } from '@lezer/common';
+import { completeSyntaxTree } from './complete-tree.js';
 
 export interface EditorCallbacks {
   /** Called from `EditorView.updateListener` on every document change, with the
    *  editor's own already-parsed tree — DD-01 §5's "the app never calls
    *  `parser.parse` on its own": the pipeline's `parsed` computed reuses this
-   *  tree via `buildAst` instead. */
+   *  tree via `buildAst` instead. The tree always spans the whole of `source`
+   *  (F19, DD-08 §4). */
   readonly onDocument: (tree: Tree, source: string) => void;
 }
 
@@ -34,7 +36,9 @@ export function editorExtensions(callbacks: EditorCallbacks): Extension[] {
     keymap.of([...closeBracketsKeymap, ...historyKeymap, ...defaultKeymap]),
     EditorView.updateListener.of((update) => {
       if (!update.docChanged) return;
-      callbacks.onDocument(syntaxTree(update.state), update.state.doc.toString());
+      // The whole document's tree, never the part a transaction's own
+      // incremental parse reached (F19; `completeSyntaxTree`).
+      callbacks.onDocument(completeSyntaxTree(update.state), update.state.doc.toString());
     }),
   ];
 }

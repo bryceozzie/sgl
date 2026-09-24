@@ -1257,6 +1257,28 @@ write's own paint (134.0: `styleGraph` 43.8, `render` 45.0, swap 40.4) and 64.4 
 for inserting the `@theme` entry. DD-08 §6 and DD-09 §2's planned response now point at F9 instead
 of `morphdom`.
 
+**F19 fixed** (Stage L, `fix/large-doc-parse`, branched from `main` at `ce0589d`; no golden
+changed). The editor's `updateListener` handed the pipeline `syntaxTree(state)`, which after a
+whole-document replacement, or soon after boot, covers only what CodeMirror's incremental parse
+had reached (about 20 ms of work or the viewport; its background worker, which finishes later,
+changes no text and stops 100 000 characters past the viewport). Reproduced through the UI first
+(`apps/web/e2e/large-document.spec.ts`, which failed on `ce0589d` with `SGL1001` and the chip on
+"Showing last good render"): Open of a 2 000-node file, a Documents ▾ switch back to one, and an
+edit at the top of a 3 000-node document just after it boots. A share link of the largest scale
+document within the 8 000-character guard (800 nodes) already rendered whole, because a share link
+always boots (F13) and boot parses in `createPipeline`, not in the editor; the test stays as a
+guard. The fix: the listener passes `completeSyntaxTree(state)` (`apps/web/src/editor/complete-tree.ts`),
+CodeMirror's own `ensureSyntaxTree` to the end of the document with no time limit — an `isDone`
+check when the tree is already whole (0.01 ms on a keystroke), the rest of the same parse
+otherwise (in Node, about 20 ms more for a replaced n2000, 40 ms for n3000). Synchronous rather
+than deferred, because the pipeline's own synchronous work on the same text is larger. And the
+pipeline's `parsed` stage now refuses a tree whose length differs from its text as a §13
+programming error (holds last good, crash chip), so a truncated parse can never be rendered or
+diagnosed. DD-08 §4 says how the tree is kept whole. Unit tests: `apps/web/test/complete-tree.test.ts`
+and a `pipeline.test.ts` case. `pnpm bench:theme` before / after (median `work`, ms): n50 17.5 /
+18.7 first, 11.0 / 10.4 repeat; n500 117.4 / 113.5, 63.3 / 63.9; n2000 451.6 / 453.5, 250.4 /
+244.6 — noise.
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
@@ -1274,7 +1296,6 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F12** | After a service-worker update is accepted in one tab, other open tabs keep running the old JS while `cleanupOutdatedCaches` has already removed the old precache, so a lazy chunk the old code has not yet loaded (from Stage K, `elk`) can fail to load offline in those tabs. Found in Stage J's review; `pwa.ts` has no cross-tab coordination (e.g. reloading other clients on `controllerchange`). | Stage L |
 | **F13** | A share link pasted into an already-open tab (Stage J fix round 1, item 14) imports by flushing autosave and **reloading**, not by switching in place like Open and Documents ▾ (fix round 2). That loses undo history, and when IndexedDB is unavailable (memory-store fallback) the reload loses the tab's documents outright. Also: criterion 5's offline test is falsifiable against the HTTP cache in Chromium and WebKit but not in Firefox, which has neither mechanism the spec uses; and error toasts persist until closed with no cap on how many pile up. | Stage L (E17, alongside the rest of the Documents UI) |
 | **F14** | DD-06 §5 says the host recomputes `bounds` from the quantized frames and routes plus `canvas.margin` (16 px). Never implemented (since Stage E): `host.ts`/`validate.ts` pass the engine's `bounds` through and the renderer uses them as-is, so `elk`'s margin is ELK's 12 px root padding, `grid`'s is 0, and `grid`'s self-loop teardrops are clipped at the canvas edge. Implementing it re-baselines every `grid` golden. **Decision (human, 2026-09-23): do it in the same deliberate re-baseline as F7**, not before. | Stage L, with F7, before Gate 4. **The same re-baseline also removes the vestigial `tokenBlock` `<style>` element** (F18 closed, human decision 2026-09-24: re-theming an exported SVG by overriding tokens is dropped, DD-07 §6) |
-| **F19** | **A large document replaced wholesale in the editor can reach the pipeline half-parsed.** Found by F9 phase 2a's bench: replacing the whole n2000 text (78 kB) in CodeMirror fired `updateListener` while CodeMirror's incremental parse had covered only part of it; the pipeline received a truncated tree (`SGL1001` at offset 39 784 of 78 277) and the canvas never updated, because the background parse that finishes later changes no text and so never re-notifies the pipeline. `loadDocument` (Open, Documents ▾ switch, share import) does exactly this whole-document replacement, so opening a large file may render wrongly or not at all. Not yet reproduced through the UI. | Stage L — next, before other items (a correctness bug) |
 | **F15** | `elk` misses DD-09 §2's performance budget as measured in Node by Stage K's review: `elkEngine.layout` alone takes 0.5–0.8 s warm / 1.4 s cold at n500 (budget: 400 ms for the whole pipeline) and ~1.9 s warm / 3.8 s cold at n2000 (budget 3 s). Gate 3 is not timed. **Decision (human, 2026-09-23): record it and measure in the browser before Gate 4; the budget is not reopened.** | Stage L, before Gate 4 (the Gate 4 bench) |
 | **F16** | Under `elk`, some edges enter a container through its own title (the endpoint's ancestor, so the K4 hierarchy-crossing check does not count them): `checkout` 2, `containers-edges` 1, `nesting-3` 1, `wildcards` 4, `wildcard-paths` 4 (added 2026-09-24 with the document), pinned by `titleCrossings` in `packages/layout-elk/test/elk.test.ts`. No ELK option tried removes them (`considerModelOrder` crashes ELK on 8 documents; `FIXED_SIDE` moves them). Candidates: a host-side nudge of the final segment, or port placement once ports are real (F6). | Stage L |
 

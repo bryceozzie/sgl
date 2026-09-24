@@ -140,7 +140,9 @@ export interface Pipeline {
 
   /** The editor calls this from `EditorView.updateListener` with its own
    *  already-parsed tree (DD-01 §5) — `parsed` below reuses it and the pipeline
-   *  never calls `parser.parse` itself. */
+   *  never calls `parser.parse` itself. The tree must span the whole of
+   *  `source` (F19, DD-08 §4); a shorter one is refused as a programming
+   *  error rather than read as a document that ends early. */
   setDocument(tree: Tree, source: string): void;
   readonly source: ReadonlySignal<string>;
 
@@ -237,6 +239,11 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     [],
     () => {
       const { tree, source: text } = doc.value;
+      // F19: a tree shorter than its text is a parse cut short, never a
+      // document. `buildAst` would read it as one that ends at the cut (an
+      // SGL1001 there, every node after it gone); refusing it here holds the
+      // last good stages and reports a programming error (§13) instead.
+      if (tree.length !== text.length) throw new Error(`the editor's parse tree covers ${tree.length} of ${text.length} characters (F19)`);
       inject('parse');
       return buildAst(tree, text);
     },
