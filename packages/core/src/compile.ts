@@ -79,11 +79,40 @@ const textRuns = (text: string): readonly TextRun[] => text.split('\n').map((lin
  * of a sibling processed first. No corpus fixture exercises that edge, and nothing
  * downstream depends on a particular tie-break there; a full C3-style merge would
  * remove the wrinkle but is not what the design doc describes.
+ *
+ * F3: a class already on the current path is a cycle. `resolve()` splices every
+ * back-edge before a model gets here, but a second producer of class tables
+ * (A9 imports) need not, so the walk skips the back-edge and reports it with the
+ * resolver's `SGL2004` rather than overflowing the stack. The cycle is rotated
+ * to start at its least member, so it reads the same from every node and edge
+ * that reaches it, and is reported once.
  */
-function linearizeClasses(typeNames: readonly string[], classes: Readonly<Record<string, ClassModel>>): string[] {
+function linearizeClasses(
+  typeNames: readonly string[],
+  classes: Readonly<Record<string, ClassModel>>,
+  spans: SpanTable,
+  diags: Diagnostic[],
+): string[] {
   const order: string[] = [];
+  const path: string[] = [];
   const visit = (name: string): void => {
-    for (const base of classes[name]?.extends ?? []) visit(base);
+    path.push(name);
+    for (const base of classes[name]?.extends ?? []) {
+      const at = path.indexOf(base);
+      if (at === -1) {
+        visit(base);
+        continue;
+      }
+      const cycle = path.slice(at);
+      const start = cycle.indexOf([...cycle].sort()[0] as string);
+      const members = [...cycle.slice(start), ...cycle.slice(0, start)];
+      const d = diagnostic('SGL2004', spans.get(`c:${members[0]}`) ?? NO_SPAN, {
+        a: members[0] as string,
+        cycle: [...members, members[0]].join(' -> '),
+      });
+      if (!diags.some((x) => x.message === d.message)) diags.push(d);
+    }
+    path.pop();
     const idx = order.indexOf(name);
     if (idx !== -1) order.splice(idx, 1);
     order.push(name);
@@ -231,7 +260,7 @@ function buildNodeMap(model: DocumentModel, diags: Diagnostic[]): NodeMap {
     const id = asNodeId(pathKey);
     containerByPath.set(pathKey, container);
 
-    const classes = linearizeClasses(typeNamesOf(container.config), model.classes);
+    const classes = linearizeClasses(typeNamesOf(container.config), model.classes, model.spans, diags);
     const span = model.spans.get(`n:${pathKey}`) ?? NO_SPAN;
     const shape = resolveShape(container.config, classes, model.classes, span, model.spans, diags);
     const hidden = parentHidden || container.config.hidden === true;
@@ -434,6 +463,7 @@ function compileEdgeModel(
   stmtSpan: SourceSpan,
   ctx: NodeMap,
   classTable: Readonly<Record<string, ClassModel>>,
+  spans: SpanTable,
   diags: Diagnostic[],
 ): readonly PendingEdge[] {
   const declaringLabel = declaringPath.length === 0 ? 'the document root' : declaringPath.join('.');
@@ -461,7 +491,7 @@ function compileEdgeModel(
   // endpoint that happens to coincide with one member of the other side's
   // expansion is a legitimate edge, not a cross-product artefact.
   const bothWildcard = isWildcardEndpoint(edgeModel.from) && isWildcardEndpoint(edgeModel.to);
-  const classes = linearizeClasses(typeNamesOf(edgeModel.config), classTable);
+  const classes = linearizeClasses(typeNamesOf(edgeModel.config), classTable, spans, diags);
   const configHidden = edgeModel.config.hidden === true;
 
   // Resolve each side's port once per *distinct* target, before the cross
@@ -522,7 +552,7 @@ function collectPendingEdges(
   const processContainer = (container: ContainerModel, declaringPath: readonly string[], declaringId: NodeId | null): void => {
     container.edges.forEach((edgeModel, i) => {
       const stmtSpan = model.spans.get(`e:${nodeIdFromPath(declaringPath)}#${i}`) ?? NO_SPAN;
-      out.push(...compileEdgeModel(edgeModel, declaringPath, declaringId, stmtSpan, ctx, model.classes, diags));
+      out.push(...compileEdgeModel(edgeModel, declaringPath, declaringId, stmtSpan, ctx, model.classes, model.spans, diags));
     });
   };
 

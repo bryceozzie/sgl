@@ -211,8 +211,8 @@ for this gate, so Firefox/WebKit and the Node 20 path have not been verified on 
 **Stage L is next.**
 
 **A8 variables, on `feat/variables`** (branched from `main` at `73fdd69`; not merged). **Blocked on
-the core-bundle budget:** `pnpm size` reads 181.27 kB gzipped, over the 180 kB
-limit (`main`: 179.76 kB, so 0.24 kB of headroom), and the limit is a human decision
+the core-bundle budget:** `pnpm size` reads 181.27 kB gzipped with A8 alone, 181.40 kB with F3, over
+the 180 kB limit (`main`: 179.76 kB, so 0.24 kB of headroom), and the limit is a human decision
 (`.size-limit.js`). Everything else in the gate is green. `resolve()` now substitutes `@vars`:
 `$name` as a whole value with its type, `${name}` inside a string, lexically scoped per container (a
 container's `@vars` cover its config, edges and children, wherever written and across
@@ -235,8 +235,11 @@ retired (row and fixture removed; the number is not reused), three codes and fou
 fixtures are added, and `theme/bad-colour.sgl` takes over `SGL5004`, which only `checkout.sgl`'s
 literal `$hot` reached before. Goldens: only `checkout.sgl`'s changed, the one corpus document
 using `$` (compile golden and both render goldens: the stroke is now `#DC2626`; its resolver golden
-is unchanged); `variables.sgl` is a new clean corpus document with new goldens. Tests:
-`packages/core/test/variables.test.ts`, `apps/web/e2e/variables.spec.ts`. Docs: language spec §5, DD-01 §2 notes, DD-02
+is unchanged); `variables.sgl` is a new clean corpus document with new goldens. **F3 is fixed** on
+the same branch: `linearizeClasses` keeps the current `@extends` path, skips a back-edge and reports
+it as `SGL2004` once per cycle (rotated to its least member), tested by calling `compile()` on
+hand-built cyclic models. Tests: `packages/core/test/variables.test.ts`, three F3 tests in
+`compile.test.ts`, `apps/web/e2e/variables.spec.ts`. Docs: language spec §5, DD-01 §2 notes, DD-02
 §1/§2/§3.5/§6/§7/§8/§9, corpus README.
 
 **Wildcards in parent path segments, merged to `main` at `2cb614b`** (one review with mutation testing, one fix round; 2279 Vitest + 56/56 e2e from clean) (language change, **human
@@ -1485,7 +1488,6 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 
 | # | Finding | Owner |
 |---|---|---|
-| **F3** | `linearizeClasses` recurses `@extends` with no visited-set guard. Safe **only** because `resolve()` splices every cycle's back-edge first, so no `DocumentModel` reaching `compile()` can contain one. A second producer of class tables would turn bad input into a stack overflow — which §1 reserves for invariant violations. | Stage L (A9) |
 | **F6** | `renderNode`'s port-circle template (DD-07 §3) is live, correctly `aria-hidden`, and unit-tested directly — but unreachable through the real pipeline: `grid` declares `capabilities.ports: false` and no host fallback places ports (DD-06 §4 covers labels and routing, not ports), so `LayoutResult.nodes[id].ports` is never populated end to end. Found during Stage F's accessibility pass. **Since Stage K the port circles are reachable under `elk`**, which declares `ports: true` and fills `NodeLayout.ports`; still not under `grid`, and the row's owner is still to be assigned. | unassigned — whichever stage next reconsiders `ports: false` for `grid`, or ships a port-aware engine |
 | **F9** | **The paint-only theme-switch budget is met on a quiet machine, marginally.** Budget (DD-09 §2, kept by human decision 2026-09-23): `< 16 ms` up to 500 nodes, `< 50 ms` at 2 000, Chromium; hard ceilings 50 / 100 ms. Measured end to end by `pnpm bench:theme` on the ordinary path, a Theme ▾ pick on a document with no `@theme` (`feat/theme-fast-path`, §2: the pick sets `themeId`; `styleGraph` once per cascade signature; `renderPaintOnly` and a `<style>`-text swap; no re-parse, no re-measure, no layout). Slower-pick median `work`, ms: orchestrator's three runs on a quiet machine n500 13.2 / 12.8 / 13.0, n2000 48.9 / 44.3 / 44.8; this branch's fix round 1, one run of the three-sample gate on a quiet machine (load average 0.29 at the start, 0.50 at the end; 4 cores; nothing else running) n50 2.6 / 2.5 / 2.6, n500 13.9 / 14.8 / 13.0, n2000 47.6 / 47.0 / 48.6 (best 47.0, median 47.6; the `@theme` case n2000 265.6 / 266.6 first / repeat). A reviewer running alongside another test suite (load ≈ 6) saw n2000 50–56 and one n500 at 17.5. **Where the time goes at n2000:** ~3–4 ms of script; the rest is Chromium's style recalculation for the new `<style>` text, ~40 ms, which is the floor (replacing even one rule's text costs ~24 ms at that size, and replacing the `<style>` element instead of its text measured the same), so the headroom is a few ms and within machine noise. **Not gated:** a document that sets its own `@theme` is edited by the pick and re-parsed and re-rendered in full, ~250–275 ms at n2000 (~65–70 ms at n500): the document's own text changing. **Gate policy (fix round 1; DD-09 §3.1 "perf: nightly + release"):** the bench is not part of `check` or CI; run on demand on a quiet machine; three samples per point in one run, the best of the three slower-pick medians under the budget and the median of the three under the hard ceiling; all three reported. | watch; re-measure before Gate 4 |
 | **F10** | `ctx.random`'s seed (`host.ts`'s `SEED = 1`) is one fixed constant, shared by every request for every document — `LayoutHost.run()`'s frozen signature has no per-call seed parameter, so Stage H could not add one unilaterally (DD-06 §3). Where a per-document seed should come from — a new `run()` parameter, or something content-addressed from a graph hash so the same document always seeds the same way without threading a value through every call site — is undecided, and is an orchestrator/design decision to make, not Stage H's to settle unilaterally. No engine shipped so far reads `ctx.random` at all (`grid` is fully deterministic; `elk` is unbuilt), so nothing depends on the answer yet. | Stage L (B5 `radial`/`force`, the first seed-consuming engines) |
@@ -1934,7 +1936,7 @@ complete the Playwright suite's engine-switch cases (DD-08 §14 test 4).
 
 | Item | Notes |
 |---|---|
-| A8 variables, A9 imports | Pure resolver work. Replaces the Stage B placeholder diagnostic. Cycle detection for imports. **F3 (§2.1):** `compile()`'s `linearizeClasses` has no visited-set guard and relies entirely on `resolve()` having spliced every `@extends` back-edge first. Imports introduce a second way class tables get built — add the guard before, not after. |
+| A8 variables, A9 imports | Pure resolver work. Replaces the Stage B placeholder diagnostic. Cycle detection for imports. **F3** (a visited-set guard in `compile()`'s `linearizeClasses`, which relied entirely on `resolve()` having spliced every `@extends` back-edge first) is fixed on `feat/variables` (§2), ahead of imports, the second way class tables get built. |
 | **A18 markdown labels + `@sgl/text`** | The largest non-engine subsystem. The `Measurer` is run-based already, so this is an addition, not a rewrite. |
 | B5 `fixed`, `tree`, `radial`, `force` | `fixed` first — about a day, and the escape hatch people ask for. `force` last, and it is the first thing to cut. |
 | C5 `high-contrast`, `print` themes | Tokens only. |

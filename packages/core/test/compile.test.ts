@@ -6,6 +6,7 @@ import type { Document, Entry } from '../src/ast.js';
 import { compile } from '../src/compile.js';
 import type { DiagnosticCode } from '../src/diagnostics.js';
 import type { GraphEdge } from '../src/graph.js';
+import type { ClassModel, ContainerModel, DocumentModel } from '../src/model.js';
 import { parse } from '../src/parse.js';
 import { resolve } from '../src/resolve.js';
 import { CLEAN_DOCS } from './corpus-docs.js';
@@ -898,5 +899,55 @@ describe('graph-level fields', () => {
     const lbIdx = graph.order.indexOf('platform.ingress.lb');
     expect(platformIdx).toBeLessThan(ingressIdx);
     expect(ingressIdx).toBeLessThan(lbIdx);
+  });
+});
+
+describe('F3: class linearisation guards against an `@extends` cycle', () => {
+  // `resolve()` splices every cycle's back-edge before a model reaches
+  // `compile()`, so these models are hand-built: a second producer of class
+  // tables (A9 imports) must not be able to turn bad input into a stack
+  // overflow. The cycle is reported with the resolver's own code, once.
+  const at = { from: 0, to: 0 };
+  const path = (name: string) => ({
+    kind: 'PathExpr' as const,
+    root: false,
+    parents: 0,
+    segments: [{ kind: 'Name' as const, value: name, span: at }],
+    span: at,
+  });
+  const cls = (name: string, ...bases: string[]): ClassModel => ({ name, extends: bases, config: {} });
+  const leaf = (key: string, type: string[]): ContainerModel => ({ key, path: [key], config: { type }, children: [], edges: [] });
+  const model = (classes: ClassModel[], children: ContainerModel[], edgeType?: string[]): DocumentModel => ({
+    sgl: '1.0',
+    root: {
+      key: '',
+      path: [],
+      config: {},
+      children,
+      edges: edgeType === undefined ? [] : [{ from: path('a'), to: path('b'), directed: 'forward', config: { type: edgeType }, ordinal: 0 }],
+    },
+    classes: Object.fromEntries(classes.map((c) => [c.name, c])),
+    spans: new Map(),
+  });
+
+  it('a mutual cycle compiles, reports SGL2004 once, and linearises each class once', () => {
+    const { graph, diagnostics } = compile(model([cls('A', 'B'), cls('B', 'A')], [leaf('a', ['A']), leaf('b', ['B'])], ['A']));
+    expect(diagnostics.map((d) => d.code)).toEqual(['SGL2004']);
+    expect(graph.nodes.a?.classes).toEqual(['B', 'A']);
+    expect(graph.nodes.b?.classes).toEqual(['A', 'B']);
+    expect(graph.edges[0]?.classes).toEqual(['B', 'A']);
+  });
+
+  it('a self cycle compiles and reports SGL2004 once', () => {
+    const { graph, diagnostics } = compile(model([cls('A', 'A')], [leaf('a', ['A'])]));
+    expect(diagnostics.map((d) => d.code)).toEqual(['SGL2004']);
+    expect(diagnostics[0]?.message).toBe('Class `A` extends itself via `A -> A`.');
+    expect(graph.nodes.a?.classes).toEqual(['A']);
+  });
+
+  it('a diamond is not a cycle', () => {
+    const { graph, diagnostics } = compile(model([cls('Base'), cls('L', 'Base'), cls('R', 'Base'), cls('D', 'L', 'R')], [leaf('a', ['D'])]));
+    expect(diagnostics).toEqual([]);
+    expect(graph.nodes.a?.classes).toEqual(['L', 'Base', 'R', 'D']);
   });
 });
