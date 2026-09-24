@@ -188,6 +188,21 @@ checked by hand before a release, together with opening a `.sgl` from the OS and
 for this gate, so Firefox/WebKit and the Node 20 path have not been verified on GitHub.
 **Stage L is next.**
 
+**Wildcards in parent path segments, on `feat/wildcard-paths`** (language change, **human
+decision 2026-09-24**; branched from `main` at `1afd586`, not merged). Any segment of an edge
+endpoint may now be a `*` or one-star glob (`store*.api* -> payments.api`, `/platform.*.handler`);
+`**` stays final-only, and `SGL3004` (same number, new template) now means only "`**` in a
+non-final position". The change is `expandEndpoint` in `packages/core/src/compile.ts`: the literal
+prefix before the first wildcard resolves as before (`../`, `/`, `SGL2001`), then each remaining
+step walks a frontier one level down, giving depth-first declaration order; a matched parent
+with no matching child, or a matched leaf, drops out silently, and `SGL3003` fires only for a
+wholly empty endpoint. No grammar change. Tests: 17 compile unit tests, a render-svg pipeline
+test, `apps/web/e2e/wildcard-paths.spec.ts`, and a new clean corpus document
+`wildcard-paths.sgl` (new goldens only; no existing golden changed). `unresolved/wildcard-midpath.sgl`
+now uses `lane1.**.handler`. Docs: language spec §3/§7, FR-L15, A21, DD-01/02/03 §3.1; F16 gains
+the new document's 4 elk title crossings. Stage C's checklist in §5 below is left as the record of
+what that stage built.
+
 **Stage K merged to `main` at `0e9ecfc`** (`--no-ff`, 2026-09-23) after a three-lens review and
 one fix round (23 items). `pnpm check`'s steps from clean are green on `main`, run by the
 orchestrator: 2139 Vitest passed (unit + browser project, Chromium only), e2e 55/55 in Chromium,
@@ -1215,7 +1230,7 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F14** | DD-06 §5 says the host recomputes `bounds` from the quantized frames and routes plus `canvas.margin` (16 px). Never implemented (since Stage E): `host.ts`/`validate.ts` pass the engine's `bounds` through and the renderer uses them as-is, so `elk`'s margin is ELK's 12 px root padding, `grid`'s is 0, and `grid`'s self-loop teardrops are clipped at the canvas edge. Implementing it re-baselines every `grid` golden. **Decision (human, 2026-09-23): do it in the same deliberate re-baseline as F7**, not before. | Stage L, with F7, before Gate 4 |
 | **F15** | `elk` misses DD-09 §2's performance budget as measured in Node by Stage K's review: `elkEngine.layout` alone takes 0.5–0.8 s warm / 1.4 s cold at n500 (budget: 400 ms for the whole pipeline) and ~1.9 s warm / 3.8 s cold at n2000 (budget 3 s). Gate 3 is not timed. **Decision (human, 2026-09-23): record it and measure in the browser before Gate 4; the budget is not reopened.** | Stage L, before Gate 4 (the Gate 4 bench) |
 | **F18** | DD-07 §6's promise that a consumer can **re-theme an exported SVG by overriding its token custom properties** is nominal: generated rules use literal values (required so tools that ignore custom properties still render — F17), so nothing in the SVG reads the tokens and an override repaints nothing. Before F17 only `.canvas` read one. Either drop the promise, or make it real with an optional `var()` layer that tools which ignore it fall back from (a design change to DD-07 §6, and it would re-baseline every SVG golden). Found in F17's review. | **Awaiting human decision** — not blocking Gate 3 |
-| **F16** | Under `elk`, some edges enter a container through its own title (the endpoint's ancestor, so the K4 hierarchy-crossing check does not count them): `checkout` 2, `containers-edges` 1, `nesting-3` 1, `wildcards` 4, pinned by `titleCrossings` in `packages/layout-elk/test/elk.test.ts`. No ELK option tried removes them (`considerModelOrder` crashes ELK on 8 documents; `FIXED_SIDE` moves them). Candidates: a host-side nudge of the final segment, or port placement once ports are real (F6). | Stage L |
+| **F16** | Under `elk`, some edges enter a container through its own title (the endpoint's ancestor, so the K4 hierarchy-crossing check does not count them): `checkout` 2, `containers-edges` 1, `nesting-3` 1, `wildcards` 4, `wildcard-paths` 4 (added 2026-09-24 with the document), pinned by `titleCrossings` in `packages/layout-elk/test/elk.test.ts`. No ELK option tried removes them (`considerModelOrder` crashes ELK on 8 documents; `FIXED_SIDE` moves them). Candidates: a host-side nudge of the final segment, or port placement once ports are real (F6). | Stage L |
 
 ---
 

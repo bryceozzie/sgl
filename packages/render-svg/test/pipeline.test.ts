@@ -409,3 +409,25 @@ describe('the arrowhead tip lands on the node boundary (seam test, DD-06 §4.4 x
     expect(totalChecked).toBeGreaterThan(10);
   });
 });
+
+describe('wildcards in parent path segments render through the real pipeline (language spec §3, human decision 2026-09-24)', () => {
+  const STORES = 'payments: { api: {} }\nstore1: { api: {} apiV2: {} db: {} }\nstore2: { api-edge: {} }\n';
+
+  it('`store*.api* -> payments.api` renders one edge element per expansion, identical to the hand-written edges', async () => {
+    const expanded = await runPipeline(`${STORES}store*.api* -> payments.api\n`, neutralLight);
+    const byHand = await runPipeline(
+      `${STORES}store1.api -> payments.api\nstore1.apiV2 -> payments.api\nstore2.api-edge -> payments.api\n`,
+      neutralLight,
+    );
+    expect(expanded.diagnostics).toEqual([]);
+    const edges = expanded.styled.graph.edges;
+    expect(edges.map((e) => e.from.node)).toEqual(['store1.api', 'store1.apiV2', 'store2.api-edge']);
+    for (const edge of edges) {
+      expect(expanded.rendered.svg).toContain(`<g id="${edgeElementId(edge.id)}"`);
+      expect(expanded.result.edges[edge.id]).toBeDefined();
+    }
+    expect((expanded.rendered.svg.match(/class="e-path/g) ?? []).length).toBe(3);
+    // Nothing downstream can tell the edges came from a wildcard.
+    expect(expanded.rendered.svg).toBe(byHand.rendered.svg);
+  });
+});

@@ -17,6 +17,7 @@ single purpose, so a failure names what broke.
 | `containers-edges.sgl` | edges to containers, boundary-crossing edges (the ELK case) |
 | `wildcards.sgl` | `*` and `**` endpoints: fan-out, descendants, cross product, ports (one- and both-sided), hidden children, relative and root-absolute wildcards, a one-sided wildcard whose expansion contains its own literal other endpoint (F4) |
 | `wildcard-globs.sgl` | name globs: prefix, suffix, both ends, a dash before the star, quoted keys, and the near-misses that must **not** match |
+| `wildcard-paths.sgl` | wildcards in parent segments (human decision 2026-09-24): `store*.api*`, a bare middle `*` after `/`, a middle glob after `../`, `**` after a middle wildcard, ports, a both-sided cross product, and the partial matches that contribute nothing silently (a parent with no matching child, a matched leaf, a hidden parent) |
 | `shapes.sgl` | every built-in shape once |
 | `unicode.sgl` | quoted keys with spaces, dots and emoji; RTL text in labels |
 | `hidden.sgl` | hidden nodes with edges to them, and an edge hidden by its own `@hidden` between two visible nodes |

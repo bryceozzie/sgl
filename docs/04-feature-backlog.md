@@ -37,7 +37,7 @@ Prior art referenced: **Mm**=Mermaid · **D2**=D2 · **GV**=Graphviz · **PU**=P
 | A18 | Multi-line / markdown text blocks in labels | D2, Mm | Bold, italic, code, line breaks. Keep the subset small | **S** | **M** |
 | A19 | LaTeX / maths in labels | D2 | Needs KaTeX, big bundle, narrow audience | **N** | N |
 | A20 | Inline code blocks with syntax highlighting in nodes | D2 | Lovely demo, rarely used in anger | **C** | **S** |
-| A21 | Wildcard edge endpoints (`lane1.* -> switch`, `lane1.cam* -> switch`) | D2 globs | The common case A13 was being asked to cover, without A13's cost: bounded, local, one star, expands to ordinary edges | **M** | **M** |
+| A21 | Wildcard edge endpoints (`lane1.* -> switch`, `lane1.cam* -> switch`, `store*.api* -> payments.api`) | D2 globs | The common case A13 was being asked to cover, without A13's cost: bounded, local, one star per segment, direct children per segment, `**` final only (parent-segment globs: human decision 2026-09-24), expands to ordinary edges | **M** | **M** |
 
 ## B. Layout
 

@@ -22,6 +22,7 @@ const CLEAN_DOCS = [
   'containers-edges.sgl',
   'wildcards.sgl',
   'wildcard-globs.sgl',
+  'wildcard-paths.sgl',
   'shapes.sgl',
   'unicode.sgl',
   'hidden.sgl',

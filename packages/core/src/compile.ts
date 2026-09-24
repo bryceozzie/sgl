@@ -21,7 +21,7 @@
  * Design: DD-03.
  */
 
-import type { NameStep, PathExpr, PathStep, WildcardStep } from './ast.js';
+import type { NameStep, PathExpr, PathStep } from './ast.js';
 import { matchesWildcard } from './ast.js';
 import { diagnostic, type Diagnostic } from './diagnostics.js';
 import type {
@@ -309,6 +309,11 @@ function preorderDescendants(container: ContainerModel): readonly ContainerModel
  * singleton result), so the cross-product code in `compileEdgeModel` needs no
  * special case for an ordinary endpoint. Returns `[]`, with a diagnostic already
  * pushed, on any failure.
+ *
+ * A wildcard may sit in any segment (language spec §3, human decision
+ * 2026-09-24); only `**` is confined to the last one. The literal prefix before
+ * the first wildcard resolves exactly as an ordinary path does, so `../` and `/`
+ * and an unresolvable prefix (`SGL2001`) behave as before.
  */
 function expandEndpoint(
   path: PathExpr,
@@ -338,32 +343,52 @@ function expandEndpoint(
     return [target];
   }
 
-  if (wildcardIdx !== path.segments.length - 1) {
+  // `**` is final-only: a descendants step anywhere else is a search, not a
+  // shorthand (language spec §7), and stays SGL3004.
+  const lastIdx = path.segments.length - 1;
+  if (path.segments.some((s, i) => s.kind === 'Wildcard' && s.depth === 'descendants' && i !== lastIdx)) {
     diags.push(diagnostic('SGL3004', stmtSpan, { path: renderPath(path) }));
     return [];
   }
 
-  const wildcard = path.segments[wildcardIdx] as WildcardStep;
   const base = resolveBase(path, declaringPath);
-  const prefixPath = base && [...base, ...(path.segments.slice(0, -1) as NameStep[]).map((s) => s.value)];
+  const prefixPath = base && [...base, ...(path.segments.slice(0, wildcardIdx) as NameStep[]).map((s) => s.value)];
   const prefixContainer = prefixPath && containerByPath.get(nodeIdFromPath(prefixPath));
   if (base === undefined || prefixContainer === undefined) {
     diags.push(diagnostic('SGL2001', stmtSpan, { path: renderPath(path), container: declaringLabel }));
     return [];
   }
 
-  const candidates = wildcard.depth === 'children' ? prefixContainer.children : preorderDescendants(prefixContainer);
-  const matches = candidates.filter((c) => !isHidden(c.path) && matchesWildcard(wildcard, c.key));
-  if (matches.length === 0) {
+  // Apply every step from the first wildcard on to each node the previous step
+  // reached. The frontier stays in order and each parent contributes its
+  // children in declaration order, so the result is depth-first in declaration
+  // order. A reached node with no matching child (a leaf, or a parent whose
+  // children all miss) just drops out; hidden nodes never enter the frontier.
+  let frontier: readonly ContainerModel[] = [prefixContainer];
+  for (const step of path.segments.slice(wildcardIdx)) {
+    const next: ContainerModel[] = [];
+    for (const parent of frontier) {
+      const candidates = step.kind === 'Wildcard' && step.depth === 'descendants' ? preorderDescendants(parent) : parent.children;
+      for (const c of candidates) {
+        if (isHidden(c.path)) continue;
+        if (step.kind === 'Name' ? c.key === step.value : matchesWildcard(step, c.key)) next.push(c);
+      }
+    }
+    frontier = next;
+  }
+
+  // Only a whole endpoint expanding to nothing is worth a warning.
+  if (frontier.length === 0) {
     diags.push(diagnostic('SGL3003', stmtSpan, { path: renderPath(path) }));
     return [];
   }
-  return matches.map((m) => m.path);
+  return frontier.map((m) => m.path);
 }
 
+/** A wildcard in any segment makes the endpoint a generated set, for the
+ *  both-sides self-pair rule (language spec §3). */
 function isWildcardEndpoint(path: PathExpr): boolean {
-  const last = path.segments[path.segments.length - 1];
-  return last !== undefined && last.kind === 'Wildcard';
+  return path.segments.some((s) => s.kind === 'Wildcard');
 }
 
 /** A resolved, not-yet-identified edge: concrete endpoints, validated ports, but
