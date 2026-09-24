@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { diagnostic, NO_SPAN, parse, resolve, toJson, type DocumentModel } from '@sgl/core';
+import { diagnostic, NO_SPAN, parse, resolve, type DocumentModel } from '@sgl/core';
+import { toJson } from '@sgl/core/json';
 import { documentTitle, openableExtension, sanitizeFileStem, saveFileName } from '../src/state/filename.js';
 import { MAX_OPEN_BYTES, readOpenedFile, saveContent, type SaveInputs } from '../src/state/files.js';
 

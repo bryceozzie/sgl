@@ -178,6 +178,7 @@ describe('the grammar at large', () => {
     'wildcards.sgl',
     'wildcard-globs.sgl',
     'wildcard-paths.sgl',
+    'variables.sgl',
     // Both were tracked as known grammar defects (README → Open questions) until
     // Stage A: checkout.sgl needed the `$name` Variable token, json-form.sgl.json
     // needed a quoted spelling of ConfigKey (ConfigString) so strict JSON can

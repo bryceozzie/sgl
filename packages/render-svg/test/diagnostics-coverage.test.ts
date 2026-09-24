@@ -18,7 +18,8 @@ import { corpusSource, listCorpusDocs, runPipeline } from './pipeline.js';
  * test's allowlist comment said theme "is not yet wired to the corpus" and the
  * renderer "has no tests yet" — true when written, false since Stage D and
  * Stage F respectively, but nobody reconnected the check, so `SGL5004`
- * (`checkout.sgl`'s `@style.stroke: $hot`) and `SGL6001`
+ * (then `checkout.sgl`'s `@style.stroke: $hot`; since A8 substitutes it,
+ * `theme/bad-colour.sgl`) and `SGL6001`
  * (`injection/js-url-link.sgl`) sat marked unreachable for two stages after
  * they had a real corpus fixture — exactly the drift this gate's own
  * anti-regression check exists to catch, caught here by actually running it.

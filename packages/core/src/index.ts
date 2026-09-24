@@ -13,6 +13,7 @@ export * from './geometry.js';
 export * from './graph.js';
 export * from './hash.js';
 export * from './ids.js';
+export { LAYOUT_CATALOGUE, layoutDiagnostic, type LayoutDiagnosticCode } from './layout-diagnostics.js';
 export * from './model.js';
 export * from './not-implemented.js';
 export * from './parse.js';

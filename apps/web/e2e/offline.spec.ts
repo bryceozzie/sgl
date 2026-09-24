@@ -1,5 +1,5 @@
 import { expect, test, type BrowserContext, type Page, type Response } from '@playwright/test';
-import { EXAMPLE_NODE_COUNT, layoutGeometryHash, nodeGeometry, openFile, switchEngine, toastMessages, waitForExactNodeCount, waitForNodeCount } from './helpers.js';
+import { EXAMPLE_NODE_COUNT, layoutGeometryHash, nodeGeometry, openFile, saveAs, switchEngine, toastMessages, waitForExactNodeCount, waitForNodeCount } from './helpers.js';
 import { serveDist, type StaticServer } from './static-server.js';
 
 /**
@@ -161,6 +161,96 @@ test('offline, the lazy share chunk comes from the precache: Share makes a link,
     await expect(toastMessages(page)).toContainText(['Opened the shared diagram']);
     const shareChunk = responses.filter((r) => /\/assets\/share-.*\.js$/.test(new URL(r.url()).pathname));
     expect(shareChunk.length).toBeGreaterThanOrEqual(2); // once per page load that used it
+    expect(responses.filter((r) => !r.fromServiceWorker()).map((r) => r.url())).toEqual([]);
+    expect(failed).toEqual([]);
+  } finally {
+    await context.setOffline(false);
+  }
+});
+
+/**
+ * A8 follow-up: Open, Save ▾ and Share's work (`toolbar/file-actions.tsx`,
+ * with `state/files.ts` and `state/filename.ts`) is the lazy `file-actions`
+ * chunk, off the first paint. Offline, from the precache alone, it still
+ * loads: the 2 MB refusal, an Open and a Save all work, and the chunk is
+ * answered by the service worker. Chromium only, as above.
+ */
+test('offline, the lazy file-actions chunk comes from the precache: Open, Save and the 2 MB refusal work', async ({ page, context, browserName }) => {
+  test.skip(browserName !== 'chromium', 'fromServiceWorker() is proof only in Chromium');
+  await page.goto('/');
+  await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+  expect(await page.evaluate(async () => Boolean((await navigator.serviceWorker.ready).active))).toBe(true);
+  await clearHttpCache(page, context, browserName);
+  await context.setOffline(true);
+  const responses: Response[] = [];
+  const failed: string[] = [];
+  context.on('response', (r) => {
+    if (r.url().startsWith('http')) responses.push(r);
+  });
+  context.on('requestfailed', (r) => failed.push(`${r.url()} ${r.failure()?.errorText ?? ''}`));
+  try {
+    await page.reload();
+    await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
+    // The first paint did not need it.
+    const chunk = (): Response[] => responses.filter((r) => /\/assets\/file-actions-.*\.js$/.test(new URL(r.url()).pathname));
+    expect(chunk()).toEqual([]);
+
+    await openFile(page, 'huge.sgl', Buffer.alloc(2 * 1024 * 1024 + 1, 0x20));
+    await expect(toastMessages(page)).toContainText(['over 2 MB']);
+    await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
+
+    const source = 'a: "A"\nb: "B"\na -> b\n';
+    await openFile(page, 'o.sgl', source);
+    await waitForExactNodeCount(page, 2);
+
+    const saved = await saveAs(page, 'sgl');
+    expect(saved).toEqual({ name: 'a.sgl', text: source });
+
+    expect(chunk().length).toBe(1);
+    expect(chunk().every((r) => r.fromServiceWorker())).toBe(true);
+    expect(responses.filter((r) => !r.fromServiceWorker()).map((r) => r.url())).toEqual([]);
+    expect(failed).toEqual([]);
+  } finally {
+    await context.setOffline(false);
+  }
+});
+
+/**
+ * A8 fix round 2: the Options ▾ form (`toolbar/engine-options-form.tsx`, with
+ * `state/engine-form.ts`) is the lazy `engine-options-form` chunk, loaded when
+ * Options ▾ is first opened. Offline, from the precache alone, it still loads
+ * and an option still re-lays out the diagram, and the chunk is answered by
+ * the service worker. Chromium only, as above.
+ */
+test('offline, the lazy engine-options-form chunk comes from the precache: Options ▾ opens and re-lays out', async ({ page, context, browserName }) => {
+  test.skip(browserName !== 'chromium', 'fromServiceWorker() is proof only in Chromium');
+  await page.goto('/');
+  await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+  expect(await page.evaluate(async () => Boolean((await navigator.serviceWorker.ready).active))).toBe(true);
+  await clearHttpCache(page, context, browserName);
+  await context.setOffline(true);
+  const responses: Response[] = [];
+  const failed: string[] = [];
+  context.on('response', (r) => {
+    if (r.url().startsWith('http')) responses.push(r);
+  });
+  context.on('requestfailed', (r) => failed.push(`${r.url()} ${r.failure()?.errorText ?? ''}`));
+  try {
+    await page.reload();
+    await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
+    // The first paint did not need it.
+    const chunk = (): Response[] => responses.filter((r) => /\/assets\/engine-options-form-.*\.js$/.test(new URL(r.url()).pathname));
+    expect(chunk()).toEqual([]);
+
+    const before = await layoutGeometryHash(page);
+    await page.locator('.engine-options summary').click();
+    await expect(page.locator('.engine-options form')).toBeVisible();
+    await expect(page.getByLabel('Direction')).toHaveValue('down');
+    await page.getByLabel('Direction').selectOption('right');
+    await expect.poll(() => layoutGeometryHash(page), { timeout: 20_000 }).not.toBe(before);
+
+    expect(chunk().length).toBe(1);
+    expect(chunk().every((r) => r.fromServiceWorker())).toBe(true);
     expect(responses.filter((r) => !r.fromServiceWorker()).map((r) => r.url())).toEqual([]);
     expect(failed).toEqual([]);
   } finally {

@@ -7,7 +7,8 @@ import type { DiagnosticCode } from '../src/diagnostics.js';
 import { nodeIdFromPath } from '../src/ids.js';
 import type { ClassModel, ConfigBag, ContainerModel, DocumentModel, EdgeModel } from '../src/model.js';
 import { parse } from '../src/parse.js';
-import { fromJson, resolve, toJson } from '../src/resolve.js';
+import { fromJson, toJson } from '../src/json.js';
+import { resolve } from '../src/resolve.js';
 import { CLEAN_DOCS } from './corpus-docs.js';
 
 const corpusDir = fileURLToPath(new URL('../../../corpus/', import.meta.url));
@@ -326,15 +327,6 @@ describe('config-key registry (DD-02 §7)', () => {
     expect((model.root.config.layout as ConfigBag).direction).toBe('right');
     expect(model.root.config.direction).toBeUndefined();
     expect(diagnostics.map((d) => d.code)).not.toContain('SGL2012');
-  });
-});
-
-describe('variables are not substituted yet (Stage B task 5)', () => {
-  it('keeps the literal `$name` text and emits SGL2009', () => {
-    const { model, diagnostics } = resolve(parse('a: { @label: $hot }\n').ast);
-    const a = model.root.children[0] as ContainerModel;
-    expect(a.config.label).toBe('$hot');
-    expect(diagnostics.map((d) => d.code)).toEqual(['SGL2009']);
   });
 });
 

@@ -34,6 +34,7 @@ import type {
   TextRun,
   ViewSelector,
 } from './graph.js';
+import { breakExtendsCycles, extendsEdge } from './class-graph.js';
 import { LANGUAGE_SHAPES } from './config-registry.js';
 import { fnv1a64 } from './hash.js';
 import { asEdgeId, asLabelId, asNodeId, asPortId, DRAWABLE_SHAPES, nodeIdFromPath, type NodeId, type ShapeId } from './ids.js';
@@ -79,17 +80,45 @@ const textRuns = (text: string): readonly TextRun[] => text.split('\n').map((lin
  * of a sibling processed first. No corpus fixture exercises that edge, and nothing
  * downstream depends on a particular tie-break there; a full C3-style merge would
  * remove the wrinkle but is not what the design doc describes.
+ *
+ * F3: `@extends` may still hold cycles here — `resolve()` splices them out, but
+ * a second producer of class tables (A9 imports) need not. `classLinearizer`
+ * breaks them once per compile, the same canonical way `resolve()` does
+ * (`class-graph.ts`), reports each with `SGL2004`, and the walk skips the
+ * dropped edges. The walk keeps an explicit stack, so a chain of any depth is
+ * safe, and orders classes by their last visit through a map rather than
+ * searching the list, so a long chain is not quadratic.
  */
-function linearizeClasses(typeNames: readonly string[], classes: Readonly<Record<string, ClassModel>>): string[] {
-  const order: string[] = [];
-  const visit = (name: string): void => {
-    for (const base of classes[name]?.extends ?? []) visit(base);
-    const idx = order.indexOf(name);
-    if (idx !== -1) order.splice(idx, 1);
-    order.push(name);
+type Linearize = (typeNames: readonly string[]) => string[];
+
+function classLinearizer(model: DocumentModel, diags: Diagnostic[]): Linearize {
+  const classes = model.classes;
+  const { dropped, breaks } = breakExtendsCycles(new Map(Object.values(classes).map((c) => [c.name, c.extends] as const)));
+  for (const { member, from, cycle } of breaks) {
+    diags.push(diagnostic('SGL2004', model.spans.get(`c:${from}`) ?? NO_SPAN, { a: member, cycle }));
+  }
+  return (typeNames) => {
+    const last = new Map<string, number>();
+    let seq = 0;
+    for (const start of typeNames) {
+      const stack: [string, number][] = [[start, 0]];
+      while (stack.length > 0) {
+        const top = stack[stack.length - 1] as [string, number];
+        const [name, i] = top;
+        const bases = classes[name]?.extends ?? [];
+        if (i < bases.length) {
+          top[1] = i + 1;
+          const base = bases[i] as string;
+          if (!dropped.has(extendsEdge(name, base))) stack.push([base, 0]);
+          continue;
+        }
+        stack.pop();
+        last.set(name, seq);
+        seq += 1;
+      }
+    }
+    return [...last.keys()].sort((x, y) => (last.get(x) as number) - (last.get(y) as number));
   };
-  for (const name of typeNames) visit(name);
-  return order;
 }
 
 // ---------------------------------------------------------------------------
@@ -220,7 +249,7 @@ interface NodeMap {
   readonly fullOrder: readonly NodeId[];
 }
 
-function buildNodeMap(model: DocumentModel, diags: Diagnostic[]): NodeMap {
+function buildNodeMap(model: DocumentModel, diags: Diagnostic[], linearize: Linearize): NodeMap {
   const nodes: Record<NodeId, GraphNode> = {};
   const containerByPath = new Map<string, ContainerModel>([['', model.root]]);
   const order: NodeId[] = [];
@@ -231,7 +260,7 @@ function buildNodeMap(model: DocumentModel, diags: Diagnostic[]): NodeMap {
     const id = asNodeId(pathKey);
     containerByPath.set(pathKey, container);
 
-    const classes = linearizeClasses(typeNamesOf(container.config), model.classes);
+    const classes = linearize(typeNamesOf(container.config));
     const span = model.spans.get(`n:${pathKey}`) ?? NO_SPAN;
     const shape = resolveShape(container.config, classes, model.classes, span, model.spans, diags);
     const hidden = parentHidden || container.config.hidden === true;
@@ -323,7 +352,13 @@ function expandEndpoint(
   isHidden: (path: readonly string[]) => boolean,
   stmtSpan: SourceSpan,
   diags: Diagnostic[],
+  /** The endpoint's text when it is not a path at all (`EdgeModel.fromText`). */
+  notAPath?: string,
 ): readonly (readonly string[])[] {
+  if (notAPath !== undefined) {
+    diags.push(diagnostic('SGL2001', stmtSpan, { path: notAPath, container: declaringLabel }));
+    return [];
+  }
   const wildcardIdx = path.segments.findIndex((s) => s.kind === 'Wildcard');
 
   if (wildcardIdx === -1) {
@@ -433,14 +468,14 @@ function compileEdgeModel(
   declaringId: NodeId | null,
   stmtSpan: SourceSpan,
   ctx: NodeMap,
-  classTable: Readonly<Record<string, ClassModel>>,
+  linearize: Linearize,
   diags: Diagnostic[],
 ): readonly PendingEdge[] {
   const declaringLabel = declaringPath.length === 0 ? 'the document root' : declaringPath.join('.');
   const isHidden = (p: readonly string[]): boolean => ctx.nodes[asNodeId(nodeIdFromPath(p))]?.hidden === true;
 
-  const fromTargets = expandEndpoint(edgeModel.from, declaringPath, declaringLabel, ctx.containerByPath, isHidden, stmtSpan, diags);
-  const toTargets = expandEndpoint(edgeModel.to, declaringPath, declaringLabel, ctx.containerByPath, isHidden, stmtSpan, diags);
+  const fromTargets = expandEndpoint(edgeModel.from, declaringPath, declaringLabel, ctx.containerByPath, isHidden, stmtSpan, diags, edgeModel.fromText);
+  const toTargets = expandEndpoint(edgeModel.to, declaringPath, declaringLabel, ctx.containerByPath, isHidden, stmtSpan, diags, edgeModel.toText);
   if (fromTargets.length === 0 || toTargets.length === 0) return [];
 
   const product = fromTargets.length * toTargets.length;
@@ -461,7 +496,7 @@ function compileEdgeModel(
   // endpoint that happens to coincide with one member of the other side's
   // expansion is a legitimate edge, not a cross-product artefact.
   const bothWildcard = isWildcardEndpoint(edgeModel.from) && isWildcardEndpoint(edgeModel.to);
-  const classes = linearizeClasses(typeNamesOf(edgeModel.config), classTable);
+  const classes = linearize(typeNamesOf(edgeModel.config));
   const configHidden = edgeModel.config.hidden === true;
 
   // Resolve each side's port once per *distinct* target, before the cross
@@ -517,12 +552,13 @@ function collectPendingEdges(
   model: DocumentModel,
   ctx: NodeMap,
   diags: Diagnostic[],
+  linearize: Linearize,
 ): readonly PendingEdge[] {
   const out: PendingEdge[] = [];
   const processContainer = (container: ContainerModel, declaringPath: readonly string[], declaringId: NodeId | null): void => {
     container.edges.forEach((edgeModel, i) => {
       const stmtSpan = model.spans.get(`e:${nodeIdFromPath(declaringPath)}#${i}`) ?? NO_SPAN;
-      out.push(...compileEdgeModel(edgeModel, declaringPath, declaringId, stmtSpan, ctx, model.classes, diags));
+      out.push(...compileEdgeModel(edgeModel, declaringPath, declaringId, stmtSpan, ctx, linearize, diags));
     });
   };
 
@@ -599,8 +635,9 @@ export function compile(model: DocumentModel, view?: ViewSelector): CompileResul
   void view;
   const diags: Diagnostic[] = [];
 
-  const nodeMap = buildNodeMap(model, diags);
-  const pending = collectPendingEdges(model, nodeMap, diags);
+  const linearize = classLinearizer(model, diags);
+  const nodeMap = buildNodeMap(model, diags, linearize);
+  const pending = collectPendingEdges(model, nodeMap, diags, linearize);
   const { edges, labels: edgeLabels } = finalizeEdges(pending);
 
   const labels: Record<string, LabelSpec> = { ...edgeLabels };

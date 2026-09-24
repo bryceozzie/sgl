@@ -18,6 +18,12 @@ export const CONFIG_REGISTRY: readonly ConfigKeySpec[] = [
   { key: 'layout', scope: ['root', 'node'], type: 'object', order: 3 },
   { key: 'layout.*', scope: ['node', 'edge'], type: 'any', order: 3 },
   { key: 'classes', scope: ['root'], type: 'object', order: 4 },
+  // `@vars` (language spec §5): lexically scoped, so any container may declare
+  // them, root included; not a class or an edge, which are not scopes. The
+  // resolver pulls the bag out of `config` into the variable scope and keeps it
+  // only in `authored`, for `toJson` (DD-02 §3.5); this row is what places it
+  // in the canonical key order and rejects it on a class or an edge.
+  { key: 'vars', scope: ['root', 'node'], type: 'object', order: 4 },
   { key: 'label', scope: ['node', 'edge', 'class'], type: 'string', order: 5 },
   { key: 'type', scope: ['node', 'edge'], type: 'array', order: 6 },
   {

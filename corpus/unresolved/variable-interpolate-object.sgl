@@ -1,0 +1,5 @@
+// expects: SGL2015
+// Only a string, number or bool has text to interpolate. With an object the
+// whole value is dropped, as it would be for an unknown name.
+@vars: { pad: { x: 4 } }
+x: { @label: "pad ${pad}" }

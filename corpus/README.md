@@ -23,11 +23,13 @@ single purpose, so a failure names what broke.
 | `hidden.sgl` | hidden nodes with edges to them, and an edge hidden by its own `@hidden` between two visible nodes |
 | `a11y-links.sgl` | `@a11y.label`/`@a11y.description` overrides on a node and an edge, and a valid `https:` `@link` |
 | `forty-three-level.sgl` | MVP criterion 1's shape: 40 nodes over three levels (2 top-level containers, 4 second-level containers, 34 leaves), hand-written; the Playwright criterion-1 test renders it |
+| `variables.sgl` | `@vars` (A8): whole-value `$name` of every type (string, number, object), `${name}` interpolation in labels and an edge label, a nested container's `@vars` shadowing the root's and using an earlier entry of its own block, a class body and an `@type` from a variable. Its resolver golden keeps every reference as written |
 | `nested-crossing.sgl` | boundary-crossing edges whose endpoints meet below the root, so ELK reports them in a non-root container's coordinates (Stage K fix round 1) |
 | `n50.sgl` `n500.sgl` `n2000.sgl` | **generated** by `bench/generate.js`; perf and scale |
 | `malformed/*.sgl` | one syntax error each, with the expected diagnostic and a partial AST |
 | `injection/*.sgl` | one hostile string per context |
 | `layout/*.sgl` | one `SGL4010` each (Stage K fix round 1): a container naming its own engine, and a root `@layout` key the engine does not declare |
+| `theme/*.sgl` | one theme-cascade diagnostic each: `bad-colour.sgl` (`SGL5004`, a paint value that is not a colour) |
 | `unresolved/*.sgl` | one resolution error each, including `edge-expansion-limit.sgl` — a 32 x 32 wildcard cross product, over the 1 000-edge expansion ceiling, the only way to reach `SGL3005` |
 
 `n50.sgl`/`n500.sgl`/`n2000.sgl` are **not committed** — `bench/generate.js`
@@ -77,8 +79,14 @@ reach them; `@sgl/theme`'s own suite covers them directly against hand-built
 `ThemeDoc`s).
 
 Stage B (resolver) added fixtures for `SGL2005`–`SGL2009`, `SGL2011` and
-`SGL2012`. `SGL2009` (a `$variable` used before Stage K substitutes it) also
-has a positive fixture in `checkout.sgl` itself — see the note below.
+`SGL2012`. `SGL2009` (a `$variable` kept as literal text) was retired by A8,
+which substitutes variables: its fixture became `unresolved/unknown-variable.sgl`
+(`SGL2013`), joined by `variable-cycle.sgl` and `variable-declared-later.sgl`
+(`SGL2014`), `variable-interpolate-object.sgl` (`SGL2015`) and, from A8's fix
+round 1, `variable-expansion.sgl` (`SGL2016`: a 25-step doubling chain that
+stops at the expansion budget, DD-09 §1.1). `checkout.sgl`'s `$hot` used to be the only document that reached
+`SGL5004` (as literal text it is not a colour); now that it substitutes to
+`#DC2626`, `theme/bad-colour.sgl` covers that code.
 
 Stage C (compiler) picked up the eight `unresolved/*.sgl` fixtures DD-02 §8
 reserved for it (`SGL2001`, `SGL2003`, every `SGL3xxx`) — `resolve()` never
@@ -104,5 +112,6 @@ diagnostic — not `SGL3001`, which is reserved for a name outside all twelve.
 `corpus/unresolved/shape-not-drawn.sgl` (`actor`) covers the code on its own;
 `corpus/unresolved/unknown-shape.sgl` (`trapezoid`) still covers `SGL3001`.
 
-Its `@style.stroke: $hot` parses into a `Variable` AST node but is not substituted
-— that is Stage B (resolver), not the grammar.
+Its `@style.stroke: $hot` parses into a `Variable` AST node, which the resolver
+substitutes (A8): the node's stroke is `#DC2626`, while the resolver golden (canonical
+JSON) still reads `"stroke": "$hot"`, as the spec's own canonical form does.

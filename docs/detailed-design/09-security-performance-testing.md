@@ -16,6 +16,7 @@ The MVP has no server, no accounts and no third-party code. The attack surface i
 | Viewer's browser session | `javascript:` / `data:` links | Scheme allowlist; disallowed links removed with `SGL6001` | DD-07 §8 | injection corpus |
 | Viewer's browser session | CSS injection via style values (`fill: url(...)`, `expression()`) | Colours and lengths validated by type in the property registry before they exist; font families quoted; anything else rejected `SGL5004` | DD-04 §3 | registry type tests |
 | Viewer's CPU / memory | Decompression bomb in a share link | Hard 2 MB inflated cap; abort and toast | DD-08 §8 | unit test with a crafted payload |
+| Viewer's CPU / memory | Exponential variable expansion ("billion laughs": `v1: [$v0, $v0]`, `v2: [$v1, $v1]`, … — 2^n values or characters from a few hundred bytes) | Values computed only on use; a per-document expansion budget of 2 Mi units (one per value copied by `$name`, one per character produced by `${name}`, the same 2 MB-equivalent as the document and share-link caps); past it one `SGL2016` error and the value dropped, never a hang or a `RangeError` | DD-02 §3.5 | `variables-limits.test.ts`: doubling chains at n = 40 (array and string form) under 50 ms, 2^12 used 2 000 times hits the cap; `corpus/unresolved/variable-expansion.sgl` |
 | Viewer's CPU | Pathological document (deep nesting, huge counts, layout blow-up) | Parser is linear; 2 MB file cap on open; layout timeout terminates the worker; node-count warning above 2 000 | DD-08 §7, DD-06 §3 | host timeout test; 10 000-node smoke |
 | Viewer's local data | Another origin reading IndexedDB | Same-origin by platform; nothing else needed | — | — |
 | Viewer's local data | XSS reaching storage | Follows from the first row | — | — |
@@ -55,7 +56,7 @@ Budgets from [Requirements §4.1](../01-requirements.md#41-performance-budgets),
 | Budget | Target | Mechanism |
 |---|---|---|
 | First contentful paint | < 1.0 s | Precached shell (PWA); `lastGoodSvg` from IndexedDB painted before fonts or the worker are ready (DD-08 §9); `elk` chunk lazy — not on the critical path |
-| Core bundle, gzipped | < 180 kB | Preact (~4 kB) not React; CodeMirror ~120 kB is the bulk; Lezer runtime ~10 kB; `@sgl/*` core packages ~25 kB; **engines and `elk` excluded by definition** (ADR-0005) — tracked by `size-limit` in CI |
+| Core bundle, gzipped | < 180 kB | Preact (~4 kB) not React; CodeMirror ~120 kB is the bulk; Lezer runtime ~10 kB; `@sgl/*` core packages ~25 kB; **engines and `elk` excluded by definition** (ADR-0005); the other lazy chunks, `share`, `file-actions` (Open/Save ▾/Share's work, with `@sgl/core/json`) and `engine-options-form` (the Options ▾ form; DD-10 §2), are excluded by name — tracked by `size-limit` in CI |
 | Keystroke → SVG, 50 nodes | < 60 ms | Sync stages only on the keystroke path (DD-08 §3); layout debounced and off-thread; incremental reparse via the editor's tree |
 | Full pipeline, 500 nodes | < 400 ms | `elk` on a 500-node compound graph is typically 100–250 ms; pre-measure delta; string renderer |
 | Full pipeline, 2 000 nodes | < 3 s | Same path; chip after 300 ms; `grid` suggested above 2 000 |

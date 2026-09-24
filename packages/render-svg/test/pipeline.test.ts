@@ -24,15 +24,15 @@ import { corpusSource, listCorpusDocs, runPipeline } from './pipeline.js';
  * these documents fails here instead of silently passing.
  */
 const EXPECTED_DIAGNOSTICS: Readonly<Record<string, readonly DiagnosticCode[]>> = {
-  // `@style.stroke: $hot`: SGL2009 (a `$variable` isn't substituted yet, Stage
-  // B's placeholder), SGL2010 (an unrecognised root `@layout` sub-key), SGL3006
-  // x2 (the `Service`/`Store` classes' `round`/... shapes not drawn this
-  // version — see corpus/README.md's "A note on checkout.sgl"), SGL5004 ($hot
-  // is not a valid colour once kept as literal text).
+  // SGL3006 x2 (the `External` class's `cloud` shape is not drawn this
+  // version — see corpus/README.md's "A note on checkout.sgl").
   // SGL4010 (Stage K fix round 1, item 23): the root's `@layout: { …,
   // direction: right }` under grid, which does not declare `direction`. The
   // nested `engine: grid` names the harness's own engine, so it is not one.
-  'checkout.sgl': ['SGL2009', 'SGL2010', 'SGL3006', 'SGL3006', 'SGL4010', 'SGL5004'],
+  // Since A8 `@style.stroke: $hot` substitutes to a real colour: the SGL2009
+  // placeholder, the SGL2010 for an unregistered `@vars` and the SGL5004 for
+  // `$hot` as literal text are all gone.
+  'checkout.sgl': ['SGL3006', 'SGL3006', 'SGL4010'],
   // Three portless nodes attach to their node instead of a named port (SGL2003
   // x3) and one wildcard matches nothing (SGL3003) — both documented in the
   // file's own comments as intentional near-misses, not defects.

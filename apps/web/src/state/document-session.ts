@@ -1,6 +1,6 @@
 import { batch, computed, effect, signal, type ReadonlySignal } from '@preact/signals';
 import type { Autosave } from './autosave.js';
-import { documentTitle } from './filename.js';
+import { documentTitle } from './title.js';
 import type { Pipeline } from './pipeline.js';
 import type { DocumentRecord } from './storage.js';
 import type { LastGood } from './types.js';

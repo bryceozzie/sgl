@@ -152,7 +152,7 @@
           "Service"
         ],
         "style": {
-          "stroke": "$hot"
+          "stroke": "#DC2626"
         }
       },
       "hidden": false,

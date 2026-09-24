@@ -66,7 +66,9 @@ result it can build. Throwing is reserved for a violated invariant — a program
 application treats as a crash to report rather than a document problem.
 
 Build every diagnostic with the `diagnostic()` helper and a code from the catalogue in
-`packages/core/src/diagnostics.ts`. Never hand-roll a message string. Adding a code means adding a
+`packages/core/src/diagnostics.ts` (`@sgl/layout-api` uses `layoutDiagnostic()`, the same builder over
+the catalogue's `SGL4xxx` rows alone, so the layout worker does not bundle every message). Never
+hand-roll a message string. Adding a code means adding a
 row to the catalogue **and** a corpus fixture that emits it (see Gate 1).
 
 ### Branches and commits
@@ -209,6 +211,68 @@ checked by hand before a release, together with opening a `.sgl` from the OS and
 **CI**: GitHub shows no runs of `.github/workflows/ci.yml`; the human has chosen not to pursue it
 for this gate, so Firefox/WebKit and the Node 20 path have not been verified on GitHub.
 **Stage L is next.**
+
+**A8 variables, on `feat/variables`** (branched from `main` at `73fdd69`; not merged). **Core bundle:**
+`main` 179.76 kB gzipped → 181.40 kB with A8 and F3 (over the 180 kB limit, which stays) → **179.22
+kB** after two size changes on the same branch (orchestrator's choice): the layout worker bundles only
+the `SGL4xxx` catalogue rows (`layoutDiagnostic()` over `LAYOUT_CATALOGUE`, −0.86 kB; enforced by
+`check-core-chunks.mjs`), and Open/Save ▾/Share's work is the lazy `file-actions` chunk (−1.32 kB;
+the buttons, file input and `Ctrl/⌘+O` stay at boot, DD-10 §2). That is 0.78 kB under the limit,
+short of the 1.5 kB aimed for. `resolve()` now substitutes `@vars`:
+`$name` as a whole value with its type, `${name}` inside a string, lexically scoped per container (a
+container's `@vars` cover its config, edges and children, wherever written and across
+redeclarations; class bodies use the root's). Settled and now language spec §5: a reference to an
+undeclared name is `SGL2013` (error) and the value is dropped; interpolating an object, array or
+null is `SGL2015` (error) and the placeholder is left out, numbers and bools by their canonical text;
+variables may appear anywhere a value can (`@type` and `@extends` included, checked against
+`@classes` after substitution) but never in a key, path or node name (the grammar already made `$`
+there a syntax error); a `@vars` entry sees enclosing scopes and earlier entries of its own block,
+in one non-recursive pass in declaration order, and a reference to itself or a later entry, so every
+cycle, is `SGL2014`; variable names must be identifiers (`SGL2011`), which also keeps declaration
+order intact through canonical JSON's integer-like-keys reordering. **No `$` escape exists in the
+grammar**, so none was invented: a literal `${name}` cannot be written, and adding `$$` or `\$` is a
+language-spec decision left open. Canonical JSON keeps the source form (`"$hot"`,
+`"API (${tier})"`, `"@vars"`) through a new optional `authored` bag on
+`ContainerModel`/`EdgeModel`/`ClassModel`, present only when an element uses a variable, so a
+document without variables serialises exactly as before; a string that is exactly `$name` reads
+back as a reference, which is how the spec's §9 canonical form already wrote it. `SGL2009` is
+retired (row and fixture removed; the number is not reused), three codes and four `unresolved/`
+fixtures are added, and `theme/bad-colour.sgl` takes over `SGL5004`, which only `checkout.sgl`'s
+literal `$hot` reached before. Goldens: only `checkout.sgl`'s changed, the one corpus document
+using `$` (compile golden and both render goldens: the stroke is now `#DC2626`; its resolver golden
+is unchanged); `variables.sgl` is a new clean corpus document with new goldens. **F3 is fixed** on
+the same branch: `linearizeClasses` keeps the current `@extends` path, skips a back-edge and reports
+it as `SGL2004` once per cycle (rotated to its least member), tested by calling `compile()` on
+hand-built cyclic models. Tests: `packages/core/test/variables.test.ts`, three F3 tests in
+`compile.test.ts`, `apps/web/e2e/variables.spec.ts`. Docs: language spec §5, DD-01 §2 notes, DD-02
+§1/§2/§3.5/§6/§7/§8/§9, corpus README.
+
+**A8 fix round 1, on `feat/variables`** (review findings, each confirmed by the orchestrator).
+(1) Exponential expansion: variable values are computed lazily on first use and memoised (an unused
+doubling chain costs nothing), and substitution is charged against a per-document budget of 2 Mi
+units (a value copied by `$name`, a character produced by `${name}`; DD-09 §1.1's 2 MB posture, new
+threat row); past it one new **`SGL2016`** error at the crossing use and the value dropped (fixture
+`unresolved/variable-expansion.sgl`). `v24` of a doubling chain went from 38.8 s to ~1 ms. (2) The
+string form's `RangeError` at n = 28 is now that `SGL2016`. (3) Scopes are a parent chain, not a copy
+per container: 20 000 variables under 5 000 scoped siblings, 19 s → ~0.15 s. (4) `@extends` cycle
+search (shared `class-graph.ts`) and `compile()`'s linearisation are iterative: 20 000-deep chains
+resolve and compile. (5) One canonical cycle break in both resolve and compile: rotated to the
+smallest member, which the message names, dropping the back-edge into it; independent of declaration
+order (`class-cycle.sgl`'s message now names `A`, not `B`). (6) Redeclared `@vars` merge like any
+config; stated in spec §5. (7) Spec §5 states the node-shorthand `SGL1002` and its recovery, ASCII
+identifier names, literal non-identifier placeholders, `String(n)` exponent forms, declaring-scope
+resolution, `@vars: $o` as `SGL2011`, and nested drops; `SGL2015` now drops the value, like `SGL2013`.
+(8) Three mutant-surviving gaps covered. (9) A canonical-JSON `"from": "$a"` is kept as written
+(`EdgeModel.fromText`/`toText`) and is `SGL2001` naming it, instead of an empty path. No golden
+changed. **Core bundle: 179.22 → 180.17 kB, 0.17 kB over the limit**: stopped and reported, not
+trimmed (§2.1 F20).
+
+**A8 fix round 2, on `feat/variables`** (size only, no behaviour change). Canonical JSON is its own
+core entry, `@sgl/core/json` (`toJson`/`fromJson` and the writers, imported only by the lazy
+`file-actions` chunk; boot never needed `fromJson`): 180.17 → 179.72 kB. The Options ▾ form is the
+lazy `engine-options-form` chunk, with defaults and normalisation (`optionsForEngine`,
+`defaultOptionsFor`) kept on the boot path: → **178.63 kB**, 1.37 kB under the 180 kB limit, 0.13 kB
+short of the 1.5 kB aimed for (§2.1 F20 names the next candidate). New offline e2e case for Options ▾.
 
 **Wildcards in parent path segments, merged to `main` at `2cb614b`** (one review with mutation testing, one fix round; 2279 Vitest + 56/56 e2e from clean) (language change, **human
 decision 2026-09-24**; branched from `main` at `1afd586`, not merged). Any segment of an edge
@@ -1456,7 +1520,6 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 
 | # | Finding | Owner |
 |---|---|---|
-| **F3** | `linearizeClasses` recurses `@extends` with no visited-set guard. Safe **only** because `resolve()` splices every cycle's back-edge first, so no `DocumentModel` reaching `compile()` can contain one. A second producer of class tables would turn bad input into a stack overflow — which §1 reserves for invariant violations. | Stage L (A9) |
 | **F6** | `renderNode`'s port-circle template (DD-07 §3) is live, correctly `aria-hidden`, and unit-tested directly — but unreachable through the real pipeline: `grid` declares `capabilities.ports: false` and no host fallback places ports (DD-06 §4 covers labels and routing, not ports), so `LayoutResult.nodes[id].ports` is never populated end to end. Found during Stage F's accessibility pass. **Since Stage K the port circles are reachable under `elk`**, which declares `ports: true` and fills `NodeLayout.ports`; still not under `grid`, and the row's owner is still to be assigned. | unassigned — whichever stage next reconsiders `ports: false` for `grid`, or ships a port-aware engine |
 | **F9** | **The paint-only theme-switch budget is met on a quiet machine, marginally.** Budget (DD-09 §2, kept by human decision 2026-09-23): `< 16 ms` up to 500 nodes, `< 50 ms` at 2 000, Chromium; hard ceilings 50 / 100 ms. Measured end to end by `pnpm bench:theme` on the ordinary path, a Theme ▾ pick on a document with no `@theme` (`feat/theme-fast-path`, §2: the pick sets `themeId`; `styleGraph` once per cascade signature; `renderPaintOnly` and a `<style>`-text swap; no re-parse, no re-measure, no layout). Slower-pick median `work`, ms: orchestrator's three runs on a quiet machine n500 13.2 / 12.8 / 13.0, n2000 48.9 / 44.3 / 44.8; this branch's fix round 1, one run of the three-sample gate on a quiet machine (load average 0.29 at the start, 0.50 at the end; 4 cores; nothing else running) n50 2.6 / 2.5 / 2.6, n500 13.9 / 14.8 / 13.0, n2000 47.6 / 47.0 / 48.6 (best 47.0, median 47.6; the `@theme` case n2000 265.6 / 266.6 first / repeat). A reviewer running alongside another test suite (load ≈ 6) saw n2000 50–56 and one n500 at 17.5. **Where the time goes at n2000:** ~3–4 ms of script; the rest is Chromium's style recalculation for the new `<style>` text, ~40 ms, which is the floor (replacing even one rule's text costs ~24 ms at that size, and replacing the `<style>` element instead of its text measured the same), so the headroom is a few ms and within machine noise. **Not gated:** a document that sets its own `@theme` is edited by the pick and re-parsed and re-rendered in full, ~250–275 ms at n2000 (~65–70 ms at n500): the document's own text changing. **Gate policy (fix round 1; DD-09 §3.1 "perf: nightly + release"):** the bench is not part of `check` or CI; run on demand on a quiet machine; three samples per point in one run, the best of the three slower-pick medians under the budget and the median of the three under the hard ceiling; all three reported. | watch; re-measure before Gate 4 |
 | **F10** | `ctx.random`'s seed (`host.ts`'s `SEED = 1`) is one fixed constant, shared by every request for every document — `LayoutHost.run()`'s frozen signature has no per-call seed parameter, so Stage H could not add one unilaterally (DD-06 §3). Where a per-document seed should come from — a new `run()` parameter, or something content-addressed from a graph hash so the same document always seeds the same way without threading a value through every call site — is undecided, and is an orchestrator/design decision to make, not Stage H's to settle unilaterally. No engine shipped so far reads `ctx.random` at all (`grid` is fully deterministic; `elk` is unbuilt), so nothing depends on the answer yet. | Stage L (B5 `radial`/`force`, the first seed-consuming engines) |
@@ -1464,6 +1527,7 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F13** | A share link pasted into an already-open tab (Stage J fix round 1, item 14) imports by flushing autosave and **reloading**, not by switching in place like Open and Documents ▾ (fix round 2). That loses undo history, and when IndexedDB is unavailable (memory-store fallback) the reload loses the tab's documents outright. Also: criterion 5's offline test is falsifiable against the HTTP cache in Chromium and WebKit but not in Firefox, which has neither mechanism the spec uses; and error toasts persist until closed with no cap on how many pile up. | Stage L (E17, alongside the rest of the Documents UI) |
 | **F15** | `elk` misses DD-09 §2's performance budget as measured in Node by Stage K's review: `elkEngine.layout` alone takes 0.5–0.8 s warm / 1.4 s cold at n500 (budget: 400 ms for the whole pipeline) and ~1.9 s warm / 3.8 s cold at n2000 (budget 3 s). Gate 3 is not timed. **Decision (human, 2026-09-23): record it and measure in the browser before Gate 4; the budget is not reopened.** | Stage L, before Gate 4 (the Gate 4 bench) |
 | **F16** | Under `elk`, some edges enter a container through its own title (the endpoint's ancestor, so the K4 hierarchy-crossing check does not count them): `checkout` 2, `containers-edges` 1, `nesting-3` 1, `wildcards` 4, `wildcard-paths` 4 (added 2026-09-24 with the document), pinned by `titleCrossings` in `packages/layout-elk/test/elk.test.ts`. No ELK option tried removes them (`considerModelOrder` crashes ELK on 8 documents; `FIXED_SIDE` moves them). Candidates: a host-side nudge of the final segment, or port placement once ports are real (F6). | Stage L |
+| **F20** | **Bundle headroom.** After A8's fix round 2 the core bundle is **178.63 kB** of 180 (1.37 kB under, 0.13 kB short of the 1.5 kB aimed for): `@sgl/core/json` and the lazy `engine-options-form` chunk are done. Next candidate on the boot path: `DocumentsMenu` (about 1.75 kB minified) as a lazy chunk. | Stage L, before the next feature on the boot path |
 
 ---
 
@@ -1905,7 +1969,7 @@ complete the Playwright suite's engine-switch cases (DD-08 §14 test 4).
 
 | Item | Notes |
 |---|---|
-| A8 variables, A9 imports | Pure resolver work. Replaces the Stage B placeholder diagnostic. Cycle detection for imports. **F3 (§2.1):** `compile()`'s `linearizeClasses` has no visited-set guard and relies entirely on `resolve()` having spliced every `@extends` back-edge first. Imports introduce a second way class tables get built — add the guard before, not after. |
+| A8 variables, A9 imports | Pure resolver work. Replaces the Stage B placeholder diagnostic. Cycle detection for imports. **F3** (a visited-set guard in `compile()`'s `linearizeClasses`, which relied entirely on `resolve()` having spliced every `@extends` back-edge first) is fixed on `feat/variables` (§2), ahead of imports, the second way class tables get built. |
 | **A18 markdown labels + `@sgl/text`** | The largest non-engine subsystem. The `Measurer` is run-based already, so this is an addition, not a rewrite. |
 | B5 `fixed`, `tree`, `radial`, `force` | `fixed` first — about a day, and the escape hatch people ask for. `force` last, and it is the first thing to cut. |
 | C5 `high-contrast`, `print` themes | Tokens only. |

@@ -1,0 +1,8 @@
+// expects: SGL2014
+// An entry may use only the entries declared before it in its own block,
+// even though the root also declares `c`: the later `c` here shadows it.
+@vars: { c: "red" }
+x: {
+  @vars: { stroke: $c, c: "blue" }
+  @style.stroke: $stroke
+}

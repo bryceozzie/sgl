@@ -397,6 +397,7 @@ or outside the field's range: elk node/rank spacing 0–500 px, grid gap 0–200
 which value is in use, and the box shows that value again; a stored value beyond the range is shown
 and sent as the default. It is Node-tested,
 including that every default and select choice is one the engine's own `optionsSchema` allows.
+Since A8 fix round 2 the form is split for the bundle (DD-10 §2): `state/engine-options.ts` keeps the defaults and normalisation the pipeline needs at boot, and the fields, labels and edit rules are `state/engine-form.ts`, rendered by `toolbar/engine-options-form.tsx`, a lazy chunk loaded when Options ▾ is first opened.
 `toolbar/EngineOptions.tsx` renders the *effective* engine's form beside Engine ▾ as a plain
 `<details>` disclosure — the Save ▾ pattern (`toolbar/disclosure.ts`): no menu roles, Escape and
 an outside pointer-down close it, every input has a `<label>`. Values go through the existing

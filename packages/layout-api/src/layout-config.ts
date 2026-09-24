@@ -1,4 +1,4 @@
-import { diagnostic, type Diagnostic, type Document, type Entry, type SourceSpan, type Value } from '@sgl/core';
+import { layoutDiagnostic, type Diagnostic, type Document, type Entry, type SourceSpan, type Value } from '@sgl/core';
 import type { JSONSchema7 } from './contract.js';
 
 /**
@@ -53,11 +53,11 @@ export function layoutConfigDiagnostics(ast: Document, engine: EngineSchemas): r
       for (const k of layoutKeys(entry)) {
         if (k.key === 'engine') {
           if (level === 'node' && !namesEngine(k.value, engine.id)) {
-            out.push(diagnostic('SGL4010', k.span, { key: 'engine', id: engine.id }));
+            out.push(layoutDiagnostic('SGL4010', k.span, { key: 'engine', id: engine.id }));
           }
           continue;
         }
-        if (declared !== null && !declared.has(k.key)) out.push(diagnostic('SGL4010', k.span, { key: k.key, id: engine.id }));
+        if (declared !== null && !declared.has(k.key)) out.push(layoutDiagnostic('SGL4010', k.span, { key: k.key, id: engine.id }));
       }
     }
   };

@@ -17,7 +17,6 @@ import { blankRecord, newDocumentId, type BootNotice, type IdSource } from './st
 import { createDocumentSession } from './state/document-session.js';
 import { switchDocument } from './state/documents.js';
 import { createOpenQueue } from './state/open-queue.js';
-import { readOpenedFile } from './state/files.js';
 import { APP_METRICS } from './state/metrics.js';
 import { createPipeline } from './state/pipeline.js';
 import type { DocumentRecord } from './state/storage.js';
@@ -27,7 +26,7 @@ import { createAppWorkerHost } from './state/worker-host.js';
 import { DocumentsMenu } from './toolbar/DocumentsMenu.js';
 import { EngineOptions } from './toolbar/EngineOptions.js';
 import { EnginePicker } from './toolbar/EnginePicker.js';
-import { FileMenu } from './toolbar/FileMenu.js';
+import { FileMenu, loadFileActions } from './toolbar/FileMenu.js';
 import { ThemePicker } from './toolbar/ThemePicker.js';
 
 function browserSchedule(fn: () => void, ms: number): Cancel {
@@ -149,8 +148,11 @@ export function App({ boot }: { readonly boot: AppBoot }) {
           },
     );
   }, [view]);
+  // The checks and the read are in the lazy `files` chunk (`file-actions.tsx`),
+  // loaded here if Open's picker or the launch queue has not loaded it yet.
   const open = (file: File): void => {
-    void readOpenedFile(file).then((result) => {
+    void loadFileActions().then(async ({ readFile }) => {
+      const result = await readFile(file);
       if (!result.ok) {
         toasts.push(result.message, 'error');
         return;

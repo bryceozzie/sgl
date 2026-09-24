@@ -1,0 +1,306 @@
+{
+  "nodes": {
+    "api": {
+      "id": "api",
+      "path": [
+        "api"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "round",
+      "classes": [
+        "Service"
+      ],
+      "labelId": "l:api",
+      "ports": [],
+      "config": {
+        "type": [
+          "Service"
+        ],
+        "label": "API (production)",
+        "style": {
+          "strokeWidth": 3
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 538,
+        "to": 616
+      }
+    },
+    "payments": {
+      "id": "payments",
+      "path": [
+        "payments"
+      ],
+      "parent": null,
+      "children": [
+        "payments.ledger",
+        "payments.outbox"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:payments",
+      "ports": [],
+      "config": {
+        "label": "Payments"
+      },
+      "hidden": false,
+      "span": {
+        "from": 618,
+        "to": 866
+      }
+    },
+    "payments.ledger": {
+      "id": "payments.ledger",
+      "path": [
+        "payments",
+        "ledger"
+      ],
+      "parent": "payments",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:payments.ledger",
+      "ports": [],
+      "config": {
+        "label": "Ledger production-eu",
+        "style": {
+          "stroke": "#B91C1C"
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 722,
+        "to": 778
+      }
+    },
+    "payments.outbox": {
+      "id": "payments.outbox",
+      "path": [
+        "payments",
+        "outbox"
+      ],
+      "parent": "payments",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:payments.outbox",
+      "ports": [],
+      "config": {
+        "label": "Outbox",
+        "style": {
+          "stroke": "#4F46E5",
+          "strokeWidth": 3
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 781,
+        "to": 825
+      }
+    },
+    "alerts": {
+      "id": "alerts",
+      "path": [
+        "alerts"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:alerts",
+      "ports": [],
+      "config": {
+        "label": "Alerts",
+        "style": {
+          "stroke": "#DC2626"
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 868,
+        "to": 917
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-cc06ad2b5c7e9903",
+      "from": {
+        "node": "api"
+      },
+      "to": {
+        "node": "payments.ledger"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-cc06ad2b5c7e9903",
+      "config": {
+        "label": "POST /charge (production)"
+      },
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 919,
+        "to": 967
+      }
+    },
+    {
+      "id": "e-2a99b033c332697c",
+      "from": {
+        "node": "payments.outbox"
+      },
+      "to": {
+        "node": "alerts"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 968,
+        "to": 993
+      }
+    },
+    {
+      "id": "e-18e821ab4535867d",
+      "from": {
+        "node": "payments.ledger"
+      },
+      "to": {
+        "node": "payments.outbox"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-18e821ab4535867d",
+      "config": {
+        "label": "eu async"
+      },
+      "declaredIn": "payments",
+      "hidden": false,
+      "span": {
+        "from": 829,
+        "to": 864
+      }
+    }
+  ],
+  "rootChildren": [
+    "api",
+    "payments",
+    "alerts"
+  ],
+  "order": [
+    "api",
+    "payments",
+    "payments.ledger",
+    "payments.outbox",
+    "alerts"
+  ],
+  "labels": {
+    "l:e-cc06ad2b5c7e9903": {
+      "id": "l:e-cc06ad2b5c7e9903",
+      "owner": {
+        "kind": "edge",
+        "id": "e-cc06ad2b5c7e9903"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "POST /charge (production)"
+        }
+      ]
+    },
+    "l:e-18e821ab4535867d": {
+      "id": "l:e-18e821ab4535867d",
+      "owner": {
+        "kind": "edge",
+        "id": "e-18e821ab4535867d"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "eu async"
+        }
+      ]
+    },
+    "l:api": {
+      "id": "l:api",
+      "owner": {
+        "kind": "node",
+        "id": "api"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "API (production)"
+        }
+      ]
+    },
+    "l:payments": {
+      "id": "l:payments",
+      "owner": {
+        "kind": "node",
+        "id": "payments"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Payments"
+        }
+      ]
+    },
+    "l:payments.ledger": {
+      "id": "l:payments.ledger",
+      "owner": {
+        "kind": "node",
+        "id": "payments.ledger"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Ledger production-eu"
+        }
+      ]
+    },
+    "l:payments.outbox": {
+      "id": "l:payments.outbox",
+      "owner": {
+        "kind": "node",
+        "id": "payments.outbox"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Outbox"
+        }
+      ]
+    },
+    "l:alerts": {
+      "id": "l:alerts",
+      "owner": {
+        "kind": "node",
+        "id": "alerts"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Alerts"
+        }
+      ]
+    }
+  },
+  "title": "Variables",
+  "meta": {
+    "nodeCount": 5,
+    "edgeCount": 3,
+    "containerCount": 1
+  }
+}

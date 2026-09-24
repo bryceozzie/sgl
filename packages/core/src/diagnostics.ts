@@ -1,3 +1,4 @@
+import { fromCatalogue, LAYOUT_CATALOGUE, type CodeSpec } from './layout-diagnostics.js';
 import type { SourceSpan } from './span.js';
 
 /** Codes are allocated per stage and never reused (DD-00 §3):
@@ -22,12 +23,6 @@ export interface StageResult<T> {
   readonly diagnostics: readonly Diagnostic[];
 }
 
-interface CodeSpec {
-  readonly severity: Severity;
-  /** Message template; `{placeholders}` are filled by the emitting stage. */
-  readonly template: string;
-}
-
 /**
  * The single catalogue of every diagnostic SGL can emit. DD-09 §3.4 makes this
  * the coverage gate: every code here must have at least one corpus document that
@@ -50,10 +45,15 @@ export const CATALOGUE = {
   SGL2006: { severity: 'warning', template: '`@{key}` was `{scalar}` and has been replaced by an object to hold `@{key}.{sub}`.' },
   SGL2007: { severity: 'warning', template: 'Class bodies hold configuration only; `{key}` ignored.' },
   SGL2008: { severity: 'warning', template: 'Edge blocks hold configuration only; `{thing}` ignored.' },
-  SGL2009: { severity: 'warning', template: 'Variable `${name}` is not substituted in this version; kept as literal text.' },
+  // SGL2009 ("not substituted in this version") was retired by A8, which
+  // substitutes variables. Its number is never reused (DD-00 §3).
   SGL2010: { severity: 'warning', template: 'Unknown configuration key `@{key}`; kept but has no effect in this version.' },
   SGL2011: { severity: 'warning', template: '`@{key}` expects {type}; ignored.' },
   SGL2012: { severity: 'warning', template: '`@{key}` is not valid on {scope}; ignored.' },
+  SGL2013: { severity: 'error', template: 'Unknown variable `${name}`; the value was dropped.' },
+  SGL2014: { severity: 'error', template: 'Variable `${name}` is not declared before `{user}` in its `@vars` block; the value was dropped.' },
+  SGL2015: { severity: 'error', template: 'Variable `${name}` holds {kind}, which cannot be interpolated; the value was dropped.' },
+  SGL2016: { severity: 'error', template: '`{text}` would take this document\'s variable expansion past {limit} units; the value was dropped.' },
 
   // ---- 3xxx semantic (DD-03) ---------------------------------------------
   SGL3001: { severity: 'warning', template: 'Unknown shape `{name}`; using `rect`.' },
@@ -65,11 +65,9 @@ export const CATALOGUE = {
   SGL3007: { severity: 'warning', template: '`{node}` port `{port}` has side `{side}`; expected north, south, east or west. Using `east`.' },
 
   // ---- 4xxx layout (DD-06) -----------------------------------------------
-  SGL4001: { severity: 'error', template: 'Layout engine `{id}` did not finish within {ms} ms and was stopped. Showing the previous layout.' },
-  SGL4002: { severity: 'error', template: 'Layout engine `{id}` returned invalid geometry ({detail}). Showing the previous layout.' },
-  SGL4003: { severity: 'warning', template: '`{node}` extends outside its container after layout.' },
-  SGL4010: { severity: 'warning', template: '`@layout.{key}` is not an option of engine `{id}`; ignored.' },
-  SGL4011: { severity: 'error', template: 'Layout engine `{id}` failed: {message}.' },
+  // Kept in `layout-diagnostics.ts`, so the layout worker can bundle these
+  // rows without the rest (`layoutDiagnostic()`).
+  ...LAYOUT_CATALOGUE,
 
   // ---- 5xxx theme (DD-04) ------------------------------------------------
   SGL5001: { severity: 'error', template: 'Theme inheritance deeper than 8 (`{chain}`); stopping at `{id}`.' },
@@ -90,11 +88,5 @@ export function diagnostic(
   values: Readonly<Record<string, string | number>> = {},
   related?: readonly { readonly span: SourceSpan; readonly message: string }[],
 ): Diagnostic {
-  const spec: CodeSpec = CATALOGUE[code];
-  const message = spec.template.replace(/\{(\w+)\}/g, (whole, key: string) =>
-    key in values ? String(values[key]) : whole,
-  );
-  return related === undefined
-    ? { code, severity: spec.severity, message, span }
-    : { code, severity: spec.severity, message, span, related };
+  return fromCatalogue(CATALOGUE, code, span, values, related);
 }

@@ -72,9 +72,8 @@ export interface RenderedDoc {
    *  styleGraph, validateResult, render — not just the renderer's own slice
    *  (`rendered.diagnostics`). A "clean" corpus document (no *error*
    *  diagnostics) can still carry warnings downstream of compile(): checkout.sgl's
-   *  `@style.stroke: $hot` is `SGL2xxx` at resolve time (Stage B's documented
-   *  placeholder for an unsubstituted variable) and `SGL5004` at style time (not
-   *  a color). This field is what the pipeline-level "no unexpected diagnostics"
+   *  root `@layout.direction` is `SGL4010` under `grid`, which does not declare
+   *  it. This field is what the pipeline-level "no unexpected diagnostics"
    *  gate (Stage G) and the diagnostics coverage gate's theme/renderer half
    *  (`diagnostics-coverage.test.ts`) both read. */
   readonly diagnostics: readonly Diagnostic[];

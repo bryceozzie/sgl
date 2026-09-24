@@ -14,8 +14,9 @@ The resolver turns syntax into a **canonical document model**: shorthands expand
 | Merge dotted config keys and redeclarations | Apply themes or compute styles (DD-04) |
 | Expand `a: "Label"` and `a: Class` shorthands | Validate ports against endpoints (DD-03) |
 | Split edge chains into edge records, normalise `<-` | Interpret `@layout.*` hint semantics (engines do) |
-| Collect `@classes`, validate `@type` references | **⟶ v1.0:** `@vars` substitution (A8), `@imports` (A9) |
+| Collect `@classes`, validate `@type` references | **⟶ v1.0:** `@imports` (A9) |
 | Validate config keys against the key registry | |
+| Substitute `@vars` (A8, §3.5) | |
 | Serialise to and parse from `.sgl.json` | |
 
 ---
@@ -36,6 +37,7 @@ interface ContainerModel {
   readonly config: ConfigBag;                  // resolved @-keys, dotted keys merged
   readonly children: readonly ContainerModel[];// declaration order, redeclarations merged
   readonly edges: readonly EdgeModel[];        // edges DECLARED here (endpoints unresolved)
+  readonly authored?: ConfigBag;               // @-keys as written, for toJson only (§3.5)
 }
 
 interface EdgeModel {
@@ -43,15 +45,19 @@ interface EdgeModel {
   readonly to: PathExpr;
   readonly fromPort?: string;
   readonly toPort?: string;
+  readonly fromText?: string;                  // a canonical-JSON "from" that is not a path, kept as written (§6)
+  readonly toText?: string;
   readonly directed: 'forward' | 'both' | 'none';   // '<-' already swapped into 'forward'
   readonly config: ConfigBag;
   readonly ordinal: number;                    // index within the declaring chain, for stable IDs
+  readonly authored?: ConfigBag;               // @-keys as written, for toJson only (§3.5)
 }
 
 interface ClassModel {
   readonly name: string;
   readonly extends: readonly string[];
   readonly config: ConfigBag;                  // only @-keys are meaningful in a class body
+  readonly authored?: ConfigBag;               // @-keys and `extends` as written, for toJson only (§3.5)
 }
 
 type ConfigBag = Readonly<Record<string, ConfigValue>>;
@@ -91,7 +97,20 @@ This is deliberate and load-bearing: it lets a document declare structure first 
 
 **3.4 Dotted keys.** `ConfigEntry.key = ['style','stroke']` is inserted at `config.style.stroke`. If an intermediate is a non-object scalar, `SGL2006` and the scalar is replaced.
 
-**3.5 Config value coercion.** Values arrive as AST literals; `Word` becomes its string; `ObjectLit` becomes a `ConfigBag` (its `@`-prefixed property keys drop the `@`; unprefixed keys are kept — both appear inside class bodies and `@layout` objects); `ArrayLit` maps elementwise. A `Variable` is not substituted in this version (Stage K, A8): its literal `$name` text is kept as the value, exactly as canonical JSON already shows it (§9's worked example: `"stroke": "$hot"`), and `SGL2009` is emitted once per use so the deferral is visible rather than silent.
+**3.5 Config value coercion and variables.** Values arrive as AST literals; `Word` becomes its string; `ObjectLit` becomes a `ConfigBag` (its `@`-prefixed property keys drop the `@`; unprefixed keys are kept — both appear inside class bodies and `@layout` objects); `ArrayLit` maps elementwise.
+
+Variables (A8; the language rules are language spec §5) are substituted here, so every consumer of the model — `compile()`, the theme cascade reading `classes[…].config`, the layout engines — sees plain values and none of them knows variables exist. Until A8 a `Variable` was kept as its literal `$name` text with `SGL2009`; that code is retired (§8).
+
+- **Coercion keeps references.** A `Variable`, a string that is exactly `$name` (the canonical-JSON spelling, §6), and a string holding a `${name}` placeholder coerce to a `Ref` (`resolve.ts`) that remembers the text as written and its span. Any other `$` is literal text. There is no escape for `$` in the grammar, so none here.
+- **Substitution happens when an element is finalised**, not when the value is inserted, because only then is the element's scope complete: a container's `@vars` may come after a use, or in a later redeclaration (§3.2). Merging (§3.2, §3.4) therefore works on the written form. Root's `@vars` are resolved first, since class bodies (§4) are declared at the root and substitute from its scope; an edge's configuration, which used to be validated at the statement, is now finalised with its declaring container (one chain's shared bag once).
+- **Scopes.** Each container that declares `@vars` pushes a scope on its parent's; its own configuration, its edges and its children resolve through it. The `@vars` bag itself is taken out of `config` (it has no meaning downstream); the registry row `vars` (§7) exists for key order in `toJson` and to reject `@vars` on a class or an edge (`SGL2012`). `@vars` that is not an object is `SGL2011`.
+- **Scopes** (fix round 1, item 3). A scope holds only its own entries and a pointer to its parent's; a lookup walks the chain. (The first version copied the parent's map into every scoped container, 19 s for 20 000 root variables under 5 000 scoped siblings; now about 0.15 s.)
+- **One `@vars` block** is declared in a single pass in declaration order: names only. For each entry, each name its value mentions is resolved once, in the declaring scope: an earlier entry of the same block, or an enclosing scope's variable. A reference to an entry of the same block declared at or after it is `SGL2014` (error) even when an enclosing scope has the name: the block's own declaration shadows it for the whole block. Every self or mutual reference is such a reference, so cycles need no detection of their own: in `a: $b, b: $a` the error is at `a`, and `b` then uses a failed `a`. An unknown name is `SGL2013` here. A variable name must be an identifier (`SGL2011` otherwise): only an identifier can follow `$`, and it keeps the declaration order this pass depends on intact through canonical JSON, where an object moves integer-like keys first (execution plan §1). A redeclared container has one merged `@vars` bag (§3.2, later wins key by key), and "declaration order" is the merged bag's key order, which is order of first appearance.
+- **Values are computed lazily** (fix round 1, item 1a). A variable's value is computed on its first use and memoised; its dependencies first, with an explicit stack (the dependency graph is acyclic by the rule above), so no chain length is a stack limit. A variable nobody uses is never computed. While computing, values share arrays and objects (`[$v0, $v0]` holds `v0`'s value twice); each use in an element's configuration then gets its own copy (`copyJson`), so no two elements of the model share an object.
+- **Expansion budget** (fix round 1, items 1b and 2). Substitution is charged per document against 2 Mi units: a `$name` costs the size of the value it copies (one unit per value — scalar, array or object — plus one per character of each string, sizes memoised per built object so a shared value is measured once), and a `${name}` string costs its length, checked *before* the string is built. Past the budget the substitution is refused: one `SGL2016` for the document, at the reference that crossed, and that value is dropped like any other (a variable being computed fails, silently for its later uses). The unit and the cap follow DD-09 §1.1's 2 MB posture: a document inside the 2 MB cap cannot spell out more than 2 Mi values and characters itself. It bounds both work and memory: the first version took 38.8 s for `v24` of a doubling chain from a 421-byte document, and threw `RangeError: Invalid string length` for the string form at `n = 28`; now each is a few milliseconds and one `SGL2016`. Measured with 2^12 elements used 2 000 times: the budget is spent after about 250 uses, ~0.35 s.
+- **Substitution.** `$name` takes the value with its type. `${name}` inserts a string as itself, a number as `String(n)` (so `1e-7`, `1e+21`), a bool as `true`/`false`; an object, array or null is `SGL2015` (error) and the value is dropped, like an unknown name (fix round 1, item 7: it used to leave the placeholder out and keep the string). A placeholder that is not `${identifier}` is literal text. A name no enclosing scope declares is `SGL2013` (error), and the value that holds the reference is dropped: the key at the top of the bag, an array item, or an object property, as if it were absent; the objects around it stay. A string with an unknown placeholder is dropped whole. Registry validation (§7) then runs on the substituted value, so `@order: $n` is checked as the number it is.
+- **`@type` and `@extends`** hold class names. A reference in either is substituted and may give one name or a list; each name is then checked against `@classes` (`SGL2002`, spanning the reference), and a non-string is `SGL2011`.
+- **`authored`.** Beside `config`, an element whose values use a variable, or a container that declares `@vars`, carries `authored`: the same bag as written, references unsubstituted, `@vars` included, and with the keys validation dropped also removed. A reference that failed to resolve stays in `authored` (so a round trip reproduces the same diagnostic) while its value is absent from `config`. `toJson` prints `authored` when present (§6); every other consumer reads `config`. Elements without variables have no `authored`, so a document without variables serialises byte-for-byte as before.
 
 **3.6 The JSON label rule** (06 §4 pitfall 3). A `NodeDecl` with a `StringLit` value is *always* a label. There is no way to write a bare class reference in JSON; a class must be `"@type": [...]`. The rule falls out of the grammar naturally — JSON strings are `StringLit`, never `Word` — and is stated here so nobody "fixes" it.
 
@@ -109,7 +128,7 @@ Collected from `config.classes` on the **root only** (**⟶ v1.0 (A9):** importe
 
 Validation:
 - `@extends` is a string or array of strings; each must name a declared class → `SGL2002` otherwise.
-- The extends graph must be acyclic → `SGL2004`, and the cycle is broken at the back-edge.
+- The extends graph must be acyclic → `SGL2004`. Each cycle is broken one canonical way, shared with DD-03 §4 (`class-graph.ts`; A8 fix round 1, item 5): rotate the cycle to start at its lexicographically smallest member, name that member in the message (`Class \`A\` extends itself via \`A -> B -> C -> A\``), and drop the back-edge *into* it — the `@extends` of the member just before it, where the diagnostic is anchored. Cycles are searched over names and bases in sorted order, without recursion, so the result depends only on the class graph, never on declaration order or chain depth. (Before, the DFS broke whichever back-edge declaration order reached first and named that class, and it recursed: 8 000 levels overflowed.)
 - Every `@type` reference anywhere in the tree must name a declared class → `SGL2002`; the reference is dropped, the node kept.
 - A class body's non-`@` keys are ignored with `SGL2007` (classes carry configuration, not children).
 
@@ -146,6 +165,8 @@ One edge case worth naming: `ordinal` stays the index within the *declaring chai
 toJson(model: DocumentModel): string
 fromJson(text: string): ResolveResult      // = resolve(parse(text)) — the grammar accepts JSON
 ```
+
+Both live in `packages/core/src/json.ts`, exported as the subpath **`@sgl/core/json`**, not from the package root (A8 fix round 2, execution plan §2.1 F20): only Save ▾ → Canonical JSON uses them, from the app's lazy `file-actions` chunk, so the writers stay out of the boot bundle. Reading `.sgl.json` needs none of it — boot parses stored, opened and shared documents as source, since the grammar reads JSON.
 
 `toJson` is the only new code. Serialisation rules, so that output is stable and diffable:
 
@@ -189,6 +210,16 @@ returned `PathExpr` to the real `from`/`to` string literal's own span
 or an editor underline (Stage I) would anchor on arbitrary, unrelated text in
 the real source.
 
+A `from`/`to` string that is not a path at all (`"$a"`, `"a b"`: the synthetic
+statement does not parse cleanly) used to become an empty path silently, and
+`toJson` then wrote `""`. It is now kept as written in `EdgeModel.fromText` /
+`toText` (A8 fix round 1, item 9): the path itself stays empty, `compile()`
+reports DD-03's `SGL2001` naming the text ("Cannot find `$a` from …; the edge
+was skipped"), and `toJson` prints the text back unchanged. Paths are never
+substituted, so `"$a"` here is not a variable reference.
+
+**Variables (A8).** A container, edge or class with an `authored` bag (§3.5) is printed from it rather than from `config`: `"@vars"` and every reference appear as written (`"stroke": "$hot"`, `"@label": "API (${tier})"`, `"@type": ["$kind"]`), which is what the worked example in language spec §9 has always shown. Reading them back, a string that is exactly `$name` is a reference again, so `fromJson(toJson(m))` substitutes the same values and rebuilds the same `authored`.
+
 Because the grammar reads JSON directly, `fromJson` is not a separate parser and cannot drift from the surface syntax. The round-trip invariant tested in DD-09: `resolve(parse(toJson(m))).model ≡ m` (ignoring `spans`).
 
 ---
@@ -216,6 +247,7 @@ MVP registry (order = row order):
 | `theme` | root | string |
 | `layout` | root, node | object (`engine`, `direction`, plus engine keys) |
 | `classes` | root | object |
+| `vars` | root, node (containers) | object — taken out of `config` into the variable scope; kept in `authored` (§3.5) |
 | `label` | node, edge, class | string |
 | `type` | node, edge | array of string |
 | `shape` | node, class | enum — DD-07 §4 list |
@@ -262,7 +294,7 @@ validate and then reach no consumer — a decision for whichever stage adds
 class-derived fallback for other keys, not one to make by relaxing a scope
 list ahead of it.
 
-**⟶ v1.0** adds `vars`, `imports`, `pin`; **⟶ v1.x** adds `icon`, `rules`.
+**⟶ v1.0** adds `imports`, `pin` (`vars` landed with A8); **⟶ v1.x** adds `icon`, `rules`.
 
 ---
 
@@ -276,10 +308,15 @@ list ahead of it.
 | `SGL2006` | warning | `@{key}` was `{scalar}` and has been replaced by an object to hold `@{key}.{sub}`. |
 | `SGL2007` | warning | Class bodies hold configuration only; `{key}` ignored. |
 | `SGL2008` | warning | Edge blocks hold configuration only; `{thing}` ignored. |
-| `SGL2009` | warning | Variable `${name}` is not substituted in this version; kept as literal text. |
 | `SGL2010` | warning | Unknown configuration key `@{key}`; kept but has no effect in this version. |
 | `SGL2011` | warning | `@{key}` expects {type}; ignored. |
 | `SGL2012` | warning | `@{key}` is not valid on {scope}; ignored. |
+| `SGL2013` | error | Unknown variable `${name}`; the value was dropped. |
+| `SGL2014` | error | Variable `${name}` is not declared before `{user}` in its `@vars` block; the value was dropped. |
+| `SGL2015` | error | Variable `${name}` holds {kind}, which cannot be interpolated; the value was dropped. |
+| `SGL2016` | error | `{text}` would take this document's variable expansion past {limit} units; the value was dropped. |
+
+`SGL2009` ("Variable `${name}` is not substituted in this version; kept as literal text.") was A8's placeholder and is retired: substitution made it unreachable, and the coverage gate (DD-09 §3.4) requires a fixture that emits every catalogued code, so its row and its fixture were removed. The number is never reused (DD-00 §3).
 
 (`SGL2001` and `SGL2003` — unresolved endpoint and unknown port — are DD-03's.)
 
@@ -293,3 +330,4 @@ list ahead of it.
 - Class linearisation: diamond inheritance, override order, cycle diagnostic.
 - Registry: one test per diagnostic code with the exact expected span.
 - Round-trip property test over the corpus (DD-09 §3).
+- Variables (`packages/core/test/variables.test.ts`): type preservation, interpolation, shadowing across nested containers, order within a block, self, mutual and long (20 000-entry) cycles, unknown names, the expansion budget and scope-chain cost (`variables-limits.test.ts`), interpolating an object, keys never substituted, and the canonical-JSON round trip keeping the written form; `corpus/variables.sgl` is the clean corpus document.

@@ -21,12 +21,22 @@ export interface ContainerModel {
   readonly children: readonly ContainerModel[];
   /** Edges DECLARED here; endpoints are still unresolved paths. */
   readonly edges: readonly EdgeModel[];
+  /** The element's `@`-keys as written, for `toJson` only (DD-02 §3.5, §6):
+   *  variable references unsubstituted and `@vars` kept. Present only when
+   *  it differs from `config`, i.e. when the element declares `@vars` or a
+   *  value uses a variable. Every other consumer reads `config`. */
+  readonly authored?: ConfigBag;
 }
 
 export interface EdgeModel {
   /** Relative to the declaring container. */
   readonly from: PathExpr;
   readonly to: PathExpr;
+  /** A canonical-JSON `"from"`/`"to"` that is not a path (`"$a"`), kept as
+   *  written: `from`/`to` is then empty, compile() reports SGL2001 naming this
+   *  text, and toJson() prints it back unchanged. */
+  readonly fromText?: string;
+  readonly toText?: string;
   readonly fromPort?: string;
   readonly toPort?: string;
   /** `<-` is already swapped into `forward`. */
@@ -34,6 +44,11 @@ export interface EdgeModel {
   readonly config: ConfigBag;
   /** Index within the declaring chain, for stable IDs. */
   readonly ordinal: number;
+  /** The element's `@`-keys as written, for `toJson` only (DD-02 §3.5, §6):
+   *  variable references unsubstituted and `@vars` kept. Present only when
+   *  it differs from `config`, i.e. when the element declares `@vars` or a
+   *  value uses a variable. Every other consumer reads `config`. */
+  readonly authored?: ConfigBag;
 }
 
 export interface ClassModel {
@@ -41,6 +56,11 @@ export interface ClassModel {
   readonly extends: readonly string[];
   /** Only `@`-keys are meaningful in a class body. */
   readonly config: ConfigBag;
+  /** The element's `@`-keys as written, for `toJson` only (DD-02 §3.5, §6):
+   *  variable references unsubstituted, and `@extends` as written under
+   *  `extends`. Present only when a value or `@extends` uses a variable.
+   *  Every other consumer reads `config` and `extends`. */
+  readonly authored?: ConfigBag;
 }
 
 /** An interface rather than a mapped type, so it can reference `ConfigValue`,

@@ -1,6 +1,6 @@
 import {
   asNodeId,
-  diagnostic,
+  layoutDiagnostic,
   NO_SPAN,
   type Diagnostic,
   type PathSeg,
@@ -49,7 +49,7 @@ const VALID_OCCLUSION: ReadonlySet<string> = new Set(['plate', 'none']);
  */
 export function validateResult(result: LayoutResult, graph: SemanticGraph, engineId: string): readonly Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
-  const missing: Missing = (span, detail) => diagnostic('SGL4002', span, { id: engineId, detail });
+  const missing: Missing = (span, detail) => layoutDiagnostic('SGL4002', span, { id: engineId, detail });
 
   // `result`'s static type is the frozen `LayoutResult`, but that is a
   // compile-time guarantee only: a third party writes an engine directly
@@ -78,7 +78,7 @@ export function validateResult(result: LayoutResult, graph: SemanticGraph, engin
     if (node.children.length > 0 && layout.contentFrame !== undefined) {
       checkFrame(layout.contentFrame, node.span, `'${id}' contentFrame`, missing, diagnostics);
       if (!frameInside(layout.contentFrame, layout.frame)) {
-        diagnostics.push(diagnostic('SGL4003', node.span, { node: id }));
+        diagnostics.push(layoutDiagnostic('SGL4003', node.span, { node: id }));
       }
       // Not corrected — some engines overflow deliberately (DD-06 §5's own words
       // for the sibling case; applied here too for the same reason).
@@ -87,7 +87,7 @@ export function validateResult(result: LayoutResult, graph: SemanticGraph, engin
         const childLayout = result.nodes[childId];
         if (child === undefined || child.hidden || childLayout === undefined) continue;
         if (!frameInside(childLayout.frame, layout.contentFrame)) {
-          diagnostics.push(diagnostic('SGL4003', child.span, { node: childId }));
+          diagnostics.push(layoutDiagnostic('SGL4003', child.span, { node: childId }));
         }
       }
     }

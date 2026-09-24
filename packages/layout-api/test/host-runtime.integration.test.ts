@@ -272,3 +272,37 @@ describe('createWorkerHost + createWorkerRuntime, wired through an async in-memo
     }
   });
 });
+
+describe('layout diagnostics keep their exact text through the real host and runtime (layout catalogue split)', () => {
+  // Pinned from `main` before the worker stopped bundling the whole
+  // `CATALOGUE`: splitting out the layout rows must not change a word.
+  const throwing: LayoutEngine = {
+    id: 'test.throwing',
+    name: 'test.throwing',
+    version: '0.0.0',
+    apiVersion: LAYOUT_API_VERSION,
+    capabilities: capabilities(),
+    layout: () => Promise.reject(new Error('boom')),
+  };
+  const undefinedResult: LayoutEngine = { ...throwing, id: 'test.undefined', name: 'test.undefined', layout: () => Promise.resolve(undefined as never) };
+  const slow: LayoutEngine = { ...throwing, id: 'test.slow', name: 'test.slow', layout: () => new Promise(() => {}) };
+
+  it.each([
+    ['test.slow', 'SGL4001', 'Layout engine `test.slow` did not finish within 30 ms and was stopped. Showing the previous layout.'],
+    ['test.undefined', 'SGL4002', 'Layout engine `test.undefined` returned invalid geometry (engine returned undefined, not a LayoutResult object). Showing the previous layout.'],
+    ['test.throwing', 'SGL4011', 'Layout engine `test.throwing` failed: boom.'],
+    ['test.unregistered', 'SGL4011', 'Layout engine `test.unregistered` failed: not registered in this worker.'],
+  ])('%s: %s', async (engine, code, message) => {
+    const registry = new EngineRegistry();
+    for (const e of [throwing, undefinedResult, slow]) registry.register(e);
+    const host = createWorkerHost(spawnFor(registry), { engineTimeoutMs: { 'test.slow': 30 } });
+    try {
+      const outcome = await run(host, engine, OK_INPUT);
+      expect(outcome.diagnostics.map((d) => ({ code: d.code, severity: d.severity, message: d.message }))).toEqual([
+        { code, severity: 'error', message },
+      ]);
+    } finally {
+      host.dispose();
+    }
+  });
+});

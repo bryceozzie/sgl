@@ -1,0 +1,4 @@
+// expects: SGL2013
+// A reference to a name no enclosing `@vars` declares: an error, and the
+// value is dropped as if `@label` were absent (language spec §5).
+a: { @label: $missing }

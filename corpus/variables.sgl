@@ -1,0 +1,39 @@
+// Variables (language spec §5): `$name` substitutes a whole value and keeps
+// its type; `${name}` interpolates inside a string; a container's own `@vars`
+// shadow its parent's; an entry may use the entries declared before it.
+// Canonical JSON keeps every reference as written (the resolver golden).
+@title: "Variables"
+
+@vars: {
+  brand: "#4F46E5"
+  hot: "#DC2626"
+  tier: "production"
+  width: 3
+  kind: "Service"
+  thick: { stroke: $brand, strokeWidth: $width }
+}
+
+@classes: {
+  Service: { @shape: round, @style.stroke: $brand }
+}
+
+api: {
+  @type: $kind
+  @label: "API (${tier})"
+  @style.strokeWidth: $width
+}
+
+payments: {
+  @label: "Payments"
+  @vars: { hot: "#B91C1C", region: "eu", tag: "${tier}-${region}" }
+
+  ledger: { @label: "Ledger ${tag}", @style.stroke: $hot }
+  outbox: { @label: "Outbox", @style: $thick }
+
+  ledger -> outbox: "${region} async"
+}
+
+alerts: { @label: "Alerts", @style.stroke: $hot }
+
+api -> payments.ledger: "POST /charge (${tier})"
+payments.outbox -> alerts
