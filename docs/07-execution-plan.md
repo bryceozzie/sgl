@@ -1511,6 +1511,39 @@ engine that never ran. **Still true, recorded not fixed:** every such edit costs
 another elkjs import (hundreds of ms) before its layout, because ELK cannot be interrupted; the
 "laying out…" chip covers the wait.
 
+**C5: the `high-contrast` and `print` themes** (Stage L, `feat/themes-c5`, branched from `main` at
+`270f257`; not merged; no existing golden changed). Two built-in themes in `packages/theme/src/themes/`,
+each `extends: neutral-light` with no `rules`, `byShape` or `byClass`, so every corpus document has
+`neutral-light`'s `geometryHash` (checked per element) and a switch between any two of the four
+themes is F9's paint-only `<style>` swap. **`high-contrast`** is black on white: `ink`/`line`
+`#000000`, `ink.muted` `#2E2E2E`, containers `#EBEBEB`, `accent` `#0033B8`, `danger` `#990000`,
+each accent AAA as text. `render-svg/test/themes-c5.test.ts` reads the rendered `<style>` of the
+whole corpus and checks every pair made of theme colours: titles on their fill, edge labels on
+their plate, strokes and arrowheads on the canvas and each container fill, strokes on their own
+fill — text ≥ 7:1, non-text ≥ 3:1; worst pairs `#2E2E2E` on `#EBEBEB` 11.39:1 (text) and
+`#990000` on `#EBEBEB` 7.48:1 (stroke). **`print`** needed more than tokens: the corpus paints literal
+colours (`classes.sgl`'s `#123456`, `checkout.sgl`'s `$hot`) that no token reaches, and DD-04 said
+print sets *every* fill and stroke. **Deviation, recorded in DD-04 §3/§4:** a theme may carry
+`force`, a paint-only `StyleSet` applied after every cascade step (step 7), the document's included;
+a geometry key in it is `SGL5003` and dropped, so metrics never depend on it. It is a theme input,
+not an element one, so `cascadeSignature`, paint class names and `structureHash` are unchanged; the
+cascade reference fixture is kept in step. `print`'s force: fill and plate white, stroke and text
+black, shadow none; dashes, arrowhead kinds and widths stay. The same test checks the rendered corpus
+for no fill but white or none and no stroke or text but black. **App:** no source change — Theme ▾,
+`t=` and a stored `themeId` all read `BUILT_IN`. **Bundle:** 178.63 → **178.87 kB** (+0.24 kB,
+1.13 kB under the limit), above the ~0.5 kB floor set for this item, so the themes stay in the core
+bundle rather than a lazy chunk, and a stored or shared document in either paints on its first render
+with nothing to await. Tests: `theme/test/builtin-c5.test.ts`, `render-svg/test/themes-c5.test.ts`,
+the F7 contract (`paint-only.test.ts`) over all six theme pairs, the paint oracle and memo test under
+all four themes, `theme-fast-path` over every ordered pair, the `paint-swap` DOM oracle
+(light → high-contrast, high-contrast → print), `pickers`; new render goldens under
+`__goldens__/render/high-contrast/` and `print/`. e2e: `themes-c5.spec.ts` (the four options; each pick
+changes only the `<style>` text, source and layout geometry untouched; print's computed paint; a stored
+record and a `t=print` link boot in the theme; a document's own `@theme` edited in place) and an
+offline case in `offline.spec.ts` (a document stored in `print` boots offline in it and switches to
+`high-contrast`, every response from the service worker). Docs: DD-04 §1, §3, §4, §7, §8; DD-07 §11;
+DD-08 §6, §10; DD-09 §3 criterion 2.
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
@@ -1527,7 +1560,7 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F13** | A share link pasted into an already-open tab (Stage J fix round 1, item 14) imports by flushing autosave and **reloading**, not by switching in place like Open and Documents ▾ (fix round 2). That loses undo history, and when IndexedDB is unavailable (memory-store fallback) the reload loses the tab's documents outright. Also: criterion 5's offline test is falsifiable against the HTTP cache in Chromium and WebKit but not in Firefox, which has neither mechanism the spec uses; and error toasts persist until closed with no cap on how many pile up. | Stage L (E17, alongside the rest of the Documents UI) |
 | **F15** | `elk` misses DD-09 §2's performance budget as measured in Node by Stage K's review: `elkEngine.layout` alone takes 0.5–0.8 s warm / 1.4 s cold at n500 (budget: 400 ms for the whole pipeline) and ~1.9 s warm / 3.8 s cold at n2000 (budget 3 s). Gate 3 is not timed. **Decision (human, 2026-09-23): record it and measure in the browser before Gate 4; the budget is not reopened.** | Stage L, before Gate 4 (the Gate 4 bench) |
 | **F16** | Under `elk`, some edges enter a container through its own title (the endpoint's ancestor, so the K4 hierarchy-crossing check does not count them): `checkout` 2, `containers-edges` 1, `nesting-3` 1, `wildcards` 4, `wildcard-paths` 4 (added 2026-09-24 with the document), pinned by `titleCrossings` in `packages/layout-elk/test/elk.test.ts`. No ELK option tried removes them (`considerModelOrder` crashes ELK on 8 documents; `FIXED_SIDE` moves them). Candidates: a host-side nudge of the final segment, or port placement once ports are real (F6). | Stage L |
-| **F20** | **Bundle headroom.** After A8's fix round 2 the core bundle is **178.63 kB** of 180 (1.37 kB under, 0.13 kB short of the 1.5 kB aimed for): `@sgl/core/json` and the lazy `engine-options-form` chunk are done. Next candidate on the boot path: `DocumentsMenu` (about 1.75 kB minified) as a lazy chunk. | Stage L, before the next feature on the boot path |
+| **F20** | **Bundle headroom.** After A8's fix round 2 the core bundle was 178.63 kB; after C5's two themes (+0.24 kB) it is **178.87 kB** of 180 (1.13 kB under, 0.37 kB short of the 1.5 kB aimed for): `@sgl/core/json` and the lazy `engine-options-form` chunk are done. Next candidate on the boot path: `DocumentsMenu` (about 1.75 kB minified) as a lazy chunk. | Stage L, before the next feature on the boot path |
 
 ---
 
@@ -1972,7 +2005,7 @@ complete the Playwright suite's engine-switch cases (DD-08 §14 test 4).
 | A8 variables, A9 imports | Pure resolver work. Replaces the Stage B placeholder diagnostic. Cycle detection for imports. **F3** (a visited-set guard in `compile()`'s `linearizeClasses`, which relied entirely on `resolve()` having spliced every `@extends` back-edge first) is fixed on `feat/variables` (§2), ahead of imports, the second way class tables get built. |
 | **A18 markdown labels + `@sgl/text`** | The largest non-engine subsystem. The `Measurer` is run-based already, so this is an addition, not a rewrite. |
 | B5 `fixed`, `tree`, `radial`, `force` | `fixed` first — about a day, and the escape hatch people ask for. `force` last, and it is the first thing to cut. |
-| C5 `high-contrast`, `print` themes | Tokens only. |
+| C5 `high-contrast`, `print` themes | **Built on `feat/themes-c5`** (§2), not merged. Tokens only for metrics (every document's `geometryHash` is `neutral-light`'s; any switch among the four is paint only); `high-contrast` AAA text and 3:1 non-text over the rendered corpus; `print` white fills and black strokes and text, through the new paint-only theme `force` (DD-04 §4 step 7), which reaches the document's own colours. In the core bundle (+0.24 kB), not lazy. |
 | D6/D7 PNG and clipboard export | Canvas `drawImage` of the SVG blob. |
 | F2 drag-and-drop, F5 `.sglpack` | Conveniences on F1. |
 | E17 multiple documents | Storage is already a list; this is UI. **Partly pulled into Stage J by human decision (2026-09-23):** Open creating a new local document, and a minimal Documents ▾ list (switch to any stored document, New document). **Remaining here:** delete, rename, search, tabs and multi-select. |
