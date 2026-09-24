@@ -3,6 +3,7 @@ import type { Autosave } from './autosave.js';
 import { documentTitle } from './filename.js';
 import type { Pipeline } from './pipeline.js';
 import type { DocumentRecord } from './storage.js';
+import type { LastGood } from './types.js';
 
 /** The slice of the pipeline a document record is built from. */
 export type SessionPipeline = Pick<Pipeline, 'source' | 'model' | 'engineId' | 'engineOptions' | 'themeId' | 'lastGood'>;
@@ -34,6 +35,16 @@ export interface DocumentSession {
  * `lastGoodSvg` is the canvas's `lastGood.svg`, or the stored one until the
  * first live render replaces it, so a boot that never renders (a document
  * with errors) does not throw the stored picture away.
+ *
+ * **`lastGoodSvg` is read only when the record is** (F9 P4): after a
+ * paint-only theme switch `lastGood.svg` is derived on first read, and this
+ * session follows every change synchronously, inside the switch. So the
+ * record carries it as a getter onto `lastGood`, and nothing here reads it:
+ * two live pictures are compared by which `lastGood` they come from, never
+ * by their text, and the record is handed to autosave with the getter
+ * intact. The write 500 ms later (IndexedDB clones the record)
+ * is what reads it — the exact bytes `render()` gives, whatever path made
+ * them.
  */
 export function createDocumentSession(pipeline: SessionPipeline, initial: DocumentRecord, autosave: Autosave, now: () => number): DocumentSession {
   /** The stored record the open document started from: its id, dates and
@@ -43,9 +54,9 @@ export function createDocumentSession(pipeline: SessionPipeline, initial: Docume
 
   const record = computed<DocumentRecord>(() => {
     const from = base.value;
-    const svg = pipeline.lastGood.value?.svg ?? from.lastGoodSvg;
+    const good = pipeline.lastGood.value;
     const ext = fileExtension.value;
-    return {
+    const out: { -readonly [K in keyof DocumentRecord]: DocumentRecord[K] } = {
       id: from.id,
       title: documentTitle(pipeline.model.value.model),
       source: pipeline.source.value,
@@ -54,9 +65,14 @@ export function createDocumentSession(pipeline: SessionPipeline, initial: Docume
       themeId: pipeline.themeId.value,
       createdAt: from.createdAt,
       updatedAt: from.updatedAt,
-      ...(svg !== undefined ? { lastGoodSvg: svg } : {}),
-      ...(ext !== undefined ? { fileExtension: ext } : {}),
     };
+    if (good !== null) {
+      Object.defineProperty(out, 'lastGoodSvg', { get: () => good.svg, enumerable: true, configurable: true });
+      pictures.set(out, good);
+    }
+    else if (from.lastGoodSvg !== undefined) out.lastGoodSvg = from.lastGoodSvg;
+    if (ext !== undefined) out.fileExtension = ext;
+    return out;
   });
 
   // What is known to be stored for the open document. A record equal to it
@@ -69,7 +85,7 @@ export function createDocumentSession(pipeline: SessionPipeline, initial: Docume
     const current = record.value;
     if (sameContent(current, stored)) return;
     stored = current;
-    autosave.request({ ...current, updatedAt: now() });
+    autosave.request(stamped(current, now()));
   });
 
   return {
@@ -93,7 +109,32 @@ export function createDocumentSession(pipeline: SessionPipeline, initial: Docume
   };
 }
 
-/** Equal but for `updatedAt`, which only a save changes. */
+/** The live render a record's `lastGoodSvg` getter reads from. */
+const pictures = new WeakMap<DocumentRecord, LastGood>();
+
+/** Whether two records carry the same picture, without deriving a lazy one
+ *  (F9 P4): two live pictures are the same when they are the same `lastGood`
+ *  (a different one is a new render, so it is saved); a live picture and a
+ *  stored string are compared as text, which happens only for the first live
+ *  render after a boot or a switch — always a full render, whose text
+ *  already exists. */
+function samePicture(a: DocumentRecord, b: DocumentRecord): boolean {
+  const pa = pictures.get(a);
+  const pb = pictures.get(b);
+  if (pa !== undefined && pb !== undefined) return pa === pb;
+  return a.lastGoodSvg === b.lastGoodSvg;
+}
+
+/** `record` with `updatedAt` set, copied property by property so that a
+ *  `lastGoodSvg` getter stays a getter (a spread would read it). */
+function stamped(record: DocumentRecord, updatedAt: number): DocumentRecord {
+  const out = Object.defineProperties({}, Object.getOwnPropertyDescriptors(record)) as { -readonly [K in keyof DocumentRecord]: DocumentRecord[K] };
+  out.updatedAt = updatedAt;
+  return out;
+}
+
+/** Equal but for `updatedAt`, which only a save changes. `lastGoodSvg` is
+ *  compared last, and never by deriving it (`samePicture`, F9 P4). */
 function sameContent(a: DocumentRecord, b: DocumentRecord): boolean {
   return (
     a.id === b.id &&
@@ -103,8 +144,8 @@ function sameContent(a: DocumentRecord, b: DocumentRecord): boolean {
     sameValue(a.engineOptions, b.engineOptions) &&
     a.themeId === b.themeId &&
     a.createdAt === b.createdAt &&
-    a.lastGoodSvg === b.lastGoodSvg &&
-    a.fileExtension === b.fileExtension
+    a.fileExtension === b.fileExtension &&
+    samePicture(a, b)
   );
 }
 

@@ -2,6 +2,7 @@ import type { LabelId, Size } from '@sgl/core';
 import type { EngineSchemas, LayoutHost, ResolvedThemeMetricsView } from '@sgl/layout-api';
 import type { Measurer, TextStyle } from '@sgl/measure';
 import type { LayoutResult } from '@sgl/layout-api';
+import type { PaintPlan } from '@sgl/render-svg';
 import type { StyledGraph } from '@sgl/theme';
 
 /** The main-thread `Measurer` the measure effect drives (DD-05 §4). Widened with
@@ -61,8 +62,16 @@ export interface PipelineDeps {
 export interface LastGood {
   readonly styled: StyledGraph;
   readonly layout: LayoutResult;
+  /** Exactly `render(styled, layout)`'s bytes. After a paint-only render
+   *  (F9 P3) a getter that derives it on first read (P4): read it only where
+   *  the string itself is needed (export, autosave, Save ▾ SVG), never on a
+   *  theme switch's own path. */
   readonly svg: string;
   readonly styleBlock: string;
+  /** The element tree this render is drawn as (`RenderResult.paintPlan`):
+   *  two `LastGood`s with the same plan differ only in their `<style>` text,
+   *  so the canvas can swap that text into the tree it already shows. */
+  readonly paintPlan: PaintPlan;
 }
 
 /** A label's measured size, keyed by label id — what `buildLayoutInput` needs

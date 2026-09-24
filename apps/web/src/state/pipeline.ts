@@ -15,7 +15,7 @@ import {
 import { buildLayoutInput, layoutConfigDiagnostics, type LayoutInput, type LayoutResult } from '@sgl/layout-api';
 import { labelRunKey, premeasure, type MeasureTable } from '@sgl/measure';
 import { BUILT_IN, DEFAULT_THEME_ID, resolveTheme, styleGraph, type ResolvedTheme, type StyledGraph } from '@sgl/theme';
-import { render, type RenderResult } from '@sgl/render-svg';
+import { render, renderPaintOnly, type RenderResult } from '@sgl/render-svg';
 import { boundsChangedSignificantly, type Extent } from '../canvas/viewport.js';
 import { deriveChipState, type ChipState } from './chip.js';
 import { optionsForEngine } from './engine-options.js';
@@ -318,6 +318,17 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     readonly styled: StyledGraph;
     readonly layout: LayoutResult;
   }
+  //
+  // The paint-only path (F9 P3, DD-08 §3): when only the effective theme has
+  // changed since the last render — the same `graph` object (so the same
+  // document), the same `layout` object and the same `geometryHash` — the
+  // new render is made from the last one by `renderPaintOnly`, which
+  // recomputes only the `<style>` text (one rule per distinct cascade
+  // signature) and keeps the element tree (`paintPlan`); it also refuses
+  // unless `structureHash` is unchanged. Anything else, or a refusal, is a
+  // full `render()`. Either way the result is exactly what `render()` gives;
+  // on the paint-only path its `svg` is derived only when read (P4).
+  let lastRendered: Rendered | null = null;
   const svgOutcome = guardedStage<Rendered | null>(
     [styledOutcome, themeOutcome],
     () => {
@@ -326,11 +337,36 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
       const styledValue = styled.value.value;
       const resolvedTheme = theme.value.value;
       inject('render');
-      return { result: render(styledValue, layoutValue, resolvedTheme), styled: styledValue, layout: layoutValue };
+      const previous = lastRendered;
+      const paintOnly =
+        previous !== null && previous.layout === layoutValue && previous.styled.graph === styledValue.graph && previous.styled.geometryHash === styledValue.geometryHash
+          ? renderPaintOnly(previous.result, styledValue, layoutValue)
+          : null;
+      const rendered: Rendered = { result: paintOnly ?? render(styledValue, layoutValue, resolvedTheme), styled: styledValue, layout: layoutValue };
+      lastRendered = rendered;
+      return rendered;
     },
     () => null,
   );
   const svg = computed<RenderResult | null>(() => svgOutcome.value.value?.result ?? null);
+
+  /** `lastGood` for a render. `svg` is a getter onto the result's own (P4):
+   *  after a paint-only render it is derived from the last full string on
+   *  first read, and nothing on the switch's own path reads it — the canvas
+   *  swaps `styleBlock` into the tree it already shows (`paintPlan`), and
+   *  autosave, Save ▾ SVG and the next boot read it later. */
+  function lastGoodOf(rendered: Rendered): LastGood {
+    const { result } = rendered;
+    return {
+      styled: rendered.styled,
+      layout: rendered.layout,
+      get svg(): string {
+        return result.svg;
+      },
+      styleBlock: result.styleBlock,
+      paintPlan: result.paintPlan,
+    };
+  }
 
   // One effect reports every guarded stage's `error` — kept as `{ value, error }`
   // pairs rather than written to `pipelineError` from inside a computed (a
@@ -402,10 +438,19 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   // cold/warm geometry comparison flaky. Fonts were never the issue — `document
   // .fonts` already reported every face "loaded" by the time either layout ran.
   let hasMeasuredOnce = false;
+  // What the latest pre-measure was started for (F9). The table is a function
+  // of the labels' text (the graph) and their text styles, which are
+  // geometry (`geometryHash` covers every label style's geometry half), so a
+  // styled graph with the same `graph` object and the same `geometryHash` —
+  // a theme switch between themes of equal geometry — would produce the very
+  // table already there: it is not measured again.
+  let measuredFor: { readonly graph: StyledGraph['graph']; readonly geometryHash: string } | null = null;
   const disposeMeasureEffect = effect(() => {
     const styledSnapshot = styled.value.value;
     void effectiveThemeId.value; // explicit dependency per DD-08 §3, alongside geometryHash below
-    void styledSnapshot.geometryHash;
+    if (measuredFor !== null && measuredFor.graph === styledSnapshot.graph && measuredFor.geometryHash === styledSnapshot.geometryHash) return;
+    const measuring = { graph: styledSnapshot.graph, geometryHash: styledSnapshot.geometryHash };
+    measuredFor = measuring;
     const generation = (measureGeneration += 1);
     const sourceSnapshot = doc.peek().source;
     void (async () => {
@@ -421,6 +466,7 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
         table.value = premeasure(styledSnapshot, deps.measurer);
       } catch (err) {
         if (generation !== measureGeneration) return;
+        if (measuredFor === measuring) measuredFor = null; // nothing landed: measure it again next time
         reportPipelineError(err, sourceSnapshot); // §13 effect boundary
       }
     })();
@@ -533,7 +579,7 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     if (rendered === null || rendered === adopted) return;
     if (diagnostics.some((d) => d.severity === 'error')) return;
     adopted = rendered;
-    lastGood.value = { styled: rendered.styled, layout: rendered.layout, svg: rendered.result.svg, styleBlock: rendered.result.styleBlock };
+    lastGood.value = lastGoodOf(rendered);
     // "Recovered" (§13): a full clean cycle just completed — every guarded
     // stage succeeded and produced no error diagnostic. Clearing here, not
     // wherever an error was set, is what stops a fresh layout success from

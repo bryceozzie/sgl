@@ -310,7 +310,7 @@ describe('pipeline (DD-08 §3)', () => {
     expect(env.pipeline.lastGood.value).toBe(adoptedLastGood);
   });
 
-  it('a theme-only change skips layout but re-renders', async () => {
+  it('a theme-only change skips layout and repaints the same element tree (F9 P3)', async () => {
     const env = setup('a: "A"');
     await completeOneLayout(env, 'a');
     expect(env.pending.length).toBe(1);
@@ -318,6 +318,7 @@ describe('pipeline (DD-08 §3)', () => {
     const layoutBefore = env.pipeline.layout.value;
     const geometryHashBefore = env.pipeline.styled.value.value.geometryHash;
     const svgBefore = env.pipeline.lastGood.value?.svg;
+    const planBefore = env.pipeline.lastGood.value?.paintPlan;
 
     env.pipeline.themeId.value = 'neutral-dark';
     await flush();
@@ -329,9 +330,11 @@ describe('pipeline (DD-08 §3)', () => {
     expect(env.pending.length).toBe(1);
     expect(env.pipeline.layout.value).toBe(layoutBefore);
 
-    // But the render itself is not skipped (DD-07 §11, F7 — a full re-render,
-    // not a `<style>`-only swap), so lastGood picks up the new theme's paint.
+    // The paint changes, as a new `<style>` text over the same element tree
+    // (`paintPlan`, DD-07 §11; `theme-fast-path.test.ts` has the rest), so
+    // lastGood picks up the new theme's paint.
     expect(env.pipeline.lastGood.value?.svg).not.toBe(svgBefore);
+    expect(env.pipeline.lastGood.value?.paintPlan).toBe(planBefore);
     expect(env.pipeline.lastGood.value?.styled.themeId).toBe('neutral-dark');
   });
 

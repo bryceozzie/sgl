@@ -123,15 +123,17 @@ describe('Theme ▾ is a view preference (P1)', () => {
 });
 
 describe('one pick is one paint (P2)', () => {
-  const CASES: readonly (readonly [string, string])[] = [
-    ['no @theme (the picker sets themeId only)', DOC],
-    ['@theme (the picker sets themeId and edits the entry)', `@theme: "neutral-light"\n${DOC}`],
+  // The last column: full `render()`s per pick. Without `@theme` the pick is
+  // paint-only (P3): the one paint is a `<style>` swap, no render at all.
+  const CASES: readonly (readonly [string, string, number])[] = [
+    ['no @theme (the picker sets themeId only)', DOC, 0],
+    ['@theme (the picker sets themeId and edits the entry)', `@theme: "neutral-light"\n${DOC}`, 1],
     // Not an override (not a string), so the themeId write alone changes the
     // effective theme, and the edit then changes the document too: without
     // one batch, that is two paints.
-    ['a non-string @theme (both halves of the pick repaint)', `@theme: 42\n${DOC}`],
+    ['a non-string @theme (both halves of the pick repaint)', `@theme: 42\n${DOC}`, 1],
   ];
-  for (const [what, source] of CASES) {
+  for (const [what, source, fullRenders] of CASES) {
     it(what, async () => {
       const h = await harness(source);
       for (const id of ['neutral-dark', 'neutral-light', 'neutral-dark']) {
@@ -144,7 +146,7 @@ describe('one pick is one paint (P2)', () => {
         expect(h.pipeline.lastGood.value?.styled.themeId).toBe(id);
         await h.settle();
         expect(h.lastGoodWrites() - writes, `${id}: lastGood writes once idle`).toBe(1);
-        expect(renders.count - before, `${id}: full renders`).toBeLessThanOrEqual(1);
+        expect(renders.count - before, `${id}: full renders`).toBe(fullRenders);
         expect(h.layoutRequests() - layouts, `${id}: layout requests`).toBe(0);
       }
     });

@@ -31,7 +31,9 @@ export default defineConfig({
       {
         test: {
           name: 'browser',
-          include: ['packages/*/test/**/*.browser.test.ts'],
+          // apps/web/test's browser tests (F9 P3): the canvas's paint-only DOM
+          // swap, checked against a full render's DOM in a real browser.
+          include: ['packages/*/test/**/*.browser.test.ts', 'apps/web/test/**/*.browser.test.ts'],
           browser: {
             enabled: true,
             provider: 'playwright',

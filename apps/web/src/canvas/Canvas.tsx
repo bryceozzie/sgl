@@ -1,9 +1,11 @@
 import { effect, type ReadonlySignal } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
 import type { NodeId } from '@sgl/core';
+import type { PaintPlan } from '@sgl/render-svg';
 import { StatusChip } from '../panels/StatusChip.js';
 import type { Pipeline } from '../state/pipeline.js';
 import { hitTestNode } from './hit-test.js';
+import { showLastGood } from './paint.js';
 import { fitViewport, panBy, screenToDiagram, svgExtent, zoomAt, IDENTITY_VIEWPORT, type Extent, type Viewport } from './viewport.js';
 
 export interface CanvasProps {
@@ -42,6 +44,11 @@ export function Canvas({ pipeline, onFitReady, storedSvg, fitRequest = 0 }: Canv
   /** Whether what is on screen is the stored boot picture (J6) rather than a
    *  live render; the extent to fit it to comes from its own `viewBox`. */
   const showingStoredRef = useRef(false);
+  /** The element tree the wrapper holds (`LastGood.paintPlan` of the live
+   *  render last put there), `null` for nothing or the stored picture: a
+   *  `lastGood` with this plan is shown by swapping its `<style>` text alone
+   *  (F9 P3, `paint.ts`). */
+  const onScreenPlanRef = useRef<PaintPlan | null>(null);
   const draggingRef = useRef<{ readonly x: number; readonly y: number } | null>(null);
   const selectedRef = useRef<NodeId | null>(null);
 
@@ -98,6 +105,7 @@ export function Canvas({ pipeline, onFitReady, storedSvg, fitRequest = 0 }: Canv
         // It is this document's own last good `render()` output, from our
         // own storage — the same trust as `lastGood.svg` itself.
         wrapper.innerHTML = bootSvg;
+        onScreenPlanRef.current = null;
         wrapper.setAttribute('data-origin', 'stored');
         wrapper.removeAttribute('data-paint-hash');
         wrapper.removeAttribute('data-theme');
@@ -107,7 +115,11 @@ export function Canvas({ pipeline, onFitReady, storedSvg, fitRequest = 0 }: Canv
       }
       const replacingStored = showingStoredRef.current;
       showingStoredRef.current = false;
-      wrapper.innerHTML = lastGood === null ? '' : lastGood.svg;
+      // The whole tree, or — when the tree on screen is the one this render
+      // is drawn as — only its `<style>` text (F9 P3; DD-08 §6).
+      if (lastGood === null) wrapper.innerHTML = '';
+      else showLastGood(wrapper, lastGood, onScreenPlanRef.current);
+      onScreenPlanRef.current = lastGood?.paintPlan ?? null;
       // `live` once a render of the running pipeline is on screen — the e2e
       // suite waits on it, so a stored boot picture is never mistaken for one.
       if (lastGood === null) wrapper.removeAttribute('data-origin');

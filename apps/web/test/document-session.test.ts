@@ -87,6 +87,38 @@ describe('document session', () => {
     expect(autosave.requests[0]!.lastGoodSvg).toBe('<svg id="stored"/>');
   });
 
+  it("never reads lastGood.svg to follow a change: autosave's record reads it when it is written (F9 P4)", () => {
+    const autosave = fakeAutosave();
+    const pipeline = fakePipeline(initial().source);
+    const session = createDocumentSession(pipeline as unknown as SessionPipeline, initial(), autosave, () => 100);
+    let reads = 0;
+    const lazy = (svg: string): LastGood =>
+      ({
+        get svg() {
+          reads += 1;
+          return svg;
+        },
+      }) as LastGood;
+
+    // The first live render (always a full one: its text exists) replaces
+    // the stored picture; then a theme switch, whose paint-only render's
+    // text does not exist until it is read. The picker and the picture
+    // change one after the other, the order that costs most.
+    pipeline.lastGood.value = { svg: '<svg id="light"/>' } as LastGood;
+    expect(autosave.requests.at(-1)!.lastGoodSvg).toBe('<svg id="light"/>');
+    pipeline.themeId.value = 'neutral-dark';
+    pipeline.lastGood.value = lazy('<svg id="dark"/>');
+    void session.record.value;
+    expect(reads, 'following the change must not derive the SVG').toBe(0);
+    const saved = autosave.requests.at(-1)!;
+    expect(saved.themeId).toBe('neutral-dark');
+    expect(reads).toBe(0);
+    // The write itself (IndexedDB clones the record) is where it is read.
+    expect(structuredClone(saved).lastGoodSvg).toBe('<svg id="dark"/>');
+    expect(reads).toBe(1);
+    expect(saved.lastGoodSvg).toBe('<svg id="dark"/>');
+  });
+
   it('remembers the extension a file was opened from (DD-08 §7)', () => {
     const autosave = fakeAutosave();
     const session = createDocumentSession(fakePipeline(initial().source) as unknown as SessionPipeline, initial(), autosave, () => 1);
