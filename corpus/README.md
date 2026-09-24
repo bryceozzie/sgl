@@ -82,7 +82,9 @@ Stage B (resolver) added fixtures for `SGL2005`–`SGL2009`, `SGL2011` and
 `SGL2012`. `SGL2009` (a `$variable` kept as literal text) was retired by A8,
 which substitutes variables: its fixture became `unresolved/unknown-variable.sgl`
 (`SGL2013`), joined by `variable-cycle.sgl` and `variable-declared-later.sgl`
-(`SGL2014`) and `variable-interpolate-object.sgl` (`SGL2015`). `checkout.sgl`'s `$hot` used to be the only document that reached
+(`SGL2014`), `variable-interpolate-object.sgl` (`SGL2015`) and, from A8's fix
+round 1, `variable-expansion.sgl` (`SGL2016`: a 25-step doubling chain that
+stops at the expansion budget, DD-09 §1.1). `checkout.sgl`'s `$hot` used to be the only document that reached
 `SGL5004` (as literal text it is not a colour); now that it substitutes to
 `#DC2626`, `theme/bad-colour.sgl` covers that code.
 

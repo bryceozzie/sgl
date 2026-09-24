@@ -52,7 +52,8 @@ export const CATALOGUE = {
   SGL2012: { severity: 'warning', template: '`@{key}` is not valid on {scope}; ignored.' },
   SGL2013: { severity: 'error', template: 'Unknown variable `${name}`; the value was dropped.' },
   SGL2014: { severity: 'error', template: 'Variable `${name}` is not declared before `{user}` in its `@vars` block; the value was dropped.' },
-  SGL2015: { severity: 'error', template: 'Variable `${name}` holds {kind}, which cannot be interpolated; it was left out.' },
+  SGL2015: { severity: 'error', template: 'Variable `${name}` holds {kind}, which cannot be interpolated; the value was dropped.' },
+  SGL2016: { severity: 'error', template: '`{text}` would take this document\'s variable expansion past {limit} units; the value was dropped.' },
 
   // ---- 3xxx semantic (DD-03) ---------------------------------------------
   SGL3001: { severity: 'warning', template: 'Unknown shape `{name}`; using `rect`.' },

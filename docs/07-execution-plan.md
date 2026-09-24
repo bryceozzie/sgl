@@ -247,6 +247,26 @@ hand-built cyclic models. Tests: `packages/core/test/variables.test.ts`, three F
 `compile.test.ts`, `apps/web/e2e/variables.spec.ts`. Docs: language spec §5, DD-01 §2 notes, DD-02
 §1/§2/§3.5/§6/§7/§8/§9, corpus README.
 
+**A8 fix round 1, on `feat/variables`** (review findings, each confirmed by the orchestrator).
+(1) Exponential expansion: variable values are computed lazily on first use and memoised (an unused
+doubling chain costs nothing), and substitution is charged against a per-document budget of 2 Mi
+units (a value copied by `$name`, a character produced by `${name}`; DD-09 §1.1's 2 MB posture, new
+threat row); past it one new **`SGL2016`** error at the crossing use and the value dropped (fixture
+`unresolved/variable-expansion.sgl`). `v24` of a doubling chain went from 38.8 s to ~1 ms. (2) The
+string form's `RangeError` at n = 28 is now that `SGL2016`. (3) Scopes are a parent chain, not a copy
+per container: 20 000 variables under 5 000 scoped siblings, 19 s → ~0.15 s. (4) `@extends` cycle
+search (shared `class-graph.ts`) and `compile()`'s linearisation are iterative: 20 000-deep chains
+resolve and compile. (5) One canonical cycle break in both resolve and compile: rotated to the
+smallest member, which the message names, dropping the back-edge into it; independent of declaration
+order (`class-cycle.sgl`'s message now names `A`, not `B`). (6) Redeclared `@vars` merge like any
+config; stated in spec §5. (7) Spec §5 states the node-shorthand `SGL1002` and its recovery, ASCII
+identifier names, literal non-identifier placeholders, `String(n)` exponent forms, declaring-scope
+resolution, `@vars: $o` as `SGL2011`, and nested drops; `SGL2015` now drops the value, like `SGL2013`.
+(8) Three mutant-surviving gaps covered. (9) A canonical-JSON `"from": "$a"` is kept as written
+(`EdgeModel.fromText`/`toText`) and is `SGL2001` naming it, instead of an empty path. No golden
+changed. **Core bundle: 179.22 → 180.17 kB, 0.17 kB over the limit**: stopped and reported, not
+trimmed (§2.1 F20).
+
 **Wildcards in parent path segments, merged to `main` at `2cb614b`** (one review with mutation testing, one fix round; 2279 Vitest + 56/56 e2e from clean) (language change, **human
 decision 2026-09-24**; branched from `main` at `1afd586`, not merged). Any segment of an edge
 endpoint may now be a `*` or one-star glob (`store*.api* -> payments.api`, `/platform.*.handler`);
@@ -1500,6 +1520,7 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F13** | A share link pasted into an already-open tab (Stage J fix round 1, item 14) imports by flushing autosave and **reloading**, not by switching in place like Open and Documents ▾ (fix round 2). That loses undo history, and when IndexedDB is unavailable (memory-store fallback) the reload loses the tab's documents outright. Also: criterion 5's offline test is falsifiable against the HTTP cache in Chromium and WebKit but not in Firefox, which has neither mechanism the spec uses; and error toasts persist until closed with no cap on how many pile up. | Stage L (E17, alongside the rest of the Documents UI) |
 | **F15** | `elk` misses DD-09 §2's performance budget as measured in Node by Stage K's review: `elkEngine.layout` alone takes 0.5–0.8 s warm / 1.4 s cold at n500 (budget: 400 ms for the whole pipeline) and ~1.9 s warm / 3.8 s cold at n2000 (budget 3 s). Gate 3 is not timed. **Decision (human, 2026-09-23): record it and measure in the browser before Gate 4; the budget is not reopened.** | Stage L, before Gate 4 (the Gate 4 bench) |
 | **F16** | Under `elk`, some edges enter a container through its own title (the endpoint's ancestor, so the K4 hierarchy-crossing check does not count them): `checkout` 2, `containers-edges` 1, `nesting-3` 1, `wildcards` 4, `wildcard-paths` 4 (added 2026-09-24 with the document), pinned by `titleCrossings` in `packages/layout-elk/test/elk.test.ts`. No ELK option tried removes them (`considerModelOrder` crashes ELK on 8 documents; `FIXED_SIDE` moves them). Candidates: a host-side nudge of the final segment, or port placement once ports are real (F6). | Stage L |
+| **F20** | **Bundle headroom.** The core bundle was 179.22 kB of 180 after A8's size follow-up, and A8's fix round 1 took it to 180.17 kB (over by 0.17 kB). The next saving is a separate core entry for canonical JSON (`toJson` and its writers stay in the boot chunk only because `@sgl/core` builds to one `dist/index.js`; about 0.5 kB gzipped), then further lazy-load candidates on the boot path: `EngineOptions` (about 4 kB minified) and `DocumentsMenu` (about 1.75 kB minified). | Stage L, before the next feature on the boot path |
 
 ---
 

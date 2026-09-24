@@ -100,13 +100,14 @@ describe('interpolation inside strings', () => {
     expect(model.root.edges[0]?.config.label).toBe('via prod');
   });
 
-  it('interpolating an object or array is an error, and the placeholder is left out', () => {
-    const { model, diagnostics } = resolveSrc('@vars: { o: { x: 1 }, l: [1] }\na: { @label: "[${o}|${l}]" }\n');
+  it('interpolating an object or array is an error, and the value is dropped, like an unknown name', () => {
+    const { model, diagnostics } = resolveSrc('@vars: { o: { x: 1 }, l: [1] }\na: { @label: "[${o}|${l}]" }\nb: { @label: "${l}" }\n');
     expect(diagnostics.map((d) => [d.code, d.severity])).toEqual([
       ['SGL2015', 'error'],
       ['SGL2015', 'error'],
     ]);
-    expect(node(model, 'a').config.label).toBe('[|]');
+    expect('label' in node(model, 'a').config).toBe(false);
+    expect('label' in node(model, 'b').config).toBe(false);
   });
 
   it('a `$` that does not start a reference is literal text', () => {

@@ -50,6 +50,7 @@ const RESOLVER_OWNED_CODES: ReadonlySet<DiagnosticCode> = new Set([
   'SGL2013',
   'SGL2014',
   'SGL2015',
+  'SGL2016',
 ]);
 
 describe('compile() over the corpus', () => {
@@ -933,8 +934,11 @@ describe('F3: class linearisation guards against an `@extends` cycle', () => {
   it('a mutual cycle compiles, reports SGL2004 once, and linearises each class once', () => {
     const { graph, diagnostics } = compile(model([cls('A', 'B'), cls('B', 'A')], [leaf('a', ['A']), leaf('b', ['B'])], ['A']));
     expect(diagnostics.map((d) => d.code)).toEqual(['SGL2004']);
+    // Canonical break (fix round 1, item 5): the back-edge into the smallest
+    // member, `B extends A`, is the one dropped, whichever class is reached first.
+    expect(diagnostics[0]?.message).toBe('Class `A` extends itself via `A -> B -> A`.');
     expect(graph.nodes.a?.classes).toEqual(['B', 'A']);
-    expect(graph.nodes.b?.classes).toEqual(['A', 'B']);
+    expect(graph.nodes.b?.classes).toEqual(['B']);
     expect(graph.edges[0]?.classes).toEqual(['B', 'A']);
   });
 

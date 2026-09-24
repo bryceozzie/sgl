@@ -36,6 +36,7 @@ import type {
   StringLit,
   Value,
 } from './ast.js';
+import { breakExtendsCycles } from './class-graph.js';
 import { configKeyOrder, SIZE_KEYS, validateConfigKey } from './config-registry.js';
 import { diagnostic, type Diagnostic } from './diagnostics.js';
 import { nodeIdFromPath } from './ids.js';
@@ -82,6 +83,8 @@ interface RawEdge {
   readonly to: PathExpr;
   readonly fromPort?: string;
   readonly toPort?: string;
+  readonly fromText?: string;
+  readonly toText?: string;
   readonly directed: EdgeModel['directed'];
   readonly ordinal: number;
   /** Still as written (variable references unsubstituted): finalised with the
@@ -339,14 +342,15 @@ function remapPathSpans(path: PathExpr, span: SourceSpan): PathExpr {
 /** Re-parse a `from`/`to` string as a tiny synthetic edge statement so path
  *  syntax — quoting, `../`, `/`, wildcards — is interpreted by the one real
  *  `Path` grammar rather than a second, hand-rolled parser. See file header. */
-function parsePathText(text: string, realSpan: SourceSpan): PathExpr {
-  const { ast } = parse(`${text} -> __sgl_edges_placeholder__`);
-  for (const entry of ast.entries) {
-    if (entry.kind === 'EdgeStmt' && entry.endpoints.length > 0) {
-      return remapPathSpans((entry.endpoints[0] as { path: PathExpr }).path, realSpan);
-    }
+function parsePathText(text: string, realSpan: SourceSpan): { path: PathExpr; invalid?: string } {
+  const { ast, diagnostics } = parse(`${text} -> __sgl_edges_placeholder__`);
+  const [entry] = ast.entries;
+  if (diagnostics.length === 0 && ast.entries.length === 1 && entry?.kind === 'EdgeStmt' && entry.endpoints.length === 2) {
+    return { path: remapPathSpans((entry.endpoints[0] as { path: PathExpr }).path, realSpan) };
   }
-  return { kind: 'PathExpr', root: false, parents: 0, segments: [], span: realSpan };
+  // Not a path (`"$a"`, `"a b"`): kept as written, so compile() can name it
+  // in its SGL2001 and toJson() can print it back unchanged.
+  return { path: { kind: 'PathExpr', root: false, parents: 0, segments: [], span: realSpan }, invalid: text };
 }
 
 const DIRECTIONS: ReadonlySet<string> = new Set(['forward', 'both', 'none']);
@@ -357,6 +361,8 @@ function applyEdgesArray(entry: ConfigEntry, acc: Acc, classNames: ReadonlySet<s
     if (item.kind !== 'Object') continue;
     let from: PathExpr | undefined;
     let to: PathExpr | undefined;
+    let fromText: string | undefined;
+    let toText: string | undefined;
     let fromPort: string | undefined;
     let toPort: string | undefined;
     let directed: EdgeModel['directed'] = 'forward';
@@ -375,10 +381,10 @@ function applyEdgesArray(entry: ConfigEntry, acc: Acc, classNames: ReadonlySet<s
       }
       switch (prop.key) {
         case 'from':
-          if (prop.value.kind === 'String') from = parsePathText(prop.value.value, prop.value.span);
+          if (prop.value.kind === 'String') ({ path: from, invalid: fromText } = parsePathText(prop.value.value, prop.value.span));
           break;
         case 'to':
-          if (prop.value.kind === 'String') to = parsePathText(prop.value.value, prop.value.span);
+          if (prop.value.kind === 'String') ({ path: to, invalid: toText } = parsePathText(prop.value.value, prop.value.span));
           break;
         case 'fromPort':
           if (prop.value.kind === 'String') fromPort = prop.value.value;
@@ -408,6 +414,8 @@ function applyEdgesArray(entry: ConfigEntry, acc: Acc, classNames: ReadonlySet<s
       bag,
       stmtSpan: entry.span,
       ...(fromPort !== undefined ? { fromPort } : {}),
+      ...(fromText !== undefined ? { fromText } : {}),
+      ...(toText !== undefined ? { toText } : {}),
       ...(toPort !== undefined ? { toPort } : {}),
     });
   }
@@ -488,11 +496,45 @@ function buildEntries(entries: readonly Entry[], acc: Acc, classNames: ReadonlyS
 // Variables: scopes and substitution (language spec §5, DD-02 §3.5)
 // ---------------------------------------------------------------------------
 
-/** Every variable visible in a container, its enclosing containers' included,
- *  mapped to its value. A variable whose own declaration failed maps to
- *  `FAILED`: a use of it drops the value without a second diagnostic, since
- *  the declaration already carries one. */
-type VarScope = ReadonlyMap<string, unknown>;
+/**
+ * The expansion budget (DD-09 §1.1, "exponential variable expansion"), in
+ * units: one per value substituted (a scalar, an array, an object) plus one
+ * per character of a string, counted as values are copied in by `$name` and
+ * as characters are produced by `${name}`. 2 Mi units: the most a document
+ * inside DD-09's 2 MB cap could spell out literally (every value and every
+ * character takes at least one byte of source), so no legitimate document
+ * needs more, and `v1: [$v0, $v0]`, `v2: [$v1, $v1]`, … stops within it
+ * instead of doubling for as long as the chain is.
+ */
+const MAX_VARIABLE_EXPANSION = 2 * 1024 * 1024;
+
+interface Budget {
+  used: number;
+  reported: boolean;
+}
+
+/** One declared variable. Its value is computed the first time it is used
+ *  (`materialise`) and then shared by every use; `refs` says, for each name
+ *  its value mentions, which variable that is — resolved once, at the
+ *  declaration, in the declaring scope — or `DROP` for a name already
+ *  reported there (unknown, or not declared before it). */
+interface VarEntry {
+  readonly raw: unknown;
+  readonly refs: Map<string, VarEntry | typeof DROP>;
+  readonly budget: Budget;
+  /** 0 not yet computed · 1 computing (its dependencies first) · 2 done. */
+  state: 0 | 1 | 2;
+  value: unknown;
+}
+
+/** A container's own `@vars` and a pointer to its parent's: a lookup walks
+ *  the chain, so a scope costs its own entries, not a copy of every
+ *  enclosing one. */
+interface VarScope {
+  readonly parent: VarScope | undefined;
+  readonly entries: ReadonlyMap<string, VarEntry>;
+  readonly budget: Budget;
+}
 
 const FAILED = Symbol('failed');
 /** A substitution that dropped its value: the key is treated as absent. */
@@ -500,66 +542,178 @@ const DROP = Symbol('drop');
 
 type Lookup = (name: string, ref: Ref) => unknown;
 
-/** Plain JSON copied, so no two elements of the model share an object. It is
- *  also how a bag as written is taken: `Ref.toJSON` is its text. */
+const newScope = (): VarScope => ({ parent: undefined, entries: new Map(), budget: { used: 0, reported: false } });
+
+function findVar(scope: VarScope | undefined, name: string): VarEntry | undefined {
+  for (let s = scope; s !== undefined; s = s.parent) {
+    const e = s.entries.get(name);
+    if (e !== undefined) return e;
+  }
+  return undefined;
+}
+
+/** Plain JSON copied, so no two elements of the model share an object
+ *  (variable values are shared while they are computed). It is also how a bag
+ *  as written is taken: `Ref.toJSON` is its text. */
 const copyJson = (value: unknown): unknown =>
   typeof value === 'object' && value !== null ? JSON.parse(JSON.stringify(value)) : value;
 
+/** Sizes of the arrays and objects substitution builds, so a value shared by
+ *  many uses is measured once. */
+const SIZE = new WeakMap<object, number>();
+
+function sizeOf(v: unknown): number {
+  if (typeof v === 'string') return 1 + v.length;
+  if (typeof v !== 'object' || v === null) return 1;
+  let n = SIZE.get(v);
+  if (n === undefined) {
+    n = 1;
+    for (const item of Array.isArray(v) ? v : Object.values(v)) n += sizeOf(item);
+    SIZE.set(v, n);
+  }
+  return n;
+}
+
+/** Spend `cost` units, or report the one `SGL2016` a document gets and
+ *  refuse. */
+function charge(budget: Budget, cost: number, ref: Ref, diags: Diagnostic[]): boolean {
+  if (budget.used + cost <= MAX_VARIABLE_EXPANSION) {
+    budget.used += cost;
+    return true;
+  }
+  if (!budget.reported) {
+    budget.reported = true;
+    diags.push(diagnostic('SGL2016', ref.span, { text: ref.text, limit: MAX_VARIABLE_EXPANSION }));
+  }
+  return false;
+}
+
+/** Every `Ref` in `raw`, in written order, without recursion. */
+function refsIn(raw: unknown): Ref[] {
+  const out: Ref[] = [];
+  const stack: unknown[] = [raw];
+  while (stack.length > 0) {
+    const v = stack.pop();
+    if (v instanceof Ref) out.push(v);
+    else if (Array.isArray(v) || isPlainObject(v)) {
+      const items = Array.isArray(v) ? v : Object.values(v);
+      for (let i = items.length - 1; i >= 0; i -= 1) stack.push(items[i]);
+    }
+  }
+  return out;
+}
+
 /** Replace every `Ref` in `raw`. `$name` takes the variable's value whatever
- *  its type; `${name}` interpolates a string, number or bool by its canonical
- *  text and leaves an object, array or null out with `SGL2015`. A dropped
- *  reference (`lookup` returned `DROP`) drops the value that holds it: an array
- *  item, an object property, or at the top the key itself. */
-function substitute(raw: unknown, lookup: Lookup, diags: Diagnostic[]): unknown {
+ *  its type; `${name}` interpolates a string, number or bool as `String(v)`,
+ *  and an object, array or null is `SGL2015`. A dropped reference (`lookup`
+ *  returned `DROP`, an `SGL2015`, or the budget spent) drops the value that
+ *  holds it: an array item, an object property, or at the top the key
+ *  itself. The result may share arrays and objects with variable values;
+ *  a use copies it (`finalizeConfig`). */
+function substitute(raw: unknown, lookup: Lookup, diags: Diagnostic[], budget: Budget): unknown {
   if (raw instanceof Ref) {
-    if (raw.whole) return lookup((raw.parts[0] as { name: string }).name, raw);
-    let out = '';
+    if (raw.whole) {
+      const v = lookup((raw.parts[0] as { name: string }).name, raw);
+      return v === DROP || !charge(budget, sizeOf(v), raw, diags) ? DROP : v;
+    }
+    const texts: string[] = [];
     for (const part of raw.parts) {
       if (typeof part === 'string') {
-        out += part;
+        texts.push(part);
         continue;
       }
       const v = lookup(part.name, raw);
       if (v === DROP) return DROP;
-      if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') out += String(v);
-      else diags.push(diagnostic('SGL2015', raw.span, { name: part.name, kind: Array.isArray(v) ? 'an array' : v === null ? 'null' : 'an object' }));
+      if (typeof v !== 'string' && typeof v !== 'number' && typeof v !== 'boolean') {
+        diags.push(diagnostic('SGL2015', raw.span, { name: part.name, kind: Array.isArray(v) ? 'an array' : v === null ? 'null' : 'an object' }));
+        return DROP;
+      }
+      texts.push(String(v));
     }
+    let length = 0;
+    for (const t of texts) length += t.length;
+    return charge(budget, length, raw, diags) ? texts.join('') : DROP;
+  }
+  if (Array.isArray(raw)) {
+    const out: unknown[] = [];
+    let n = 1;
+    for (const item of raw) {
+      const v = substitute(item, lookup, diags, budget);
+      if (v === DROP) continue;
+      out.push(v);
+      n += sizeOf(v);
+    }
+    SIZE.set(out, n);
     return out;
   }
-  if (Array.isArray(raw)) return raw.map((item) => substitute(item, lookup, diags)).filter((v) => v !== DROP);
   if (isPlainObject(raw)) {
     const out: Record<string, unknown> = {};
+    let n = 1;
     for (const [k, item] of Object.entries(raw)) {
-      const v = substitute(item, lookup, diags);
-      if (v !== DROP) out[k] = v;
+      const v = substitute(item, lookup, diags, budget);
+      if (v === DROP) continue;
+      out[k] = v;
+      n += sizeOf(v);
     }
+    SIZE.set(out, n);
     return out;
   }
   return raw;
 }
 
-/** Look a name up in `scope`: its value (a copy), `DROP` silently for a
- *  variable that itself failed, or `SGL2013` and `DROP` for a name no
- *  enclosing `@vars` declares. */
+/** Compute a variable's value, and first every variable it depends on,
+ *  with an explicit stack: dependencies only ever point to earlier entries
+ *  or enclosing scopes, so the graph is acyclic, and a chain of any length
+ *  is safe. Each value is computed once and shared. */
+function materialise(entry: VarEntry, diags: Diagnostic[]): void {
+  const stack = [entry];
+  while (stack.length > 0) {
+    const e = stack[stack.length - 1] as VarEntry;
+    if (e.state === 2) {
+      stack.pop();
+    } else if (e.state === 0) {
+      e.state = 1;
+      for (const d of e.refs.values()) if (d !== DROP && d.state === 0) stack.push(d);
+    } else {
+      const v = substitute(
+        e.raw,
+        (name) => {
+          const d = e.refs.get(name);
+          return d === undefined || d === DROP || d.value === FAILED ? DROP : d.value;
+        },
+        diags,
+        e.budget,
+      );
+      e.value = v === DROP ? FAILED : v;
+      e.state = 2;
+      stack.pop();
+    }
+  }
+}
+
+/** Look a name up through `scope` and its parents: the variable's value, or
+ *  `DROP` silently for one whose own declaration failed, or `SGL2013` and
+ *  `DROP` for a name no enclosing `@vars` declares. */
 const scopeLookup =
   (scope: VarScope, diags: Diagnostic[]): Lookup =>
   (name, ref) => {
-    if (!scope.has(name)) {
+    const e = findVar(scope, name);
+    if (e === undefined) {
       diags.push(diagnostic('SGL2013', ref.span, { name }));
       return DROP;
     }
-    const v = scope.get(name);
-    return v === FAILED ? DROP : copyJson(v);
+    materialise(e, diags);
+    return e.value === FAILED ? DROP : e.value;
   };
 
 /**
- * Resolve one `@vars` block on top of its enclosing scope: a single pass in
- * declaration order, so nothing here recurses on the number of variables and a
- * block of any length, or any cycle, is safe. An entry sees the enclosing
- * scopes and the entries declared before it. A reference to an entry of the
- * same block declared at or after it (itself, a later one, and so every cycle)
- * is `SGL2014`, even when an enclosing scope has the name: the block's own
- * declaration shadows it for the whole block.
+ * Declare one `@vars` block on top of its enclosing scope, in declaration
+ * order. An entry sees the enclosing scopes and the entries declared before
+ * it. A reference to an entry of the same block declared at or after it
+ * (itself, a later one, and so every cycle) is `SGL2014`, even when an
+ * enclosing scope has the name: the block's own declaration shadows it for
+ * the whole block. Names are checked here, once; values are computed on first
+ * use (`materialise`), so a variable nobody uses costs nothing.
  *
  * Names must be identifiers: only an identifier can be referenced (`$name` is
  * `"$" Identifier`), so any other name is `SGL2011`. That rule is also what
@@ -574,28 +728,33 @@ function declareVars(raw: unknown, span: SourceSpan, parent: VarScope, diags: Di
     diags.push(diagnostic('SGL2011', span, { key: 'vars', type: 'object' }));
     return undefined;
   }
+  const entries = new Map<string, VarEntry>();
   const position = new Map<string, number>();
   for (const name of Object.keys(raw)) {
     if (IDENTIFIER.test(name)) position.set(name, position.size);
     else diags.push(diagnostic('SGL2011', span, { key: `vars.${name}`, type: 'an identifier as its name' }));
   }
-  const scope = new Map(parent);
-  const outer = scopeLookup(parent, diags);
   for (const [name, i] of position) {
-    const v = substitute(
-      raw[name],
-      (ref, at) => {
-        const j = position.get(ref);
-        if (j === undefined) return outer(ref, at);
-        if (j < i) return scopeLookup(scope, diags)(ref, at);
-        diags.push(diagnostic('SGL2014', at.span, { name: ref, user: name }));
-        return DROP;
-      },
-      diags,
-    );
-    scope.set(name, v === DROP ? FAILED : v);
+    const refs = new Map<string, VarEntry | typeof DROP>();
+    for (const ref of refsIn(raw[name])) {
+      for (const part of ref.parts) {
+        if (typeof part === 'string') continue;
+        const j = position.get(part.name);
+        const target = j === undefined ? findVar(parent, part.name) : j < i ? entries.get(part.name) : undefined;
+        if (target !== undefined) refs.set(part.name, target);
+        else {
+          diags.push(
+            j === undefined
+              ? diagnostic('SGL2013', ref.span, { name: part.name })
+              : diagnostic('SGL2014', ref.span, { name: part.name, user: name }),
+          );
+          refs.set(part.name, DROP);
+        }
+      }
+    }
+    entries.set(name, { raw: raw[name], refs, budget: parent.budget, state: 0, value: undefined });
   }
-  return scope;
+  return { parent, entries, budget: parent.budget };
 }
 
 // ---------------------------------------------------------------------------
@@ -634,6 +793,7 @@ function resolveClassRefs(
   lookup: Lookup,
   classNames: ReadonlySet<string>,
   diags: Diagnostic[],
+  budget: Budget,
 ): NameRef[] {
   const out: NameRef[] = [];
   for (const item of items) {
@@ -641,7 +801,7 @@ function resolveClassRefs(
       out.push(item);
       continue;
     }
-    const v = substitute(item, lookup, diags);
+    const v = substitute(item, lookup, diags, budget);
     for (const name of v === DROP ? [] : [v].flat()) {
       if (typeof name !== 'string') diags.push(diagnostic('SGL2011', item.span, { key, type: 'a class name' }));
       else if (!classNames.has(name)) diags.push(diagnostic('SGL2002', item.span, { name }));
@@ -692,33 +852,19 @@ function buildClasses(
     configs.set(name, finalizeConfig(bag, 'class', rootVars, classNames, diags));
     const known = filterKnownRefs(extendRefs, classNames, diags);
     writtenExtends.set(name, known);
-    rawExtends.set(name, resolveClassRefs(known, 'extends', lookup, classNames, diags));
+    rawExtends.set(name, resolveClassRefs(known, 'extends', lookup, classNames, diags, rootVars.budget));
   }
 
-  // Cycle detection over `@extends`, breaking each cycle at its back-edge
-  // (DD-02 §4): a class already on the current DFS path is a cycle.
-  const color = new Map<string, 'gray' | 'black'>();
-  const visit = (name: string, stack: string[]): void => {
-    color.set(name, 'gray');
-    const list = rawExtends.get(name) as NameRef[];
-    for (let i = list.length - 1; i >= 0; i -= 1) {
-      const target = list[i] as NameRef;
-      if (color.get(target.name) === 'gray') {
-        const cycleStart = stack.indexOf(target.name);
-        const cycle = [...stack.slice(cycleStart), target.name].join(' -> ');
-        diags.push(diagnostic('SGL2004', target.span, { a: name, cycle }));
-        list.splice(i, 1);
-        continue;
-      }
-      if (!color.has(target.name)) {
-        stack.push(target.name);
-        visit(target.name, stack);
-        stack.pop();
-      }
-    }
-    color.set(name, 'black');
-  };
-  for (const name of classNames) if (!color.has(name)) visit(name, [name]);
+  // `@extends` cycles, broken the canonical way `compile()` also uses
+  // (`class-graph.ts`): the back-edge into each cycle's smallest member is
+  // spliced out and reported at the reference that wrote it.
+  const { breaks } = breakExtendsCycles(new Map([...rawExtends].map(([n, refs]) => [n, refs.map((r) => r.name)] as const)));
+  for (const { member, from, cycle } of breaks) {
+    const list = rawExtends.get(from) as NameRef[];
+    const at = list.find((r) => r.name === member) as NameRef;
+    diags.push(diagnostic('SGL2004', at.span, { a: member, cycle }));
+    rawExtends.set(from, list.filter((r) => r.name !== member));
+  }
 
   const classes: Record<string, ClassModel> = {};
   for (const name of classNames) {
@@ -789,13 +935,17 @@ function finalizeConfig(
     const value = raw[key];
     if (key === 'type' && Array.isArray(value) && value.some((v) => v instanceof Ref)) {
       const items = value.map((v) => (v instanceof Ref ? v : { name: v as string, span: NO_SPAN }));
-      config[key] = resolveClassRefs(items, 'type', lookup, classNames, diags).map((r) => r.name);
+      config[key] = resolveClassRefs(items, 'type', lookup, classNames, diags, vars.budget).map((r) => r.name);
       used = true;
       continue;
     }
-    const v = substitute(value, lookup, diags);
+    const v = substitute(value, lookup, diags, vars.budget);
     if (v !== DROP) config[key] = v;
   }
+  // A substituted value may share arrays and objects with a variable's value
+  // (and so with every other use of it): each use gets its own copy. The
+  // budget has already bounded how much there is to copy.
+  if (used) for (const key of Object.keys(config)) config[key] = copyJson(config[key]);
   const authored = used ? (copyJson(raw) as Record<string, unknown>) : undefined;
   if (authored !== undefined && declaredVars !== undefined) authored.vars = copyJson(declaredVars);
 
@@ -886,6 +1036,8 @@ function finalizeContainer(
       config: done.config,
       ordinal: raw.ordinal,
       ...(raw.fromPort !== undefined ? { fromPort: raw.fromPort } : {}),
+      ...(raw.fromText !== undefined ? { fromText: raw.fromText } : {}),
+      ...(raw.toText !== undefined ? { toText: raw.toText } : {}),
       ...(raw.toPort !== undefined ? { toPort: raw.toPort } : {}),
       ...(done.authored !== undefined ? { authored: done.authored } : {}),
     };
@@ -928,9 +1080,9 @@ export function resolve(ast: Document): ResolveResult {
   }
 
   const declared = rootVarsBag.config.vars;
-  const scoped =
-    declared === undefined ? undefined : declareVars(declared, rootVarsBag.configSpans.get('vars') as SourceSpan, new Map(), diags);
-  const rootVars: VarScope = scoped ?? new Map();
+  const docScope = newScope();
+  const scoped = declared === undefined ? undefined : declareVars(declared, rootVarsBag.configSpans.get('vars') as SourceSpan, docScope, diags);
+  const rootVars: VarScope = scoped ?? docScope;
 
   const { raw: rawClasses, classNames } = collectClasses(classesEntries, diags);
   const { classes, classSpans } = buildClasses(rawClasses, classNames, rootVars, diags);
@@ -1008,7 +1160,7 @@ function writeClasses(classes: Readonly<Record<string, ClassModel>>): Record<str
  * A hand-written `.sgl.json` may still omit it; it then defaults to `0`.
  */
 function writeEdge(edge: EdgeModel): Record<string, unknown> {
-  const out: Record<string, unknown> = { from: printPath(edge.from), to: printPath(edge.to) };
+  const out: Record<string, unknown> = { from: edge.fromText ?? printPath(edge.from), to: edge.toText ?? printPath(edge.to) };
   if (edge.fromPort !== undefined) out.fromPort = edge.fromPort;
   if (edge.toPort !== undefined) out.toPort = edge.toPort;
   out.directed = edge.directed;

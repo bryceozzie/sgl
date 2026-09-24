@@ -32,6 +32,11 @@ export interface EdgeModel {
   /** Relative to the declaring container. */
   readonly from: PathExpr;
   readonly to: PathExpr;
+  /** A canonical-JSON `"from"`/`"to"` that is not a path (`"$a"`), kept as
+   *  written: `from`/`to` is then empty, compile() reports SGL2001 naming this
+   *  text, and toJson() prints it back unchanged. */
+  readonly fromText?: string;
+  readonly toText?: string;
   readonly fromPort?: string;
   readonly toPort?: string;
   /** `<-` is already swapped into `forward`. */
