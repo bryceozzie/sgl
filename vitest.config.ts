@@ -7,7 +7,9 @@ import { defineConfig } from 'vitest/config';
 // Playwright provider, covering the worker host and worker runtime against a real
 // `Worker` (DD-06 §10) — `CanvasMeasurer` and a Playwright e2e suite for apps/web
 // still arrive with the code that needs them. `pnpm test:unit` stays Node-only by
-// filtering to the `unit` project; plain `pnpm test`/`vitest run` runs both.
+// filtering to the `unit` project; `pnpm test` and `pnpm test:watch` name `unit`
+// and `browser`. The third project, `bench` (F9), runs only by name, through
+// `pnpm bench:theme`: a bare `vitest run` would run all three.
 export default defineConfig({
   test: {
     projects: [
@@ -50,7 +52,22 @@ export default defineConfig({
         // as after the standard clean command), Vite reloads the page under
         // the running test and the first render never lands.
         optimizeDeps: {
-          include: ['preact', 'preact/hooks', 'preact/jsx-dev-runtime', 'preact/jsx-runtime', '@preact/signals', '@sgl/layout-elk > elkjs/lib/elk.bundled.js'],
+          include: [
+            'preact',
+            'preact/hooks',
+            'preact/jsx-dev-runtime',
+            'preact/jsx-runtime',
+            '@preact/signals',
+            '@codemirror/autocomplete',
+            '@codemirror/commands',
+            '@codemirror/language',
+            '@codemirror/lint',
+            '@codemirror/state',
+            '@codemirror/view',
+            '@lezer/common',
+            '@lezer/highlight',
+            '@sgl/layout-elk > elkjs/lib/elk.bundled.js',
+          ],
         },
         test: {
           name: 'bench',
