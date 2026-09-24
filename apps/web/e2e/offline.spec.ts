@@ -1,5 +1,5 @@
 import { expect, test, type BrowserContext, type Page, type Response } from '@playwright/test';
-import { EXAMPLE_NODE_COUNT, layoutGeometryHash, nodeGeometry, openFile, saveAs, switchEngine, toastMessages, waitForExactNodeCount, waitForNodeCount } from './helpers.js';
+import { EXAMPLE_NODE_COUNT, layoutGeometryHash, nodeGeometry, openFile, renderedSvg, saveAs, storedOpenDocument, switchEngine, toastMessages, waitForExactNodeCount, waitForNodeCount, waitForTheme } from './helpers.js';
 import { serveDist, type StaticServer } from './static-server.js';
 
 /**
@@ -251,6 +251,47 @@ test('offline, the lazy engine-options-form chunk comes from the precache: Optio
 
     expect(chunk().length).toBe(1);
     expect(chunk().every((r) => r.fromServiceWorker())).toBe(true);
+    expect(responses.filter((r) => !r.fromServiceWorker()).map((r) => r.url())).toEqual([]);
+    expect(failed).toEqual([]);
+  } finally {
+    await context.setOffline(false);
+  }
+});
+
+/**
+ * C5: the `high-contrast` and `print` themes are in the core bundle, not a
+ * lazy chunk (they cost 0.24 kB; execution plan §2), so a document stored in
+ * one of them paints in it on an offline boot, and a pick between them works
+ * offline, every response answered by the service worker. Chromium only, as
+ * above.
+ */
+test('offline, a document stored in print boots in print, and Theme ▾ switches to high-contrast', async ({ page, context, browserName }) => {
+  test.skip(browserName !== 'chromium', 'fromServiceWorker() is proof only in Chromium');
+  await page.goto('/');
+  await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+  await page.locator('.theme-picker select').selectOption('print');
+  await waitForTheme(page, 'print');
+  await expect.poll(async () => (await storedOpenDocument(page))?.themeId).toBe('print');
+  const printed = await renderedSvg(page).innerHTML();
+  expect(await page.evaluate(async () => Boolean((await navigator.serviceWorker.ready).active))).toBe(true);
+  await clearHttpCache(page, context, browserName);
+  await context.setOffline(true);
+  const responses: Response[] = [];
+  const failed: string[] = [];
+  context.on('response', (r) => {
+    if (r.url().startsWith('http')) responses.push(r);
+  });
+  context.on('requestfailed', (r) => failed.push(`${r.url()} ${r.failure()?.errorText ?? ''}`));
+  try {
+    await page.reload();
+    await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
+    await waitForTheme(page, 'print');
+    await expect(page.locator('.theme-picker select')).toHaveValue('print');
+    await expect.poll(() => renderedSvg(page).innerHTML()).toBe(printed);
+    await page.locator('.theme-picker select').selectOption('high-contrast');
+    await waitForTheme(page, 'high-contrast');
+    expect(await renderedSvg(page).evaluate((svg) => getComputedStyle(svg.querySelector('rect.canvas')!).fill)).toBe('rgb(255, 255, 255)');
+    expect(responses.length).toBeGreaterThan(0);
     expect(responses.filter((r) => !r.fromServiceWorker()).map((r) => r.url())).toEqual([]);
     expect(failed).toEqual([]);
   } finally {

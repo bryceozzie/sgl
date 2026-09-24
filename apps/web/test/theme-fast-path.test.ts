@@ -104,6 +104,32 @@ describe('a theme-only change takes the paint-only path (P3)', () => {
     }
   });
 
+  it('between any two of the four built-in themes (C5): paint only, exactly a full render', async () => {
+    const h = await harness(DOC);
+    const ids = ['neutral-light', 'neutral-dark', 'high-contrast', 'print'];
+    // Every ordered pair: from `a` to `b` for each a != b.
+    const visits = ids.flatMap((a) => ids.filter((b) => b !== a).flatMap((b) => [a, b]));
+    const first = snapshot(h);
+    for (const id of visits) {
+      const before = snapshot(h);
+      if (h.pipeline.themeId.peek() === id) continue;
+      h.pipeline.themeId.value = id;
+      await h.settle();
+      const good = h.pipeline.lastGood.value!;
+      expect(good.styled.themeId).toBe(id);
+      expect(counts.render - before.render, `${id}: full renders`).toBe(0);
+      expect(counts.paintOnly - before.paintOnly, `${id}: paint-only restyles`).toBe(1);
+      expect(counts.premeasure - before.premeasure, `${id}: pre-measures`).toBe(0);
+      expect(h.layoutRequests() - before.layouts, `${id}: layout requests`).toBe(0);
+      expect(good.layout).toBe(first.good.layout);
+      expect(good.paintPlan).toBe(first.good.paintPlan);
+      expect(good.styled.geometryHash).toBe(first.good.styled.geometryHash);
+      const counted = counts.render;
+      expect(good.svg).toBe(fullRender(h).svg);
+      counts.render = counted;
+    }
+  });
+
   it('a first paint-only switch after an edit starts from that edit\'s full render', async () => {
     const h = await harness(DOC);
     h.setSource(`${DOC}\nextra: "E"`);
