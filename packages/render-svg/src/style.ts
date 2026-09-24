@@ -110,6 +110,19 @@ function mapLength(v: StyleValue | undefined): string | null {
  */
 export class ClassTable {
   private readonly rules = new Map<string, string>();
+  /**
+   * Tokens already computed, by the exact text they are computed from (F9,
+   * execution plan §2.1): a paint token by `paintHash`, a geometry token by
+   * its declaration text. A document has thousands of elements but a handful
+   * of distinct styles, and a geometry token is an `fnv1a64` of its
+   * declarations, so each distinct one is hashed once per table. Both are
+   * caches of pure functions of their key, so the names, the rules and which
+   * rule wins are exactly what naming every element afresh gave
+   * (`test/naming-memo.test.ts`). `geometryHash` is deliberately not a key:
+   * the geometry class is keyed by what it emits (see `classesFor`).
+   */
+  private readonly paintTokens = new Map<string, string>();
+  private readonly geometryTokens = new Map<string, string>();
 
   /** Registers a rule and returns the class name, or `null` when it has no
    *  declarations and so does not need a class at all. */
@@ -137,12 +150,23 @@ export class ClassTable {
   }
 
   private classesFor(style: ComputedStyle, kind: RuleKind, prefix: string): string {
-    const paint = this.add(prefix, hashToken(style.paintHash), paintDeclarations(style.paint, kind));
+    let paintToken = this.paintTokens.get(style.paintHash);
+    if (paintToken === undefined) {
+      paintToken = hashToken(style.paintHash);
+      this.paintTokens.set(style.paintHash, paintToken);
+    }
+    const paint = this.add(prefix, paintToken, paintDeclarations(style.paint, kind));
     const geometryDecls = geometryDeclarations(style.geometry, kind);
     // Keyed by the declarations themselves rather than by `geometryHash`: two
     // elements that differ only in a geometry property this renderer does not
     // emit (`padding`, `minWidth`) would otherwise get two identical rules.
-    const geometry = this.add('g', shortHash(geometryDecls.join(';')), geometryDecls);
+    const geometryText = geometryDecls.join(';');
+    let geometryToken = this.geometryTokens.get(geometryText);
+    if (geometryToken === undefined) {
+      geometryToken = shortHash(geometryText);
+      this.geometryTokens.set(geometryText, geometryToken);
+    }
+    const geometry = this.add('g', geometryToken, geometryDecls);
     return [geometry, paint].filter((c): c is string => c !== null).join(' ');
   }
 
