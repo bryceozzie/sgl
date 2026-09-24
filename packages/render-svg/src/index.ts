@@ -10,7 +10,6 @@
 
 import {
   diagnostic,
-  fnv1a64,
   type Diagnostic,
   type GraphEdge,
   type LabelId,
