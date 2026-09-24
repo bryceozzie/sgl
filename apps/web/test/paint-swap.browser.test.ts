@@ -101,17 +101,17 @@ describe('the paint-only swap leaves exactly the DOM of a full render (F9 P3 ora
       const wrapper = host();
 
       const fullA = render(a.styled, layout, a.theme);
-      expect(showLastGood(wrapper, lastGoodOf(a.styled, layout, fullA), null)).toBe('replace');
+      expect(showLastGood(wrapper, lastGoodOf(a.styled, layout, fullA), null)).toBe(false);
 
       const toB = renderPaintOnly(fullA, b.styled, layout);
       expect(toB, 'a paint-only switch').not.toBeNull();
-      expect(showLastGood(wrapper, lastGoodOf(b.styled, layout, toB!), fullA.paintPlan)).toBe('swap');
+      expect(showLastGood(wrapper, lastGoodOf(b.styled, layout, toB!), fullA.paintPlan)).toBe(true);
       const expectedB = fullDom(render(b.styled, layout, b.theme).svg);
       expect(wrapper.innerHTML).toBe(expectedB.html);
       expect(new XMLSerializer().serializeToString(wrapper.firstElementChild!)).toBe(expectedB.xml);
 
       const back = renderPaintOnly(toB!, a.styled, layout);
-      expect(showLastGood(wrapper, lastGoodOf(a.styled, layout, back!), toB!.paintPlan)).toBe('swap');
+      expect(showLastGood(wrapper, lastGoodOf(a.styled, layout, back!), toB!.paintPlan)).toBe(true);
       expect(wrapper.innerHTML).toBe(fullDom(fullA.svg).html);
     });
   }
@@ -125,7 +125,7 @@ describe('the paint-only swap leaves exactly the DOM of a full render (F9 P3 ora
     const toB = renderPaintOnly(fullA, b.styled, layout)!;
     // Something else is on screen (a stored boot picture, say): no swap.
     wrapper.innerHTML = '<svg class="sgl"><style>.x{}</style></svg>';
-    expect(showLastGood(wrapper, lastGoodOf(b.styled, layout, toB), null)).toBe('replace');
+    expect(showLastGood(wrapper, lastGoodOf(b.styled, layout, toB), null)).toBe(false);
     expect(wrapper.innerHTML).toBe(fullDom(render(b.styled, layout, b.theme).svg).html);
   });
 });

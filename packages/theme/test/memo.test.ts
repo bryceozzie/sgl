@@ -2,6 +2,7 @@ import fc from 'fast-check';
 import { compile, parse, resolve } from '@sgl/core';
 import { describe, expect, it } from 'vitest';
 import { cascadeSignature, resolveTheme, styleGraph } from '../src/cascade.js';
+import { styleGraph as referenceStyleGraph } from './fixtures/cascade-reference.js';
 import { BUILT_IN, neutralDark, neutralLight } from '../src/themes/index.js';
 import type { ThemeDoc } from '../src/types.js';
 import { SYNTHETIC_A, SYNTHETIC_B, SYNTHETIC_DOC } from '../../render-svg/test/fixtures/synthetic.js';
@@ -12,7 +13,7 @@ import { corpusGraph, listCorpusDocs } from './corpus.js';
  * signature once and reuses the style for every element with no `@size` that
  * shares it. That must be invisible: every style, both graph hashes, every
  * diagnostic and its order equal what resolving every element afresh gives
- * (`{ memo: false }`, the pre-F9 algorithm). Compared as JSON, which is how a
+ * (the pre-F9 algorithm, `fixtures/cascade-reference.ts`). Compared as JSON, which is how a
  * `StyledGraph` is observed (goldens, the worker boundary).
  */
 
@@ -24,7 +25,7 @@ function both(source: string, themeDoc: ThemeDoc): { readonly memo: string; read
   const { value: theme } = resolveTheme(themeDoc, lookup);
   return {
     memo: JSON.stringify(styleGraph(graph, theme, model.classes)),
-    fresh: JSON.stringify(styleGraph(graph, theme, model.classes, { memo: false })),
+    fresh: JSON.stringify(referenceStyleGraph(graph, theme, model.classes)),
   };
 }
 
@@ -36,7 +37,7 @@ describe('styleGraph: the per-signature memo is exact (F9)', () => {
       for (const doc of docs) {
         const { graph, classes } = corpusGraph(doc);
         const { value: theme } = resolveTheme(themeDoc, lookup);
-        expect(JSON.stringify(styleGraph(graph, theme, classes)), doc).toBe(JSON.stringify(styleGraph(graph, theme, classes, { memo: false })));
+        expect(JSON.stringify(styleGraph(graph, theme, classes)), doc).toBe(JSON.stringify(referenceStyleGraph(graph, theme, classes)));
       }
     });
   }
@@ -57,7 +58,7 @@ describe('styleGraph: the per-signature memo is exact (F9)', () => {
       for (const themeDoc of themes) {
         const { value: theme } = resolveTheme(themeDoc, (id) => (id === wide.id ? wide : lookup(id)));
         const memo = styleGraph(graph, theme, classes);
-        expect(JSON.stringify(memo), `${doc} under ${themeDoc.id}`).toBe(JSON.stringify(styleGraph(graph, theme, classes, { memo: false })));
+        expect(JSON.stringify(memo), `${doc} under ${themeDoc.id}`).toBe(JSON.stringify(referenceStyleGraph(graph, theme, classes)));
         hashes.add(memo.value.geometryHash);
       }
       expect(hashes.size, doc).toBe(2); // wide's geometry, and everyone else's
@@ -69,7 +70,7 @@ describe('styleGraph: the per-signature memo is exact (F9)', () => {
     const { value: theme } = resolveTheme(neutralDark, lookup);
     const { value: styled } = styleGraph(graph, theme, classes);
     expect(typeof Object.getOwnPropertyDescriptor(styled, 'paintHash')?.get).toBe('function');
-    expect(styled.paintHash).toBe(styleGraph(graph, theme, classes, { memo: false }).value.paintHash);
+    expect(styled.paintHash).toBe(referenceStyleGraph(graph, theme, classes).value.paintHash);
     expect(structuredClone(styled).paintHash).toBe(styled.paintHash);
   });
 

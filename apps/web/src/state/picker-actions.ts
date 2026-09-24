@@ -1,7 +1,7 @@
 import { batch } from '@preact/signals';
 import type { Pipeline } from './pipeline.js';
 import { defaultOptionsFor } from './engine-options.js';
-import { editRootConfigInPlace, setRootConfigString, type TextChange } from './root-config-edit.js';
+import { setRootConfigString, type TextChange } from './root-config-edit.js';
 
 /** The slice of the pipeline a picker touches. */
 export type PickerPipeline = Pick<Pipeline, 'themeId' | 'engineId' | 'engineOptions' | 'parsed' | 'source'>;
@@ -23,7 +23,7 @@ export type DispatchChange = (change: TextChange) => void;
  * 2026-09-24). It always sets `themeId` (persisted on the document record,
  * carried by a share link's `t=`). The document's text changes only when the
  * document itself already sets `@theme`: then that entry is edited in place
- * (the last one, as `setRootConfigString` would), so the document stays the
+ * (the last one, as `setRootConfigString` does), so the document stays the
  * source of truth for its own theme and `@theme` keeps overriding the picker.
  * A document with no `@theme` is never given one.
  *
@@ -31,7 +31,11 @@ export type DispatchChange = (change: TextChange) => void;
  * left alone. `dispatch` is `null` while no editor view exists.
  */
 export function selectTheme(pipeline: PickerPipeline, id: string, dispatch: DispatchChange | null): TextChange | null {
-  const change = editRootConfigInPlace(pipeline.parsed.peek().value, ['theme'], id);
+  // `setRootConfigString` edits the entry that sets `@theme` in place when
+  // there is one (a value span, never empty) and inserts a new line at the
+  // start otherwise (an empty span): only the edit is the picker's to make.
+  const edit = rootConfigEdit(pipeline, ['theme'], id);
+  const change = edit.from < edit.to ? edit : null;
   // P2: one pick, one paint. The `themeId` write and the dispatch (whose
   // `updateListener` hands the new text to the pipeline synchronously) are
   // one signal batch: `@preact/signals` defers every effect to the end of the

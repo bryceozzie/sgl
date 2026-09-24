@@ -3,7 +3,7 @@ import type { LastGood } from '../state/types.js';
 
 /**
  * Puts `lastGood` on screen in the canvas's wrapper `<g>` (DD-08 §6), and
- * says how.
+ * says how: `true` for a swap, `false` for a replacement.
  *
  * - `swap` — the paint-only path (F9 P3): the wrapper already shows the
  *   element tree `lastGood` is drawn as (`onScreen`, the plan of what was last
@@ -19,14 +19,15 @@ import type { LastGood } from '../state/types.js';
  *
  * Plain DOM, no Preact, so it runs as is in the browser test project.
  */
-export function showLastGood(wrapper: Element, lastGood: LastGood, onScreen: PaintPlan | null): 'swap' | 'replace' {
+export function showLastGood(wrapper: Element, lastGood: LastGood, onScreen: PaintPlan | null): boolean {
   if (onScreen !== null && onScreen === lastGood.paintPlan) {
-    const style = wrapper.querySelector(':scope > svg > style');
+    // The render's one `<style>`: nothing before it can hold an element.
+    const style = wrapper.querySelector('style');
     if (style !== null) {
       style.textContent = lastGood.styleBlock;
-      return 'swap';
+      return true;
     }
   }
   wrapper.innerHTML = lastGood.svg;
-  return 'replace';
+  return false;
 }

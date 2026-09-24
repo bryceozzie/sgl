@@ -353,7 +353,8 @@ own `EngineRegistry` lives inside the worker, with no synchronous view from the 
 engine options panel (this section's second bullet) is **not** built — F11 (execution plan §2.1),
 owned by Stage K, which is when a second engine exists to prove the form's generality against.
 Overriding writes through `apps/web/src/state/root-config-edit.ts`'s `setRootConfigString`
-(fix round 1); Theme ▾ uses only its first step, `editRootConfigInPlace` (F9 P1), through
+(fix round 1); Theme ▾ dispatches only its in-place edit, never its insertion (an edit replaces a
+value span, never empty; an insertion is empty) (F9 P1), through
 `selectTheme(pipeline, id, dispatch)`, which also runs the `themeId` write and the dispatch in one
 `@preact/signals` `batch()` (P2: effects are deferred to the end of the batch and computeds are
 lazy, so the pipeline paints once from the final state). The picker's own write must never make the document emit a diagnostic or grow a

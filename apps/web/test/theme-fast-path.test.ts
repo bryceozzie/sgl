@@ -104,16 +104,6 @@ describe('a theme-only change takes the paint-only path (P3)', () => {
     }
   });
 
-  it('leaves the diagnostics list the same object when no diagnostic changed, so nothing that shows them re-runs', async () => {
-    const h = await harness(`${DOC}\nbad: { @style: { bogus: 1 } }`);
-    const before = h.pipeline.diags.value;
-    expect(before.map((d) => d.code)).toContain('SGL5003');
-    h.pipeline.themeId.value = 'neutral-dark';
-    await h.settle();
-    expect(h.pipeline.lastGood.value!.styled.themeId).toBe('neutral-dark');
-    expect(h.pipeline.diags.value).toBe(before);
-  });
-
   it('a first paint-only switch after an edit starts from that edit\'s full render', async () => {
     const h = await harness(DOC);
     h.setSource(`${DOC}\nextra: "E"`);

@@ -1344,21 +1344,20 @@ numbers above.
 golden changed; **F9 cleared** and deleted from §2.1). **P1 (human decision, 2026-09-24):** Theme ▾
 is a view preference — `selectTheme(pipeline, id, dispatch)` sets `themeId` (the record persists it,
 a share link's `t=` carries it) and edits `@theme` in place only when the document already sets it
-(`editRootConfigInPlace`, never an insertion); `@theme` still overrides the picker (DD-08 §10).
+(never an insertion); `@theme` still overrides the picker (DD-08 §10).
 **P2:** the `themeId` write and the dispatch are one `@preact/signals` `batch()` (effects wait for the
 batch's end, computeds are lazy), so a pick is one paint: a non-string `@theme`, where both halves
 repaint, painted twice before. **P3:** `styleGraph` resolves each distinct cascade signature once
 (reusing the style for every `@size`-free element that shares it; a signature that reported a
-diagnostic is never reused), keeps what depends on the graph alone per graph object, reuses the graph
-`geometryHash` when every element's is unchanged, and takes `paintHash` on first read; the reference
-(`{ memo: false }`) is compared as JSON over the corpus, the synthetic pair, 150 random documents and
-repeated restyles (DD-04 §5). `cascadeSignature` moved to `@sgl/theme` (render-svg re-exports it).
+diagnostic is never reused), keeps the signatures per graph object, reuses the graph `geometryHash`
+when every element's is unchanged, and takes `paintHash` on first read; `main`'s own `cascade.ts`,
+kept verbatim as a test fixture, is the reference, compared as JSON over the corpus, the synthetic
+pair, 150 random documents and repeated restyles (DD-04 §5). `cascadeSignature` moved to `@sgl/theme` (render-svg re-exports it).
 `render()` returns a `PaintPlan`; `renderPaintOnly(previous, styled, layout)` rebuilds only the
 `<style>` text, one style per paint rule, and refuses unless the layout is the same object and
 `structureHash` is equal; `structureHash`'s graph part is kept per graph (DD-07 §6). The pipeline
 takes that path when the graph object, the layout object and `geometryHash` are unchanged, skips the
-pre-measure then (same labels, same geometry), and keeps `diags` the same array while its content is;
-the canvas swaps the `<style>` text when the tree on screen has the render's plan (`showLastGood`) and
+pre-measure then (same labels, same geometry); the canvas swaps the `<style>` text when the tree on screen has the render's plan (`showLastGood`) and
 stamps `data-paint-hash` after the frame (DD-08 §3, §6). **P4:** `lastGood.svg` and the record's
 `lastGoodSvg` are getters, derived by `withStyleBlock` on first read (autosave's write, Save ▾ SVG),
 never on the switch's path. Tests: `picker-actions`, `theme-picker`, `theme-fast-path`,
@@ -1368,6 +1367,10 @@ browser project): after the swap the live DOM serialises exactly as a full rende
 both ways plus the synthetic pair. e2e: criterion 2 now expects "Theme", an untouched source and a
 change in the `<style>` text alone besides the same geometry; share criterion 6 starts from a
 document with `@theme`; new `theme-picker.spec.ts` (a reload's fresh render equals the swapped DOM).
+**The core bundle is now 179.99 kB of the 180 kB limit** (`pnpm size`; `main`: 178.86 kB): the fast
+path's first version was 180.72 kB, and it was trimmed to fit, not the limit raised (the reference
+styleGraph moved to a test fixture, `PaintPlan` became a plain object built on `ClassTable`, and
+`diags` identity was left as it was). The next feature on the boot path needs room found first.
 `pnpm bench:theme` now times two cases (execution plan §1) and gates the no-`@theme` one;
 `KNOWN_MISSES` is empty. Median `work`, ms, first / repeat pick, same machine as the re-baseline's
 numbers above (before: `main`'s bench, one case, 23.4 / 14.1, 144.7 / 82.1, 589.3 / 323.7):

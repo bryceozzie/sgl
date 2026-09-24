@@ -86,23 +86,11 @@ function insertProperty(source: string, object: ObjectLit, key: string, quoted: 
 export function setRootConfigString(ast: SglDocument, source: string, keyPath: readonly string[], value: string): TextChange {
   const quoted = JSON.stringify(value);
 
-  const existing = editRootConfigInPlace(ast, keyPath, value);
-  if (existing !== null) return existing;
+  const existing = valueSpansSetting(ast, keyPath).at(-1);
+  if (existing !== undefined) return { from: existing.from, to: existing.to, insert: quoted };
 
   const parent = parentObject(ast, keyPath);
   if (parent !== undefined) return insertProperty(source, parent, keyPath[1]!, quoted);
 
   return { from: 0, to: 0, insert: `@${keyPath.join('.')}: ${quoted}\n` };
-}
-
-/**
- * Step 1 of `setRootConfigString` alone: the in-place edit of the entry that
- * already sets `keyPath` (the last one, whatever its value's kind), or `null`
- * when nothing in the document sets it. Theme ▾ uses this on its own (P1,
- * human decision 2026-09-24; DD-08 §10): the picker is a view preference and
- * writes into the document only when the document already names a theme.
- */
-export function editRootConfigInPlace(ast: SglDocument, keyPath: readonly string[], value: string): TextChange | null {
-  const existing = valueSpansSetting(ast, keyPath).at(-1);
-  return existing === undefined ? null : { from: existing.from, to: existing.to, insert: JSON.stringify(value) };
 }

@@ -24,7 +24,7 @@ import type { ComputedStyle, ResolvedTheme, StyledGraph } from '@sgl/theme';
 import type { EdgeLayoutView, LabelPlacementView, LayoutView } from './layout-view.js';
 import { isArrowhead, markerPaintClass, MarkerTable, type Arrowhead } from './markers.js';
 import { num, nums } from './num.js';
-import { PaintPlan, withStyleBlock } from './paint-plan.js';
+import { paintOnlyStyleBlock, withStyleBlock, type PaintPlan } from './paint-plan.js';
 import { escapeXml, edgeElementId, nodeElementId, safeUrl } from './security.js';
 import { DEFAULT_SHAPE, resolveShape } from './shapes.js';
 import { buildStyleBlock, cascadeSignature, ClassTable } from './style.js';
@@ -55,8 +55,7 @@ export interface RenderResult {
   readonly diagnostics: readonly Diagnostic[];
   /** What `renderPaintOnly` needs to restyle this render (F9 P3,
    *  `paint-plan.ts`). Its identity names the element tree: results that
-   *  share a plan differ only in their `<style>` text. Not output: it
-   *  serialises as `{}`. */
+   *  share a plan differ only in their `<style>` text. Not output. */
   readonly paintPlan: PaintPlan;
 }
 
@@ -175,10 +174,10 @@ function graphStructure(graph: SemanticGraph): string {
  */
 export function renderPaintOnly(previous: RenderResult, styled: StyledGraph, layout: LayoutView): RenderResult | null {
   const plan = previous.paintPlan;
-  if (!plan.drewWith(layout)) return null;
+  if (plan.layout !== layout) return null;
   const hash = structureHash(styled);
   if (hash !== previous.structureHash) return null;
-  const styleBlock = plan.styleBlockFor(styled);
+  const styleBlock = paintOnlyStyleBlock(plan, styled);
   if (styleBlock === null) return null;
   let svg: string | undefined;
   return {
@@ -323,7 +322,7 @@ function renderNode(id: NodeId, isContainer: boolean, ctx: Ctx): string {
 
   const radius = geometryNumber(style, 'radius', 0);
   const role = isContainer ? 'container' : 'node';
-  const shapeClass = style === undefined ? '' : ctx.classes.shapeClasses(style, cascadeSignature(role, node.shape, node.classes, node.config), { id: id as string, label: false });
+  const shapeClass = style === undefined ? '' : ctx.classes.shapeClasses(style, cascadeSignature(role, node.shape, node.classes, node.config), id);
   const kind = isContainer ? 'c' : 'n';
 
   const parts: string[] = [
@@ -350,7 +349,7 @@ function renderNode(id: NodeId, isContainer: boolean, ctx: Ctx): string {
     if (placement !== undefined && labelStyle !== undefined) {
       const block = textBlock(labelLines(title.runs), labelStyle, placement.text);
       parts.push(
-        renderText(placement, block, ctx.classes.textClasses(labelStyle, cascadeSignature(`${role}.title`, undefined, node.classes, node.config), { id: title.id as string, label: true }), `${kind}-title`, true),
+        renderText(placement, block, ctx.classes.textClasses(labelStyle, cascadeSignature(`${role}.title`, undefined, node.classes, node.config), title.id), `${kind}-title`, true),
       );
     }
   }
@@ -381,7 +380,7 @@ function renderEdge(edgeIndex: number, ctx: Ctx): string {
   const signature = cascadeSignature('edge', undefined, edge.classes, edge.config);
 
   const attrs: string[] = [
-    `class="${escapeXml(['e-path', style === undefined ? '' : ctx.classes.shapeClasses(style, signature, { id: edge.id as string, label: false })].filter(Boolean).join(' '))}"`,
+    `class="${escapeXml(['e-path', style === undefined ? '' : ctx.classes.shapeClasses(style, signature, edge.id)].filter(Boolean).join(' '))}"`,
     `d="${routePath(geom)}"`,
   ];
 
@@ -394,7 +393,7 @@ function renderEdge(edgeIndex: number, ctx: Ctx): string {
     const start = edge.directed === 'both' ? ctx.markers.add(arrowhead, size, true, token) : null;
     if (end !== null) attrs.push(`marker-end="url(#${end})"`);
     if (start !== null) attrs.push(`marker-start="url(#${start})"`);
-    if (end !== null || start !== null) ctx.classes.markerPaint(markerPaintClass(arrowhead, token), arrowhead === 'open', stroke, { id: edge.id as string, label: false });
+    if (end !== null || start !== null) ctx.classes.markerPaint(markerPaintClass(arrowhead, token), arrowhead === 'open', stroke, edge.id);
   }
 
   const from = String(edge.from.node);
@@ -431,7 +430,7 @@ function renderEdgeLabel(edge: GraphEdge, labelId: LabelId, ctx: Ctx): string {
   // theme's `labelPlate` (F7: `none` is `fill:none`, DD-07 §6).
   if (placement.occlusion === 'plate') {
     const edgeStyle = ctx.styled.styles[edge.id];
-    const plate = edgeStyle === undefined ? '' : ctx.classes.plateClasses(edgeStyle, cascadeSignature('edge', undefined, edge.classes, edge.config), { id: edge.id as string, label: false });
+    const plate = edgeStyle === undefined ? '' : ctx.classes.plateClasses(edgeStyle, cascadeSignature('edge', undefined, edge.classes, edge.config), edge.id);
     if (plate !== '') {
       parts.push(
         `<rect class="${escapeXml(`el-plate ${plate}`)}" x="${num(placement.frame.x)}" y="${num(placement.frame.y)}"` +
@@ -440,7 +439,7 @@ function renderEdgeLabel(edge: GraphEdge, labelId: LabelId, ctx: Ctx): string {
     }
   }
 
-  parts.push(renderText(placement, block, ctx.classes.textClasses(style, labelSignature, { id: labelId as string, label: true }), 'el-text', true));
+  parts.push(renderText(placement, block, ctx.classes.textClasses(style, labelSignature, labelId), 'el-text', true));
   return `<g class="el" aria-hidden="true">${parts.join('')}</g>`;
 }
 
@@ -512,15 +511,13 @@ export function render(styled: StyledGraph, layout: LayoutView, _theme: Resolved
     `<g class="L-labels">${edgeLabels.join('')}</g>` +
     `</svg>`;
 
-  const plan = ctx.classes.plan();
-  if (plan === null) throw new Error('render: a paint class was named without its style reference');
   return {
     svg,
     styleBlock,
     structureHash: structureHash(styled),
     bounds,
     diagnostics: ctx.diagnostics,
-    paintPlan: new PaintPlan(layout, svg, plan.paint, plan.fixed),
+    paintPlan: { layout, svg, rules: ctx.classes.paintRules },
   };
 }
 

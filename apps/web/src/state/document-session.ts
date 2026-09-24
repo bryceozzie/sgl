@@ -69,8 +69,7 @@ export function createDocumentSession(pipeline: SessionPipeline, initial: Docume
     if (good !== null) {
       Object.defineProperty(out, 'lastGoodSvg', { get: () => good.svg, enumerable: true, configurable: true });
       pictures.set(out, good);
-    }
-    else if (from.lastGoodSvg !== undefined) out.lastGoodSvg = from.lastGoodSvg;
+    } else if (from.lastGoodSvg !== undefined) out.lastGoodSvg = from.lastGoodSvg;
     if (ext !== undefined) out.fileExtension = ext;
     return out;
   });
@@ -85,7 +84,9 @@ export function createDocumentSession(pipeline: SessionPipeline, initial: Docume
     const current = record.value;
     if (sameContent(current, stored)) return;
     stored = current;
-    autosave.request(stamped(current, now()));
+    // Copied by property descriptor, so a `lastGoodSvg` getter stays one (a
+    // spread would read it).
+    autosave.request(Object.defineProperties({}, { ...Object.getOwnPropertyDescriptors(current), updatedAt: { value: now(), enumerable: true } }) as DocumentRecord);
   });
 
   return {
@@ -123,14 +124,6 @@ function samePicture(a: DocumentRecord, b: DocumentRecord): boolean {
   const pb = pictures.get(b);
   if (pa !== undefined && pb !== undefined) return pa === pb;
   return a.lastGoodSvg === b.lastGoodSvg;
-}
-
-/** `record` with `updatedAt` set, copied property by property so that a
- *  `lastGoodSvg` getter stays a getter (a spread would read it). */
-function stamped(record: DocumentRecord, updatedAt: number): DocumentRecord {
-  const out = Object.defineProperties({}, Object.getOwnPropertyDescriptors(record)) as { -readonly [K in keyof DocumentRecord]: DocumentRecord[K] };
-  out.updatedAt = updatedAt;
-  return out;
 }
 
 /** Equal but for `updatedAt`, which only a save changes. `lastGoodSvg` is
