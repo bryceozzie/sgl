@@ -179,6 +179,15 @@ fetched there; the Firefox half of the browser project and `test:e2e:all-browser
 implementer's own machine before the fix rounds, and run in CI. **Stage K is next**, and
 its dependency is now satisfied.
 
+**Gate 3 (MVP) is cleared by human decision (2026-09-24), with recorded exceptions.** The six MVP
+criteria are automated in Playwright with both engines (Chromium, verified from clean by the
+orchestrator). T5: exported SVG verified in **Edge** and **Inkscape** (after F17); **Figma and
+Safari waived** for this gate (no access); **PWA install delayed**, not waived: it is still to be
+checked by hand before a release, together with opening a `.sgl` from the OS and the update chip;
+**CI**: GitHub shows no runs of `.github/workflows/ci.yml`; the human has chosen not to pursue it
+for this gate, so Firefox/WebKit and the Node 20 path have not been verified on GitHub.
+**Stage L is next.**
+
 **Stage K merged to `main` at `0e9ecfc`** (`--no-ff`, 2026-09-23) after a three-lens review and
 one fix round (23 items). `pnpm check`'s steps from clean are green on `main`, run by the
 orchestrator: 2139 Vitest passed (unit + browser project, Chromium only), e2e 55/55 in Chromium,
