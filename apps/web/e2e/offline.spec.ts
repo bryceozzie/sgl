@@ -1,5 +1,5 @@
 import { expect, test, type BrowserContext, type Page, type Response } from '@playwright/test';
-import { EXAMPLE_NODE_COUNT, layoutGeometryHash, nodeGeometry, openFile, saveAs, switchEngine, toastMessages, waitForExactNodeCount, waitForNodeCount } from './helpers.js';
+import { EXAMPLE_NODE_COUNT, layoutGeometryHash, nodeGeometry, openFile, pngSize, renderedSvg, saveAs, savePng, switchEngine, toastMessages, waitForExactNodeCount, waitForNodeCount } from './helpers.js';
 import { serveDist, type StaticServer } from './static-server.js';
 
 /**
@@ -172,10 +172,11 @@ test('offline, the lazy share chunk comes from the precache: Share makes a link,
  * A8 follow-up: Open, Save ▾ and Share's work (`toolbar/file-actions.tsx`,
  * with `state/files.ts` and `state/filename.ts`) is the lazy `file-actions`
  * chunk, off the first paint. Offline, from the precache alone, it still
- * loads: the 2 MB refusal, an Open and a Save all work, and the chunk is
- * answered by the service worker. Chromium only, as above.
+ * loads: the 2 MB refusal, an Open, a Save and a PNG export (D6, whose
+ * embedded fonts are fetched from the precache too) all work, and the chunk
+ * is answered by the service worker. Chromium only, as above.
  */
-test('offline, the lazy file-actions chunk comes from the precache: Open, Save and the 2 MB refusal work', async ({ page, context, browserName }) => {
+test('offline, the lazy file-actions chunk comes from the precache: Open, Save, PNG export and the 2 MB refusal work', async ({ page, context, browserName }) => {
   test.skip(browserName !== 'chromium', 'fromServiceWorker() is proof only in Chromium');
   await page.goto('/');
   await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
@@ -205,6 +206,16 @@ test('offline, the lazy file-actions chunk comes from the precache: Open, Save a
 
     const saved = await saveAs(page, 'sgl');
     expect(saved).toEqual({ name: 'a.sgl', text: source });
+
+    // D6: PNG export too. It fetches the Inter WOFF2 files to embed them in
+    // the rasterisation-only SVG, and those must come from the precache.
+    const fonts = (): Response[] => responses.filter((r) => /\/assets\/inter-latin-\d+-normal-.*\.woff2$/.test(new URL(r.url()).pathname));
+    const fontsBefore = fonts().length;
+    const png = await savePng(page, 2);
+    expect(png.name).toBe('a.png');
+    const width = Number(await renderedSvg(page).getAttribute('width'));
+    expect(pngSize(png.bytes).width).toBe(Math.round(width * 2));
+    expect(fonts().length).toBeGreaterThan(fontsBefore);
 
     expect(chunk().length).toBe(1);
     expect(chunk().every((r) => r.fromServiceWorker())).toBe(true);

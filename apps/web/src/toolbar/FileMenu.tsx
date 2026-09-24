@@ -4,7 +4,7 @@ import type { Pipeline } from '../state/pipeline.js';
 import { OPEN_ACCEPT } from '../state/title.js';
 import type { Toasts } from '../state/toasts.js';
 import { useDisclosure } from './disclosure.js';
-import type { ShareDialog, ShareState } from './file-actions.js';
+import type { SaveExtras, ShareDialog, ShareState } from './file-actions.js';
 
 export interface FileMenuProps {
   readonly pipeline: Pipeline;
@@ -47,7 +47,13 @@ export function FileMenu({ pipeline, session, toasts, onOpen }: FileMenuProps) {
   const shareButtonRef = useRef<HTMLButtonElement | null>(null);
   const shareLinkRef = useRef<HTMLInputElement | null>(null);
   const [share, setShare] = useState<{ readonly state: ShareState; readonly Dialog: typeof ShareDialog } | null>(null);
-  const saveMenu = useDisclosure(saveMenuRef, () => closeShare(false));
+  // PNG image, its scale and Copy SVG/PNG (D6, D7) come with the lazy chunk,
+  // which opening Save ▾ loads.
+  const [Extras, setExtras] = useState<typeof SaveExtras | null>(null);
+  const saveMenu = useDisclosure(saveMenuRef, () => {
+    closeShare(false);
+    void loadFileActions().then((m) => setExtras(() => m.SaveExtras));
+  });
   const closeSaveMenu = saveMenu.close;
   const deps = { pipeline, session, toasts };
 
@@ -124,6 +130,7 @@ export function FileMenu({ pipeline, session, toasts, onOpen }: FileMenuProps) {
               {item.label}
             </button>
           ))}
+          {Extras && <Extras deps={deps} close={closeSaveMenu} />}
         </div>
       </details>
 

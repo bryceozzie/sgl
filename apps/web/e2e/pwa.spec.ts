@@ -58,7 +58,9 @@ test.describe('PWA (DD-08 §12)', () => {
 
   test('skipWaiting is gated: the worker waits for the "reload" chip to message it', () => {
     const sw = readFileSync(`${DIST}sw.js`, 'utf8');
-    expect(sw).toContain('"SKIP_WAITING"===e.data.type&&self.skipWaiting()');
+    // Whatever name the minifier gives the event (it changes with the
+    // precache list, i.e. with any asset's hash).
+    expect(sw).toMatch(/"SKIP_WAITING"===[\w$]+\.data\.type&&self\.skipWaiting\(\)/);
     expect(sw).not.toMatch(/self\.skipWaiting\(\),/); // not called unconditionally at install
     expect(sw).not.toContain('clientsClaim');
     expect(sw).toContain('createHandlerBoundToURL("index.html")'); // navigateFallback

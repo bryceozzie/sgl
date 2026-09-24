@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { headersFor, parseHeadersFile } from '../build/headers.js';
-import { EXAMPLE_NODE_COUNT, openFile, saveAs, waitForExactNodeCount, waitForNodeCount, waitForTheme } from './helpers.js';
+import { EXAMPLE_NODE_COUNT, openFile, pngSize, saveAs, savePng, toastMessages, waitForExactNodeCount, waitForNodeCount, waitForTheme } from './helpers.js';
 
 /** J4: the build's `_headers` (DD-10 §5, DD-09 §1.2's CSP), served by the
  *  e2e server, and the app working under it. */
@@ -21,7 +21,8 @@ test('the server sends exactly what dist/_headers declares', async ({ request })
   expect((await request.get('/')).headers()['content-security-policy']).toContain("script-src 'self'");
 });
 
-test('the app works under the CSP with no violation', async ({ page }) => {
+test('the app works under the CSP with no violation', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.addInitScript(() => {
     const seen: string[] = [];
     (window as unknown as { __cspViolations: string[] }).__cspViolations = seen;
@@ -33,7 +34,9 @@ test('the app works under the CSP with no violation', async ({ page }) => {
   });
 
   // Boot (IndexedDB, the layout worker, fonts, the service worker), a render,
-  // a theme switch, Open, every Save item and the Share dialog.
+  // a theme switch, Open, every Save item (PNG at every scale: the
+  // rasterisation-only SVG with Inter as `data:` fonts, through a `blob:`
+  // <img>, D6), both Copy items (D7) and the Share dialog.
   const response = await page.goto('/');
   expect(response?.headers()['content-security-policy']).toBeTruthy();
   await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
@@ -43,6 +46,12 @@ test('the app works under the CSP with no violation', async ({ page }) => {
   await openFile(page, 'x.sgl', 'a: "A"\nb: "B"\na -> b\n');
   await waitForExactNodeCount(page, 2);
   for (const kind of ['sgl', 'json', 'svg'] as const) await saveAs(page, kind);
+  for (const scale of [1, 2, 3] as const) expect(pngSize((await savePng(page, scale)).bytes).width).toBeGreaterThan(0);
+  for (const copy of ['copy-svg', 'copy-png']) {
+    await page.locator('.save-menu > summary').click();
+    await page.locator(`.save-menu .${copy}`).click();
+  }
+  await expect(toastMessages(page)).toContainText(['SVG copied', 'PNG copied']);
   await page.locator('.share-open').click();
   await expect(page.locator('.share-link')).toHaveValue(/#s=/);
 

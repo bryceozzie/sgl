@@ -1,6 +1,6 @@
 import type { Diagnostic, DocumentModel } from '@sgl/core';
 import { toJson } from '@sgl/core/json';
-import { openableExtension, saveFileName, type OpenableExtension, type SaveKind } from './filename.js';
+import { openableExtension, saveFileName, type OpenableExtension, type TextSaveKind } from './filename.js';
 
 /** DD-08 §7, DOM-free: what Open accepts and what each Save ▾ item writes.
  *  The DOM half (the `<input type=file>`, the transient `<a download>`) is
@@ -69,7 +69,7 @@ export type SaveResult = { readonly ok: true; readonly file: SaveFile } | { read
  *   `.canvas` rect is the background; scale multiplies `width`/`height`).
  *   Refused only before anything has rendered.
  */
-export function saveContent(kind: SaveKind, inputs: SaveInputs): SaveResult {
+export function saveContent(kind: TextSaveKind, inputs: SaveInputs): SaveResult {
   const name = saveFileName(kind, inputs.title, inputs.rememberedExtension);
   switch (kind) {
     case 'sgl':

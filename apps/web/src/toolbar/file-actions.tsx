@@ -1,14 +1,18 @@
 import type { Ref } from 'preact';
-import { downloadFile } from '../io/download.js';
+import { useState } from 'preact/hooks';
+import { downloadBlob, downloadFile } from '../io/download.js';
+import { rasterizePng } from '../io/png.js';
 import type { DocumentSession } from '../state/document-session.js';
-import type { SaveKind } from '../state/filename.js';
+import { saveFileName, type TextSaveKind } from '../state/filename.js';
 import { readOpenedFile, saveContent, type OpenResult } from '../state/files.js';
 import type { Pipeline } from '../state/pipeline.js';
+import { DEFAULT_PNG_SCALE, PNG_SCALES, pngPlan, type PngScale } from '../state/png.js';
 import type { Toasts } from '../state/toasts.js';
 
 /**
  * The work behind DD-08 §2's `Open · Save ▾ · Share` (§7, §8): reading an
- * opened file, writing a Save ▾ item, making a share link, and the Share
+ * opened file, writing a Save ▾ item, PNG export and Copy SVG/PNG (D6, D7,
+ * with `io/png.ts` and `state/png.ts`), making a share link, and the Share
  * dialog. A lazy chunk (`files-*.js`, with `state/files.ts` and
  * `state/filename.ts`): none of it is needed to paint the first diagram, so
  * `FileMenu.tsx` and `App.tsx` import it when a control is used. Precached like
@@ -31,8 +35,15 @@ export function readFile(file: File): Promise<OpenResult> {
   return readOpenedFile(file);
 }
 
+/** `lastGood.svg`; before the first live render, the stored one it will
+ *  replace (the same document's last good picture); `null` before either. */
+function currentSvg({ pipeline, session }: FileDeps): string | null {
+  return pipeline.lastGood.peek()?.svg ?? session.record.peek().lastGoodSvg ?? null;
+}
+
 /** One Save ▾ item: the file, downloaded, or the reason in a toast. */
-export function save(kind: SaveKind, { pipeline, session, toasts }: FileDeps): void {
+export function save(kind: TextSaveKind, deps: FileDeps): void {
+  const { pipeline, session, toasts } = deps;
   const record = session.record.peek();
   const result = saveContent(kind, {
     title: record.title,
@@ -40,12 +51,147 @@ export function save(kind: SaveKind, { pipeline, session, toasts }: FileDeps): v
     source: pipeline.source.peek(),
     model: pipeline.model.peek().model,
     modelDiagnostics: [...pipeline.parsed.peek().diagnostics, ...pipeline.model.peek().diagnostics],
-    // `lastGood.svg`; before the first live render, the stored one it will
-    // replace (the same document's last good picture).
-    lastGoodSvg: pipeline.lastGood.peek()?.svg ?? record.lastGoodSvg ?? null,
+    lastGoodSvg: currentSvg(deps),
   });
   if (result.ok) downloadFile(result.file);
   else toasts.push(result.message, 'error');
+}
+
+const NOTHING_YET = 'Nothing has rendered yet, so there is no picture to save or copy.';
+
+/** Save ▾ → PNG image (D6): `{title}.png` at `scale`, or the reason in a
+ *  toast (nothing rendered, over the pixel cap, a failed draw). */
+export async function savePng(scale: PngScale, deps: FileDeps): Promise<void> {
+  const svg = currentSvg(deps);
+  if (svg === null) {
+    deps.toasts.push(NOTHING_YET, 'error');
+    return;
+  }
+  const result = await rasterizePng(svg, scale);
+  if (result.ok) downloadBlob(result.blob, saveFileName('png', deps.session.record.peek().title));
+  else deps.toasts.push(result.message, 'error');
+}
+
+/** Copy SVG (D7): `lastGood.svg` as plain text, which every editor and
+ *  design tool accepts. */
+export function copySvg(deps: FileDeps): void {
+  const { toasts } = deps;
+  const svg = currentSvg(deps);
+  if (svg === null) {
+    toasts.push(NOTHING_YET, 'error');
+    return;
+  }
+  const refused = (): void => {
+    toasts.push('Could not copy the SVG: the browser refused access to the clipboard. Save ▾ → SVG image saves it as a file.', 'error');
+  };
+  // `undefined` outside a secure context, whatever the type says.
+  if ((navigator.clipboard as Clipboard | undefined)?.writeText === undefined) {
+    refused();
+    return;
+  }
+  navigator.clipboard.writeText(svg).then(() => toasts.push('SVG copied to the clipboard.'), refused);
+}
+
+/** Copy PNG (D7): an `image/png` at the default scale (2×). The clipboard
+ *  write starts inside the click, with the image still to come as a promise
+ *  — Safari refuses a write that begins after an `await`, once the user
+ *  activation it needs is gone. */
+export function copyPng(deps: FileDeps): void {
+  const { toasts } = deps;
+  const svg = currentSvg(deps);
+  if (svg === null) {
+    toasts.push(NOTHING_YET, 'error');
+    return;
+  }
+  const plan = pngPlan(svg, DEFAULT_PNG_SCALE);
+  if (!plan.ok) {
+    toasts.push(plan.message, 'error');
+    return;
+  }
+  if ((navigator.clipboard as Clipboard | undefined)?.write === undefined || typeof ClipboardItem === 'undefined') {
+    toasts.push('This browser cannot copy images. Save ▾ → PNG image saves it as a file.', 'error');
+    return;
+  }
+  let failure: string | null = null;
+  const blob = rasterizePng(svg, DEFAULT_PNG_SCALE).then((r) => {
+    if (r.ok) return r.blob;
+    failure = r.message;
+    throw new Error(r.message);
+  });
+  blob.catch(() => undefined); // reported below, once, whichever fails first.
+  navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(
+    () => toasts.push('PNG copied to the clipboard.'),
+    () => toasts.push(failure ?? 'Could not copy the PNG: the browser refused access to the clipboard. Save ▾ → PNG image saves it as a file.', 'error'),
+  );
+}
+
+export interface SaveExtrasProps {
+  readonly deps: FileDeps;
+  /** Closes Save ▾ (`returnFocus` false), as its other items do when used. */
+  readonly close: (returnFocus: boolean) => void;
+}
+
+// Inline, so the boot stylesheet (which counts toward the 180 kB core
+// budget) does not grow for a lazy part of the menu. The buttons take the
+// menu's own `.save-menu .menu button` rules.
+const FIELDSET = { border: 0, margin: 0, padding: '0 0.6rem 0.3rem', fontSize: '0.72rem', whiteSpace: 'nowrap' } as const;
+const LEGEND = { float: 'left', padding: 0, marginRight: '0.4rem', opacity: 0.75 } as const;
+const LABEL = { marginRight: '0.4rem' };
+const RADIO = { margin: '0 0.15rem 0 0', verticalAlign: '-0.1em' };
+
+/**
+ * Save ▾'s picture items past SVG (D6, D7): PNG image with its scale, Copy
+ * SVG and Copy PNG. Part of this lazy chunk, rendered into the disclosure once
+ * it has loaded (Save ▾ starts loading it when opened), so the boot bundle
+ * carries none of it. Still plain controls, no menu roles (DD-08 §7): the
+ * scale is a native radio group, a `<fieldset>` ("Scale" on screen, "PNG
+ * scale" to assistive technology, which hears it outside the visual row).
+ */
+export function SaveExtras({ deps, close }: SaveExtrasProps) {
+  const [scale, setScale] = useState<PngScale>(DEFAULT_PNG_SCALE);
+  return (
+    <>
+      <button
+        type="button"
+        class="save-png"
+        onClick={() => {
+          close(false);
+          void savePng(scale, deps);
+        }}
+      >
+        PNG image
+      </button>
+      <fieldset class="png-scale" style={FIELDSET} aria-label="PNG scale">
+        <legend style={LEGEND}>Scale</legend>
+        {PNG_SCALES.map((s) => (
+          <label key={s} style={LABEL}>
+            <input type="radio" name="png-scale" style={RADIO} value={s} checked={s === scale} onChange={() => setScale(s)} />
+            {s}×
+          </label>
+        ))}
+      </fieldset>
+      <button
+        type="button"
+        class="copy-svg"
+        onClick={() => {
+          close(false);
+          copySvg(deps);
+        }}
+      >
+        Copy SVG
+      </button>
+      <button
+        type="button"
+        class="copy-png"
+        onClick={() => {
+          close(false);
+          copyPng(deps);
+        }}
+      >
+        Copy PNG
+      </button>
+    </>
+  );
 }
 
 /** The share link for the document as it stands, or `null` (with a toast)
