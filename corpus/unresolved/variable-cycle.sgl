@@ -1,0 +1,6 @@
+// expects: SGL2014
+// A mutual reference. A @vars entry may use only the entries declared before
+// it, so `a` using `b` is the error; `b` then uses a failed `a` and is
+// dropped with it, silently. No stack overflow, however long the cycle.
+@vars: { a: $b, b: "${a}" }
+x: { @label: $a }

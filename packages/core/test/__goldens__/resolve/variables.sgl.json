@@ -1,0 +1,80 @@
+{
+  "@sgl": "1.0",
+  "@title": "Variables",
+  "@vars": {
+    "brand": "#4F46E5",
+    "hot": "#DC2626",
+    "tier": "production",
+    "width": 3,
+    "kind": "Service",
+    "thick": {
+      "stroke": "$brand",
+      "strokeWidth": "$width"
+    }
+  },
+  "@classes": {
+    "Service": {
+      "@shape": "round",
+      "@style": {
+        "stroke": "$brand"
+      }
+    }
+  },
+  "api": {
+    "@label": "API (${tier})",
+    "@type": [
+      "$kind"
+    ],
+    "@style": {
+      "strokeWidth": "$width"
+    }
+  },
+  "payments": {
+    "@vars": {
+      "hot": "#B91C1C",
+      "region": "eu",
+      "tag": "${tier}-${region}"
+    },
+    "@label": "Payments",
+    "ledger": {
+      "@label": "Ledger ${tag}",
+      "@style": {
+        "stroke": "$hot"
+      }
+    },
+    "outbox": {
+      "@label": "Outbox",
+      "@style": "$thick"
+    },
+    "@edges": [
+      {
+        "from": "ledger",
+        "to": "outbox",
+        "directed": "forward",
+        "ordinal": 0,
+        "@label": "${region} async"
+      }
+    ]
+  },
+  "alerts": {
+    "@label": "Alerts",
+    "@style": {
+      "stroke": "$hot"
+    }
+  },
+  "@edges": [
+    {
+      "from": "api",
+      "to": "payments.ledger",
+      "directed": "forward",
+      "ordinal": 0,
+      "@label": "POST /charge (${tier})"
+    },
+    {
+      "from": "payments.outbox",
+      "to": "alerts",
+      "directed": "forward",
+      "ordinal": 0
+    }
+  ]
+}

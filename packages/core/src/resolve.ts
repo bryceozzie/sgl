@@ -2,8 +2,9 @@
  * The resolver (DD-02): fold the AST into the canonical `DocumentModel` — merge
  * redeclarations, expand shorthands, normalise dotted `@`-keys, collect and
  * validate classes, split edge chains into `EdgeModel`s with unresolved
- * endpoints. `toJson`/`fromJson` are the lossless canonical-JSON round trip
- * (DD-02 §6).
+ * endpoints, substitute `@vars` (A8, DD-02 §3.5). `toJson`/`fromJson` are the
+ * lossless canonical-JSON round trip (DD-02 §6), which keeps variable
+ * references as written.
  *
  * Two deviations from the design documents, both because the strict-JSON corpus
  * fixture (`json-form.sgl.json`) and the worked example (02 §9) round-trip
@@ -48,7 +49,7 @@ import type {
   SpanTable,
 } from './model.js';
 import { parse } from './parse.js';
-import type { SourceSpan } from './span.js';
+import { NO_SPAN, type SourceSpan } from './span.js';
 
 export interface ResolveResult {
   readonly model: DocumentModel;
@@ -83,7 +84,10 @@ interface RawEdge {
   readonly toPort?: string;
   readonly directed: EdgeModel['directed'];
   readonly ordinal: number;
-  readonly config: ConfigBag;
+  /** Still as written (variable references unsubstituted): finalised with the
+   *  declaring container, once its `@vars` are known. Shared by every edge of
+   *  one chain, and finalised once for all of them. */
+  readonly bag: Bag;
   /** For the span table only; never serialised. */
   readonly stmtSpan: SourceSpan;
 }
@@ -94,11 +98,68 @@ interface NameRef {
 }
 
 // ---------------------------------------------------------------------------
+// Variable references (language spec §5, DD-02 §3.5)
+// ---------------------------------------------------------------------------
+
+/** The grammar's `Identifier` token (`sgl.grammar`): what may follow `$`. */
+const IDENT = '[A-Za-z_](?:[A-Za-z0-9_]|-[A-Za-z0-9_])*';
+const IDENTIFIER = new RegExp(`^${IDENT}$`);
+/** A string that is exactly `$name` — the canonical-JSON spelling of a
+ *  `Variable` (language spec §9: `"stroke": "$hot"`). */
+const WHOLE_REF = new RegExp(`^\\$(${IDENT})$`);
+const INTERPOLATION = new RegExp(`\\$\\{(${IDENT})\\}`, 'g');
+
+type RefPart = string | { readonly name: string };
+
+/**
+ * A value as written that refers to variables: `$name` (`whole`, one part) or
+ * a string holding `${name}` placeholders. Config bags carry these until the
+ * element they belong to is finalised, because only then is its scope known:
+ * a container's `@vars` may come after a use, or in a later redeclaration.
+ * Merging (redeclaration, dotted keys) therefore works on the written form.
+ * `toJSON` is the text as written — what `SGL2006` quotes and what the
+ * `authored` copy holds.
+ */
+class Ref {
+  readonly text: string;
+  readonly parts: readonly RefPart[];
+  readonly whole: boolean;
+  readonly span: SourceSpan;
+  constructor(text: string, parts: readonly RefPart[], whole: boolean, span: SourceSpan) {
+    this.text = text;
+    this.parts = parts;
+    this.whole = whole;
+    this.span = span;
+  }
+  toJSON(): string {
+    return this.text;
+  }
+}
+
+/** A string value: a `Ref` if it is exactly `$name` or holds a `${name}`,
+ *  otherwise itself. A `$` anywhere else is literal text. */
+function stringValue(text: string, span: SourceSpan): string | Ref {
+  const whole = WHOLE_REF.exec(text);
+  if (whole !== null) return new Ref(text, [{ name: whole[1] as string }], true, span);
+  if (!text.includes('${')) return text;
+  const parts: RefPart[] = [];
+  let last = 0;
+  for (const m of text.matchAll(INTERPOLATION)) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    parts.push({ name: m[1] as string });
+    last = m.index + m[0].length;
+  }
+  if (last === 0) return text;
+  if (last < text.length) parts.push(text.slice(last));
+  return new Ref(text, parts, false, span);
+}
+
+// ---------------------------------------------------------------------------
 // Dotted-key insertion (DD-02 §3.4)
 // ---------------------------------------------------------------------------
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
-  typeof v === 'object' && v !== null && !Array.isArray(v);
+  typeof v === 'object' && v !== null && !Array.isArray(v) && !(v instanceof Ref);
 
 /** Recurse only while both sides are plain objects; a scalar or array leaf on
  *  either side is "later wins" (DD-02 §3.2), not merged. The counterpart to
@@ -162,12 +223,12 @@ function insertConfigValue(
 // Value coercion (DD-02 §3.5)
 // ---------------------------------------------------------------------------
 
-/** `Word` becomes its string; `Variable` is not substituted in this version
- *  (Stage B task 5) — its literal `$name` text is kept and `SGL2009` notes why. */
+/** `Word` becomes its string. A `Variable`, or a string that refers to one,
+ *  becomes a `Ref`, substituted when its element is finalised. */
 function coerceValue(value: Value, diags: Diagnostic[]): unknown {
   switch (value.kind) {
     case 'String':
-      return value.value;
+      return stringValue(value.value, value.span);
     case 'Number':
       return value.value;
     case 'Bool':
@@ -177,8 +238,7 @@ function coerceValue(value: Value, diags: Diagnostic[]): unknown {
     case 'Word':
       return value.value;
     case 'Variable':
-      diags.push(diagnostic('SGL2009', value.span, { name: value.name }));
-      return `$${value.name}`;
+      return new Ref(`$${value.name}`, [{ name: value.name }], true, value.span);
     case 'Array':
       return value.items.map((item) => coerceValue(item, diags));
     case 'Object':
@@ -199,19 +259,27 @@ function coerceObject(obj: ObjectLit, diags: Diagnostic[]): Record<string, unkno
 }
 
 /** `@type` is always an array of class names in the model (DD-02 §6 rule 4),
- *  whether written as one bareword, one string, or a list of either. */
-function extractNameRefs(value: Value): NameRef[] {
-  if (value.kind === 'Word' || value.kind === 'String') return [{ name: value.value, span: value.span }];
+ *  whether written as one bareword, one string, or a list of either. A
+ *  variable reference stays a `Ref` until its element's scope is known
+ *  (`resolveClassRefs`). */
+function extractNameRefs(value: Value): (NameRef | Ref)[] {
+  if (value.kind === 'Word') return [{ name: value.value, span: value.span }];
+  if (value.kind === 'String') {
+    const v = stringValue(value.value, value.span);
+    return [typeof v === 'string' ? { name: v, span: value.span } : v];
+  }
+  if (value.kind === 'Variable') return [new Ref(`$${value.name}`, [{ name: value.name }], true, value.span)];
   if (value.kind === 'Array') return value.items.flatMap(extractNameRefs);
   return [];
 }
 
 /** Drop a name that names no declared class, emitting `SGL2002` — the
- *  reference is dropped, the node (or class) is kept (DD-02 §4). */
-function filterKnownRefs(refs: readonly NameRef[], known: ReadonlySet<string>, diags: Diagnostic[]): NameRef[] {
-  const out: NameRef[] = [];
+ *  reference is dropped, the node (or class) is kept (DD-02 §4). A `Ref` is
+ *  kept, and checked once it is substituted. */
+function filterKnownRefs<T extends NameRef | Ref>(refs: readonly T[], known: ReadonlySet<string>, diags: Diagnostic[]): T[] {
+  const out: T[] = [];
   for (const ref of refs) {
-    if (known.has(ref.name)) out.push(ref);
+    if (ref instanceof Ref || known.has(ref.name)) out.push(ref);
     else diags.push(diagnostic('SGL2002', ref.span, { name: ref.name }));
   }
   return out;
@@ -226,7 +294,7 @@ function filterKnownRefs(refs: readonly NameRef[], known: ReadonlySet<string>, d
 function applyConfigEntry(entry: ConfigEntry, bag: Bag, classNames: ReadonlySet<string>, diags: Diagnostic[]): void {
   if (entry.key.length === 1 && entry.key[0] === 'type') {
     const refs = filterKnownRefs(extractNameRefs(entry.value), classNames, diags);
-    insertConfigValue(bag, entry.key, refs.map((r) => r.name), entry.keySpan, diags);
+    insertConfigValue(bag, entry.key, refs.map((r) => (r instanceof Ref ? r : r.name)), entry.keySpan, diags);
     return;
   }
   insertConfigValue(bag, entry.key, coerceValue(entry.value, diags), entry.keySpan, diags);
@@ -238,7 +306,7 @@ function buildEdgeConfigBag(value: StringLit | Block | undefined, classNames: Re
   const bag: Bag = { config: {}, configSpans: new Map() };
   if (value === undefined) return bag;
   if (value.kind === 'String') {
-    insertConfigValue(bag, ['label'], value.value, value.span, diags);
+    insertConfigValue(bag, ['label'], stringValue(value.value, value.span), value.span, diags);
     return bag;
   }
   for (const entry of value.entries) {
@@ -337,7 +405,7 @@ function applyEdgesArray(entry: ConfigEntry, acc: Acc, classNames: ReadonlySet<s
       to,
       directed,
       ordinal,
-      config: finalizeConfig(bag, 'edge', diags),
+      bag,
       stmtSpan: entry.span,
       ...(fromPort !== undefined ? { fromPort } : {}),
       ...(toPort !== undefined ? { toPort } : {}),
@@ -361,7 +429,7 @@ function applyNodeDecl(decl: NodeDecl, acc: Acc, classNames: ReadonlySet<string>
   const value = decl.value;
   if (value === undefined) return;
   if (value.kind === 'String') {
-    insertConfigValue(child, ['label'], value.value, value.span, diags);
+    insertConfigValue(child, ['label'], stringValue(value.value, value.span), value.span, diags);
   } else if (value.kind === 'Word') {
     const refs = filterKnownRefs([{ name: value.value, span: value.span }], classNames, diags);
     insertConfigValue(child, ['type'], refs.map((r) => r.name), value.span, diags);
@@ -378,7 +446,7 @@ const OP_DIRECTED: Readonly<Record<string, EdgeModel['directed']>> = {
 };
 
 function applyEdgeStmt(stmt: EdgeStmt, acc: Acc, classNames: ReadonlySet<string>, diags: Diagnostic[]): void {
-  const config = finalizeConfig(buildEdgeConfigBag(stmt.value, classNames, diags), 'edge', diags);
+  const bag = buildEdgeConfigBag(stmt.value, classNames, diags);
   for (let i = 0; i < stmt.ops.length; i += 1) {
     const op = stmt.ops[i] as string;
     const a = stmt.endpoints[i] as EdgeStmt['endpoints'][number];
@@ -391,7 +459,7 @@ function applyEdgeStmt(stmt: EdgeStmt, acc: Acc, classNames: ReadonlySet<string>
       to: to.path,
       directed: OP_DIRECTED[op] ?? 'forward',
       ordinal: i,
-      config,
+      bag,
       stmtSpan: stmt.span,
       ...(from.port !== undefined ? { fromPort: from.port } : {}),
       ...(to.port !== undefined ? { toPort: to.port } : {}),
@@ -417,6 +485,120 @@ function buildEntries(entries: readonly Entry[], acc: Acc, classNames: ReadonlyS
 }
 
 // ---------------------------------------------------------------------------
+// Variables: scopes and substitution (language spec §5, DD-02 §3.5)
+// ---------------------------------------------------------------------------
+
+/** Every variable visible in a container, its enclosing containers' included,
+ *  mapped to its value. A variable whose own declaration failed maps to
+ *  `FAILED`: a use of it drops the value without a second diagnostic, since
+ *  the declaration already carries one. */
+type VarScope = ReadonlyMap<string, unknown>;
+
+const FAILED = Symbol('failed');
+/** A substitution that dropped its value: the key is treated as absent. */
+const DROP = Symbol('drop');
+
+type Lookup = (name: string, ref: Ref) => unknown;
+
+/** Plain JSON copied, so no two elements of the model share an object. It is
+ *  also how a bag as written is taken: `Ref.toJSON` is its text. */
+const copyJson = (value: unknown): unknown =>
+  typeof value === 'object' && value !== null ? JSON.parse(JSON.stringify(value)) : value;
+
+/** Replace every `Ref` in `raw`. `$name` takes the variable's value whatever
+ *  its type; `${name}` interpolates a string, number or bool by its canonical
+ *  text and leaves an object, array or null out with `SGL2015`. A dropped
+ *  reference (`lookup` returned `DROP`) drops the value that holds it: an array
+ *  item, an object property, or at the top the key itself. */
+function substitute(raw: unknown, lookup: Lookup, diags: Diagnostic[]): unknown {
+  if (raw instanceof Ref) {
+    if (raw.whole) return lookup((raw.parts[0] as { name: string }).name, raw);
+    let out = '';
+    for (const part of raw.parts) {
+      if (typeof part === 'string') {
+        out += part;
+        continue;
+      }
+      const v = lookup(part.name, raw);
+      if (v === DROP) return DROP;
+      if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') out += String(v);
+      else diags.push(diagnostic('SGL2015', raw.span, { name: part.name, kind: Array.isArray(v) ? 'an array' : v === null ? 'null' : 'an object' }));
+    }
+    return out;
+  }
+  if (Array.isArray(raw)) return raw.map((item) => substitute(item, lookup, diags)).filter((v) => v !== DROP);
+  if (isPlainObject(raw)) {
+    const out: Record<string, unknown> = {};
+    for (const [k, item] of Object.entries(raw)) {
+      const v = substitute(item, lookup, diags);
+      if (v !== DROP) out[k] = v;
+    }
+    return out;
+  }
+  return raw;
+}
+
+/** Look a name up in `scope`: its value (a copy), `DROP` silently for a
+ *  variable that itself failed, or `SGL2013` and `DROP` for a name no
+ *  enclosing `@vars` declares. */
+const scopeLookup =
+  (scope: VarScope, diags: Diagnostic[]): Lookup =>
+  (name, ref) => {
+    if (!scope.has(name)) {
+      diags.push(diagnostic('SGL2013', ref.span, { name }));
+      return DROP;
+    }
+    const v = scope.get(name);
+    return v === FAILED ? DROP : copyJson(v);
+  };
+
+/**
+ * Resolve one `@vars` block on top of its enclosing scope: a single pass in
+ * declaration order, so nothing here recurses on the number of variables and a
+ * block of any length, or any cycle, is safe. An entry sees the enclosing
+ * scopes and the entries declared before it. A reference to an entry of the
+ * same block declared at or after it (itself, a later one, and so every cycle)
+ * is `SGL2014`, even when an enclosing scope has the name: the block's own
+ * declaration shadows it for the whole block.
+ *
+ * Names must be identifiers: only an identifier can be referenced (`$name` is
+ * `"$" Identifier`), so any other name is `SGL2011`. That rule is also what
+ * keeps declaration order intact through canonical JSON: an object moves
+ * integer-like keys first (execution plan §1), which would change the order
+ * this pass depends on after a round trip.
+ *
+ * Returns `undefined` when `raw` is not an object (`SGL2011`, block ignored).
+ */
+function declareVars(raw: unknown, span: SourceSpan, parent: VarScope, diags: Diagnostic[]): VarScope | undefined {
+  if (!isPlainObject(raw)) {
+    diags.push(diagnostic('SGL2011', span, { key: 'vars', type: 'object' }));
+    return undefined;
+  }
+  const position = new Map<string, number>();
+  for (const name of Object.keys(raw)) {
+    if (IDENTIFIER.test(name)) position.set(name, position.size);
+    else diags.push(diagnostic('SGL2011', span, { key: `vars.${name}`, type: 'an identifier as its name' }));
+  }
+  const scope = new Map(parent);
+  const outer = scopeLookup(parent, diags);
+  for (const [name, i] of position) {
+    const v = substitute(
+      raw[name],
+      (ref, at) => {
+        const j = position.get(ref);
+        if (j === undefined) return outer(ref, at);
+        if (j < i) return scopeLookup(scope, diags)(ref, at);
+        diags.push(diagnostic('SGL2014', at.span, { name: ref, user: name }));
+        return DROP;
+      },
+      diags,
+    );
+    scope.set(name, v === DROP ? FAILED : v);
+  }
+  return scope;
+}
+
+// ---------------------------------------------------------------------------
 // Classes (DD-02 §4)
 // ---------------------------------------------------------------------------
 
@@ -424,9 +606,9 @@ function buildEntries(entries: readonly Entry[], acc: Acc, classNames: ReadonlyS
  *  dropped (DD-02 §4) — unlike a generic object value, where unprefixed keys
  *  are ordinary data (see `coerceObject`). `@extends` is pulled out rather
  *  than folded into `config`, matching `ClassModel`'s separate field. */
-function buildClassBody(props: readonly Property[], diags: Diagnostic[]): { bag: Bag; extendRefs: NameRef[] } {
+function buildClassBody(props: readonly Property[], diags: Diagnostic[]): { bag: Bag; extendRefs: (NameRef | Ref)[] } {
   const bag: Bag = { config: {}, configSpans: new Map() };
-  const extendRefs: NameRef[] = [];
+  const extendRefs: (NameRef | Ref)[] = [];
   for (const prop of props) {
     if (!prop.isConfig) {
       diags.push(diagnostic('SGL2007', prop.span, { key: prop.key }));
@@ -442,10 +624,40 @@ function buildClassBody(props: readonly Property[], diags: Diagnostic[]): { bag:
   return { bag, extendRefs };
 }
 
-function buildClasses(
+/** A class-name list (`@type`, `@extends`) with its variable references
+ *  substituted: a reference may give one name or a list of them, each checked
+ *  against `@classes` (`SGL2002`); anything but a name is `SGL2011`. Literal
+ *  names were checked when inserted and pass through as they are. */
+function resolveClassRefs(
+  items: readonly (NameRef | Ref)[],
+  key: string,
+  lookup: Lookup,
+  classNames: ReadonlySet<string>,
+  diags: Diagnostic[],
+): NameRef[] {
+  const out: NameRef[] = [];
+  for (const item of items) {
+    if (!(item instanceof Ref)) {
+      out.push(item);
+      continue;
+    }
+    const v = substitute(item, lookup, diags);
+    for (const name of v === DROP ? [] : [v].flat()) {
+      if (typeof name !== 'string') diags.push(diagnostic('SGL2011', item.span, { key, type: 'a class name' }));
+      else if (!classNames.has(name)) diags.push(diagnostic('SGL2002', item.span, { name }));
+      else out.push({ name, span: item.span });
+    }
+  }
+  return out;
+}
+
+/** Pass 1: class names and raw bodies. Names must be known before the tree is
+ *  built (`@type` is checked as it is inserted); bodies are finalised in
+ *  `buildClasses`, once the root's `@vars` are resolved. */
+function collectClasses(
   classesEntries: readonly ConfigEntry[],
   diags: Diagnostic[],
-): { classes: Record<string, ClassModel>; classNames: ReadonlySet<string>; classSpans: readonly (readonly [string, SourceSpan])[] } {
+): { raw: Map<string, { props: Property[]; span: SourceSpan }>; classNames: ReadonlySet<string> } {
   const raw = new Map<string, { props: Property[]; span: SourceSpan }>();
   for (const entry of classesEntries) {
     if (entry.value.kind !== 'Object') {
@@ -459,17 +671,28 @@ function buildClasses(
       else raw.set(prop.key, { props: [...bodyProps], span: prop.span });
     }
   }
+  return { raw, classNames: new Set(raw.keys()) };
+}
 
-  const classNames: ReadonlySet<string> = new Set(raw.keys());
-  const configs = new Map<string, ConfigBag>();
+function buildClasses(
+  raw: ReadonlyMap<string, { props: Property[]; span: SourceSpan }>,
+  classNames: ReadonlySet<string>,
+  rootVars: VarScope,
+  diags: Diagnostic[],
+): { classes: Record<string, ClassModel>; classSpans: readonly (readonly [string, SourceSpan])[] } {
+  const configs = new Map<string, { config: ConfigBag; authored?: ConfigBag }>();
   const rawExtends = new Map<string, NameRef[]>();
+  const writtenExtends = new Map<string, (NameRef | Ref)[]>();
   const classSpans: (readonly [string, SourceSpan])[] = [];
+  const lookup = scopeLookup(rootVars, diags);
 
   for (const [name, { props, span }] of raw) {
     classSpans.push([`c:${name}`, span] as const);
     const { bag, extendRefs } = buildClassBody(props, diags);
-    configs.set(name, finalizeConfig(bag, 'class', diags));
-    rawExtends.set(name, filterKnownRefs(extendRefs, classNames, diags));
+    configs.set(name, finalizeConfig(bag, 'class', rootVars, classNames, diags));
+    const known = filterKnownRefs(extendRefs, classNames, diags);
+    writtenExtends.set(name, known);
+    rawExtends.set(name, resolveClassRefs(known, 'extends', lookup, classNames, diags));
   }
 
   // Cycle detection over `@extends`, breaking each cycle at its back-edge
@@ -499,13 +722,17 @@ function buildClasses(
 
   const classes: Record<string, ClassModel> = {};
   for (const name of classNames) {
-    classes[name] = {
-      name,
-      extends: (rawExtends.get(name) as NameRef[]).map((r) => r.name),
-      config: configs.get(name) as ConfigBag,
-    };
+    const list = rawExtends.get(name) as NameRef[];
+    const { config, authored } = configs.get(name) as { config: ConfigBag; authored?: ConfigBag };
+    const written = writtenExtends.get(name) as (NameRef | Ref)[];
+    classes[name] = { name, extends: list.map((r) => r.name), config };
+    if (authored === undefined && !written.some((r) => r instanceof Ref)) continue;
+    // `@extends` as written: every reference as its text, and each literal
+    // name that survived the unknown-class and cycle checks.
+    const ext = written.filter((r) => r instanceof Ref || list.includes(r)).map((r) => (r instanceof Ref ? r.text : r.name));
+    classes[name] = { name, extends: list.map((r) => r.name), config, authored: { ...(ext.length > 0 ? { extends: ext } : {}), ...(authored ?? config) } };
   }
-  return { classes, classNames, classSpans };
+  return { classes, classSpans };
 }
 
 // ---------------------------------------------------------------------------
@@ -524,30 +751,84 @@ function foldDirectionSugar(bag: Record<string, unknown>): void {
   bag.layout = layout;
 }
 
-/** Unknown key → `SGL2010`, kept. Wrong scope → `SGL2012`, dropped. Wrong
- *  type → `SGL2011`, dropped (DD-02 §7). */
-function finalizeConfig(bag: Bag, scope: Scope, diags: Diagnostic[]): ConfigBag {
-  if (scope === 'root' || scope === 'node') foldDirectionSugar(bag.config);
-  for (const key of Object.keys(bag.config)) {
+/**
+ * Substitute variables, then validate against the registry: unknown key →
+ * `SGL2010`, kept; wrong scope → `SGL2012`, dropped; wrong type → `SGL2011`,
+ * dropped (DD-02 §7). Validation sees the substituted value, so `@order: $n`
+ * is checked as the number it is.
+ *
+ * `authored` is the same bag as written, for `toJson` (DD-02 §6): references kept,
+ * a container's `@vars` included, and the same keys dropped by validation. It
+ * is returned only when it differs from `config`.
+ */
+function finalizeConfig(
+  bag: Bag,
+  scope: Scope,
+  vars: VarScope,
+  classNames: ReadonlySet<string>,
+  diags: Diagnostic[],
+  declaredVars?: unknown,
+): { config: ConfigBag; authored?: ConfigBag } {
+  const raw = bag.config;
+  // `@vars` on a class or an edge: rejected before its contents are
+  // substituted, so a bad block reports once, not once per reference in it.
+  if ('vars' in raw) {
+    diags.push(diagnostic('SGL2012', bag.configSpans.get('vars') as SourceSpan, { key: 'vars', scope }));
+    delete raw.vars;
+  }
+  // `used` records whether any value referred to a variable: only then (or
+  // when the container declares `@vars`) does the bag as written differ.
+  let used = declaredVars !== undefined;
+  const inScope = scopeLookup(vars, diags);
+  const lookup: Lookup = (name, ref) => {
+    used = true;
+    return inScope(name, ref);
+  };
+  const config: Record<string, unknown> = {};
+  for (const key of Object.keys(raw)) {
+    const value = raw[key];
+    if (key === 'type' && Array.isArray(value) && value.some((v) => v instanceof Ref)) {
+      const items = value.map((v) => (v instanceof Ref ? v : { name: v as string, span: NO_SPAN }));
+      config[key] = resolveClassRefs(items, 'type', lookup, classNames, diags).map((r) => r.name);
+      used = true;
+      continue;
+    }
+    const v = substitute(value, lookup, diags);
+    if (v !== DROP) config[key] = v;
+  }
+  const authored = used ? (copyJson(raw) as Record<string, unknown>) : undefined;
+  if (authored !== undefined && declaredVars !== undefined) authored.vars = copyJson(declaredVars);
+
+  if (scope === 'root' || scope === 'node') {
+    foldDirectionSugar(config);
+    if (authored !== undefined) foldDirectionSugar(authored);
+  }
+  const drop = (key: string): void => {
+    delete config[key];
+    if (authored !== undefined) delete authored[key];
+  };
+  for (const key of Object.keys(config)) {
     const span = bag.configSpans.get(key) as SourceSpan;
-    const result = validateConfigKey(key, bag.config[key], scope);
+    const result = validateConfigKey(key, config[key], scope);
     if (result.outcome === 'bad-scope') {
       diags.push(diagnostic('SGL2012', span, { key, scope }));
-      delete bag.config[key];
+      drop(key);
     } else if (result.outcome === 'bad-type') {
       diags.push(diagnostic('SGL2011', span, { key, type: result.expected }));
-      delete bag.config[key];
+      drop(key);
     } else if (result.outcome === 'unknown') {
       diags.push(diagnostic('SGL2010', span, { key }));
-    } else if (key === 'size' && isPlainObject(bag.config[key])) {
+    } else if (key === 'size' && isPlainObject(config[key])) {
       // Spec §4: an unknown key within a known namespace is a warning. Kept,
       // like any unknown key; DD-04 §4 step 6 ignores it.
-      for (const sub of Object.keys(bag.config[key] as Record<string, unknown>).sort()) {
+      for (const sub of Object.keys(config[key] as Record<string, unknown>).sort()) {
         if (!SIZE_KEYS.has(sub)) diags.push(diagnostic('SGL2010', span, { key: `size.${sub}` }));
       }
     }
   }
-  return bag.config as ConfigBag;
+  return authored === undefined
+    ? { config: config as ConfigBag }
+    : { config: config as ConfigBag, authored: authored as ConfigBag };
 }
 
 // ---------------------------------------------------------------------------
@@ -561,35 +842,64 @@ function finalizeContainer(
   scope: 'root' | 'node',
   declSpan: SourceSpan,
   spans: Map<string, SourceSpan>,
+  classNames: ReadonlySet<string>,
   diags: Diagnostic[],
+  vars: VarScope,
+  declared?: unknown,
 ): ContainerModel {
   spans.set(`n:${nodeIdFromPath(path)}`, declSpan);
-  const config = finalizeConfig(acc, scope, diags);
+
+  // A container's own `@vars` scope everything in it: its own config, its
+  // edges and its children (language spec §5). Root's arrive resolved
+  // (`vars`, with the block as written in `declared`), because the class
+  // bodies needed them first.
+  if ('vars' in acc.config) {
+    const scoped = declareVars(acc.config.vars, acc.configSpans.get('vars') as SourceSpan, vars, diags);
+    if (scoped !== undefined) {
+      vars = scoped;
+      declared = acc.config.vars;
+    }
+    delete acc.config.vars;
+  }
+  const { config, authored } = finalizeConfig(acc, scope, vars, classNames, diags, declared);
 
   const children: ContainerModel[] = [];
   for (const [childKey, childAcc] of acc.children) {
-    children.push(finalizeContainer(childKey, [...path, childKey], childAcc, 'node', childAcc.declSpan, spans, diags));
+    children.push(
+      finalizeContainer(childKey, [...path, childKey], childAcc, 'node', childAcc.declSpan, spans, classNames, diags, vars),
+    );
   }
 
+  // One chain shares one bag, finalised once for all of its edges.
+  const finalized = new Map<Bag, { config: ConfigBag; authored?: ConfigBag }>();
   const edges: EdgeModel[] = acc.edges.map((raw, i) => {
     spans.set(`e:${nodeIdFromPath(path)}#${i}`, raw.stmtSpan);
+    let done = finalized.get(raw.bag);
+    if (done === undefined) {
+      done = finalizeConfig(raw.bag, 'edge', vars, classNames, diags);
+      finalized.set(raw.bag, done);
+    }
     return {
       from: raw.from,
       to: raw.to,
       directed: raw.directed,
-      config: raw.config,
+      config: done.config,
       ordinal: raw.ordinal,
       ...(raw.fromPort !== undefined ? { fromPort: raw.fromPort } : {}),
       ...(raw.toPort !== undefined ? { toPort: raw.toPort } : {}),
+      ...(done.authored !== undefined ? { authored: done.authored } : {}),
     };
   });
 
-  return { key, path, config, children, edges };
+  return { key, path, config, children, edges, ...(authored !== undefined ? { authored } : {}) };
 }
+
+const isKey = (entry: Entry, key: string): entry is ConfigEntry =>
+  entry.kind === 'ConfigEntry' && entry.key[0] === key;
 
 /**
  * Fold the AST into the canonical document model: merge redeclarations, expand
- * shorthands, normalise dotted `@`-keys, linearise classes.
+ * shorthands, normalise dotted `@`-keys, substitute variables, collect classes.
  *
  * Design: DD-02.
  */
@@ -599,24 +909,37 @@ export function resolve(ast: Document): ResolveResult {
   // `@sgl` is discarded — `DocumentModel.sgl` is the fixed literal `'1.0'`,
   // never round-tripped through generic config folding. `@classes` is routed
   // to class construction and never appears in `root.config` (DD-02 §4).
+  // Root's `@vars` are resolved first: class bodies are declared at the root
+  // and substitute from its scope.
   const classesEntries: ConfigEntry[] = [];
   const rootEntries: Entry[] = [];
+  const rootVarsBag: Bag = { config: {}, configSpans: new Map() };
   for (const entry of ast.entries) {
     if (entry.kind === 'ConfigEntry' && entry.key.length === 1 && entry.key[0] === 'sgl') continue;
     if (entry.kind === 'ConfigEntry' && entry.key.length === 1 && entry.key[0] === 'classes') {
       classesEntries.push(entry);
       continue;
     }
+    if (isKey(entry, 'vars')) {
+      insertConfigValue(rootVarsBag, entry.key, coerceValue(entry.value, diags), entry.keySpan, diags);
+      continue;
+    }
     rootEntries.push(entry);
   }
 
-  const { classes, classNames, classSpans } = buildClasses(classesEntries, diags);
+  const declared = rootVarsBag.config.vars;
+  const scoped =
+    declared === undefined ? undefined : declareVars(declared, rootVarsBag.configSpans.get('vars') as SourceSpan, new Map(), diags);
+  const rootVars: VarScope = scoped ?? new Map();
+
+  const { raw: rawClasses, classNames } = collectClasses(classesEntries, diags);
+  const { classes, classSpans } = buildClasses(rawClasses, classNames, rootVars, diags);
 
   const rootAcc: Acc = { config: {}, configSpans: new Map(), children: new Map(), edges: [] };
   buildEntries(rootEntries, rootAcc, classNames, diags);
 
   const spans = new Map<string, SourceSpan>(classSpans);
-  const root = finalizeContainer('', [], rootAcc, 'root', ast.span, spans, diags);
+  const root = finalizeContainer('', [], rootAcc, 'root', ast.span, spans, classNames, diags, rootVars, scoped === undefined ? undefined : declared);
 
   return { model: { sgl: '1.0', root, classes, spans: spans as SpanTable }, diagnostics: diags };
 }
@@ -663,8 +986,14 @@ function writeClasses(classes: Readonly<Record<string, ClassModel>>): Record<str
   const out: Record<string, unknown> = {};
   for (const [name, cls] of Object.entries(classes)) {
     const body: Record<string, unknown> = {};
-    if (cls.extends.length > 0) body['@extends'] = [...cls.extends];
-    writeConfig(body, cls.config);
+    if (cls.authored !== undefined) {
+      const { extends: written, ...rest } = cls.authored;
+      if (written !== undefined) body['@extends'] = written;
+      writeConfig(body, rest);
+    } else {
+      if (cls.extends.length > 0) body['@extends'] = [...cls.extends];
+      writeConfig(body, cls.config);
+    }
     out[name] = body;
   }
   return out;
@@ -684,13 +1013,13 @@ function writeEdge(edge: EdgeModel): Record<string, unknown> {
   if (edge.toPort !== undefined) out.toPort = edge.toPort;
   out.directed = edge.directed;
   out.ordinal = edge.ordinal;
-  writeConfig(out, edge.config);
+  writeConfig(out, edge.authored ?? edge.config);
   return out;
 }
 
 function writeContainer(container: ContainerModel): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  writeConfig(out, container.config);
+  writeConfig(out, container.authored ?? container.config);
   for (const child of container.children) out[child.key] = writeContainer(child);
   if (container.edges.length > 0) out['@edges'] = container.edges.map(writeEdge);
   return out;
@@ -699,7 +1028,7 @@ function writeContainer(container: ContainerModel): Record<string, unknown> {
 /** Serialise the canonical `.sgl.json` form. Lossless but for comments and formatting. */
 export function toJson(model: DocumentModel): string {
   const out: Record<string, unknown> = { '@sgl': model.sgl };
-  writeConfig(out, model.root.config);
+  writeConfig(out, model.root.authored ?? model.root.config);
   if (Object.keys(model.classes).length > 0) out['@classes'] = writeClasses(model.classes);
   for (const child of model.root.children) out[child.key] = writeContainer(child);
   if (model.root.edges.length > 0) out['@edges'] = model.root.edges.map(writeEdge);

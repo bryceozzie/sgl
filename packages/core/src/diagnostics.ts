@@ -50,10 +50,14 @@ export const CATALOGUE = {
   SGL2006: { severity: 'warning', template: '`@{key}` was `{scalar}` and has been replaced by an object to hold `@{key}.{sub}`.' },
   SGL2007: { severity: 'warning', template: 'Class bodies hold configuration only; `{key}` ignored.' },
   SGL2008: { severity: 'warning', template: 'Edge blocks hold configuration only; `{thing}` ignored.' },
-  SGL2009: { severity: 'warning', template: 'Variable `${name}` is not substituted in this version; kept as literal text.' },
+  // SGL2009 ("not substituted in this version") was retired by A8, which
+  // substitutes variables. Its number is never reused (DD-00 §3).
   SGL2010: { severity: 'warning', template: 'Unknown configuration key `@{key}`; kept but has no effect in this version.' },
   SGL2011: { severity: 'warning', template: '`@{key}` expects {type}; ignored.' },
   SGL2012: { severity: 'warning', template: '`@{key}` is not valid on {scope}; ignored.' },
+  SGL2013: { severity: 'error', template: 'Unknown variable `${name}`; the value was dropped.' },
+  SGL2014: { severity: 'error', template: 'Variable `${name}` is not declared before `{user}` in its `@vars` block; the value was dropped.' },
+  SGL2015: { severity: 'error', template: 'Variable `${name}` holds {kind}, which cannot be interpolated; it was left out.' },
 
   // ---- 3xxx semantic (DD-03) ---------------------------------------------
   SGL3001: { severity: 'warning', template: 'Unknown shape `{name}`; using `rect`.' },

@@ -26,6 +26,7 @@ const CLEAN_DOCS = [
   'shapes.sgl',
   'unicode.sgl',
   'hidden.sgl',
+  'variables.sgl',
 ];
 
 describe('parse() over the corpus', () => {

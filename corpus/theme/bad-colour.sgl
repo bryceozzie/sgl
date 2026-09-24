@@ -1,0 +1,4 @@
+// expects: SGL5004
+// A paint property whose value is not a colour: the theme cascade ignores it.
+// (Until variables were substituted, `checkout.sgl`'s `$hot` covered this.)
+a: { @style.stroke: "not-a-colour" }

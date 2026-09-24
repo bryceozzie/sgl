@@ -260,6 +260,17 @@ api: {
 
 `$name` for a whole-value substitution (preserves type), `${name}` for interpolation inside a string. Variables are lexically scoped — a container may declare its own `@vars` that shadow the parent's. No expressions, no conditionals, no loops: SGL is a data language, not a template engine. Generate complexity upstream and emit `.sgl.json`.
 
+The rules in full (settled with A8):
+
+- **Where a variable may appear.** Anywhere a *value* can: configuration values at any depth (`@style.stroke: $brand`, `@meta: { tags: $tags }`), class bodies, `@type` and `@extends` (checked against `@classes` after substitution), and labels, including the `a: "…"` and `a -> b: "…"` shorthands. **Never in a key, a path or a node name**: identity is keys (§2), so a variable cannot change what a node *is*. `$a: {}` and `a -> $b` are syntax errors; a quoted key or path segment such as `"$a"` is the literal name `$a`.
+- **Whole value.** `$name` takes the variable's value with its type: a string, number, bool, null, object or array. A string whose entire text is `$name` is the same reference: that is how canonical JSON (§9) and any `.sgl.json` write one.
+- **Interpolation.** `${name}` inside a string is replaced by the value's text: a string as itself, a number as its canonical decimal text (`2.5`), a bool as `true`/`false`. An object, array or null has no text: that is an error (`SGL2015`), and the placeholder is left out of the string. A `$` that does not start `$name` (as the whole string) or `${name}` is literal text: `"costs $5"`.
+- **No escape.** There is no way to write a literal `${name}`, or a string that is exactly `$name`, as text. The grammar has no escape for `$` (`\$` is an unknown escape, `SGL1004`, kept as written), and adding one is a grammar decision still open.
+- **Scope.** A container's `@vars` apply to everything inside it — its own configuration, its edges and its children — wherever in the container they are written, and across a container's redeclarations (§2). A child's `@vars` shadow its parent's. Class bodies are declared at the root and see the root's `@vars`. `@vars` is not valid on a class or an edge (`SGL2012`).
+- **Order within a block.** A `@vars` entry may use the enclosing containers' variables and the entries declared *before* it in the same block, resolved in one pass in declaration order. Using an entry declared at or after it in the same block — itself, a later entry, and so any self or mutual reference — is an error (`SGL2014`) even if an enclosing container has the name: the block's own declaration shadows it for the whole block. In `a: $b, b: $a` the error is at `a`; `b` then uses the failed `a` and is dropped with it. A variable name must be an identifier, since only an identifier can follow `$` (`SGL2011` otherwise).
+- **Unknown names.** A reference to a name no enclosing `@vars` declares is an error (`SGL2013`), and the value that holds it is dropped: the key, array item or object property is treated as absent. The same happens, silently, to a use of a variable whose own declaration failed (it already carries the error). A string with an unknown `${name}` is dropped whole.
+- **Canonical form.** `.sgl.json` keeps `@vars` and every reference as written (`"$brand"`, `"API (${tier})"`), so a round trip preserves the authoring. Merging a redeclaration or a dotted key works on that written form, before substitution: `@style: $s` followed by `@style.fill: red` replaces `$s` (`SGL2006`), exactly as it would replace a string.
+
 ---
 
 ## 6. Classes
@@ -427,7 +438,7 @@ payments.api -> psp: "authorise"
 }
 ```
 
-Note what canonicalisation does: infix edges become `@edges` arrays on their declaring container, shorthands expand, `@type` normalises to an array. Everything else is untouched.
+Note what canonicalisation does: infix edges become `@edges` arrays on their declaring container, shorthands expand, `@type` normalises to an array. Everything else is untouched, variable references included (§5): `"stroke": "$hot"` is what the author wrote.
 
 ---
 

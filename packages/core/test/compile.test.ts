@@ -43,10 +43,12 @@ const RESOLVER_OWNED_CODES: ReadonlySet<DiagnosticCode> = new Set([
   'SGL2006',
   'SGL2007',
   'SGL2008',
-  'SGL2009',
   'SGL2010',
   'SGL2011',
   'SGL2012',
+  'SGL2013',
+  'SGL2014',
+  'SGL2015',
 ]);
 
 describe('compile() over the corpus', () => {

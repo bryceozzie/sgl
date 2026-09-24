@@ -210,6 +210,35 @@ checked by hand before a release, together with opening a `.sgl` from the OS and
 for this gate, so Firefox/WebKit and the Node 20 path have not been verified on GitHub.
 **Stage L is next.**
 
+**A8 variables, on `feat/variables`** (branched from `main` at `73fdd69`; not merged). **Blocked on
+the core-bundle budget:** `pnpm size` reads 181.27 kB gzipped, over the 180 kB
+limit (`main`: 179.76 kB, so 0.24 kB of headroom), and the limit is a human decision
+(`.size-limit.js`). Everything else in the gate is green. `resolve()` now substitutes `@vars`:
+`$name` as a whole value with its type, `${name}` inside a string, lexically scoped per container (a
+container's `@vars` cover its config, edges and children, wherever written and across
+redeclarations; class bodies use the root's). Settled and now language spec §5: a reference to an
+undeclared name is `SGL2013` (error) and the value is dropped; interpolating an object, array or
+null is `SGL2015` (error) and the placeholder is left out, numbers and bools by their canonical text;
+variables may appear anywhere a value can (`@type` and `@extends` included, checked against
+`@classes` after substitution) but never in a key, path or node name (the grammar already made `$`
+there a syntax error); a `@vars` entry sees enclosing scopes and earlier entries of its own block,
+in one non-recursive pass in declaration order, and a reference to itself or a later entry, so every
+cycle, is `SGL2014`; variable names must be identifiers (`SGL2011`), which also keeps declaration
+order intact through canonical JSON's integer-like-keys reordering. **No `$` escape exists in the
+grammar**, so none was invented: a literal `${name}` cannot be written, and adding `$$` or `\$` is a
+language-spec decision left open. Canonical JSON keeps the source form (`"$hot"`,
+`"API (${tier})"`, `"@vars"`) through a new optional `authored` bag on
+`ContainerModel`/`EdgeModel`/`ClassModel`, present only when an element uses a variable, so a
+document without variables serialises exactly as before; a string that is exactly `$name` reads
+back as a reference, which is how the spec's §9 canonical form already wrote it. `SGL2009` is
+retired (row and fixture removed; the number is not reused), three codes and four `unresolved/`
+fixtures are added, and `theme/bad-colour.sgl` takes over `SGL5004`, which only `checkout.sgl`'s
+literal `$hot` reached before. Goldens: only `checkout.sgl`'s changed, the one corpus document
+using `$` (compile golden and both render goldens: the stroke is now `#DC2626`; its resolver golden
+is unchanged); `variables.sgl` is a new clean corpus document with new goldens. Tests:
+`packages/core/test/variables.test.ts`, `apps/web/e2e/variables.spec.ts`. Docs: language spec §5, DD-01 §2 notes, DD-02
+§1/§2/§3.5/§6/§7/§8/§9, corpus README.
+
 **Wildcards in parent path segments, merged to `main` at `2cb614b`** (one review with mutation testing, one fix round; 2279 Vitest + 56/56 e2e from clean) (language change, **human
 decision 2026-09-24**; branched from `main` at `1afd586`, not merged). Any segment of an edge
 endpoint may now be a `*` or one-star glob (`store*.api* -> payments.api`, `/platform.*.handler`);

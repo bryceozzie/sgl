@@ -329,15 +329,6 @@ describe('config-key registry (DD-02 §7)', () => {
   });
 });
 
-describe('variables are not substituted yet (Stage B task 5)', () => {
-  it('keeps the literal `$name` text and emits SGL2009', () => {
-    const { model, diagnostics } = resolve(parse('a: { @label: $hot }\n').ast);
-    const a = model.root.children[0] as ContainerModel;
-    expect(a.config.label).toBe('$hot');
-    expect(diagnostics.map((d) => d.code)).toEqual(['SGL2009']);
-  });
-});
-
 describe('"@edges" arrays — the canonical-JSON form of an edge (DD-02 §6)', () => {
   it('round-trips a wildcard endpoint as itself', () => {
     const { model } = resolve(parse('lane1: { a\n b }\nswitch\nlane1.* -> switch\n').ast);
