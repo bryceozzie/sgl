@@ -373,8 +373,7 @@ async function mountApp(source: string): Promise<Harness> {
 
 /** The Theme ▾ picker's `select(id)`, verbatim (`src/toolbar/ThemePicker.tsx`). */
 function pick(app: Harness, id: string): void {
-  const change = selectTheme(app.pipeline, id);
-  dispatchTextChange(app.view, change);
+  selectTheme(app.pipeline, id, (change) => dispatchTextChange(app.view, change));
 }
 
 /**
@@ -459,7 +458,9 @@ async function switchOnce(app: Harness, scenario: Scenario, original: string, no
   const table = app.pipeline.table.peek();
 
   const t0 = performance.now();
-  const change = selectTheme(app.pipeline, DARK); // pass 1: the `themeId` write
+  // Interim (P1/P2 checkpoint): the two halves of the pick, unbatched, until
+  // the bench is rebuilt around the picker's single batched action.
+  const change = selectTheme(app.pipeline, DARK, null) ?? { from: 0, to: 0, insert: '' }; // pass 1: the `themeId` write
   const tMid = performance.now();
   const n1 = { resolveTheme: calls.resolveTheme.length, styleGraph: calls.styleGraph.length, render: calls.render.length, swaps: app.swaps.length };
   dispatchTextChange(app.view, change); // pass 2: the `@theme` edit

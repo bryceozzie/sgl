@@ -16,11 +16,10 @@ export function ThemePicker({ pipeline, view }: ThemePickerProps) {
   const overridden = pipeline.documentThemeId.value !== undefined;
   const selected = options.find((o) => o.selected);
 
-  // DD-08 §10; the logic (signal writes, the root-config edit built from the
-  // pipeline's own parsed AST) lives in `state/picker-actions.ts`, Node-tested.
+  // DD-08 §10; the logic (a view preference unless the document sets its own
+  // `@theme`, P1) lives in `state/picker-actions.ts`, Node-tested.
   function select(id: string): void {
-    const change = selectTheme(pipeline, id);
-    if (view !== null) dispatchTextChange(view, change);
+    selectTheme(pipeline, id, view === null ? null : (change) => dispatchTextChange(view, change));
   }
 
   return (
