@@ -1,31 +1,14 @@
-import type { DocumentModel } from '@sgl/core';
+import { FALLBACK_TITLE, OPENABLE_EXTENSIONS, type OpenableExtension } from './title.js';
 
-/** DD-08 §7's file names, DOM-free. */
+/** DD-08 §7's file names, DOM-free. Loaded with the rest of Open/Save (the
+ *  lazy `files` chunk); what the boot path needs lives in `title.ts`. */
 
-/** What Open accepts (`<input accept>` and the check behind it). Longest
- *  first, so `.sgl.json` wins over `.json`. */
-export const OPENABLE_EXTENSIONS = ['.sgl.json', '.sgl', '.json', '.txt'] as const;
-export type OpenableExtension = (typeof OPENABLE_EXTENSIONS)[number];
-
-export const OPEN_ACCEPT = '.sgl,.sgl.json,.json,.txt';
+export { documentTitle, FALLBACK_TITLE, OPEN_ACCEPT, OPENABLE_EXTENSIONS, type OpenableExtension } from './title.js';
 
 /** The recognised extension of `fileName`, case-insensitively, or `null`. */
 export function openableExtension(fileName: string): OpenableExtension | null {
   const lower = fileName.toLowerCase();
   return OPENABLE_EXTENSIONS.find((ext) => lower.endsWith(ext) && lower.length > ext.length) ?? null;
-}
-
-export const FALLBACK_TITLE = 'diagram';
-
-/** DD-08 §7: "`@title` or the first node key or 'diagram'" — unsanitised; the
- *  document record keeps this as its `title`. A blank `@title` falls through,
- *  as if absent. */
-export function documentTitle(model: DocumentModel): string {
-  const title = model.root.config.title;
-  if (typeof title === 'string' && title.trim() !== '') return title.trim();
-  const first = model.root.children[0]?.key;
-  if (first !== undefined && first.trim() !== '') return first;
-  return FALLBACK_TITLE;
 }
 
 /** Characters no mainstream file system accepts in a name (Windows' set is the

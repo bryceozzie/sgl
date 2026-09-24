@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { downloadFile } from '../io/download.js';
 import type { DocumentSession } from '../state/document-session.js';
-import { OPEN_ACCEPT, type SaveKind } from '../state/filename.js';
-import { saveContent } from '../state/files.js';
 import type { Pipeline } from '../state/pipeline.js';
+import { OPEN_ACCEPT } from '../state/title.js';
 import type { Toasts } from '../state/toasts.js';
 import { useDisclosure } from './disclosure.js';
+import type { ShareDialog, ShareState } from './file-actions.js';
 
 export interface FileMenuProps {
   readonly pipeline: Pipeline;
@@ -15,28 +14,42 @@ export interface FileMenuProps {
   readonly onOpen: (file: File) => void;
 }
 
+type SaveKind = 'sgl' | 'json' | 'svg';
+
 const SAVE_ITEMS: readonly { readonly kind: SaveKind; readonly label: string }[] = [
   { kind: 'sgl', label: 'SGL source' },
   { kind: 'json', label: 'Canonical JSON' },
   { kind: 'svg', label: 'SVG image' },
 ];
 
-interface ShareState {
-  readonly link: string;
-  readonly long: boolean;
+type FileActions = typeof import('./file-actions.js');
+let actions: Promise<FileActions> | undefined;
+
+/** The lazy `files` chunk (`file-actions.tsx` with `state/files.ts` and
+ *  `state/filename.ts`), imported once, on first use of Open, Save ▾, Share
+ *  or the launch queue. Off the first paint; precached like every chunk, so it
+ *  works offline (`e2e/offline.spec.ts`). */
+export function loadFileActions(): Promise<FileActions> {
+  actions ??= import('./file-actions.js');
+  return actions;
 }
 
 /** DD-08 §2's `Open · Save ▾ · Share`, with §7's file handling and §8's
- *  share dialog. The decisions live in `state/files.ts` and `state/share.ts`;
- *  this is the DOM around them. */
+ *  share dialog. This is the part the first paint needs: the buttons, the
+ *  hidden file input and the `Ctrl/⌘+O` binding, so the picker opens on the
+ *  first press, inside the user's gesture, with nothing to load first. What
+ *  each control does lives in `file-actions.tsx`, a lazy chunk: Open and
+ *  `Ctrl/⌘+O` start loading it as the picker opens (the picked file is read
+ *  with it), Save ▾ and Share load it when used. */
 export function FileMenu({ pipeline, session, toasts, onOpen }: FileMenuProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const saveMenuRef = useRef<HTMLDetailsElement | null>(null);
   const shareButtonRef = useRef<HTMLButtonElement | null>(null);
   const shareLinkRef = useRef<HTMLInputElement | null>(null);
-  const [share, setShare] = useState<ShareState | null>(null);
+  const [share, setShare] = useState<{ readonly state: ShareState; readonly Dialog: typeof ShareDialog } | null>(null);
   const saveMenu = useDisclosure(saveMenuRef, () => closeShare(false));
   const closeSaveMenu = saveMenu.close;
+  const deps = { pipeline, session, toasts };
 
   // The Share dialog takes focus when it opens (the link, selected, ready to
   // copy), so Escape closes it without tabbing in first.
@@ -52,13 +65,20 @@ export function FileMenu({ pipeline, session, toasts, onOpen }: FileMenuProps) {
     if (returnFocus) shareButtonRef.current?.focus();
   }
 
+  /** Opens the picker synchronously, while the gesture is still live, and
+   *  starts loading what will read the picked file. */
+  function pick(): void {
+    void loadFileActions();
+    inputRef.current?.click();
+  }
+
   // DD-08 §7: Ctrl/⌘+O opens, from anywhere — capture phase, so CodeMirror
   // (which does not bind it) and the browser's own "open file" both lose.
   useEffect(() => {
     const onKey = (ev: KeyboardEvent): void => {
       if (!(ev.ctrlKey || ev.metaKey) || ev.altKey || ev.shiftKey || ev.key.toLowerCase() !== 'o') return;
       ev.preventDefault();
-      inputRef.current?.click();
+      pick();
     };
     window.addEventListener('keydown', onKey, { capture: true });
     return () => window.removeEventListener('keydown', onKey, { capture: true });
@@ -73,56 +93,19 @@ export function FileMenu({ pipeline, session, toasts, onOpen }: FileMenuProps) {
 
   function save(kind: SaveKind): void {
     closeSaveMenu(false);
-    const record = session.record.peek();
-    const result = saveContent(kind, {
-      title: record.title,
-      ...(record.fileExtension !== undefined ? { rememberedExtension: record.fileExtension } : {}),
-      source: pipeline.source.peek(),
-      model: pipeline.model.peek().model,
-      modelDiagnostics: [...pipeline.parsed.peek().diagnostics, ...pipeline.model.peek().diagnostics],
-      // `lastGood.svg`; before the first live render, the stored one it will
-      // replace (the same document's last good picture).
-      lastGoodSvg: pipeline.lastGood.peek()?.svg ?? record.lastGoodSvg ?? null,
-    });
-    if (result.ok) downloadFile(result.file);
-    else toasts.push(result.message, 'error');
+    void loadFileActions().then((m) => m.save(kind, deps));
   }
 
   async function openShare(): Promise<void> {
-    // A lazy chunk (F9 fix round 1): off the first paint, precached for offline.
-    const { encodeShareFragment, isLongShareLink, shareLink } = await import('../state/share.js');
-    const encoded = await encodeShareFragment({
-      source: pipeline.source.peek(),
-      engineId: pipeline.effectiveEngineId.peek(),
-      themeId: pipeline.effectiveThemeId.peek(),
-    });
+    const m = await loadFileActions();
+    const state = await m.makeShare(deps);
     closeSaveMenu(false);
-    if (!encoded.ok) {
-      // No `CompressionStream` here (an older or locked-down browser): the
-      // file is the other way to share (fix round 1, item 11).
-      toasts.push("This browser can't make share links. Use Save ▾ → SGL source and share the file instead.", 'error');
-      return;
-    }
-    const link = shareLink(`${window.location.origin}${window.location.pathname}`, encoded.fragment);
-    setShare({ link, long: isLongShareLink(link) });
-  }
-
-  function copy(link: string): void {
-    const fallback = (): void => {
-      const input = document.querySelector<HTMLInputElement>('.share-link');
-      input?.select();
-      toasts.push('Could not copy automatically: the link is selected, press Ctrl+C (⌘C) to copy it.', 'error');
-    };
-    if (navigator.clipboard === undefined) {
-      fallback();
-      return;
-    }
-    navigator.clipboard.writeText(link).then(() => toasts.push('Link copied.'), fallback);
+    if (state !== null) setShare({ state, Dialog: m.ShareDialog });
   }
 
   return (
     <div class="file-menu">
-      <button type="button" class="toolbar-button file-open" onClick={() => inputRef.current?.click()} title="Open a file (Ctrl/⌘+O)">
+      <button type="button" class="toolbar-button file-open" onClick={pick} title="Open a file (Ctrl/⌘+O)">
         Open
       </button>
       <input ref={inputRef} class="file-input" type="file" accept={OPEN_ACCEPT} hidden onChange={onPicked} />
@@ -149,46 +132,7 @@ export function FileMenu({ pipeline, session, toasts, onOpen }: FileMenuProps) {
       </button>
 
       {share !== null ? (
-        <div
-          class="share-dialog"
-          role="dialog"
-          aria-label="Share by link"
-          onKeyDown={(e) => {
-            if (e.key !== 'Escape') return;
-            e.preventDefault();
-            closeShare(true);
-          }}
-        >
-          <p class="share-note">The whole diagram is inside this link. Nothing is uploaded anywhere.</p>
-          <input
-            ref={shareLinkRef}
-            class="share-link"
-            type="text"
-            readOnly
-            aria-label="Share link"
-            value={share.link}
-            onFocus={(e) => (e.currentTarget as HTMLInputElement).select()}
-          />
-          {share.long ? (
-            <p class="share-warning" role="alert">
-              This link is {share.link.length.toLocaleString('en')} characters long. Some chats and browsers cut long links short, so it may not
-              open. Saving the file is safer.
-            </p>
-          ) : null}
-          <div class="share-actions">
-            <button type="button" class="share-copy" onClick={() => copy(share.link)}>
-              Copy link
-            </button>
-            {share.long ? (
-              <button type="button" class="share-save" onClick={() => save('sgl')}>
-                Save as a file instead
-              </button>
-            ) : null}
-            <button type="button" class="share-close" onClick={() => closeShare(true)}>
-              Close
-            </button>
-          </div>
-        </div>
+        <share.Dialog share={share.state} deps={deps} linkRef={shareLinkRef} onClose={() => closeShare(true)} onSave={() => save('sgl')} />
       ) : null}
     </div>
   );

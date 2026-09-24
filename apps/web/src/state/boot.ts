@@ -1,4 +1,4 @@
-import { FALLBACK_TITLE } from './filename.js';
+import { FALLBACK_TITLE } from './title.js';
 import type { ShareCodec } from './share.js';
 import type { DocumentRecord, DocumentStore } from './storage.js';
 

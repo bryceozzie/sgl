@@ -55,7 +55,7 @@ Budgets from [Requirements §4.1](../01-requirements.md#41-performance-budgets),
 | Budget | Target | Mechanism |
 |---|---|---|
 | First contentful paint | < 1.0 s | Precached shell (PWA); `lastGoodSvg` from IndexedDB painted before fonts or the worker are ready (DD-08 §9); `elk` chunk lazy — not on the critical path |
-| Core bundle, gzipped | < 180 kB | Preact (~4 kB) not React; CodeMirror ~120 kB is the bulk; Lezer runtime ~10 kB; `@sgl/*` core packages ~25 kB; **engines and `elk` excluded by definition** (ADR-0005) — tracked by `size-limit` in CI |
+| Core bundle, gzipped | < 180 kB | Preact (~4 kB) not React; CodeMirror ~120 kB is the bulk; Lezer runtime ~10 kB; `@sgl/*` core packages ~25 kB; **engines and `elk` excluded by definition** (ADR-0005); the other lazy chunks, `share` and `file-actions` (Open/Save ▾/Share's work, DD-10 §2), are excluded by name — tracked by `size-limit` in CI |
 | Keystroke → SVG, 50 nodes | < 60 ms | Sync stages only on the keystroke path (DD-08 §3); layout debounced and off-thread; incremental reparse via the editor's tree |
 | Full pipeline, 500 nodes | < 400 ms | `elk` on a 500-node compound graph is typically 100–250 ms; pre-measure delta; string renderer |
 | Full pipeline, 2 000 nodes | < 3 s | Same path; chip after 300 ms; `grid` suggested above 2 000 |

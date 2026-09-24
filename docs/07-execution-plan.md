@@ -66,7 +66,9 @@ result it can build. Throwing is reserved for a violated invariant — a program
 application treats as a crash to report rather than a document problem.
 
 Build every diagnostic with the `diagnostic()` helper and a code from the catalogue in
-`packages/core/src/diagnostics.ts`. Never hand-roll a message string. Adding a code means adding a
+`packages/core/src/diagnostics.ts` (`@sgl/layout-api` uses `layoutDiagnostic()`, the same builder over
+the catalogue's `SGL4xxx` rows alone, so the layout worker does not bundle every message). Never
+hand-roll a message string. Adding a code means adding a
 row to the catalogue **and** a corpus fixture that emits it (see Gate 1).
 
 ### Branches and commits
@@ -210,10 +212,13 @@ checked by hand before a release, together with opening a `.sgl` from the OS and
 for this gate, so Firefox/WebKit and the Node 20 path have not been verified on GitHub.
 **Stage L is next.**
 
-**A8 variables, on `feat/variables`** (branched from `main` at `73fdd69`; not merged). **Blocked on
-the core-bundle budget:** `pnpm size` reads 181.27 kB gzipped with A8 alone, 181.40 kB with F3, over
-the 180 kB limit (`main`: 179.76 kB, so 0.24 kB of headroom), and the limit is a human decision
-(`.size-limit.js`). Everything else in the gate is green. `resolve()` now substitutes `@vars`:
+**A8 variables, on `feat/variables`** (branched from `main` at `73fdd69`; not merged). **Core bundle:**
+`main` 179.76 kB gzipped → 181.40 kB with A8 and F3 (over the 180 kB limit, which stays) → **179.22
+kB** after two size changes on the same branch (orchestrator's choice): the layout worker bundles only
+the `SGL4xxx` catalogue rows (`layoutDiagnostic()` over `LAYOUT_CATALOGUE`, −0.86 kB; enforced by
+`check-core-chunks.mjs`), and Open/Save ▾/Share's work is the lazy `file-actions` chunk (−1.32 kB;
+the buttons, file input and `Ctrl/⌘+O` stay at boot, DD-10 §2). That is 0.78 kB under the limit,
+short of the 1.5 kB aimed for. `resolve()` now substitutes `@vars`:
 `$name` as a whole value with its type, `${name}` inside a string, lexically scoped per container (a
 container's `@vars` cover its config, edges and children, wherever written and across
 redeclarations; class bodies use the root's). Settled and now language spec §5: a reference to an
