@@ -1300,8 +1300,8 @@ and a marker's colour is a `<style>` rule on its own shape (`mf-`/`ms-`), checke
 Inkscape 1.2.2 and resvg in both themes. Structure no longer depends on paint: an empty paint
 class stays on the element, a `labelPlate: none` plate stays as `fill:none`, and the arrowhead
 kind (which names the marker; `none` drops the attribute) is the one exception, covered by the new
-`RenderResult.structureHash` (`fnv1a64(geometryHash | arrowhead kinds)`; also `structureHash(styled)`,
-no render needed). The goldens' paint is byte-for-byte unchanged: only class names, marker ids and
+`RenderResult.structureHash` (also `structureHash(styled)`, no render needed; widened by fix
+round 1, below). The goldens' paint is byte-for-byte unchanged: only class names, marker ids and
 the `<style>`/`<defs>` text moved. New tests: `render-svg/test/paint-only.test.ts` (light ↔ dark
 changes only `<style>`/`<defs>` text, whole corpus), `bounds.test.ts` (both engines, sampled curves,
 the self-loop case), `browser/markers.browser.test.ts`, and the marker cross product carried to the
@@ -1309,6 +1309,32 @@ new key in `naming-memo.test.ts`. `pnpm bench:theme`, `main` / this branch, same
 `work`, ms, first / repeat pick): n50 23.9 / 22.8, 12.7 / 13.0; n500 146.5 / 145.4, 85.1 / 85.9;
 n2000 601.7 / 601.9, 322.9 / 326.4 — noise, as expected until the canvas swaps only the `<style>`
 text (F9 C). F7 and F14 are cleared from §2.1.
+
+**Re-baseline fix round 1** (`feat/rebaseline`, two reviews; no golden changed). **Item 1:**
+`@size` painted — DD-04 §4 step 6 applied any key, so `@size.fill` coloured an element whose paint
+class, named after a signature that rightly omits `@size`, it shared with an unstyled sibling, which
+turned red too. Step 6 now applies only `SIZE_KEYS` (`@sgl/core`: width, height, minWidth,
+minHeight, maxWidth, aspectRatio — the spec row gained `minHeight`, which the registry, DD-04 and
+`buildLayoutInput` already treated as a size key), and the resolver warns `SGL2010` for any other
+`@size` key; no corpus document uses `@size`. **Items 2–3:** `render-svg/test/oracle.test.ts`
+checks every rendered element's own paint rule against its own `ComputedStyle` (and every marker
+colour against its edge), over the corpus under both themes and a synthetic document under a
+synthetic role-, shape- and class-specific theme pair (`test/fixtures/synthetic.ts`); it kills a
+dropped shape, dropped classes (edge, title, plate) and a dropped inline style at the signature call
+sites. **Item 4:** `structureHash` now also covers each element's id, signature, label text,
+rendered config and edge endpoints, so an inline `@style` edit (same `geometryHash`, new class
+names) changes it and it can guard a swap on its own for the same layout; a two-lane 32-bit hash
+keeps it at ~2.2 ms at n2000 in Node (fnv1a64 over the same fields: 7.6 ms). **Item 5:**
+`layout-elk`/`layout-std` `bounds.test.ts` run `runHostSequence` over the corpus: bounds at the
+origin, 16 px of margin on every side. **Items 6–7, 9:** literal margins in tests; `Q`, port and
+`contentFrame` extents tested; K5 compares the real host result too, translation undone.
+**Item 8:** `canonicalise` sorts nested keys (flat bags unchanged), with a fast-check property test
+of the signature. **Item 10:** documented in DD-06 §5 rather than measured — ink (strokes,
+arrowheads) relies on the margin, which holds for `strokeWidth ≤ 32`, `arrowSize ≤ 42` (`≤ 34` for
+`open`); measuring it would move every golden, and the theme warning needs a new diagnostic code,
+left for a catalogue decision. `pnpm bench:theme` (median `work`, ms, first / repeat): n50 21.5 /
+14.0, n500 145.8 / 82.1, n2000 614.6 / 336.6 — within this machine's noise of the re-baseline's
+numbers above.
 
 ### 2.1 Open findings
 
