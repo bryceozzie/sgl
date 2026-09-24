@@ -135,6 +135,7 @@ lane1.* -> switch        // every direct child of lane1, one edge each
 switch -> lane1.*        // ...and the same in reverse
 lane1.** -> switch       // every descendant of lane1, at any depth
 lane1.cam* -> switch     // every child of lane1 whose key starts with "cam"
+store*.api* -> payments.api   // every api* child of every store* container
 ```
 
 | Form | Matches |
@@ -145,23 +146,37 @@ lane1.cam* -> switch     // every child of lane1 whose key starts with "cam"
 | `path.*-db` | every direct child whose key **ends with** `-db` |
 | `path.cam*hd` | every direct child whose key starts with `cam` **and** ends with `hd` |
 
-A wildcard is **only valid in an edge endpoint**, and **only as the last part of a path**. `lane1.*.handler` is an error (`SGL3004`), not a search — matching "the handler of every lane" is a selector, and selectors are §7.
+A wildcard is **only valid in an edge endpoint**. A `*` or a name glob may be **any part of the path**, not only the last (human decision 2026-09-24); `**` may only be the last:
 
-The scoping rules above apply unchanged: the part of the path before the wildcard resolves relative to the enclosing container, so `../lane1.*` and `/platform.cam*` mean what they look like.
+```sgl
+store*.api* -> payments.api      // the api* children of every store* container
+*.api -> db                      // the api child of every child of the enclosing container
+lane*.cam* -> switch             // every cam* child of every lane* container
+/platform.*.handler -> bus       // the handler of every child of platform
+platform.**.api -> db            // error (SGL3004): ** only as the last part
+```
+
+**Parent segments.** Each wildcard segment matches the **direct children**, by key, of every node the path has reached so far — exactly as a final glob does — and a literal segment after it names that child of each of them. So `lane1.*.handler` is "the `handler` of every child of `lane1`", and `store*.api*` is "every `api*` child of every `store*` child of the enclosing container".
+
+- **`**` stays last.** `platform.**.api` is an error (`SGL3004`), not a search: "every `api` at any depth" is a selector, and selectors are §7. `platform.*.**` is valid — every descendant of every child of `platform`.
+- **Partial matches are skipped silently.** A node matched by a parent segment that has no child matching the next segment, or has no children at all, contributes nothing and gets no diagnostic: `store*.api` over a `store3` without an `api` simply leaves `store3` out. `SGL3003` is only for an endpoint whose **whole** expansion is empty (below).
+- **Expansion order** is depth-first, in child declaration order at each level: every match under the first matched parent, in order, before any under the second. `store*.api*` over `store1 { api, apiV2 }` and `store2 { api-edge }` gives `store1.api`, `store1.apiV2`, `store2.api-edge`.
+
+The scoping rules above apply unchanged: the literal part of the path before the first wildcard resolves relative to the enclosing container, so `../lane1.*`, `/platform.cam*` and `../*.handler` mean what they look like, and a prefix that does not resolve is the ordinary `SGL2001`.
 
 **Name globs.** A segment may carry **one** star, anywhere in it. `cam*` is prefix matching, `*-db` is suffix matching, `cam*hd` is both ends at once; a bare `*` is the degenerate case where both ends are empty, which is why "all children" and "children starting with `cam`" are the same feature and not two.
 
-Three limits, each of them the thing that keeps this a shorthand rather than a query language:
+Three limits, each of them the thing that keeps this a shorthand rather than a query language. They apply to every segment, not only the last:
 
 - **One star per segment.** `a*b*c` is a syntax error. Two stars is a pattern language; one is a naming convention.
-- **A glob never crosses a level.** `cam**` is a syntax error — `**` means descendants and takes no glob. A glob matches direct children only.
+- **A glob never crosses a level.** `cam**` is a syntax error — `**` means descendants and takes no glob. A glob matches direct children only, in whichever segment it sits.
 - **Matching is on the key, not the label.** `lane1.cam*` matches the child written `cam3: { @label: "Front door" }`; it does not match `door1: { @label: "Camera" }`. Keys are identity (§2); labels are presentation, and are free to change without silently rewiring the diagram.
 
-Matching is case-sensitive, like every other path reference. A quoted key is matched on its decoded text, so `lane1.order*` matches `"order service"`.
+Matching is case-sensitive, like every other path reference, at every level. A quoted key is matched on its decoded text, so `lane1.order*` matches `"order service"`.
 
 **Not supported, deliberately:** `?` single-character matching, character classes, and alternation. Each of them is a step toward §7 with none of §7's scoping. Ask for a selector if you need one.
 
-**Expansion.** The wildcard is expanded into ordinary edges before anything else happens to them, in child declaration order. Each expanded edge is a normal edge in every respect — it gets the same identity, the same label, and the same `@`-configuration it would have had if written out by hand:
+**Expansion.** The wildcard is expanded into ordinary edges before anything else happens to them, in the expansion order above (depth-first, child declaration order at each level). Each expanded edge is a normal edge in every respect — it gets the same identity, the same label, and the same `@`-configuration it would have had if written out by hand:
 
 ```sgl
 lane1.* -> switch: { @label: "joins", @style: dashed }
@@ -169,13 +184,13 @@ lane1.* -> switch: { @label: "joins", @style: dashed }
 
 gives every expanded edge that label and that style. There is no way to tell, downstream of compilation, that an edge came from a wildcard — which is the point. Adding a child to `lane1` adds one edge and leaves the identity of the others untouched, so diffs and version history stay meaningful.
 
-**Both sides.** `lane1.* -> lane2.*` is a **cross product**, not a pairwise zip: every child of `lane1` to every child of `lane2`. A zip would depend on declaration order and would silently drop the tail of the longer side. Pairs where both sides resolve to the same node are omitted, so `lane1.* -> lane1.*` does not produce a self-loop on every child.
+**Both sides.** `lane1.* -> lane2.*` is a **cross product**, not a pairwise zip: every child of `lane1` to every child of `lane2`. A zip would depend on declaration order and would silently drop the tail of the longer side. Pairs where both sides resolve to the same node are omitted, so `lane1.* -> lane1.*` does not produce a self-loop on every child. The same holds with wildcards in parent segments: `g*.* -> g*.*` is every child of every `g*` to every other one.
 
 **Ports** attach to the expansion, not to the wildcard: `lane1.*[out] -> switch` uses each matched node's `out` port, and any matched node without one gets the usual `SGL2003` and attaches to its boundary.
 
-**Empty matches are a warning, not an error.** A wildcard matching nothing — an empty container, a leaf node, or a glob no key satisfies — emits `SGL3003` and skips that edge; the rest of the document is unaffected. A wildcard whose *path prefix* does not resolve is the ordinary `SGL2001`. A glob that matches nothing is the case worth having a warning for at all: it is what a typo looks like.
+**Empty matches are a warning, not an error.** An endpoint whose whole expansion is empty — a wildcard over an empty container or a leaf node, a glob no key satisfies, or parent segments none of whose matches has a matching child — emits `SGL3003` and skips that edge; the rest of the document is unaffected. A wildcard whose literal *path prefix* (everything before its first wildcard) does not resolve is the ordinary `SGL2001`. A glob that matches nothing is the case worth having a warning for at all: it is what a typo looks like.
 
-**Hidden nodes** (`@hidden`) are not matched.
+**Hidden nodes** (`@hidden`) are not matched, at any level, so a hidden parent's children are not reached either.
 
 **There is a ceiling.** One statement may expand to at most 1 000 edges; over that it is skipped with `SGL3005`. A cross product is quadratic, and a document may legitimately hold 2 000 nodes.
 
@@ -298,12 +313,12 @@ Glob over paths plus a small predicate set. Deliberately last on the list: power
 
 | | Wildcard endpoint (§3) | Selector rule (§7) |
 |---|---|---|
-| Where it may appear | an edge endpoint, final path part only | anywhere, any depth |
-| Pattern vocabulary | one `*` in the final segment | globs, `**`, predicates |
-| What it produces | a fixed set of ordinary edges, decided once at compile | a cascade layer, consulted per element |
+| Where it may appear | an edge endpoint only | anywhere, any depth |
+| Pattern vocabulary | a one-star glob in any segment, direct children per segment; `**` final only | globs, `**` anywhere, predicates |
+| What it produces | a fixed set of ordinary edges, expanded once at compile | a cascade layer, consulted per element |
 | Failure mode | a warning on an empty match | a rule that quietly stops matching after an unrelated edit |
 
-The first is a shorthand for typing out edges you could have written by hand. The second is a query over the document. Keeping them apart is why §3 forbids a wildcard in a non-final position: the moment `lane1.*.handler` works, `@rules` has arrived in the edge syntax through the back door.
+The first is a shorthand for typing out edges you could have written by hand. The second is a query over the document. Since the human decision of 2026-09-24, `lane1.*.handler` and `store*.api*` are shorthand too: each segment still walks exactly one level, so the expansion is a set you could enumerate by reading the tree one level at a time, and it expands once to ordinary edges. The line between the two features now lies at three things §3 still refuses: `**` anywhere but last (`platform.**.api` is a search at unbounded depth), predicates (`@type(...)` and anything else that reads more than a key), and any position other than an edge endpoint. The moment one of those works, `@rules` has arrived in the edge syntax through the back door.
 
 ---
 

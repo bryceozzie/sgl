@@ -188,6 +188,21 @@ checked by hand before a release, together with opening a `.sgl` from the OS and
 for this gate, so Firefox/WebKit and the Node 20 path have not been verified on GitHub.
 **Stage L is next.**
 
+**Wildcards in parent path segments, on `feat/wildcard-paths`** (language change, **human
+decision 2026-09-24**; branched from `main` at `1afd586`, not merged). Any segment of an edge
+endpoint may now be a `*` or one-star glob (`store*.api* -> payments.api`, `/platform.*.handler`);
+`**` stays final-only, and `SGL3004` (same number, new template) now means only "`**` in a
+non-final position". The change is `expandEndpoint` in `packages/core/src/compile.ts`: the literal
+prefix before the first wildcard resolves as before (`../`, `/`, `SGL2001`), then each remaining
+step walks a frontier one level down, giving depth-first declaration order; a matched parent
+with no matching child, or a matched leaf, drops out silently, and `SGL3003` fires only for a
+wholly empty endpoint. No grammar change. Tests: 17 compile unit tests, a render-svg pipeline
+test, `apps/web/e2e/wildcard-paths.spec.ts`, and a new clean corpus document
+`wildcard-paths.sgl` (new goldens only; no existing golden changed). `unresolved/wildcard-midpath.sgl`
+now uses `lane1.**.handler`. Docs: language spec §3/§7, FR-L15, A21, DD-01/02/03 §3.1; F16 gains
+the new document's 4 elk title crossings. Stage C's checklist in §5 below is left as the record of
+what that stage built.
+
 **Stage K merged to `main` at `0e9ecfc`** (`--no-ff`, 2026-09-23) after a three-lens review and
 one fix round (23 items). `pnpm check`'s steps from clean are green on `main`, run by the
 orchestrator: 2139 Vitest passed (unit + browser project, Chromium only), e2e 55/55 in Chromium,

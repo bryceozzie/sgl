@@ -107,20 +107,28 @@ An endpoint may name a container. The edge attaches to the container's boundary;
 
 ### 3.1 Wildcard expansion
 
-An endpoint whose `PathExpr` ends in a `WildcardStep` stands for a set of nodes. Expansion runs **before** endpoint resolution proper and before any ID is allocated, so that every edge it produces is indistinguishable from one written out by hand.
+An endpoint whose `PathExpr` contains a `WildcardStep` stands for a set of nodes. Expansion runs **before** endpoint resolution proper and before any ID is allocated, so that every edge it produces is indistinguishable from one written out by hand.
+
+A wildcard may be any step, not only the last (**human decision 2026-09-24**, language spec §3): `store*.api* -> payments.api`, `*.api -> db`, `/platform.*.handler -> bus`. Only `**` is confined to the last step.
 
 ```
 expand(endpoint, C):
   if no WildcardStep in segments        -> [endpoint]
-  if WildcardStep is not the last step  -> SGL3004, []          // lane1.*.handler
-  prefix = resolve(segments[0 .. -1], C)                        // ordinary resolution
+  if a '**' step is not the last step   -> SGL3004, []          // platform.**.api
+  w = index of the first WildcardStep
+  prefix = resolve(segments[0 .. w], C)                         // ordinary resolution, ../ and / included
   if prefix is unresolved               -> SGL2001, []          // the existing rule
-  candidates = depth == 'children'    ? prefix.children
-             : depth == 'descendants' ? preorder(prefix) minus prefix
-  matches = candidates filter (not hidden) filter (matchesGlob step)
-  if matches is empty                   -> SGL3003, []
-  return matches                                                 // in declaration order
+  frontier = [prefix]
+  for step in segments[w ..]:                                   // one level per step
+    frontier = [ c for p in frontier                            // frontier order, then
+                   for c in (step is '**' ? preorder(p) minus p  //   declaration order
+                                          : p.children)
+                   if not c.hidden and matches(step, c.key) ]   // Name: key == value; glob: matchesGlob
+  if frontier is empty                  -> SGL3003, []          // only the WHOLE endpoint empty warns
+  return frontier                                                // depth-first, declaration order
 ```
+
+**Parent segments.** Each step after the first wildcard is applied to every node the previous step reached, and matches that node's **direct children** by key: a literal step by equality, a `*` or glob by `matchesWildcard`. Because the frontier keeps its order and each parent contributes its children in declaration order, the result is **depth-first in child declaration order at each level** — every match under the first matched parent before any under the second. A node reached by a parent step that has no child matching the next step — including a leaf, which has no children — simply drops out: **a partial match is silent**. `SGL3003` fires only when the whole endpoint expands to nothing, exactly as it did for a final-only wildcard. **Hidden** nodes never enter the frontier, at any level, so a hidden parent's children are not reached (they are effectively hidden anyway, §6). The walk visits each tree node at most once per step and the tree has no sharing, so no node can appear twice in one expansion.
 
 `preorder` is the same walk as §7, so `**` yields descendants in document order, containers included. A container matched by `**` is an ordinary endpoint: the edge attaches to its boundary, and its children are *also* matched. That is the literal reading of "every descendant", and the alternative — leaves only — would make `lane1.**` mean something different depending on whether a lane happened to have been subdivided.
 
@@ -140,7 +148,7 @@ There is no regex and no compiled pattern, because the token shape (DD-01 §2) a
 
 **`depth` is always `'children'` when a glob is present.** The grammar cannot produce `cam**`, so this is a guaranteed invariant rather than a check: a glob never crosses a level.
 
-**Both endpoints wildcarded** is a cross product, taken in `(from, to)` order:
+**Both endpoints wildcarded** — a wildcard in any step of each — is a cross product, taken in `(from, to)` order:
 
 ```
 for f in expand(from, C):
@@ -237,7 +245,7 @@ compile(model: DocumentModel, view?: ViewSelector): CompileResult
 | `SGL3001` | warning | Unknown shape `{name}`; using `rect`. |
 | `SGL3002` | warning | `{node}` is hidden; {n} edges to it are not drawn. |
 | `SGL3003` | warning | `{path}` matched no nodes; the edge was skipped. |
-| `SGL3004` | error | A wildcard may only be the last part of a path; `{path}` was skipped. |
+| `SGL3004` | error | `**` may only be the last part of a path; `{path}` was skipped. |
 | `SGL3005` | error | `{from} {op} {to}` expands to {n} edges, over the limit of {max}; it was skipped. |
 | `SGL3006` | info | Shape `{name}` is not drawn in this version; using `rect`. |
 | `SGL3007` | warning | `{node}` port `{port}` has side `{side}`; expected north, south, east or west. Using `east`. |
@@ -248,7 +256,7 @@ compile(model: DocumentModel, view?: ViewSelector): CompileResult
 
 - Goldens: corpus → IR JSON, byte-exact.
 - Endpoint resolution table: every combination of `root`, `parents`, quoted segments, container targets, ports; each unresolvable form emits exactly one `SGL2001` and drops exactly one edge.
-- Wildcard expansion: `*` against a container, a leaf, an empty container and a hidden child; `**` across three levels; both-sided cross product including the self-pair exclusion; a mid-path wildcard emitting exactly one `SGL3004`; the expansion ceiling emitting exactly one `SGL3005` and leaving every other edge intact.
+- Wildcard expansion: `*` against a container, a leaf, an empty container and a hidden child; `**` across three levels; both-sided cross product including the self-pair exclusion; a mid-path `**` emitting exactly one `SGL3004`; wildcards in parent steps (`store*.api*`, a middle `*` after `/` and `../`, depth-first order, silent partial matches and a matched leaf, hidden parents, both-sided cross product, ports, the ceiling, and ids equal to the hand-written edges); the expansion ceiling emitting exactly one `SGL3005` and leaving every other edge intact.
 - Glob matching: prefix (`cam*`), suffix (`*-db`), both ends (`cam*hd`); a pattern longer than the key (`ca*am` must not match `cam`); case sensitivity; a quoted key with a space; a glob matching nothing emitting exactly one `SGL3003`; a glob combined with `**` and a two-star segment failing to lex as `SGL1002`.
 - Wildcard ID stability: expand a wildcard, record the edge IDs, insert a child at the *front* of the matched container, assert every original ID is still present.
 - ID stability: reorder a corpus document's declarations randomly, assert node and edge ID sets are identical.

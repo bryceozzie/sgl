@@ -59,7 +59,7 @@ Status: draft for review. Nothing here is locked.
 | FR-L12 | Parser is error-tolerant: produces a partial document plus diagnostics rather than throwing | Must |
 | FR-L13 | Formatter (`sgl fmt`) producing canonical, stable formatting | Should |
 | FR-L14 | Linter with configurable rules (orphan nodes, unresolved refs, duplicate labels) | Could |
-| FR-L15 | Wildcard edge endpoints: `lane1.* -> switch` fans out to every child, `lane1.**` to every descendant, `lane1.cam*` to children matching a one-star name glob. Final path position only; expands to ordinary edges at compile | Must |
+| FR-L15 | Wildcard edge endpoints: `lane1.* -> switch` fans out to every child, `lane1.**` to every descendant, `lane1.cam*` to children matching a one-star name glob. A `*` or glob may be any path segment (`store*.api* -> payments.api`, human decision 2026-09-24); `**` final position only; expands to ordinary edges at compile | Must |
 
 ### 3.2 Layout
 
