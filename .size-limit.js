@@ -7,8 +7,11 @@
 // (elkjs, loaded by the worker on the first elk layout) is excluded by
 // definition (ADR-0005). Fonts and icons are not JS/CSS and are not counted.
 //
-// The globs take every emitted JS/CSS file but `elk-*.js`, so a new lazy
-// chunk would be counted too (conservatively) until it is named here. A glob
+// The globs take every emitted JS/CSS file but `elk-*.js` and `share-*.js`,
+// so a new lazy chunk would be counted too (conservatively) until it is named
+// here. `share-*.js` (`state/share.ts` + `base64url.ts`) is lazy since F9's
+// fix round 1: boot loads it only for a link with a payload, and Share or a
+// pasted link when used (`e2e/offline.spec.ts` covers it offline). A glob
 // cannot see elkjs creeping into the boot path, so root `pnpm size` also
 // runs `apps/web/scripts/check-core-chunks.mjs` (fix round 1, item 17), which
 // walks the entry's static imports and fails if any reaches elk.
@@ -22,7 +25,7 @@
 export default [
   {
     name: 'core (entry + static imports + layout worker), gzip',
-    path: ['apps/web/dist/assets/*.js', 'apps/web/dist/assets/*.css', '!apps/web/dist/assets/elk-*.js'],
+    path: ['apps/web/dist/assets/*.js', 'apps/web/dist/assets/*.css', '!apps/web/dist/assets/elk-*.js', '!apps/web/dist/assets/share-*.js'],
     gzip: true,
     limit: '180 kB',
   },

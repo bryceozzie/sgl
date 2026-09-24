@@ -1,5 +1,5 @@
 import { expect, test, type BrowserContext, type Page, type Response } from '@playwright/test';
-import { EXAMPLE_NODE_COUNT, layoutGeometryHash, nodeGeometry, openFile, switchEngine, waitForExactNodeCount, waitForNodeCount } from './helpers.js';
+import { EXAMPLE_NODE_COUNT, layoutGeometryHash, nodeGeometry, openFile, switchEngine, toastMessages, waitForExactNodeCount, waitForNodeCount } from './helpers.js';
 import { serveDist, type StaticServer } from './static-server.js';
 
 /**
@@ -126,5 +126,44 @@ test('criterion 5: reload offline — the app and both engines work fully, switc
     }
   } finally {
     await server?.close().catch(() => undefined);
+  }
+});
+
+/**
+ * F9 fix round 1: `state/share.ts` (with `base64url.ts`) is a lazy chunk, so
+ * the core bundle keeps within its 180 kB. Offline, from the precache alone,
+ * both of its uses still work: Share makes a link, and opening a link
+ * imports it. Chromium only: there every response can be proved to come
+ * from the service worker (see the file comment).
+ */
+test('offline, the lazy share chunk comes from the precache: Share makes a link, and the link opens', async ({ page, context, browserName }) => {
+  test.skip(browserName !== 'chromium', 'fromServiceWorker() is proof only in Chromium');
+  await page.goto('/');
+  await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+  expect(await page.evaluate(async () => Boolean((await navigator.serviceWorker.ready).active))).toBe(true);
+  await clearHttpCache(page, context, browserName);
+  await context.setOffline(true);
+  const responses: Response[] = [];
+  const failed: string[] = [];
+  context.on('response', (r) => {
+    if (r.url().startsWith('http')) responses.push(r);
+  });
+  context.on('requestfailed', (r) => failed.push(`${r.url()} ${r.failure()?.errorText ?? ''}`));
+  try {
+    await page.reload();
+    await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
+    await page.locator('.share-open').click();
+    const link = await page.locator('.share-link').inputValue();
+    expect(link).toMatch(/#s=[A-Za-z0-9_-]+&e=/);
+    // Opening it: a navigation with the hash, which boot imports.
+    await page.goto(`/${new URL(link).hash}`);
+    await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
+    await expect(toastMessages(page)).toContainText(['Opened the shared diagram']);
+    const shareChunk = responses.filter((r) => /\/assets\/share-.*\.js$/.test(new URL(r.url()).pathname));
+    expect(shareChunk.length).toBeGreaterThanOrEqual(2); // once per page load that used it
+    expect(responses.filter((r) => !r.fromServiceWorker()).map((r) => r.url())).toEqual([]);
+    expect(failed).toEqual([]);
+  } finally {
+    await context.setOffline(false);
   }
 });
