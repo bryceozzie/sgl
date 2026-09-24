@@ -618,7 +618,7 @@ function hashParts(ids: readonly string[], hashes: readonly string[], tail?: str
  * would report a diagnostic still resolves, and reports, on its own. The
  * result — every style, both graph hashes, every diagnostic and its order —
  * is exactly what resolving each element afresh gives (`test/memo.test.ts`
- * compares them with the pre-F9 algorithm, kept verbatim as a test fixture,
+ * compares them with the pre-F9 algorithm, kept as a test fixture,
  * over the corpus under both themes, the synthetic theme pair and random
  * documents).
  *

@@ -1,21 +1,15 @@
 /**
- * TEST FIXTURE, not shipped: `packages/theme/src/cascade.ts` exactly as it
+ * TEST FIXTURE, not shipped: the reference `test/memo.test.ts` holds
+ * `styleGraph` to. It is `packages/theme/src/cascade.ts`'s `styleGraph` as it
  * was on `main` at 681729f, before F9's per-signature memo
- * (`feat/theme-fast-path`) — only these import paths differ. Its
- * `styleGraph` resolves every element afresh, and is the reference
- * `test/memo.test.ts` holds the memoised one to.
- */
-/**
- * Theme resolution and the cascade — DD-04 §3, §4, §5.
+ * (`feat/theme-fast-path`) — every element resolved afresh — trimmed to what
+ * that function needs: the theme resolution (`resolveTheme` and its helpers)
+ * is gone, the import paths differ, and nothing else is changed.
  *
- * Two pure functions. `resolveTheme` turns an authored `ThemeDoc` into a
- * `ResolvedTheme` with inheritance followed, `@token` references dereferenced and
- * every value validated against the registry and normalised. `styleGraph` walks a
- * `SemanticGraph` and produces one `ComputedStyle` per element and per label,
- * partitioned on the registry's `affects` flag.
- *
- * Neither ever throws on bad input (DD-00 §3): both return `StageResult` with the
- * best partial value and a diagnostic for every thing they had to drop.
+ * **Keep it in step with the cascade.** When the cascade's *output* is meant
+ * to change (a new property, a new step, a new diagnostic), make the same
+ * change here in the same commit; this file exists only to catch a change to
+ * `styleGraph` that nobody meant.
  */
 
 import {
@@ -42,15 +36,11 @@ import type {
   StyleSet,
   StyleValue,
   StyledGraph,
-  ThemeDoc,
 } from '../../src/types.js';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-/** DD-04 §3 step 1: following `extends` further than this is `SGL5001`. */
-export const MAX_THEME_DEPTH = 8;
 
 /**
  * DD-04 §3 step 3: the dash keywords, normalised to SVG dash arrays.
@@ -58,14 +48,14 @@ export const MAX_THEME_DEPTH = 8;
  * The concrete numbers are this module's to choose — DD-04 names the keywords but
  * not their patterns — so they live here rather than in the normative registry.
  */
-export const DASH_PATTERNS: Readonly<Record<string, readonly number[]>> = {
+const DASH_PATTERNS: Readonly<Record<string, readonly number[]>> = {
   solid: [],
   dashed: [6, 3],
   dotted: [1, 3],
 };
 
 /** A normalised style value: no `@` references, no booleans, insets already `[t,r,b,l]`. */
-export type ResolvedValue = number | string | readonly number[];
+type ResolvedValue = number | string | readonly number[];
 
 /** Which half of the cascade an element draws its non-text properties from. */
 type RoleKind = 'node' | 'container' | 'edge';
@@ -77,10 +67,7 @@ type RoleKind = 'node' | 'container' | 'edge';
  * their *names* per element, so the class bodies have to arrive separately. The
  * application already holds them as `DocumentModel.classes`.
  */
-export type DocumentClasses = Readonly<Record<string, ClassModel>>;
-
-/** Theme-sourced diagnostics carry no span (DD-04 §6); `Diagnostic.span` is required. */
-const NO_SPAN: SourceSpan = { from: 0, to: 0 };
+type DocumentClasses = Readonly<Record<string, ClassModel>>;
 
 const hasOwn = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -212,52 +199,6 @@ function describe(raw: unknown): string {
 
 const isTokenRef = (v: unknown): v is string => typeof v === 'string' && v.startsWith('@');
 
-/**
- * Dereference the token table itself, transitively.
- *
- * Doing this once up front rather than per property is what keeps diagnostics
- * single: a broken token is reported where it is defined, and the twenty
- * properties that reference it inherit the fallback silently instead of shouting
- * twenty times about the same typo.
- */
-function resolveTokenTable(
-  raw: Readonly<Record<string, StyleValue>>,
-  diagnostics: Diagnostic[],
-): Record<string, StyleValue> {
-  const out: Record<string, StyleValue> = {};
-  const inProgress = new Set<string>();
-
-  const visit = (name: string, trail: readonly string[]): StyleValue => {
-    if (hasOwn(out, name)) return out[name] as StyleValue;
-    if (inProgress.has(name)) {
-      diagnostics.push(
-        diagnostic('SGL5006', NO_SPAN, { name, cycle: [...trail, name].join(' → ') }),
-      );
-      return COLOR_FALLBACK;
-    }
-    const value = raw[name] as StyleValue;
-    inProgress.add(name);
-    let resolved: StyleValue;
-    if (isTokenRef(value)) {
-      const ref = value.slice(1);
-      if (hasOwn(raw, ref)) {
-        resolved = visit(ref, [...trail, name]);
-      } else {
-        diagnostics.push(diagnostic('SGL5005', NO_SPAN, { name: ref }));
-        resolved = COLOR_FALLBACK;
-      }
-    } else {
-      resolved = value;
-    }
-    inProgress.delete(name);
-    out[name] = resolved;
-    return resolved;
-  };
-
-  for (const name of sortedKeys(raw)) visit(name, []);
-  return out;
-}
-
 interface Deref {
   readonly value: unknown;
   /** The reference named a token that does not exist; use the type's fallback. */
@@ -315,153 +256,6 @@ function resolveStyleSet(
     out[name] = coerced;
   }
   return out;
-}
-
-// ---------------------------------------------------------------------------
-// resolveTheme (DD-04 §3)
-// ---------------------------------------------------------------------------
-
-/** The `extends` chain, nearest first. Stops at depth, at a cycle, and at a parent
- *  the lookup cannot supply. */
-function inheritanceChain(
-  doc: ThemeDoc,
-  lookup: (id: string) => ThemeDoc | undefined,
-  diagnostics: Diagnostic[],
-): readonly ThemeDoc[] {
-  const chain: ThemeDoc[] = [doc];
-  const seen = new Set<string>([doc.id]);
-  let current = doc;
-
-  while (typeof current.extends === 'string') {
-    const parentId = current.extends;
-    if (seen.has(parentId)) {
-      diagnostics.push(
-        diagnostic('SGL5002', NO_SPAN, {
-          id: parentId,
-          cycle: [...chain.map((t) => t.id), parentId].join(' → '),
-        }),
-      );
-      break;
-    }
-    if (chain.length > MAX_THEME_DEPTH) {
-      diagnostics.push(
-        diagnostic('SGL5001', NO_SPAN, {
-          chain: chain.map((t) => t.id).join(' → '),
-          id: parentId,
-        }),
-      );
-      break;
-    }
-    const parent = lookup(parentId);
-    // An `extends` naming a theme nobody can supply has no code in the DD-04
-    // catalogue, so the chain simply stops: the child's own rules still resolve.
-    if (parent === undefined) break;
-    seen.add(parentId);
-    chain.push(parent);
-    current = parent;
-  }
-  return chain;
-}
-
-function mergeFlat(
-  into: Record<string, StyleValue>,
-  from: Readonly<Record<string, StyleValue>> | undefined,
-): void {
-  if (!isPlainObject(from)) return;
-  for (const key of sortedKeys(from)) into[key] = from[key] as StyleValue;
-}
-
-/** Deep-merge one level down: a child `StyleSet` merges into the parent's for the
- *  same key rather than replacing it (DD-04 §3 step 1). */
-function mergeNested(
-  into: Record<string, Record<string, StyleValue>>,
-  from: Readonly<Record<string, StyleSet>> | undefined,
-): void {
-  if (!isPlainObject(from)) return;
-  for (const key of sortedKeys(from)) {
-    const set = from[key];
-    if (!isPlainObject(set)) continue;
-    const target = into[key] ?? {};
-    for (const name of sortedKeys(set)) target[name] = (set as StyleSet)[name] as StyleValue;
-    into[key] = target;
-  }
-}
-
-/** Resolve a theme document: follow `extends`, resolve `@token` references,
- *  normalise insets, dashes and lengths. Design: DD-04 §3. */
-export function resolveTheme(
-  doc: ThemeDoc,
-  lookup: (id: string) => ThemeDoc | undefined = () => undefined,
-): StageResult<ResolvedTheme> {
-  const diagnostics: Diagnostic[] = [];
-  const chain = inheritanceChain(doc, lookup, diagnostics);
-
-  // 1. Inheritance — merge root ancestor first, so the child wins.
-  const rawTokens: Record<string, StyleValue> = {};
-  const rawRules: Record<string, Record<string, StyleValue>> = {};
-  const rawByShape: Record<string, Record<string, StyleValue>> = {};
-  const rawByClass: Record<string, Record<string, StyleValue>> = {};
-  let rawBackground = '';
-
-  for (let i = chain.length - 1; i >= 0; i -= 1) {
-    const t = chain[i] as ThemeDoc;
-    mergeFlat(rawTokens, t.tokens);
-    mergeNested(rawRules, t.rules);
-    mergeNested(rawByShape, t.byShape);
-    mergeNested(rawByClass, t.byClass);
-    if (isPlainObject(t.canvas) && typeof t.canvas.background === 'string') {
-      rawBackground = t.canvas.background;
-    }
-  }
-
-  // 2. Token references.
-  const tokens = resolveTokenTable(rawTokens, diagnostics);
-
-  // 3. Validate and normalise every rule set.
-  const resolveGroup = (
-    group: Readonly<Record<string, Record<string, StyleValue>>>,
-    kind: string,
-  ): Record<string, StyleSet> => {
-    const out: Record<string, StyleSet> = {};
-    for (const key of sortedKeys(group)) {
-      out[key] = resolveStyleSet(
-        group[key] as Record<string, StyleValue>,
-        tokens,
-        `theme \`${doc.id}\` ${kind} \`${key}\``,
-        NO_SPAN,
-        diagnostics,
-      );
-    }
-    return out;
-  };
-
-  const canvasDeref = deref(rawBackground, tokens);
-  let background: string;
-  if (canvasDeref.unresolved) {
-    diagnostics.push(diagnostic('SGL5005', NO_SPAN, { name: rawBackground.slice(1) }));
-    background = COLOR_FALLBACK;
-  } else if (isColor(canvasDeref.value)) {
-    background = canvasDeref.value.trim();
-  } else {
-    diagnostics.push(
-      diagnostic('SGL5004', NO_SPAN, {
-        name: 'canvas.background',
-        type: 'color',
-        value: describe(canvasDeref.value),
-      }),
-    );
-    background = COLOR_FALLBACK;
-  }
-
-  const value: ResolvedTheme = {
-    id: doc.id,
-    rules: resolveGroup(rawRules, 'rule'),
-    byShape: resolveGroup(rawByShape, 'byShape'),
-    byClass: resolveGroup(rawByClass, 'byClass'),
-    canvas: { background },
-    tokens,
-  };
-  return { value, diagnostics };
 }
 
 // ---------------------------------------------------------------------------
