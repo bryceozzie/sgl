@@ -104,6 +104,35 @@ describe('F7: structure rules — which elements and names exist never depends o
     expect(none.svg).toContain('<defs></defs>');
   });
 
+  it('an inline @style colour edit changes class names, so it changes structureHash too; a theme switch does not (fix round 1, item 4)', async () => {
+    const src = (fill: string, stroke: string): string => `a: { @style: { fill: "${fill}" }, @label: "a" }\nb: { @label: "b" }\na -> b: { @label: "e", @style: { stroke: "${stroke}" } }\n`;
+    const one = await runPipeline(src('#111111', '#333333'), neutralLight);
+    for (const [fill, stroke] of [['#222222', '#333333'], ['#111111', '#444444']] as const) {
+      const two = await runPipeline(src(fill, stroke), neutralLight);
+      // Same geometry and layout: exactly the case a paint-only swap would take.
+      expect(two.styled.geometryHash).toBe(one.styled.geometryHash);
+      expect(two.result).toEqual(one.result);
+      expect(structure(two.rendered.svg)).not.toBe(structure(one.rendered.svg));
+      expect(two.rendered.structureHash).not.toBe(one.rendered.structureHash);
+    }
+    const dark = await runPipeline(src('#111111', '#333333'), neutralDark);
+    expect(dark.rendered.structureHash).toBe(one.rendered.structureHash);
+    expect(structure(dark.rendered.svg)).toBe(structure(one.rendered.svg));
+  });
+
+  it('structureHash also follows the graph content that reaches the output: a class, a label, a link (fix round 1, item 4)', async () => {
+    const base = await runPipeline('a: { @label: "a" }\nb\na -> b\n', neutralLight);
+    for (const other of [
+      '@classes: { K: {} }\na: { @label: "a", @type: K }\nb\na -> b\n',
+      'a: { @label: "z" }\nb\na -> b\n',
+      'a: { @label: "a", @link: "https://example.com" }\nb\na -> b\n',
+      'a: { @label: "a" }\nb\na -- b\n',
+    ]) {
+      const o = await runPipeline(other, neutralLight);
+      expect(o.rendered.structureHash, other).not.toBe(base.rendered.structureHash);
+    }
+  });
+
   it('structureHash is a function of the styled graph alone, cheap to take before rendering', async () => {
     const { styled, rendered } = await renderCorpusDoc('checkout.sgl', neutralLight);
     expect(structureHash(styled)).toBe(rendered.structureHash);

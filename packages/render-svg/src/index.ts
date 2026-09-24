@@ -43,10 +43,11 @@ export interface RenderResult {
    *  literal values and no custom property (F17, DD-07 §6). Every paint the
    *  output carries is here, markers' included (F7). */
   readonly styleBlock: string;
-  /** `structureHash(styled)` (DD-07 §6): of two renders of the same graph and
-   *  the same `LayoutResult`, equal `structureHash` means the SVG outside the
-   *  `<style>` and `<defs>` text is byte-identical, so swapping those two texts
-   *  alone turns one into the other (F7; DD-07 §11). */
+  /** `structureHash(styled)` (DD-07 §6): of two renders of the same
+   *  `LayoutResult`, equal `structureHash` ⇒ the SVG outside the `<style>` and
+   *  `<defs>` text is byte-identical, so swapping those two texts alone turns
+   *  one into the other (F7; DD-07 §11). Conservative: unequal hashes may
+   *  still render the same bytes. */
   readonly structureHash: string;
   readonly bounds: Rect;
   readonly diagnostics: readonly Diagnostic[];
@@ -64,25 +65,103 @@ function paintString(style: ComputedStyle | undefined, key: string): string | nu
   return typeof v === 'string' ? v : null;
 }
 
+/** The config keys `render()` writes into the output (links, a11y text). */
+const RENDERED_CONFIG = ['link', 'a11y'] as const;
+
+function renderedConfig(config: Readonly<Record<string, unknown>>): string {
+  let out = '';
+  for (const key of RENDERED_CONFIG) {
+    const v = config[key];
+    if (v !== undefined) out += `${key}=${JSON.stringify(v)};`;
+  }
+  return out;
+}
+
+function labelText(styled: StyledGraph, labelId: LabelId | null): string {
+  if (labelId === null) return '';
+  const spec = styled.graph.labels[labelId];
+  return spec === undefined ? '' : labelLines(spec.runs).join('\n');
+}
+
 /**
- * Everything paint decides about the output **outside** `<style>` and
- * `<defs>`, given the graph and the layout (F7, DD-07 §6): the geometry of
- * every style (`geometryHash` — the `g-` classes, text metrics, radii, arrow
- * sizes) and each directed edge's arrowhead kind (it names the marker, and
- * `none` drops the `marker-end`/`marker-start` attribute). Paint class names
- * are cascade signatures and every element is emitted whatever its paint, so
- * nothing else a theme resolves reaches the structure. Cheap — one pass over
- * the edges — so a caller can decide a paint-only swap is safe without
- * rendering.
+ * A hash of everything that decides the output **outside** the `<style>`
+ * and `<defs>` text, except the layout (DD-07 §6): the geometry of every style
+ * (`geometryHash` — the `g-` classes, text metrics, radii, arrow sizes); per
+ * element, in document order, its id, its cascade signature (which names its
+ * paint classes and, for an edge, its markers, and carries the element's
+ * shape and classes), its hidden flag, its label text and the config the
+ * output shows (`@link`, `@a11y`); per edge, its endpoints, direction and
+ * arrowhead kind (it names the marker; `none` drops the attribute); and the
+ * title. So, for the same `LayoutResult`, **equal `structureHash` ⇒ the
+ * output outside `<style>`/`<defs>` is byte-identical** (a hash is
+ * conservative: unequal hashes can still render the same bytes). A theme
+ * switch between themes of equal geometry and arrowheads leaves it unchanged;
+ * an inline `@style` edit, a class, a label or a link changes it (fix round 1,
+ * item 4). One pass over the elements and no render (DD-07 §6 has the cost).
  */
 export function structureHash(styled: StyledGraph): string {
-  const heads: string[] = [];
-  for (const edge of styled.graph.edges) {
-    if (edge.directed === 'none') continue;
-    const value = styled.styles[edge.id]?.paint['arrowhead'];
-    heads.push(isArrowhead(value) ? value : 'triangle');
+  const { graph } = styled;
+  const h = new StructureHasher();
+  h.add(styled.geometryHash);
+  h.add(graph.title ?? '');
+  for (const id of graph.order) {
+    const node = graph.nodes[id];
+    if (node === undefined) continue;
+    const role = node.children.length > 0 ? 'container' : 'node';
+    h.add('n');
+    h.add(id);
+    h.add(node.hidden ? '1' : '0');
+    h.add(cascadeSignature(role, node.shape, node.classes, node.config));
+    h.add(labelText(styled, node.labelId));
+    h.add(renderedConfig(node.config));
   }
-  return fnv1a64(`${styled.geometryHash}|${heads.join(',')}`);
+  for (const edge of graph.edges) {
+    const value = styled.styles[edge.id]?.paint['arrowhead'];
+    h.add('e');
+    h.add(edge.id);
+    h.add(edge.from.node);
+    h.add(edge.to.node);
+    h.add(edge.directed);
+    h.add(edge.directed === 'none' ? '' : isArrowhead(value) ? value : 'triangle');
+    h.add(cascadeSignature('edge', undefined, edge.classes, edge.config));
+    h.add(labelText(styled, edge.labelId));
+    h.add(renderedConfig(edge.config));
+  }
+  return h.digest();
+}
+
+/**
+ * Two independent 32-bit multiplicative hashes over UTF-16 code units, with a
+ * separator after every field, as 16 hex digits. Not `fnv1a64`: that is part
+ * of the output's compatibility surface (DD-00 §3) and byte-at-a-time over
+ * UTF-8, ~12 ns a character; this never leaves the process, and at 2 000
+ * nodes it is the difference between ~7 ms and well under 1 ms.
+ */
+class StructureHasher {
+  private a = 0x811c9dc5;
+  private b = 0x01000193;
+
+  add(text: string): void {
+    let a = this.a;
+    let b = this.b;
+    for (let i = 0; i < text.length; i += 1) {
+      const c = text.charCodeAt(i);
+      a = Math.imul(a ^ c, 0x01000193);
+      b = Math.imul(b ^ c, 0x5bd1e995);
+      b ^= b >>> 15;
+    }
+    // A separator no string can forge: the field length, then a sentinel.
+    a = Math.imul(a ^ (text.length + 0x10000), 0x01000193);
+    b = Math.imul(b ^ (text.length + 0x10000), 0x5bd1e995);
+    b ^= b >>> 15;
+    this.a = a;
+    this.b = b;
+  }
+
+  digest(): string {
+    const hex = (v: number): string => (v >>> 0).toString(16).padStart(8, '0');
+    return hex(this.a) + hex(this.b);
+  }
 }
 
 /** Path data for an edge route: `M start` then each segment (DD-06 §2). */
