@@ -371,9 +371,10 @@ function buildValue(ctx: Ctx, node: SyntaxNode): Value | undefined {
  *  parts joined by `.` — the grammar skips space and comments between them,
  *  and the name must not keep them. One part is just its text. */
 function qualifiedName(ctx: Ctx, node: SyntaxNode): string {
-  const parts: string[] = [];
-  for (let c = node.firstChild; c !== null; c = c.nextSibling) if (c.name === 'Identifier') parts.push(textOf(ctx, c));
-  return parts.join('.');
+  return node
+    .getChildren('Identifier')
+    .map((c) => textOf(ctx, c))
+    .join('.');
 }
 
 /** `$name` or `$ns.name` — the `$` is dropped, matching how `@` is dropped off

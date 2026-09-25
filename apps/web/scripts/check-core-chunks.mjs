@@ -68,6 +68,24 @@ if (!existsSync(`${DIST}index.html`)) {
     console.log(`check-core-chunks: ${seen.size} boot chunks (${[...seen].sort().join(', ')}); none reaches elk.`);
   }
 
+  // A9 (DD-02 §10.9, I32): everything import-specific is `@sgl/core/imports`
+  // and the app's lazy `imports` chunk. No boot chunk may be that chunk or
+  // carry one of its catalogue rows (`SGL2017`–`SGL2026`, `IMPORT_CATALOGUE`);
+  // the boot chunks must still carry the other rows, else the pattern no
+  // longer matches the minified output and this would pass vacuously.
+  const IMPORT_ROWS = new Set(['2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026']);
+  let bootRows = 0;
+  for (const file of seen) {
+    if (/^imports-[\w-]+\.js$/.test(file)) fail(`${file}, the lazy imports chunk, is reachable at boot.`);
+    const code = readFileSync(`${DIST}assets/${file}`, 'utf8');
+    for (const m of code.matchAll(/\bSGL(\d{4})\s*:\s*\{\s*severity\b/g)) {
+      bootRows += 1;
+      if (IMPORT_ROWS.has(m[1])) fail(`${file} (reachable at boot) contains the import catalogue row SGL${m[1]}; it belongs to the lazy imports chunk.`);
+    }
+  }
+  if (bootRows === 0) fail('no catalogue row found in the boot chunks; update the row pattern for this minifier output.');
+  if (process.exitCode !== 1) console.log(`check-core-chunks: no import catalogue row or imports chunk at boot (${bootRows} other rows).`);
+
   // A8 follow-up: the layout worker emits only layout diagnostics (`SGL4xxx`),
   // built from `@sgl/core`'s `LAYOUT_CATALOGUE` through `layoutDiagnostic()`.
   // If anything in the worker imports the full `diagnostic()` again, the whole

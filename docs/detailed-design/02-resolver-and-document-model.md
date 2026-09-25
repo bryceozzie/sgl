@@ -386,11 +386,17 @@ because it defines what an import path *means* in SGL's own product.
 
 ```ts
 // @sgl/core — boot path
-function resolve(ast: Document, options?: ResolveOptions): ResolveResult;
-interface ResolveOptions { readonly imports?: ImportLinker }
+function resolve(ast: Document, seam?: ImportSeam): ResolveResult;   // `seam`: for @sgl/core/imports only
+interface ImportSeam {                               // what an import-aware resolve tells resolve()
+  readonly scope: VarScope;                          // the imported variables, with the closure's budget
+  readonly classes: readonly string[];               // the imported class names
+  vars?: VarScope;                                   // set by resolve(): the root scope it exports
+}
 function hasImports(ast: Document): boolean;          // does the root have an `@imports` entry?
 
 // @sgl/core/imports — a new core entry, loaded lazily by the app (§10.9)
+function resolveImports(ast: Document, linker?: ImportLinker): ResolveResult;
+function compileImports(model: DocumentModel, view?: ViewSelector): CompileResult;
 interface ImportHost {
   /** Synchronous and side-effect free. `from` is the importing document's key
    *  (undefined for a root without `self`). `candidates` > 1 → SGL2018. */
@@ -399,15 +405,25 @@ interface ImportHost {
 interface ImportAnswer { readonly key: string; readonly source: string; readonly candidates: number }
 interface ImportCache { /* opaque; memoises parse and per-import resolve */ }
 function createImportCache(): ImportCache;
-function createImportLinker(host: ImportHost, options?: { self?: string; cache?: ImportCache }): ImportLinker;
+function createImportLinker(host: ImportHost, options?: { self?: string; cache?: ImportCache }): RootImportLinker;
 ```
 
-- **I7. `resolve()` takes imports through an `ImportLinker` built from a synchronous
-  `ImportHost`.** `resolve()` stays synchronous, and it stays a pure function of the AST and the
-  host's answers. `resolve.ts` itself only reads `@imports`, calls the linker and folds in what it
-  returns: classes, a variable scope, subtrees, failed namespaces and diagnostics. Everything
-  else lives in `@sgl/core/imports`: checking paths, lookup, cycles, caps, parsing, resolving each
-  import and grafting it. *This keeps the host async-free, keeps the boot bundle small (§10.9),
+**Phase 2, step A (size, §10.9): the seam moved.** The design first had `resolve(ast, { imports })`
+on the boot path, with the import rules inside `resolve.ts` and `compile.ts`. Measured, that did
+not fit the 180 kB budget, so everything import-specific moved into `@sgl/core/imports`:
+`resolveImports` reads `@imports`, links it, and calls core's `resolve()` with an `ImportSeam`
+(the imported variables around the root's own, and the imported class names, so references to
+them are known); it then folds in what comes back (imported classes, the merged table's cycles,
+grafted subtrees, I17's warnings, the summaries). `compileImports` is `compile()` plus I17's two
+rules. A caller uses them for a document for which `hasImports` is true (the app, DD-08 §15 I25);
+a document without `@imports` resolves and compiles exactly as before, through either.
+
+- **I7. `resolveImports()` takes imports through an `ImportLinker` built from a synchronous
+  `ImportHost`.** It stays synchronous, and it stays a pure function of the AST and the host's
+  answers. `resolve.ts` itself knows only the `ImportSeam`: a scope around the root's variables
+  and a list of class names that exist. Everything else lives in `@sgl/core/imports`: reading
+  `@imports`, checking paths, lookup, cycles, caps, parsing, resolving each import, precedence,
+  clashes, grafting, and the warnings of I17. *This keeps the host async-free, keeps the boot bundle small (§10.9),
   and a CLI can supply a file-system host with the same linker.*
 - **I8. An imported document is parsed in core, by the linker, with core's own `parse()`**, the
   same Lezer parser `resolve.ts` already uses for `"@edges"` (§6). The app only ever hands core
@@ -416,9 +432,12 @@ function createImportLinker(host: ImportHost, options?: { self?: string; cache?:
   an `ImportCache` that the caller owns. The parse is keyed by the source text. The resolve is
   keyed by the source, the `as`, and the answers its own lookups got (checked by looking them up
   again). *On a keystroke in the importer, an unchanged set of imports then costs only lookups.*
-- **I9. With no linker, every `@imports` entry is `SGL2017`** (unresolved, a warning). This
-  covers `fromJson`, tests, and anything else that calls `resolve(ast)` alone. *The behaviour is
-  defined for every caller, and never silent.*
+- **I9. With no linker, every `@imports` entry is `SGL2017`** (unresolved, a warning): that is
+  `resolveImports(ast)`. Core's own `resolve(ast)` does not link imports at all (step A): for it
+  `@imports` is a root configuration key (the `imports` registry row, §7) that is kept and has no
+  effect, so `toJson` still prints it. `fromJson` is `resolve()`'s, so it round-trips `@imports`
+  the same way. *A caller that may meet `@imports` uses `resolveImports`; the app does, gated on
+  `hasImports`.*
 
 **What `@imports` holds** (spec §8): an array whose items are each a string path, or an object
 `{ path: "<string>", as: <identifier> }` (`as` a bareword in `.sgl`, a string in JSON). Anything
@@ -475,7 +494,11 @@ configuration key: later wins.
   - An `as` equal to one of your own root node keys, when the import brings a subtree: the
     subtree is not grafted (`SGL2022`), but its classes and variables still arrive.
   - A class name you declare that contains `.` is reserved for imports: `SGL2011`, and that class
-    is ignored. **⚑** Before this, a quoted `"a.b"` was a legal class name.
+    is ignored. **⚑** Before this, a quoted `"a.b"` was a legal class name. **Step A deviation
+    (size, §10.9): the rule applies to a document with `@imports`** (it is `resolveImports`'s),
+    **and a document without them keeps its quoted `"a.b"` class, exactly as before.** A dotted
+    name can clash with a qualified one only where there are imports; making it a language rule
+    would put the check on the boot path. For the human to confirm.
 
   *An authored tree and an imported tree never merge, so `toJson` prints exactly what was
   written. The container's label comes from the import's `@title`, and its position from import
@@ -504,13 +527,14 @@ configuration key: later wins.
   - A reference whose qualifier names an import that failed is `SGL2024` (warning) instead of
     `SGL2002`, `SGL2013` or `SGL2001`, and is dropped. Failed here means unresolved, skipped for a
     cycle or a cap, or refused. Such references include `aws.Lambda`, `$aws.x` and `api ->
-    aws.lambda`; the last is checked by `compile()` against `DocumentModel.imports`.
+    aws.lambda`; the last is checked by `compileImports()` against `DocumentModel.imports`.
   - If any unqualified import failed, an unknown bare class or variable is `SGL2024`, naming that
     import, instead of `SGL2002` or `SGL2013`.
   - Problems *inside* an import are one `SGL2021` (warning) for each top-level `@imports` item,
     giving the count and the first message. This covers the import's own resolve diagnostics at
-    any depth, and `compile()`'s diagnostics on grafted elements, which `compile()` recognises by
-    `origin`. Info-level diagnostics are not counted.
+    any depth, and `compile()`'s diagnostics on grafted elements, which `compileImports()`
+    recognises by their span: every span in a grafted subtree is its `@imports` item's (I12).
+    Info-level diagnostics are not counted.
 
   All of this extends the human decision from "unresolved" to every way an import can fail.
 - **I18. Identity, order and determinism.** A grafted node's id is its path (`aws.lambda`), so
@@ -573,19 +597,23 @@ is `SGL2004` (I13).
 
 | Code | Severity | Message template | Where |
 |---|---|---|---|
-| `SGL2017` | warning | Cannot find `{path}` to import; nothing was imported from it. | boot catalogue (no linker, I9) + linker |
+| `SGL2017` | warning | Cannot find `{path}` to import; nothing was imported from it. | import catalogue (no linker, I9; linker) |
 | `SGL2018` | warning | `{path}` matches {n} documents; importing `{chosen}`, the most recently updated. | import catalogue |
 | `SGL2019` | warning | `{path}` imports itself via `{cycle}`; this import was skipped. | import catalogue |
 | `SGL2020` | warning | Importing `{path}` would go past {limit}; it was skipped. | import catalogue |
-| `SGL2021` | warning | `{path}` has {n} problems of its own; the first: {first} | boot catalogue (`compile()` emits it too) |
+| `SGL2021` | warning | `{path}` has {n} problems of its own; the first: {first} | import catalogue (`resolveImports`, `compileImports`) |
 | `SGL2022` | warning | `{name}` is already {what}; {outcome}. | import catalogue |
 | `SGL2023` | info | Class `{name}` here replaces the one imported from `{path}`. | import catalogue |
-| `SGL2024` | warning | `{name}` may come from `{path}`, which could not be imported; {what} was skipped. | boot catalogue (`resolve()` and `compile()`) |
+| `SGL2024` | warning | `{name}` may come from `{path}`, which could not be imported; {what} was skipped. | import catalogue (`resolveImports`, `compileImports`) |
 | `SGL2025` | warning | `{path}` is not a relative path; only your own documents can be imported. | import catalogue |
 | `SGL2026` | info | The nodes and edges of `{path}` are not imported; give the import an `as:` name to include them. | import catalogue |
 
-The "import catalogue" rows live in `@sgl/core/imports`, built with the same `fromCatalogue` that
-`LAYOUT_CATALOGUE` uses (execution plan §1), so they stay off the boot path. `DiagnosticCode`
+All ten rows are `IMPORT_CATALOGUE`, in `@sgl/core/imports`, built with the same `fromCatalogue`
+that `LAYOUT_CATALOGUE` uses (execution plan §1), so none is on the boot path (step A moved
+`SGL2017`, `SGL2021` and `SGL2024` there too: nothing on the boot path emits them any more;
+`check-core-chunks.mjs` fails if a boot chunk carries one). `resolveImports` turns an `SGL2002` or
+`SGL2013` that core's `resolve()` reported into `SGL2024` when I17 says so, reading the name back
+from the message by its catalogue template. `DiagnosticCode`
 still names every code, through a type-only import, and the coverage gate reads both catalogues.
 
 ### 10.7 Where this lands in DD-02's other sections (Phase 2)
@@ -656,3 +684,19 @@ estimates below are to be measured, not trusted.
   1.7–1.8 kB before A9 adds its share. If A9's measured boot cost still leaves less than 0.3 kB,
   Phase 2 stops and reports under §1's rule. It does not trim anything else unasked, and it does
   not raise the limit.
+
+**Measured in phase 2** (gzipped core bundle, `size-limit` after a full `pnpm build`; the wip
+commit `544fe6d` measured each step some 120–160 B higher, but the steps' differences agree):
+
+| Step | Core bundle | Change |
+|---|---|---|
+| after the lazy Documents ▾ list | 178 667 B | |
+| after the I16 grammar | 178 856 B | +189: parser tables +157 (the `qualified` production's LR states about +120; the `Variable` token +4), `buildAst`'s `qualifiedName` +32 |
+| the first hook, `resolve(ast, { imports })` (wip, `544fe6d`) | 180 004 B | +1 148, over the limit |
+| **step A: everything import-specific in `@sgl/core/imports`** | **178 941 B** | +85 over the grammar; `qualifiedName` rewritten with `getChildren` (−15) |
+
+Step A's boot share is `hasImports`, the `ImportSeam` (a scope, a list of class names, the root
+scope handed back), the swappable `REF_PATTERNS`, a `sink` per imported variable, and the budget
+counting refusals. The grammar's parser-table cost is its own LR states: a left-recursive
+`qualified` would save about 30 B but changes error recovery after a class shorthand (0.5 % of
+random malformed inputs, some without a dot), so it was not taken.

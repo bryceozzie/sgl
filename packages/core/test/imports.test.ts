@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { compile } from '../src/compile.js';
 import type { Diagnostic } from '../src/diagnostics.js';
-import { createImportCache, createImportLinker, type ImportCache } from '../src/imports.js';
+import { compileImports, createImportCache, createImportLinker, resolveImports, type ImportCache } from '../src/imports.js';
 import { fromJson, toJson } from '../src/json.js';
 import type { ContainerModel, DocumentModel } from '../src/model.js';
 import { parse } from '../src/parse.js';
@@ -18,7 +17,7 @@ interface Linked {
   readonly model: DocumentModel;
   readonly resolveDiags: readonly Diagnostic[];
   readonly compileDiags: readonly Diagnostic[];
-  readonly graph: ReturnType<typeof compile>['graph'];
+  readonly graph: ReturnType<typeof compileImports>['graph'];
   readonly host: MemoryHost;
 }
 
@@ -26,8 +25,8 @@ function link(main: string, docs: Record<string, string>, cache?: ImportCache, h
   const { ast, diagnostics: syntax } = parse(main);
   expect(syntax).toEqual([]);
   const linker = createImportLinker(host, { self: 'main', ...(cache !== undefined ? { cache } : {}) });
-  const { model, diagnostics: resolveDiags } = resolve(ast, { imports: linker });
-  const { graph, diagnostics: compileDiags } = compile(model);
+  const { model, diagnostics: resolveDiags } = resolveImports(ast, linker);
+  const { graph, diagnostics: compileDiags } = compileImports(model);
   return { model, resolveDiags, compileDiags, graph, host };
 }
 
@@ -205,10 +204,17 @@ describe('clashes (I14)', () => {
     expect(Object.keys(model.classes)).toEqual(['ok']);
   });
 
-  it('without @imports too (I14 is a language rule, not an import one)', () => {
-    const { model, diagnostics } = resolve(parse('@classes: { "a.b": {} }\nn: { @type: "a.b" }\n').ast);
+  it('with an empty @imports too, and with no linker', () => {
+    const { model, diagnostics } = resolveImports(parse('@imports: []\n@classes: { "a.b": {} }\nn: { @type: "a.b" }\n').ast);
     expect(codes(diagnostics)).toEqual(['SGL2011', 'SGL2002']);
     expect(model.classes).toEqual({});
+  });
+
+  it('a document without @imports resolves as it always did: a quoted "a.b" is still its own class (off the boot path, step A)', () => {
+    const { model, diagnostics } = resolve(parse('@classes: { "a.b": { @shape: round } }\nn: a.b\n').ast);
+    expect(diagnostics).toEqual([]);
+    expect(Object.keys(model.classes)).toEqual(['a.b']);
+    expect(model.root.children[0]?.config.type).toEqual(['a.b']);
   });
 });
 
@@ -283,7 +289,7 @@ describe('failed imports are warnings, and so is everything they cause (I17)', (
   });
 
   it('with no linker, every @imports item is SGL2017 (I9)', () => {
-    const { model, diagnostics } = resolve(parse('@imports: ["./a.sgl", { path: "./b.sgl", as: b }]\nn: b.X\n').ast);
+    const { model, diagnostics } = resolveImports(parse('@imports: ["./a.sgl", { path: "./b.sgl", as: b }]\nn: b.X\n').ast);
     expect(codes(diagnostics)).toEqual(['SGL2017', 'SGL2017', 'SGL2024']);
     expect(model.imports?.map((i) => [i.path, i.failed])).toEqual([
       ['./a.sgl', true],
@@ -361,9 +367,16 @@ describe('canonical JSON (I31)', () => {
   });
 
   it('without a host the round trip still keeps @imports (fromJson)', () => {
-    const json = toJson(resolve(parse('@imports: ["./lib.sgl"]\n').ast).model);
-    expect(JSON.parse(json)['@imports']).toEqual(['./lib.sgl']);
+    const json = toJson(resolveImports(parse('@imports: ["./lib.sgl", { path: "./a.sgl", as: a }]\n').ast).model);
+    expect(JSON.parse(json)['@imports']).toEqual(['./lib.sgl', { path: './a.sgl', as: 'a' }]);
     expect(toJson(fromJson(json).model)).toBe(json);
+  });
+
+  it("core's own resolve() does not link: it keeps @imports as root configuration, with no effect", () => {
+    const { model, diagnostics } = resolve(parse('@imports: ["./lib.sgl"]\nn: Service\n').ast);
+    expect(codes(diagnostics)).toEqual(['SGL2002']);
+    expect(model.imports).toBeUndefined();
+    expect(JSON.parse(toJson(model))['@imports']).toEqual(['./lib.sgl']);
   });
 
   it('a document without @imports has no `imports` field at all', () => {

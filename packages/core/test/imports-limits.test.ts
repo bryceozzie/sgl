@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Diagnostic } from '../src/diagnostics.js';
-import { createImportLinker } from '../src/imports.js';
+import { createImportLinker, resolveImports } from '../src/imports.js';
 import { parse } from '../src/parse.js';
 import { resolve } from '../src/resolve.js';
 import { memoryHost } from './import-host.js';
@@ -15,7 +15,7 @@ import { memoryHost } from './import-host.js';
 
 function run(main: string, docs: Record<string, string>): readonly Diagnostic[] {
   const linker = createImportLinker(memoryHost(docs), { self: 'main' });
-  return resolve(parse(main).ast, { imports: linker }).diagnostics;
+  return resolveImports(parse(main).ast, linker).diagnostics;
 }
 const codes = (diags: readonly Diagnostic[]): string[] => diags.map((d) => d.code);
 

@@ -47,7 +47,6 @@ import type {
   ContainerModel,
   DocumentModel,
   EdgeModel,
-  ImportModel,
   SpanTable,
 } from './model.js';
 import { parse } from './parse.js';
@@ -56,60 +55,6 @@ import { NO_SPAN, type SourceSpan } from './span.js';
 export interface ResolveResult {
   readonly model: DocumentModel;
   readonly diagnostics: readonly Diagnostic[];
-}
-
-export interface ResolveOptions {
-  /** How `@imports` are linked (A9): `createImportLinker` from
-   *  `@sgl/core/imports`. Without one, every import is `SGL2017` (DD-02 I9). */
-  readonly imports?: ImportLinker;
-}
-
-/**
- * The seam between `resolve()` and `@sgl/core/imports` (DD-02 §10.2, I7).
- * `resolve()` reads `@imports`, hands the items to `link`, and folds in what
- * comes back; checking paths, lookups, cycles, caps, parsing and resolving
- * each import and grafting it are the linker's, off the boot path.
- */
-export interface ImportLinker {
-  /** Called once, first. Marks the items that failed (`failed`). */
-  link(items: ImportModel[], diags: Diagnostic[]): LinkedImports;
-}
-
-export interface LinkedImports {
-  /** The variable-expansion budget, shared by the whole closure (I21). */
-  readonly budget: Budget;
-  /** The imported variables: the scope around the root's own (I13). */
-  readonly vars: ReadonlyMap<string, VarEntry>;
-  /** The imported classes in order, less those `own` replaces (`SGL2023`). */
-  classes(own: ReadonlyMap<string, SourceSpan>, diags: Diagnostic[]): ClassModel[];
-  /** The grafted containers (I11, I12) and their span-table entries; an `as`
-   *  that is one of `ownKeys` is not grafted (`SGL2022`). */
-  graft(ownKeys: ReadonlySet<string>, diags: Diagnostic[]): { containers: ContainerModel[]; spans: [string, SourceSpan][] };
-  /** Called last, with the root scope this document exports (I15). */
-  done(diags: Diagnostic[], scope: VarScope): void;
-}
-
-/** Does the root have an `@imports` entry? (DD-02 §10.2; the app loads the
- *  import linker only for a document that does, DD-08 §15 I25.) */
-export const hasImports = (ast: Document): boolean => ast.entries.some(isImports);
-
-const isImports = (entry: Entry): boolean => entry.kind === 'ConfigEntry' && entry.key.length === 1 && entry.key[0] === 'imports';
-
-/**
- * The document being resolved: its import namespaces, and the imports that
- * failed by `as` (`''` for the first unqualified one). Module state because
- * it is read deep inside coercion; `resolve()` saves and restores it, since
- * the linker re-enters `resolve()` for every import.
- */
-let imp: { readonly ns: ReadonlySet<string>; readonly failed: ReadonlyMap<string, string> } = { ns: new Set(), failed: new Map() };
-
-/** `SGL2024` instead of `otherwise` when `name` may come from an import that
- *  failed (DD-02 I17): its qualifier names one, or it is bare and an
- *  unqualified import failed. */
-function unknownName(name: string, span: SourceSpan, what: string, otherwise: Diagnostic): Diagnostic {
-  const dot = name.indexOf('.');
-  const path = imp.failed.get(dot < 0 ? '' : name.slice(0, dot));
-  return path === undefined ? otherwise : diagnostic('SGL2024', span, { name, path, what });
 }
 
 type Scope = ConfigKeySpec['scope'][number];
@@ -160,19 +105,16 @@ interface NameRef {
 // ---------------------------------------------------------------------------
 
 /** The grammar's `Identifier` token (`sgl.grammar`): what may follow `$`. */
-const IDENT = '[A-Za-z_](?:[A-Za-z0-9_]|-[A-Za-z0-9_])*';
-const IDENTIFIER = new RegExp(`^${IDENT}$`);
-/** A name after `$`, qualified or not (A9, I16): `name`, `ns.name`. */
-const QUALIFIED = `${IDENT}(?:\\.${IDENT})*`;
-/** A string that is exactly `$name` — the canonical-JSON spelling of a
- *  `Variable` (language spec §9: `"stroke": "$hot"`). */
-const WHOLE_REF = new RegExp(`^\\$(${QUALIFIED})$`);
-const INTERPOLATION = new RegExp(`\\$\\{(${QUALIFIED})\\}`, 'g');
-
-/** In a string, `$ns.name` and `${ns.name}` refer to a variable only when
- *  `ns` is an import namespace of this document (I16); otherwise they stay
- *  literal text, as they always were, so `"$user.name"` means what it did. */
-const isRefName = (name: string): boolean => !name.includes('.') || imp.ns.has(name.slice(0, name.indexOf('.')));
+export const IDENT = '[A-Za-z_](?:[A-Za-z0-9_]|-[A-Za-z0-9_])*';
+export const IDENTIFIER = new RegExp(`^${IDENT}$`);
+/**
+ * `whole`: a string that is exactly `$name` — the canonical-JSON spelling of a
+ * `Variable` (language spec §9: `"stroke": "$hot"`); `interp`: `${name}` in a
+ * string. `@sgl/core/imports` swaps in patterns that also take `ns.name` for
+ * the length of one resolve of a document with import namespaces (A9, DD-02
+ * I16): anywhere else `"$user.name"` stays the literal text it always was.
+ */
+export const REF_PATTERNS = { whole: new RegExp(`^\\$(${IDENT})$`), interp: new RegExp(`\\$\\{(${IDENT})\\}`, 'g') };
 
 type RefPart = string | { readonly name: string };
 
@@ -204,13 +146,12 @@ class Ref {
 /** A string value: a `Ref` if it is exactly `$name` or holds a `${name}`,
  *  otherwise itself. A `$` anywhere else is literal text. */
 function stringValue(text: string, span: SourceSpan): string | Ref {
-  const whole = WHOLE_REF.exec(text);
-  if (whole !== null && isRefName(whole[1] as string)) return new Ref(text, [{ name: whole[1] as string }], true, span);
+  const whole = REF_PATTERNS.whole.exec(text);
+  if (whole !== null) return new Ref(text, [{ name: whole[1] as string }], true, span);
   if (!text.includes('${')) return text;
   const parts: RefPart[] = [];
   let last = 0;
-  for (const m of text.matchAll(INTERPOLATION)) {
-    if (!isRefName(m[1] as string)) continue;
+  for (const m of text.matchAll(REF_PATTERNS.interp)) {
     if (m.index > last) parts.push(text.slice(last, m.index));
     parts.push({ name: m[1] as string });
     last = m.index + m[0].length;
@@ -346,7 +287,7 @@ function filterKnownRefs<T extends NameRef | Ref>(refs: readonly T[], known: Rea
   const out: T[] = [];
   for (const ref of refs) {
     if (ref instanceof Ref || known.has(ref.name)) out.push(ref);
-    else diags.push(unknownName(ref.name, ref.span, 'the class', diagnostic('SGL2002', ref.span, { name: ref.name })));
+    else diags.push(diagnostic('SGL2002', ref.span, { name: ref.name }));
   }
   return out;
 }
@@ -571,9 +512,9 @@ function buildEntries(entries: readonly Entry[], acc: Acc, classNames: ReadonlyS
  */
 export const MAX_VARIABLE_EXPANSION = 2 * 1024 * 1024;
 
-/** The expansion budget: units spent, and how many substitutions it has
- *  refused (only the first is reported). One per root `resolve()`, shared by
- *  every document of its import closure (A9, DD-02 I21). */
+/** Units spent, and how many substitutions were refused (only the first is
+ *  reported). One per root resolve: an import closure shares it (A9, DD-02
+ *  I21). */
 export interface Budget {
   used: number;
   refused: number;
@@ -586,14 +527,13 @@ export interface Budget {
  *  reported there (unknown, or not declared before it). */
 export interface VarEntry {
   readonly raw: unknown;
-  readonly refs: Map<string, VarEntry | symbol>;
+  readonly refs: Map<string, VarEntry | typeof DROP>;
   readonly budget: Budget;
   /** 0 not yet computed · 1 computing (its dependencies first) · 2 done. */
   state: 0 | 1 | 2;
   value: unknown;
-  /** An imported variable (A9): where the problems of computing it go, to
-   *  be counted in its import's `SGL2021` rather than reported with spans
-   *  into another document. */
+  /** An imported variable's (A9): where the problems of computing it go, to
+   *  be counted in its import's `SGL2021` (DD-02 I17). */
   readonly sink?: Diagnostic[];
 }
 
@@ -608,9 +548,11 @@ export interface VarScope {
 
 const FAILED = Symbol('failed');
 /** A substitution that dropped its value: the key is treated as absent. */
-const DROP = Symbol('drop');
+export const DROP = Symbol('drop');
 
 type Lookup = (name: string, ref: Ref) => unknown;
+
+const newScope = (): VarScope => ({ parent: undefined, entries: new Map(), budget: { used: 0, refused: 0 } });
 
 function findVar(scope: VarScope | undefined, name: string): VarEntry | undefined {
   for (let s = scope; s !== undefined; s = s.parent) {
@@ -738,13 +680,13 @@ function materialise(entry: VarEntry, diags: Diagnostic[]): void {
       stack.pop();
     } else if (e.state === 0) {
       e.state = 1;
-      for (const d of e.refs.values()) if (typeof d === 'object' && d.state === 0) stack.push(d);
+      for (const d of e.refs.values()) if (d !== DROP && d.state === 0) stack.push(d);
     } else {
       const v = substitute(
         e.raw,
         (name) => {
           const d = e.refs.get(name);
-          return typeof d !== 'object' || d.value === FAILED ? DROP : d.value;
+          return d === undefined || d === DROP || d.value === FAILED ? DROP : d.value;
         },
         e.sink ?? diags,
         e.budget,
@@ -764,7 +706,7 @@ const scopeLookup =
   (name, ref) => {
     const e = findVar(scope, name);
     if (e === undefined) {
-      diags.push(unknownName(name, ref.span, 'the value', diagnostic('SGL2013', ref.span, { name })));
+      diags.push(diagnostic('SGL2013', ref.span, { name }));
       return DROP;
     }
     materialise(e, diags);
@@ -800,7 +742,7 @@ function declareVars(raw: unknown, span: SourceSpan, parent: VarScope, diags: Di
     else diags.push(diagnostic('SGL2011', span, { key: `vars.${name}`, type: 'an identifier as its name' }));
   }
   for (const [name, i] of position) {
-    const refs = new Map<string, VarEntry | symbol>();
+    const refs = new Map<string, VarEntry | typeof DROP>();
     for (const ref of refsIn(raw[name])) {
       for (const part of ref.parts) {
         if (typeof part === 'string') continue;
@@ -810,7 +752,7 @@ function declareVars(raw: unknown, span: SourceSpan, parent: VarScope, diags: Di
         else {
           diags.push(
             j === undefined
-              ? unknownName(part.name, ref.span, 'the value', diagnostic('SGL2013', ref.span, { name: part.name }))
+              ? diagnostic('SGL2013', ref.span, { name: part.name })
               : diagnostic('SGL2014', ref.span, { name: part.name, user: name }),
           );
           refs.set(part.name, DROP);
@@ -869,7 +811,7 @@ function resolveClassRefs(
     const v = substitute(item, lookup, diags, budget);
     for (const name of v === DROP ? [] : [v].flat()) {
       if (typeof name !== 'string') diags.push(diagnostic('SGL2011', item.span, { key, type: 'a class name' }));
-      else if (!classNames.has(name)) diags.push(unknownName(name, item.span, 'the class', diagnostic('SGL2002', item.span, { name })));
+      else if (!classNames.has(name)) diags.push(diagnostic('SGL2002', item.span, { name }));
       else out.push({ name, span: item.span });
     }
   }
@@ -882,7 +824,8 @@ function resolveClassRefs(
 function collectClasses(
   classesEntries: readonly ConfigEntry[],
   diags: Diagnostic[],
-): Map<string, { props: Property[]; span: SourceSpan }> {
+  imported: readonly string[] = [],
+): { raw: Map<string, { props: Property[]; span: SourceSpan }>; classNames: ReadonlySet<string> } {
   const raw = new Map<string, { props: Property[]; span: SourceSpan }>();
   for (const entry of classesEntries) {
     if (entry.value.kind !== 'Object') {
@@ -890,19 +833,13 @@ function collectClasses(
       continue;
     }
     for (const prop of entry.value.props) {
-      // A `.` in a class name is reserved for imported classes, `ns.Name`
-      // (A9, DD-02 I14; human decision 2026-09-25).
-      if (prop.key.includes('.')) {
-        diags.push(diagnostic('SGL2011', prop.keySpan, { key: `classes.${prop.key}`, type: 'a class name without `.`' }));
-        continue;
-      }
       const bodyProps = prop.value.kind === 'Object' ? prop.value.props : [];
       const existing = raw.get(prop.key);
       if (existing) existing.props.push(...bodyProps);
       else raw.set(prop.key, { props: [...bodyProps], span: prop.span });
     }
   }
-  return raw;
+  return { raw, classNames: new Set([...imported, ...raw.keys()]) };
 }
 
 function buildClasses(
@@ -910,7 +847,6 @@ function buildClasses(
   classNames: ReadonlySet<string>,
   rootVars: VarScope,
   diags: Diagnostic[],
-  imported: readonly ClassModel[],
 ): { classes: Record<string, ClassModel>; classSpans: readonly (readonly [string, SourceSpan])[] } {
   const configs = new Map<string, { config: ConfigBag; authored?: ConfigBag }>();
   const rawExtends = new Map<string, NameRef[]>();
@@ -929,28 +865,16 @@ function buildClasses(
 
   // `@extends` cycles, broken the canonical way `compile()` also uses
   // (`class-graph.ts`): the back-edge into each cycle's smallest member is
-  // spliced out and reported at the reference that wrote it. Over the merged
-  // table (A9, I13): an imported class's `@extends` binds late, so shadowing
-  // its base can close a cycle, reported at the import when the back-edge
-  // is the imported class's.
-  const importedByName = new Map(imported.map((c) => [c.name, c]));
-  const { breaks } = breakExtendsCycles(
-    new Map([...imported.map((c) => [c.name, c.extends] as const), ...[...rawExtends].map(([n, refs]) => [n, refs.map((r) => r.name)] as const)]),
-  );
+  // spliced out and reported at the reference that wrote it.
+  const { breaks } = breakExtendsCycles(new Map([...rawExtends].map(([n, refs]) => [n, refs.map((r) => r.name)] as const)));
   for (const { member, from, cycle } of breaks) {
-    const list = rawExtends.get(from);
-    const c = importedByName.get(from) as ClassModel;
-    diags.push(diagnostic('SGL2004', list?.find((r) => r.name === member)?.span ?? c.origin?.span ?? NO_SPAN, { a: member, cycle }));
-    if (list) rawExtends.set(from, list.filter((r) => r.name !== member));
-    else importedByName.set(from, { ...c, extends: c.extends.filter((n) => n !== member) });
+    const list = rawExtends.get(from) as NameRef[];
+    const at = list.find((r) => r.name === member) as NameRef;
+    diags.push(diagnostic('SGL2004', at.span, { a: member, cycle }));
+    rawExtends.set(from, list.filter((r) => r.name !== member));
   }
 
-  // Imported classes first, in import order, then your own (I18).
   const classes: Record<string, ClassModel> = {};
-  for (const c of importedByName.values()) {
-    classes[c.name] = c;
-    classSpans.push([`c:${c.name}`, c.origin?.span ?? NO_SPAN]);
-  }
   for (const name of raw.keys()) {
     const list = rawExtends.get(name) as NameRef[];
     const { config, authored } = configs.get(name) as { config: ConfigBag; authored?: ConfigBag };
@@ -1133,75 +1057,34 @@ function finalizeContainer(
 const isKey = (entry: Entry, key: string): entry is ConfigEntry =>
   entry.kind === 'ConfigEntry' && entry.key[0] === key;
 
+/** Does the root have an `@imports` entry? A document that does is resolved
+ *  by `@sgl/core/imports` (A9, DD-02 §10.2; the app loads it only then,
+ *  DD-08 §15 I25). */
+export const hasImports = (ast: Document): boolean => ast.entries.some((e) => isKey(e, 'imports'));
+
 /**
- * An `@imports` value as items (DD-02 §10.2): a string path, or
- * `{ path: "…", as: name }`. Anything else is `SGL2011` and ignored — the
- * item, or the whole value when it is not an array. A variable is not
- * substituted here (imports are linked before variables exist), so `$x` is
- * `SGL2011` and `"$x"` the literal path `$x`.
+ * The seam `@sgl/core/imports` resolves a document with `@imports` through
+ * (A9, DD-02 §10.2, I7), and nothing else: everything import-specific is
+ * there, off the boot path (§10.9).
  */
-function readImports(value: Value, diags: Diagnostic[]): ImportModel[] {
-  const bad = (span: SourceSpan): void => void diags.push(diagnostic('SGL2011', span, { key: 'imports', type: 'an array of paths and `{ path, as }` objects' }));
-  const items: ImportModel[] = [];
-  if (value.kind !== 'Array') bad(value.span);
-  else {
-    for (const v of value.items) {
-      if (v.kind === 'String') {
-        items.push({ path: v.value, form: 'string', span: v.span });
-        continue;
-      }
-      let path: string | undefined;
-      let as: string | undefined;
-      let ok = v.kind === 'Object';
-      for (const p of v.kind === 'Object' ? v.props : []) {
-        const w = p.value;
-        if (!p.isConfig && p.key === 'path' && w.kind === 'String') path = w.value;
-        else if (!p.isConfig && p.key === 'as' && (w.kind === 'Word' || w.kind === 'String') && IDENTIFIER.test(w.value)) as = w.value;
-        else ok = false;
-      }
-      if (ok && path !== undefined) items.push(as === undefined ? { path, form: 'object', span: v.span } : { path, as, form: 'object', span: v.span });
-      else bad(v.span);
-    }
-  }
-  return items;
+export interface ImportSeam {
+  /** The imported variables around the root's own, with the closure's
+   *  shared budget (I13, I21). */
+  readonly scope: VarScope;
+  /** The imported class names, so references to them are known (I13). */
+  readonly classes: readonly string[];
+  /** Set by `resolve()`: the root scope, what the document exports (I15). */
+  vars?: VarScope;
 }
 
 /**
  * Fold the AST into the canonical document model: merge redeclarations, expand
- * shorthands, normalise dotted `@`-keys, substitute variables, collect classes,
- * and link `@imports` through `options.imports` (A9, DD-02 §10).
+ * shorthands, normalise dotted `@`-keys, substitute variables, collect classes.
  *
  * Design: DD-02.
  */
-export function resolve(ast: Document, options: ResolveOptions = {}): ResolveResult {
-  const saved = imp;
-  try {
-    return resolveDocument(ast, options.imports);
-  } finally {
-    imp = saved;
-  }
-}
-
-function resolveDocument(ast: Document, linker: ImportLinker | undefined): ResolveResult {
+export function resolve(ast: Document, seam?: ImportSeam): ResolveResult {
   const diags: Diagnostic[] = [];
-
-  // `@imports` first (DD-02 §10.7): a later declaration wins, like any key.
-  // Linked before anything else, so the imported classes and variables are
-  // known before the document's own are declared over them.
-  let importsEntry: ConfigEntry | undefined;
-  for (const entry of ast.entries) if (isImports(entry)) importsEntry = entry as ConfigEntry;
-  const items = importsEntry === undefined ? [] : readImports(importsEntry.value, diags);
-  const linked = linker?.link(items, diags);
-  const failed = new Map<string, string>();
-  for (const item of items) {
-    // I9: with no linker, every import is unresolved.
-    if (linked === undefined) {
-      (item as { failed?: true }).failed = true;
-      diags.push(diagnostic('SGL2017', item.span, { path: item.path }));
-    }
-    if (item.failed && !failed.has(item.as ?? '')) failed.set(item.as ?? '', item.path);
-  }
-  imp = { ns: new Set(items.flatMap((i) => i.as ?? [])), failed };
 
   // `@sgl` is discarded — `DocumentModel.sgl` is the fixed literal `'1.0'`,
   // never round-tripped through generic config folding. `@classes` is routed
@@ -1212,7 +1095,6 @@ function resolveDocument(ast: Document, linker: ImportLinker | undefined): Resol
   const rootEntries: Entry[] = [];
   const rootVarsBag: Bag = { config: {}, configSpans: new Map() };
   for (const entry of ast.entries) {
-    if (isImports(entry)) continue;
     if (entry.kind === 'ConfigEntry' && entry.key.length === 1 && entry.key[0] === 'sgl') continue;
     if (entry.kind === 'ConfigEntry' && entry.key.length === 1 && entry.key[0] === 'classes') {
       classesEntries.push(entry);
@@ -1225,29 +1107,20 @@ function resolveDocument(ast: Document, linker: ImportLinker | undefined): Resol
     rootEntries.push(entry);
   }
 
-  // The imported variables are a scope around the root's own (I13).
-  const budget: Budget = linked?.budget ?? { used: 0, refused: 0 };
-  const docScope: VarScope = { parent: linked && { parent: undefined, entries: linked.vars, budget }, entries: new Map(), budget };
   const declared = rootVarsBag.config.vars;
+  const docScope = seam?.scope ?? newScope();
   const scoped = declared === undefined ? undefined : declareVars(declared, rootVarsBag.configSpans.get('vars') as SourceSpan, docScope, diags);
   const rootVars: VarScope = scoped ?? docScope;
+  if (seam) seam.vars = rootVars;
 
-  const rawClasses = collectClasses(classesEntries, diags);
-  const imported = linked?.classes(new Map([...rawClasses].map(([n, c]) => [n, c.span])), diags) ?? [];
-  const classNames = new Set([...imported.map((c) => c.name), ...rawClasses.keys()]);
-  const { classes, classSpans } = buildClasses(rawClasses, classNames, rootVars, diags, imported);
+  const { raw: rawClasses, classNames } = collectClasses(classesEntries, diags, seam?.classes);
+  const { classes, classSpans } = buildClasses(rawClasses, classNames, rootVars, diags);
 
   const rootAcc: Acc = { config: {}, configSpans: new Map(), children: new Map(), edges: [] };
   buildEntries(rootEntries, rootAcc, classNames, diags);
 
   const spans = new Map<string, SourceSpan>(classSpans);
-  // Grafted containers come first among the root's children (I12).
-  const graft = linked?.graft(new Set(rootAcc.children.keys()), diags);
-  for (const [k, v] of graft?.spans ?? []) spans.set(k, v);
-  let root = finalizeContainer('', [], rootAcc, 'root', ast.span, spans, classNames, diags, rootVars, scoped === undefined ? undefined : declared);
-  if (graft !== undefined) root = { ...root, children: [...graft.containers, ...root.children] };
-  linked?.done(diags, rootVars);
+  const root = finalizeContainer('', [], rootAcc, 'root', ast.span, spans, classNames, diags, rootVars, scoped === undefined ? undefined : declared);
 
-  const model: DocumentModel = { sgl: '1.0', root, classes, spans: spans as SpanTable, ...(importsEntry !== undefined ? { imports: items } : {}) };
-  return { model, diagnostics: diags };
+  return { model: { sgl: '1.0', root, classes, spans: spans as SpanTable }, diagnostics: diags };
 }
