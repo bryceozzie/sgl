@@ -20,7 +20,12 @@ ConfigEntry { (ConfigKey | ConfigString) ":" Value }
 NodeDecl  { NodeKey (":" NodeValue)? }
 NodeKey   { Identifier | String }
 NodeValue { Block | String | ConfigString | ClassRef }
-ClassRef  { Identifier }
+// A class name, qualified by the namespaces of `@imports` (A9, I16):
+// `lambda: aws.Lambda`, `b.c.Lambda`. A production, not a token, so no new
+// token overlaps Identifier; "." never starts an entry, so there is no LR
+// conflict at the end of a NodeDecl, and a following `../x -> y` still lexes
+// as Parent (`@precedence { Parent, "." }` below). DD-01 §2 has the audit.
+ClassRef  { qualified }
 Block     { "{" Entry* "}" }
 
 // ---- edges ------------------------------------------------------------
@@ -34,7 +39,8 @@ PathSegment { Identifier | String }
 
 // ---- values (configuration context only) ------------------------------
 Value  { String | ConfigString | Number | Bool | Null | Word | Variable | Array | Object }
-Word   { Identifier }                       // bareword enum: hexagon, down, dashed
+Word   { qualified }                         // bareword enum: hexagon, down, dashed; or a class, `aws.Lambda` (I16)
+qualified { Identifier ("." Identifier)* }   // no node of its own: one set of states for both
 Array  { "[" Value* "]" }
 Object { "{" Property* "}" }
 Property { PropKey ":" Value }
@@ -59,7 +65,11 @@ Null { @specialize<Identifier, "null"> }
   // String that happens to start with `@`, so it overlaps with String on every
   // such input and needs @precedence below to resolve in its favour.
   ConfigString { '"' "@" (![\\"\n] | "\\" _)* '"' }
-  Variable     { "$" Identifier }
+  // `$name`, or `$ns.name` for an imported variable (A9, I16). Only `$`
+  // starts it, so it overlaps no other token; it grows over the dots of a
+  // qualified name, which no production could follow a Variable with anyway
+  // (Variable is only a Value, and nothing after a Value starts with ".").
+  Variable     { "$" Identifier ("." Identifier)* }
   String       { '"' (![\\"\n] | "\\" _)* '"' }
   Number     { "-"? @digit+ ("." @digit+)? }
   EdgeOp     { "->" | "<-" | "<->" | "--" }
