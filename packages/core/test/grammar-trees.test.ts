@@ -18,6 +18,8 @@ import { parse } from '../src/parse.js';
  * byte-identical, which is the proof that no existing document parses
  * differently. A grammar change that moves one of them is a language change
  * for documents people already have.
+ * `corpus/imports/` (A9's own fixtures) came after the change and is pinned
+ * as written.
  *
  * Node names, not term ids: ids are an artefact of the generated tables and
  * renumber whenever a production is added, while names and ranges are what

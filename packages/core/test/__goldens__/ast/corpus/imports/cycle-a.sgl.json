@@ -1,0 +1,87 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "imports"
+    ],
+    "value": {
+     "kind": "Array",
+     "items": [
+      {
+       "kind": "String",
+       "value": "./cycle-b.sgl",
+       "span": {
+        "from": 185,
+        "to": 200
+       }
+      }
+     ],
+     "span": {
+      "from": 184,
+      "to": 201
+     }
+    },
+    "keySpan": {
+     "from": 174,
+     "to": 182
+    },
+    "span": {
+     "from": 174,
+     "to": 201
+    }
+   },
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "classes"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "A",
+       "isConfig": false,
+       "keySpan": {
+        "from": 214,
+        "to": 215
+       },
+       "value": {
+        "kind": "Object",
+        "props": [],
+        "span": {
+         "from": 217,
+         "to": 219
+        }
+       },
+       "span": {
+        "from": 214,
+        "to": 219
+       }
+      }
+     ],
+     "span": {
+      "from": 212,
+      "to": 221
+     }
+    },
+    "keySpan": {
+     "from": 202,
+     "to": 210
+    },
+    "span": {
+     "from": 202,
+     "to": 221
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 222
+  }
+ },
+ "diagnostics": []
+}

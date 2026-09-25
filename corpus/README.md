@@ -31,6 +31,7 @@ single purpose, so a failure names what broke.
 | `layout/*.sgl` | one `SGL4010` each (Stage K fix round 1): a container naming its own engine, and a root `@layout` key the engine does not declare |
 | `theme/*.sgl` | one theme-cascade diagnostic each: `bad-colour.sgl` (`SGL5004`, a paint value that is not a colour) |
 | `unresolved/*.sgl` | one resolution error each, including `edge-expansion-limit.sgl` — a 32 x 32 wildcard cross product, over the 1 000-edge expansion ceiling, the only way to reach `SGL3005` |
+| `imports/*.sgl` | A9's documents that import one another, run by a file-system host that matches stems in the directory (`packages/core/test/fs-host.ts`; DD-02 §10.8): `main.sgl` is clean (an unqualified class library and a library with nodes `as: aws`) and has resolve and compile goldens; `shared-classes.sgl`, `aws-icons.sgl`, `nothing.sgl`, `dup.sgl`/`dup.sgl.json` and `broken-lib.sgl` are what the others import; the rest are one import diagnostic each (`SGL2017`–`SGL2026`). They need a host, so the suites over `CLEAN_DOCS` leave them out: `packages/core/test/imports-corpus.test.ts` pins every one's diagnostics, and the coverage gate and `render-svg`'s `pipeline.test.ts` run them with the host |
 
 `n50.sgl`/`n500.sgl`/`n2000.sgl` are **not committed** — `bench/generate.js`
 writes them deterministically, and `pnpm test`/`pnpm check` regenerate them
@@ -45,7 +46,8 @@ coverage check depend on a build step running first.
 ## The coverage gate
 
 DD-09 §3.4: line coverage is reported, not gated. The gate is this directory —
-**every diagnostic code in `packages/core/src/diagnostics.ts` must have at least
+**every diagnostic code in `packages/core/src/diagnostics.ts` (and in A9's
+`IMPORT_CATALOGUE`, `packages/core/src/imports-catalogue.ts`) must have at least
 one document here that emits it and one that does not.** A new code without a
 fixture fails CI via a table check.
 

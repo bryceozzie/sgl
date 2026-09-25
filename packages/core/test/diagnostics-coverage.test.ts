@@ -1,11 +1,11 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { compile } from '../src/compile.js';
 import type { DiagnosticCode } from '../src/diagnostics.js';
+import { compileImports, createImportLinker, resolveImports } from '../src/imports.js';
 import { parse } from '../src/parse.js';
-import { resolve } from '../src/resolve.js';
 import { ALL_DIAGNOSTIC_CODES, CORE_OWNED_CODES, RENDER_SVG_OWNED_CODES } from './diagnostics-scope.js';
+import { fileSystemHost } from './fs-host.js';
 
 /**
  * DD-09 §3.4's coverage gate, enabled from Stage C on (DD-03 §"Gate"): every code
@@ -14,7 +14,7 @@ import { ALL_DIAGNOSTIC_CODES, CORE_OWNED_CODES, RENDER_SVG_OWNED_CODES } from '
  * this allowlist is expected to shrink as later stages land — see
  * `corpus/README.md`'s own "Not yet covered" section, which this mirrors.
  *
- * Scoped to `parse -> resolve -> compile` — `@sgl/core` imports nothing from the
+ * Scoped to `parse -> resolve -> compile` (their import-aware forms, A9) — `@sgl/core` imports nothing from the
  * workspace (DD-00 §2 rule 1), so this file can't reach `@sgl/theme` or
  * `@sgl/render-svg` to check `SGL5xxx`/`SGL6001` reachability itself.
  * `packages/render-svg/test/diagnostics-coverage.test.ts` (Stage G) runs the
@@ -50,13 +50,18 @@ describe('diagnostics coverage gate, parse/resolve/compile (DD-09 §3.4)', () =>
 
   // parse/resolve/compile never throw on bad input (DD-00 §3) — including a
   // syntactically malformed document's partial AST, so running the whole
-  // pipeline over every corpus file, malformed ones included, is safe.
+  // pipeline over every corpus file, malformed ones included, is safe. The
+  // import-aware resolve and compile (A9, `@sgl/core/imports`), over a
+  // file-system host, so `corpus/imports/` can import its neighbours; a
+  // document without `@imports` resolves and compiles through them exactly
+  // as through `resolve()` and `compile()`.
   const emittedBy = new Map<DiagnosticCode, Set<string>>();
   for (const file of files) {
-    const src = readFileSync(`${corpusDir}${file}`, 'utf8');
+    const path = `${corpusDir}${file}`;
+    const src = readFileSync(path, 'utf8');
     const { ast, diagnostics: parseDiags } = parse(src);
-    const { model, diagnostics: resolveDiags } = resolve(ast);
-    const { diagnostics: compileDiags } = compile(model);
+    const { model, diagnostics: resolveDiags } = resolveImports(ast, createImportLinker(fileSystemHost(path), { self: path }));
+    const { diagnostics: compileDiags } = compileImports(model);
     for (const d of [...parseDiags, ...resolveDiags, ...compileDiags]) {
       const set = emittedBy.get(d.code) ?? new Set<string>();
       set.add(file);

@@ -1,0 +1,15 @@
+// A document that imports (A9, DD-02 §10): a class library without `as`
+// (its classes and variables arrive unqualified) and a library with nodes
+// `as: aws` (qualified classes and variables, its nodes grafted under `aws`,
+// first among the root's children). Clean; its goldens are the imports
+// corpus test's.
+@title: "Imports"
+@imports: [
+  "./shared-classes.sgl"
+  { path: "./aws-icons.sgl", as: aws }
+]
+api: { @type: Critical, @label: "API (${tier})" }
+worker: aws.Lambda
+db: { @style.stroke: $aws.orange }
+api -> worker -> aws.queue
+api -> db

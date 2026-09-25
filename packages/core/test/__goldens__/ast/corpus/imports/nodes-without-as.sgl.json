@@ -1,0 +1,63 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "imports"
+    ],
+    "value": {
+     "kind": "Array",
+     "items": [
+      {
+       "kind": "String",
+       "value": "./aws-icons.sgl",
+       "span": {
+        "from": 143,
+        "to": 160
+       }
+      }
+     ],
+     "span": {
+      "from": 142,
+      "to": 161
+     }
+    },
+    "keySpan": {
+     "from": 132,
+     "to": 140
+    },
+    "span": {
+     "from": 132,
+     "to": 161
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "fn",
+    "keySpan": {
+     "from": 162,
+     "to": 164
+    },
+    "value": {
+     "kind": "Word",
+     "value": "Lambda",
+     "span": {
+      "from": 166,
+      "to": 172
+     }
+    },
+    "span": {
+     "from": 162,
+     "to": 172
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 173
+  }
+ },
+ "diagnostics": []
+}

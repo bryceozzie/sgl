@@ -1,0 +1,6 @@
+// expects: SGL2023
+// Your own class replaces an imported one whole (A9, I13), and it says so
+// (info); the imported Critical, which extends Service, now extends yours.
+@imports: ["./shared-classes.sgl"]
+@classes: { Service: { @shape: diamond } }
+api: Critical

@@ -1,0 +1,55 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "imports"
+    ],
+    "value": {
+     "kind": "Array",
+     "items": [
+      {
+       "kind": "String",
+       "value": "https://example.com/classes.sgl",
+       "span": {
+        "from": 107,
+        "to": 140
+       }
+      }
+     ],
+     "span": {
+      "from": 106,
+      "to": 141
+     }
+    },
+    "keySpan": {
+     "from": 96,
+     "to": 104
+    },
+    "span": {
+     "from": 96,
+     "to": 141
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "x",
+    "keySpan": {
+     "from": 142,
+     "to": 143
+    },
+    "span": {
+     "from": 142,
+     "to": 143
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 144
+  }
+ },
+ "diagnostics": []
+}

@@ -1,4 +1,5 @@
 import { CATALOGUE, type DiagnosticCode } from '../src/diagnostics.js';
+import { IMPORT_CATALOGUE } from '../src/imports-catalogue.js';
 
 /**
  * Which half of the diagnostics-coverage gate (DD-09 §3.4) owns a code.
@@ -26,6 +27,8 @@ export function isRenderSvgOwned(code: DiagnosticCode): boolean {
   return code.startsWith('SGL5') || code === 'SGL6001' || code === 'SGL4010';
 }
 
-export const ALL_DIAGNOSTIC_CODES: readonly DiagnosticCode[] = Object.keys(CATALOGUE) as DiagnosticCode[];
+/** Both tables: `CATALOGUE` and A9's `IMPORT_CATALOGUE` (`@sgl/core/imports`,
+ *  off the boot path; DD-02 §10.6). */
+export const ALL_DIAGNOSTIC_CODES: readonly DiagnosticCode[] = [...Object.keys(CATALOGUE), ...Object.keys(IMPORT_CATALOGUE)] as DiagnosticCode[];
 export const CORE_OWNED_CODES: readonly DiagnosticCode[] = ALL_DIAGNOSTIC_CODES.filter((c) => !isRenderSvgOwned(c));
 export const RENDER_SVG_OWNED_CODES: readonly DiagnosticCode[] = ALL_DIAGNOSTIC_CODES.filter(isRenderSvgOwned);

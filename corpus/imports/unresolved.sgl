@@ -1,0 +1,9 @@
+// expects: SGL2017
+// An import that finds nothing is a warning, and so is everything it causes
+// (A9, I17): a class through its namespace and an edge into it are SGL2024,
+// and the rest still renders.
+@imports: [{ path: "./does-not-exist.sgl", as: gone }]
+a: gone.Thing
+b
+a -> gone.node
+a -> b

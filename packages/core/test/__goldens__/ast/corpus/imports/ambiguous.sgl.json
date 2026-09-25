@@ -1,0 +1,63 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "imports"
+    ],
+    "value": {
+     "kind": "Array",
+     "items": [
+      {
+       "kind": "String",
+       "value": "./dup.sgl",
+       "span": {
+        "from": 218,
+        "to": 229
+       }
+      }
+     ],
+     "span": {
+      "from": 217,
+      "to": 230
+     }
+    },
+    "keySpan": {
+     "from": 207,
+     "to": 215
+    },
+    "span": {
+     "from": 207,
+     "to": 230
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "x",
+    "keySpan": {
+     "from": 231,
+     "to": 232
+    },
+    "value": {
+     "kind": "Word",
+     "value": "Dup",
+     "span": {
+      "from": 234,
+      "to": 237
+     }
+    },
+    "span": {
+     "from": 231,
+     "to": 237
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 238
+  }
+ },
+ "diagnostics": []
+}

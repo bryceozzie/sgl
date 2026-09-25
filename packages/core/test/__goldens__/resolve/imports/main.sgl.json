@@ -1,0 +1,47 @@
+{
+  "@sgl": "1.0",
+  "@title": "Imports",
+  "@imports": [
+    "./shared-classes.sgl",
+    {
+      "path": "./aws-icons.sgl",
+      "as": "aws"
+    }
+  ],
+  "api": {
+    "@label": "API (${tier})",
+    "@type": [
+      "Critical"
+    ]
+  },
+  "worker": {
+    "@type": [
+      "aws.Lambda"
+    ]
+  },
+  "db": {
+    "@style": {
+      "stroke": "$aws.orange"
+    }
+  },
+  "@edges": [
+    {
+      "from": "api",
+      "to": "worker",
+      "directed": "forward",
+      "ordinal": 0
+    },
+    {
+      "from": "worker",
+      "to": "aws.queue",
+      "directed": "forward",
+      "ordinal": 1
+    },
+    {
+      "from": "api",
+      "to": "db",
+      "directed": "forward",
+      "ordinal": 0
+    }
+  ]
+}

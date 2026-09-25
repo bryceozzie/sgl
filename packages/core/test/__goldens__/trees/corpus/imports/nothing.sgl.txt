@@ -1,0 +1,8 @@
+Document 0-73
+  LineComment 0-54
+  Entry 55-72
+    ConfigEntry 55-72
+      ConfigKey 55-61
+      : 61-62
+      Value 63-72
+        String 63-72

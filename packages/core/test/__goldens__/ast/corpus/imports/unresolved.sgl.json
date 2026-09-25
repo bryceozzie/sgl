@@ -1,0 +1,254 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "imports"
+    ],
+    "value": {
+     "kind": "Array",
+     "items": [
+      {
+       "kind": "Object",
+       "props": [
+        {
+         "kind": "Property",
+         "key": "path",
+         "isConfig": false,
+         "keySpan": {
+          "from": 218,
+          "to": 222
+         },
+         "value": {
+          "kind": "String",
+          "value": "./does-not-exist.sgl",
+          "span": {
+           "from": 224,
+           "to": 246
+          }
+         },
+         "span": {
+          "from": 218,
+          "to": 246
+         }
+        },
+        {
+         "kind": "Property",
+         "key": "as",
+         "isConfig": false,
+         "keySpan": {
+          "from": 248,
+          "to": 250
+         },
+         "value": {
+          "kind": "Word",
+          "value": "gone",
+          "span": {
+           "from": 252,
+           "to": 256
+          }
+         },
+         "span": {
+          "from": 248,
+          "to": 256
+         }
+        }
+       ],
+       "span": {
+        "from": 216,
+        "to": 258
+       }
+      }
+     ],
+     "span": {
+      "from": 215,
+      "to": 259
+     }
+    },
+    "keySpan": {
+     "from": 205,
+     "to": 213
+    },
+    "span": {
+     "from": 205,
+     "to": 259
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 260,
+     "to": 261
+    },
+    "value": {
+     "kind": "Word",
+     "value": "gone.Thing",
+     "span": {
+      "from": 263,
+      "to": 273
+     }
+    },
+    "span": {
+     "from": 260,
+     "to": 273
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "b",
+    "keySpan": {
+     "from": 274,
+     "to": 275
+    },
+    "span": {
+     "from": 274,
+     "to": 275
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "a",
+         "span": {
+          "from": 276,
+          "to": 277
+         }
+        }
+       ],
+       "span": {
+        "from": 276,
+        "to": 277
+       }
+      },
+      "span": {
+       "from": 276,
+       "to": 277
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "gone",
+         "span": {
+          "from": 281,
+          "to": 285
+         }
+        },
+        {
+         "kind": "Name",
+         "value": "node",
+         "span": {
+          "from": 286,
+          "to": 290
+         }
+        }
+       ],
+       "span": {
+        "from": 281,
+        "to": 290
+       }
+      },
+      "span": {
+       "from": 281,
+       "to": 290
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 276,
+     "to": 290
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "a",
+         "span": {
+          "from": 291,
+          "to": 292
+         }
+        }
+       ],
+       "span": {
+        "from": 291,
+        "to": 292
+       }
+      },
+      "span": {
+       "from": 291,
+       "to": 292
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "b",
+         "span": {
+          "from": 296,
+          "to": 297
+         }
+        }
+       ],
+       "span": {
+        "from": 296,
+        "to": 297
+       }
+      },
+      "span": {
+       "from": 296,
+       "to": 297
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 291,
+     "to": 297
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 298
+  }
+ },
+ "diagnostics": []
+}

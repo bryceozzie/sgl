@@ -1,0 +1,3 @@
+// One of two documents named `dup` (A9): ambiguous.sgl's import of
+// `./dup.sgl` matches both this and dup.sgl.json (SGL2018).
+@classes: { Dup: { @shape: round } }

@@ -1,0 +1,4 @@
+// expects: SGL2019
+// The other half of cycle-a.sgl's cycle.
+@imports: ["./cycle-a.sgl"]
+@classes: { B: {} }

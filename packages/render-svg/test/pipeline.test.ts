@@ -3,7 +3,7 @@ import { neutralDark, neutralLight } from '@sgl/theme';
 import { describe, expect, it } from 'vitest';
 import { CLEAN_DOCS } from '../../core/test/corpus-docs.js';
 import { edgeElementId } from '../src/security.js';
-import { corpusSource, listCorpusDocs, runPipeline } from './pipeline.js';
+import { corpusPath, corpusSource, listCorpusDocs, runPipeline } from './pipeline.js';
 
 /**
  * Stage G — the end-to-end seam (07-execution-plan.md §5). Gate 2's own words:
@@ -71,6 +71,9 @@ function ownExpected(src: string): readonly DiagnosticCode[] {
  * anything else must be listed here explicitly, by a human, not inferred.
  */
 const DOWNSTREAM_EXTRA: Readonly<Record<string, readonly DiagnosticCode[]>> = {
+  // A9 (DD-02 I17): the class and the edge through the import that failed,
+  // one SGL2024 each, from the resolve and from the compile.
+  'imports/unresolved.sgl': ['SGL2024', 'SGL2024'],
   // The unterminated string swallows the rest of the line looking for its
   // closing quote, which the parser then recovers from as a second, unrelated
   // syntax error one token later.
@@ -116,7 +119,10 @@ describe('the pipeline, source to SVG: no unexpected diagnostics (Stage G, T3 ga
     it(`${doc}: emits exactly its own code plus its documented downstream extras`, async () => {
       const src = corpusSource(doc);
       const expected = [...ownExpected(src), ...(DOWNSTREAM_EXTRA[doc] ?? [])].sort();
-      const { diagnostics } = await runPipeline(src, neutralLight);
+      // `corpus/imports/` documents import their neighbours: the path gives
+      // the file-system host (A9); for every other document it changes
+      // nothing.
+      const { diagnostics } = await runPipeline(src, neutralLight, undefined, undefined, corpusPath(doc));
       expect(codesOf(diagnostics)).toEqual(expected);
     });
   }

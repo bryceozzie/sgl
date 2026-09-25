@@ -1,0 +1,567 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "imports"
+    ],
+    "value": {
+     "kind": "Array",
+     "items": [
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 156,
+        "to": 171
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 174,
+        "to": 189
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 192,
+        "to": 207
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 210,
+        "to": 225
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 228,
+        "to": 243
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 246,
+        "to": 261
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 264,
+        "to": 279
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 282,
+        "to": 297
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 300,
+        "to": 315
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 318,
+        "to": 333
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 336,
+        "to": 351
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 354,
+        "to": 369
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 372,
+        "to": 387
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 390,
+        "to": 405
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 408,
+        "to": 423
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 426,
+        "to": 441
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 444,
+        "to": 459
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 462,
+        "to": 477
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 480,
+        "to": 495
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 498,
+        "to": 513
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 516,
+        "to": 531
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 534,
+        "to": 549
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 552,
+        "to": 567
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 570,
+        "to": 585
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 588,
+        "to": 603
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 606,
+        "to": 621
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 624,
+        "to": 639
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 642,
+        "to": 657
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 660,
+        "to": 675
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 678,
+        "to": 693
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 696,
+        "to": 711
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 714,
+        "to": 729
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 732,
+        "to": 747
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 750,
+        "to": 765
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 768,
+        "to": 783
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 786,
+        "to": 801
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 804,
+        "to": 819
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 822,
+        "to": 837
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 840,
+        "to": 855
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 858,
+        "to": 873
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 876,
+        "to": 891
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 894,
+        "to": 909
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 912,
+        "to": 927
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 930,
+        "to": 945
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 948,
+        "to": 963
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 966,
+        "to": 981
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 984,
+        "to": 999
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 1002,
+        "to": 1017
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 1020,
+        "to": 1035
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 1038,
+        "to": 1053
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 1056,
+        "to": 1071
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 1074,
+        "to": 1089
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 1092,
+        "to": 1107
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 1110,
+        "to": 1125
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 1128,
+        "to": 1143
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 1146,
+        "to": 1161
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 1164,
+        "to": 1179
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 1182,
+        "to": 1197
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 1200,
+        "to": 1215
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 1218,
+        "to": 1233
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 1236,
+        "to": 1251
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 1254,
+        "to": 1269
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 1272,
+        "to": 1287
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 1290,
+        "to": 1305
+       }
+      },
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 1308,
+        "to": 1323
+       }
+      }
+     ],
+     "span": {
+      "from": 152,
+      "to": 1325
+     }
+    },
+    "keySpan": {
+     "from": 142,
+     "to": 150
+    },
+    "span": {
+     "from": 142,
+     "to": 1325
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "x",
+    "keySpan": {
+     "from": 1326,
+     "to": 1327
+    },
+    "span": {
+     "from": 1326,
+     "to": 1327
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 1328
+  }
+ },
+ "diagnostics": []
+}

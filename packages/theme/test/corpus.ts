@@ -24,6 +24,10 @@ const corpusDir = fileURLToPath(new URL('../../../corpus/', import.meta.url));
 
 export const corpusSource = (name: string): string => readFileSync(`${corpusDir}${name}`, 'utf8');
 
+/** A corpus document's absolute path: what the file-system import host of
+ *  `corpus/imports/` resolves against (A9, `packages/core/test/fs-host.ts`). */
+export const corpusPath = (name: string): string => `${corpusDir}${name}`;
+
 /** Every `.sgl`/`.sgl.json` file anywhere under `corpus/`, including `malformed/`,
  *  `unresolved/` and `injection/` — the whole-corpus invariant this stage's gate
  *  needs (DD-00 §6: pre-measure covers 100% of labels in the corpus) has to hold

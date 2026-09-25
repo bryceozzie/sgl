@@ -1,0 +1,26 @@
+Document 0-51
+  Block 0-50
+    { 0-1
+    Entry 2-48
+      ConfigEntry 2-48
+        ConfigString 2-12
+        : 12-13
+        Value 14-48
+          Object 14-48
+            { 14-15
+            Property 16-46
+              PropKey 16-21
+                String 16-21
+              : 21-22
+              Value 23-46
+                Object 23-46
+                  { 23-24
+                  Property 25-44
+                    PropKey 25-33
+                      ConfigString 25-33
+                    : 33-34
+                    Value 35-44
+                      String 35-44
+                  } 45-46
+            } 47-48
+    } 49-50

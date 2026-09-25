@@ -1,0 +1,26 @@
+Document 0-166
+  LineComment 0-67
+  LineComment 68-128
+  Entry 129-165
+    ConfigEntry 129-165
+      ConfigKey 129-137
+      : 137-138
+      Value 139-165
+        Object 139-165
+          { 139-140
+          Property 141-163
+            PropKey 141-144
+              Identifier 141-144
+            : 144-145
+            Value 146-163
+              Object 146-163
+                { 146-147
+                Property 148-161
+                  PropKey 148-154
+                    ConfigKey 148-154
+                  : 154-155
+                  Value 156-161
+                    Word 156-161
+                      Identifier 156-161
+                } 162-163
+          } 164-165

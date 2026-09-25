@@ -1,0 +1,78 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "classes"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "Dup",
+       "isConfig": false,
+       "keySpan": {
+        "from": 141,
+        "to": 144
+       },
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "shape",
+          "isConfig": true,
+          "keySpan": {
+           "from": 148,
+           "to": 154
+          },
+          "value": {
+           "kind": "Word",
+           "value": "round",
+           "span": {
+            "from": 156,
+            "to": 161
+           }
+          },
+          "span": {
+           "from": 148,
+           "to": 161
+          }
+         }
+        ],
+        "span": {
+         "from": 146,
+         "to": 163
+        }
+       },
+       "span": {
+        "from": 141,
+        "to": 163
+       }
+      }
+     ],
+     "span": {
+      "from": 139,
+      "to": 165
+     }
+    },
+    "keySpan": {
+     "from": 129,
+     "to": 137
+    },
+    "span": {
+     "from": 129,
+     "to": 165
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 166
+  }
+ },
+ "diagnostics": []
+}

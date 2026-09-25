@@ -1,0 +1,10 @@
+// A library with nodes (A9): main.sgl imports it `as: aws`, so its classes
+// are `aws.Lambda`, its variables `$aws.orange`, and its nodes and edge are
+// grafted under a container `aws`; nodes-without-as.sgl imports it without
+// `as` (SGL2026).
+@title: "AWS"
+@vars: { orange: "#FF9900" }
+@classes: { Lambda: { @shape: hexagon, @style.fill: $orange } }
+lambda: { @type: Lambda, @label: "Lambda" }
+queue: { @label: "SQS" }
+lambda -> queue
