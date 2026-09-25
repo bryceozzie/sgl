@@ -1,7 +1,8 @@
-import { deflateRawSync } from 'node:zlib';
+import { deflateRawSync, inflateRawSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { decodeBase64Url, encodeBase64Url } from '../src/state/base64url.js';
 import {
+  bundleToast,
   decodeShareFragment,
   encodeShareFragment,
   INFLATE_SLICE_BYTES,
@@ -247,5 +248,83 @@ describe('decompression-bomb guard (DD-09 §1.1: hard 2 MB inflated cap)', () =>
       },
     };
     await expect(inflateRawCapped(Uint8Array.from([1]), 100, broken)).resolves.toEqual({ ok: false, reason: 'corrupt' });
+  });
+});
+
+describe('imported documents in the link, `i=` (A9, DD-08 §15.3: I26, I28)', () => {
+  const DOCS = [
+    { n: 'classes', t: 'Shared classes', s: '@classes: { Svc: { @shape: round } }\n' },
+    { n: 'aws icons', t: 'AWS — ümlaut 🚀', s: 'lambda\n' },
+  ];
+  /** `i=` for `json` as sent: deflate-raw, base64url. */
+  const iParam = (json: string | Uint8Array): string => `&i=${encodeBase64Url(deflateRawSync(typeof json === 'string' ? Buffer.from(json, 'utf8') : json))}`;
+  const main = fragmentOf(deflateRawSync(Buffer.from('api: Svc\n', 'utf8')));
+
+  it('round trip: `i=` beside `s=`, `e=` and `t=`, which are unchanged', async () => {
+    const fragment = encoded(await encodeShareFragment({ source: 'api: Svc\n', engineId: 'sgl.grid', imports: DOCS }));
+    expect(fragment).toMatch(/^s=[A-Za-z0-9_-]+&e=sgl\.grid&i=[A-Za-z0-9_-]+$/);
+    expect(await decodeShareFragment(fragment)).toEqual({ kind: 'ok', payload: { source: 'api: Svc\n', engineId: 'sgl.grid', imports: DOCS } });
+    // The stream is deflate-raw of `{"v":1,"d":[…]}`.
+    const i = new URLSearchParams(fragment).get('i')!;
+    expect(JSON.parse(inflateRawSync(decodeBase64Url(i)!).toString('utf8'))).toEqual({ v: 1, d: DOCS });
+  });
+
+  it('a link without `i=` opens exactly as before, and an empty closure adds none', async () => {
+    expect(encoded(await encodeShareFragment({ source: 'a\n', imports: [] }))).not.toContain('i=');
+    expect(await decodeShareFragment(main)).toEqual({ kind: 'ok', payload: { source: 'api: Svc\n' } });
+  });
+
+  it('an older app ignores `i=`: a decoder reading only s, e and t still gets the document', async () => {
+    const fragment = encoded(await encodeShareFragment({ source: 'api: Svc\n', imports: DOCS }));
+    const params = new URLSearchParams(fragment);
+    params.delete('i');
+    expect(await decodeShareFragment(params.toString())).toEqual({ kind: 'ok', payload: { source: 'api: Svc\n' } });
+  });
+
+  it('a `v` other than 1 is left out, and says so; the document still opens', async () => {
+    expect(await decodeShareFragment(main + iParam(JSON.stringify({ v: 2, d: DOCS })))).toEqual({ kind: 'ok', payload: { source: 'api: Svc\n', importsProblem: 'version' } });
+  });
+
+  it.each([
+    ['not base64url', '&i=a+b'],
+    ['not deflate', `&i=${encodeBase64Url(new Uint8Array([1, 2, 3, 4, 5]))}`],
+    ['not UTF-8', iParam(new Uint8Array([0x7b, 0xff, 0xfe, 0x7d]))],
+    ['not JSON', iParam('{"v":1,')],
+    ['not an object', iParam('[1]')],
+    ['`d` not an array', iParam('{"v":1,"d":{}}')],
+    ['an entry without `s`', iParam(JSON.stringify({ v: 1, d: [{ n: 'a', t: 'A' }] }))],
+    ['an entry with a number', iParam(JSON.stringify({ v: 1, d: [{ n: 'a', t: 3, s: '' }] }))],
+    ['an empty name', iParam(JSON.stringify({ v: 1, d: [{ n: '', t: 'A', s: '' }] }))],
+    ['65 entries', iParam(JSON.stringify({ v: 1, d: Array.from({ length: 65 }, (_, k) => ({ n: `d${k}`, t: 'T', s: '' })) }))],
+  ])('a bad bundle (%s) does not invalidate the link: the document opens, and it says so', async (_name, extra) => {
+    expect(await decodeShareFragment(main + extra)).toEqual({ kind: 'ok', payload: { source: 'api: Svc\n', importsProblem: 'invalid' } });
+  });
+
+  it('64 entries are fine', async () => {
+    const d = Array.from({ length: 64 }, (_, k) => ({ n: `d${k}`, t: 'T', s: '' }));
+    expect(await decodeShareFragment(main + iParam(JSON.stringify({ v: 1, d })))).toEqual({ kind: 'ok', payload: { source: 'api: Svc\n', imports: d } });
+  });
+
+  it('`i=` has its own 2 MB inflated cap: a bomb in it is refused, and the document still opens', async () => {
+    const bomb = new Uint8Array(SHARE_INFLATED_CAP + 1).fill(0x20);
+    expect(await decodeShareFragment(main + iParam(bomb))).toEqual({ kind: 'ok', payload: { source: 'api: Svc\n', importsProblem: 'invalid' } });
+    const huge = `&i=${'A'.repeat(Math.ceil(((SHARE_INFLATED_CAP + 1024) * 4) / 3) + 2048)}`;
+    expect(await decodeShareFragment(main + huge)).toEqual({ kind: 'ok', payload: { source: 'api: Svc\n', importsProblem: 'invalid' } });
+  });
+
+  it('the length guard measures the whole link, `i=` included', async () => {
+    const big = [{ n: 'big', t: 'Big', s: Array.from({ length: 4000 }, (_, k) => `n${(k * 7919) % 100003}\n`).join('') }];
+    const without = shareLink('https://sgl.example/', encoded(await encodeShareFragment({ source: 'api\n' })));
+    const withImports = shareLink('https://sgl.example/', encoded(await encodeShareFragment({ source: 'api\n', imports: big })));
+    expect(isLongShareLink(without)).toBe(false);
+    expect(isLongShareLink(withImports)).toBe(true);
+  });
+
+  it('what boot says about a bundle', () => {
+    expect(bundleToast({ source: '', imports: DOCS })).toEqual({ message: 'Opened the shared diagram and its 2 imported documents as new documents.', kind: 'info' });
+    expect(bundleToast({ source: '', imports: [DOCS[0]!] })).toEqual({ message: 'Opened the shared diagram and its imported document as new documents.', kind: 'info' });
+    expect(bundleToast({ source: '', importsProblem: 'invalid' })?.kind).toBe('error');
+    expect(bundleToast({ source: '', importsProblem: 'version' })?.kind).toBe('error');
+    expect(bundleToast({ source: '' })).toBeUndefined();
   });
 });

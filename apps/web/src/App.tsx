@@ -86,6 +86,7 @@ export function App({ boot }: { readonly boot: AppBoot }) {
     // render: at boot (J6), and again after every switch (fix round 2).
     const storedSvg = signal<string | undefined>(boot.record.lastGoodSvg);
     for (const notice of boot.notices) toasts.push(NOTICE_TOASTS[notice].message, NOTICE_TOASTS[notice].kind);
+    for (const t of boot.toasts ?? []) toasts.push(t.message, t.kind);
     return { pipeline, toasts, autosave, session, storedSvg };
   }, []);
   const { pipeline, toasts, autosave, session, storedSvg } = app;

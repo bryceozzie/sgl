@@ -1,7 +1,9 @@
 import { decodeBase64Url, encodeBase64Url } from './base64url.js';
 
 /**
- * Share by URL (DD-08 §8): `#s={base64url(deflate-raw(utf8(source)))}&e={engineId}&t={themeId}`.
+ * Share by URL (DD-08 §8): `#s={base64url(deflate-raw(utf8(source)))}&e={engineId}&t={themeId}`,
+ * and, for a document with imports, `&i={base64url(deflate-raw(utf8(JSON)))}`
+ * carrying the documents it imports (A9, DD-08 §15.3).
  * DOM-free — the compression streams are injected (`ShareCodec`), defaulting
  * to the platform's own `CompressionStream`/`DecompressionStream`, which Node
  * has too, so every branch here runs in the unit project.
@@ -40,11 +42,28 @@ export const NATIVE_SHARE_CODEC: ShareCodec = {
   decompress: () => new DecompressionStream('deflate-raw') as unknown as ByteTransform,
 };
 
+/** A document a link carries for the main one to import (I26): the name it
+ *  was imported by (`n`, normalised), its title and its source. */
+export interface SharedImport {
+  readonly n: string;
+  readonly t: string;
+  readonly s: string;
+}
+
+/** DD-08 §15.3, I28: the most documents one `i=` may carry (DD-02 I21's
+ *  64 import instances). */
+export const SHARE_MAX_IMPORTS = 64;
+
 export interface SharePayload {
   readonly source: string;
   /** Absent when the link carries no `e=`/`t=`: the receiver keeps its own. */
   readonly engineId?: string;
   readonly themeId?: string;
+  /** The documents `i=` carries (A9, I26). */
+  readonly imports?: readonly SharedImport[];
+  /** An `i=` that could not be read (`invalid`: I28) or is of a version
+   *  this app does not know (`version`): the link still opens, without it. */
+  readonly importsProblem?: 'invalid' | 'version';
 }
 
 export type ShareDecodeResult =
@@ -141,14 +160,21 @@ export type ShareEncodeResult = { readonly ok: true; readonly fragment: string }
  *  item 11): a missing or failing compressor is a value. */
 export async function encodeShareFragment(payload: SharePayload, codec: ShareCodec = NATIVE_SHARE_CODEC): Promise<ShareEncodeResult> {
   let compressed: Uint8Array;
+  let imports: Uint8Array | undefined;
   try {
     compressed = await deflateRaw(new TextEncoder().encode(payload.source), codec);
+    // A second stream rather than one shared with `s=` (I26): every
+    // existing link, and every older build reading this one, keeps working.
+    if (payload.imports !== undefined && payload.imports.length > 0) {
+      imports = await deflateRaw(new TextEncoder().encode(JSON.stringify({ v: 1, d: payload.imports.map(({ n, t, s }) => ({ n, t, s })) })), codec);
+    }
   } catch {
     return { ok: false };
   }
   let fragment = `s=${encodeBase64Url(compressed)}`;
   if (payload.engineId !== undefined) fragment += `&e=${encodeURIComponent(payload.engineId)}`;
   if (payload.themeId !== undefined) fragment += `&t=${encodeURIComponent(payload.themeId)}`;
+  if (imports !== undefined) fragment += `&i=${encodeBase64Url(imports)}`;
   return { ok: true, fragment };
 }
 
@@ -176,29 +202,77 @@ export async function decodeShareFragment(
   const s = params.get('s');
   if (s === null) return { kind: 'none' };
 
+  const text = await inflateText(s, codec, cap);
+  if (typeof text !== 'string') return { kind: 'invalid', reason: text.reason };
+
+  const e = params.get('e');
+  const t = params.get('t');
+  const i = params.get('i');
+  return {
+    kind: 'ok',
+    payload: {
+      source: text,
+      ...(e !== null && e !== '' ? { engineId: e } : {}),
+      ...(t !== null && t !== '' ? { themeId: t } : {}),
+      ...(i !== null ? await decodeImports(i, codec, cap) : {}),
+    },
+  };
+}
+
+/** One base64url deflate-raw stream as UTF-8 text, inflated under `cap`. */
+async function inflateText(encoded: string, codec: ShareCodec, cap: number): Promise<string | { readonly reason: 'corrupt' | 'oversize' }> {
   // A deflate stream is never much larger than its input (stored blocks add 5
   // bytes per 64 KiB), so a fragment whose compressed payload alone is well
   // past the cap cannot inflate to something under it: refuse it before even
   // decoding the base64.
-  if (s.length > Math.ceil(((cap + 1024) * 4) / 3) + 1024) return { kind: 'invalid', reason: 'oversize' };
+  if (encoded.length > Math.ceil(((cap + 1024) * 4) / 3) + 1024) return { reason: 'oversize' };
 
-  const compressed = decodeBase64Url(s);
-  if (compressed === null || compressed.length === 0) return { kind: 'invalid', reason: 'corrupt' };
+  const compressed = decodeBase64Url(encoded);
+  if (compressed === null || compressed.length === 0) return { reason: 'corrupt' };
 
   const inflated = await inflateRawCapped(compressed, cap, codec);
-  if (!inflated.ok) return { kind: 'invalid', reason: inflated.reason };
+  if (!inflated.ok) return { reason: inflated.reason };
 
-  let source: string;
   try {
-    source = new TextDecoder('utf-8', { fatal: true }).decode(inflated.bytes);
+    return new TextDecoder('utf-8', { fatal: true }).decode(inflated.bytes);
   } catch {
-    return { kind: 'invalid', reason: 'corrupt' };
+    return { reason: 'corrupt' };
   }
+}
 
-  const e = params.get('e');
-  const t = params.get('t');
-  return {
-    kind: 'ok',
-    payload: { source, ...(e !== null && e !== '' ? { engineId: e } : {}), ...(t !== null && t !== '' ? { themeId: t } : {}) },
-  };
+/**
+ * `i=` (A9, DD-08 §15.3, I28): under its own 2 MB inflated cap, valid
+ * UTF-8, `{"v":1,"d":[…]}` with at most 64 entries, each with a non-empty
+ * string `n` and string `t` and `s`. A bad one does not invalidate the link:
+ * it comes back as `importsProblem`, and the main document still opens.
+ */
+async function decodeImports(i: string, codec: ShareCodec, cap: number): Promise<Pick<SharePayload, 'imports' | 'importsProblem'>> {
+  const text = await inflateText(i, codec, cap);
+  let bundle: unknown;
+  try {
+    bundle = typeof text === 'string' ? JSON.parse(text) : undefined;
+  } catch {
+    // below
+  }
+  if (typeof bundle !== 'object' || bundle === null || Array.isArray(bundle)) return { importsProblem: 'invalid' };
+  const { v, d } = bundle as { v?: unknown; d?: unknown };
+  if (v !== 1) return { importsProblem: 'version' };
+  if (!Array.isArray(d) || d.length > SHARE_MAX_IMPORTS) return { importsProblem: 'invalid' };
+  const imports: SharedImport[] = [];
+  for (const item of d as unknown[]) {
+    const { n, t, s } = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>;
+    if (typeof n !== 'string' || n === '' || typeof t !== 'string' || typeof s !== 'string') return { importsProblem: 'invalid' };
+    imports.push({ n, t, s });
+  }
+  return imports.length > 0 ? { imports } : {};
+}
+
+/** What boot says about a link's imported documents (I28, I29), if
+ *  anything: they were opened too, or could not be read. */
+export function bundleToast(payload: SharePayload): { readonly message: string; readonly kind: 'info' | 'error' } | undefined {
+  const n = payload.imports?.length ?? 0;
+  if (n > 0) return { message: `Opened the shared diagram and its ${n === 1 ? 'imported document' : `${n} imported documents`} as new documents.`, kind: 'info' };
+  if (payload.importsProblem === 'invalid') return { message: 'Opened the shared diagram, but its imported documents could not be read.', kind: 'error' };
+  if (payload.importsProblem === 'version') return { message: 'Opened the shared diagram without its imported documents: this link is from a newer version of SGL.', kind: 'error' };
+  return undefined;
 }

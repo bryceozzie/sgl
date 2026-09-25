@@ -6,6 +6,7 @@ import { rasterizePng } from '../io/png.js';
 import type { DocumentSession } from '../state/document-session.js';
 import { saveFileName, type TextSaveKind } from '../state/filename.js';
 import { readOpenedFile, saveContent, type OpenResult } from '../state/files.js';
+import type { AppImportsRuntime } from '../state/imports.js';
 import type { Pipeline } from '../state/pipeline.js';
 import { DEFAULT_PNG_SCALE, PNG_SCALES, pngPlan, type PngScale } from '../state/png.js';
 import type { Toasts } from '../state/toasts.js';
@@ -29,6 +30,11 @@ export interface FileDeps {
 export interface ShareState {
   readonly link: string;
   readonly long: boolean;
+  /** How many imported documents the link carries (A9, DD-08 §15.3). */
+  readonly imports: number;
+  /** Names that led to more than one document (I27): the link carries the
+   *  first, so the recipient's copy will differ. */
+  readonly differ: readonly string[];
 }
 
 /** DD-08 §7's Open: the checks (extension, 2 MB) and the read. */
@@ -234,10 +240,15 @@ export function SaveExtras({ deps, close }: SaveExtrasProps) {
 export async function makeShare({ pipeline, toasts }: FileDeps): Promise<ShareState | null> {
   // Its own lazy chunk (F9 fix round 1): a pasted link needs it without Open/Save.
   const { encodeShareFragment, isLongShareLink, shareLink } = await import('../state/share.js');
+  // A9 (I27): a document with imports carries the documents its last
+  // resolve imported, as `i=`.
+  const runtime = pipeline.imports.peek() as AppImportsRuntime | null;
+  const bundle = pipeline.model.peek().model.imports !== undefined ? runtime?.bundle?.(pipeline.docId.peek()) : undefined;
   const encoded = await encodeShareFragment({
     source: pipeline.source.peek(),
     engineId: pipeline.effectiveEngineId.peek(),
     themeId: pipeline.effectiveThemeId.peek(),
+    ...(bundle !== undefined ? { imports: bundle.docs } : {}),
   });
   if (!encoded.ok) {
     // No `CompressionStream` here (an older or locked-down browser): the
@@ -246,7 +257,7 @@ export async function makeShare({ pipeline, toasts }: FileDeps): Promise<ShareSt
     return null;
   }
   const link = shareLink(`${window.location.origin}${window.location.pathname}`, encoded.fragment);
-  return { link, long: isLongShareLink(link) };
+  return { link, long: isLongShareLink(link), imports: bundle?.docs.length ?? 0, differ: bundle?.differ ?? [] };
 }
 
 function copy(link: string, toasts: Toasts): void {
@@ -283,7 +294,16 @@ export function ShareDialog({ share, deps, linkRef, onClose, onSave }: ShareDial
         onClose();
       }}
     >
-      <p class="share-note">The whole diagram is inside this link. Nothing is uploaded anywhere.</p>
+      <p class="share-note">
+        {share.imports > 0
+          ? `The whole diagram is inside this link, with the ${share.imports === 1 ? 'document' : `${share.imports} documents`} it imports. Nothing is uploaded anywhere.`
+          : 'The whole diagram is inside this link. Nothing is uploaded anywhere.'}
+      </p>
+      {share.differ.map((name) => (
+        <p class="share-differ" key={name}>
+          The import “{name}” led to more than one of your documents. The link carries the first, so the recipient’s copy of it will differ.
+        </p>
+      ))}
       <input
         ref={linkRef}
         class="share-link"
@@ -297,6 +317,7 @@ export function ShareDialog({ share, deps, linkRef, onClose, onSave }: ShareDial
         <p class="share-warning" role="alert">
           This link is {share.link.length.toLocaleString('en')} characters long. Some chats and browsers cut long links short, so it may not
           open. Saving the file is safer.
+          {share.imports > 0 ? ' The file holds this document only, without the documents it imports.' : null}
         </p>
       ) : null}
       <div class="share-actions">
