@@ -121,14 +121,15 @@ export function App({ boot }: { readonly boot: AppBoot }) {
     return ok;
   }
 
-  /** A new record from the pickers as they stand (Open, New document). */
-  function newRecord(source: string, fileExtension?: string): DocumentRecord {
+  /** A new record from the pickers as they stand (Open, New document). Open
+   *  keeps the file's extension (§7) and name (A9, DD-02 I3). */
+  function newRecord(source: string, file?: { readonly name: string; readonly extension: string }): DocumentRecord {
     const at = Date.now();
     const record = {
       ...blankRecord(newDocumentId(globalThis.crypto as IdSource | undefined, () => at), source, pipeline.engineId.peek(), pipeline.themeId.peek(), at),
       engineOptions: pipeline.engineOptions.peek(),
     };
-    return fileExtension !== undefined ? { ...record, fileExtension } : record;
+    return file ? { ...record, fileExtension: file.extension, fileName: file.name } : record;
   }
 
   /** DD-08 §7's one Open path: toolbar, Ctrl/⌘+O, the launch queue (§12).
@@ -142,7 +143,7 @@ export function App({ boot }: { readonly boot: AppBoot }) {
       view === null
         ? null
         : (opened) => {
-            void openRecord(view, newRecord(opened.text, opened.extension), true).then(() =>
+            void openRecord(view, newRecord(opened.text, opened), true).then(() =>
               toasts.push(`Opened ${opened.name} as a new document. Your previous document is in Documents.`),
             );
           },

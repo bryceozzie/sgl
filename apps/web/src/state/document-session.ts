@@ -71,6 +71,9 @@ export function createDocumentSession(pipeline: SessionPipeline, initial: Docume
       pictures.set(out, good);
     } else if (from.lastGoodSvg !== undefined) out.lastGoodSvg = from.lastGoodSvg;
     if (ext !== undefined) out.fileExtension = ext;
+    // A9 (DD-08 §15.1): carried unchanged from the stored record.
+    if (from.fileName !== undefined) out.fileName = from.fileName;
+    if (from.group !== undefined) out.group = from.group;
     return out;
   });
 
@@ -138,6 +141,8 @@ function sameContent(a: DocumentRecord, b: DocumentRecord): boolean {
     a.themeId === b.themeId &&
     a.createdAt === b.createdAt &&
     a.fileExtension === b.fileExtension &&
+    a.fileName === b.fileName &&
+    a.group === b.group &&
     samePicture(a, b)
   );
 }

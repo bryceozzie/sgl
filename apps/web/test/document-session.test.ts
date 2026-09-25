@@ -157,6 +157,21 @@ describe('document session', () => {
     for (const r of a) expect(r.lastGoodSvg).toBe('<svg id="A-dark"/>');
   });
 
+  it('carries the record\'s file name and group through unchanged (A9, DD-08 §15.1)', () => {
+    const autosave = fakeAutosave();
+    const pipeline = fakePipeline(initial().source);
+    const session = createDocumentSession(pipeline as unknown as SessionPipeline, initial({ fileName: 'flow.sgl', group: 'g-1' }), autosave, () => 1);
+    expect(session.record.value).toMatchObject({ fileName: 'flow.sgl', group: 'g-1' });
+    pipeline.source.value = '@title: "Flow"\na: "A"\nb\n';
+    expect(autosave.requests.at(-1)).toMatchObject({ fileName: 'flow.sgl', group: 'g-1' });
+    const plain = initial({ id: 'doc-9' });
+    session.switchTo(plain, () => undefined);
+    expect('fileName' in session.record.value).toBe(false);
+    expect('group' in session.record.value).toBe(false);
+    session.switchTo(initial({ id: 'doc-8', fileName: 'x.txt', group: 'g-2' }), () => undefined);
+    expect(session.record.value).toMatchObject({ id: 'doc-8', fileName: 'x.txt', group: 'g-2' });
+  });
+
   it('remembers the extension a file was opened from (DD-08 §7)', () => {
     const autosave = fakeAutosave();
     const session = createDocumentSession(fakePipeline(initial().source) as unknown as SessionPipeline, initial(), autosave, () => 1);

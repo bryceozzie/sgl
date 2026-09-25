@@ -23,6 +23,13 @@ export interface DocumentRecord {
   readonly lastGoodSvg?: string;
   /** The extension the document was last opened from (§7). */
   readonly fileExtension?: string;
+  /** A9 (DD-08 §15.1): the name Open read the file under, or the name a
+   *  share link's bundle gave it — one of the two names an import path
+   *  matches (DD-02 I3). */
+  readonly fileName?: string;
+  /** A9 (DD-08 §15.1): shared by the documents one share link created; an
+   *  import looks in its own group first, and never in another (DD-02 I4). */
+  readonly group?: string;
 }
 
 /** DD-08 §9's `settings` keys. Only `lastOpenDocId` is written today: the

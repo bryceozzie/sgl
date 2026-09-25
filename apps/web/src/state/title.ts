@@ -16,11 +16,12 @@ export const FALLBACK_TITLE = 'diagram';
 
 /** DD-08 §7: "`@title` or the first node key or 'diagram'" — unsanitised; the
  *  document record keeps this as its `title`. A blank `@title` falls through,
- *  as if absent. */
+ *  as if absent. A container grafted from an import is not a node key of the
+ *  document's own (A9, DD-02 I12). */
 export function documentTitle(model: DocumentModel): string {
   const title = model.root.config.title;
   if (typeof title === 'string' && title.trim() !== '') return title.trim();
-  const first = model.root.children[0]?.key;
+  const first = model.root.children.find((c) => !c.origin)?.key;
   if (first !== undefined && first.trim() !== '') return first;
   return FALLBACK_TITLE;
 }
