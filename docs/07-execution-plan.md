@@ -316,6 +316,20 @@ DD-09 §1.1 (three threat rows) and §1.2. One unrelated test fix: `e2e/pwa.spec
 `sw.js` against the minifier's variable name (`e.data.type`), which changes with the precache list, so
 any new asset hash could break it. It now matches any name.
 
+**A9 imports, on `feat/imports`** (branched from `main` at `d3b491b`; not merged). **Phase 1, design
+only, awaiting review; no code.** The design implements the human decision of 2026-09-25: relative
+paths resolve against stored documents, Share bundles the imports, and an unresolved import is a
+warning. It is DD-02 §10 (language and core, I1–I22, I31, I32) and DD-08 §15 (the app, I23–I30).
+Decisions marked ⚑ go to the human first:
+- I14: a class name may no longer contain `.`.
+- I16: qualified names `ns.Name` and `$ns.name` in the grammar.
+- I17: every way an import can fail, and everything that follows from it, is a warning.
+- I21: the variable-expansion budget is shared across the import closure.
+- I29: one share link can add several documents, as a group.
+
+Phase 2's first commit is F20's lazy `DocumentsMenu`; the boot-path cost of A9 is estimated at
+0.8–1.0 kB against 1.10 kB of headroom (DD-02 §10.9).
+
 **Stage K merged to `main` at `0e9ecfc`** (`--no-ff`, 2026-09-23) after a three-lens review and
 one fix round (23 items). `pnpm check`'s steps from clean are green on `main`, run by the
 orchestrator: 2139 Vitest passed (unit + browser project, Chromium only), e2e 55/55 in Chromium,
