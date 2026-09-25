@@ -1,4 +1,4 @@
-import { neutralDark, neutralLight, type ComputedStyle, type StyledGraph } from '@sgl/theme';
+import { BUILT_IN, neutralDark, neutralLight, type ComputedStyle, type StyledGraph, type ThemeDoc } from '@sgl/theme';
 import { describe, expect, it } from 'vitest';
 import { render, structureHash } from '../src/index.js';
 import { corpusSource, listCorpusDocs, renderCorpusDoc, runPipeline } from './pipeline.js';
@@ -29,21 +29,38 @@ function classAttributes(svg: string): readonly string[] {
   return [...svg.matchAll(/ class="([^"]*)"/g)].map((m) => m[1]!);
 }
 
-describe('F7 contract: switching neutral-light <-> neutral-dark changes only the <style>/<defs> text, over the whole corpus', () => {
+/** All four built-in themes (C5 added `high-contrast` and `print`): each pair
+ *  must be a paint-only switch. */
+const THEMES: readonly ThemeDoc[] = [neutralLight, neutralDark, BUILT_IN['high-contrast']!, BUILT_IN['print']!];
+
+describe('F7 contract: switching between any two built-in themes changes only the <style>/<defs> text, over the whole corpus', () => {
+  it('covers four themes', () => {
+    expect(THEMES.map((t) => t?.id)).toEqual(['neutral-light', 'neutral-dark', 'high-contrast', 'print']);
+  });
+
   for (const doc of listCorpusDocs()) {
     it(doc, async () => {
-      const light = await renderCorpusDoc(doc, neutralLight);
-      const dark = await renderCorpusDoc(doc, neutralDark);
-      // A paint-only switch by construction: layout untouched.
-      expect(dark.styled.geometryHash).toBe(light.styled.geometryHash);
-      expect(dark.result).toEqual(light.result);
-
-      expect(structure(dark.rendered.svg)).toBe(structure(light.rendered.svg));
-      expect(dark.rendered.structureHash).toBe(light.rendered.structureHash);
-      // …and the paint really did change, in the <style> text.
-      expect(dark.rendered.styleBlock).not.toBe(light.rendered.styleBlock);
-      // Swapping the <style> text alone turns one render into the other.
-      expect(light.rendered.svg.replace(/<style>[\s\S]*?<\/style>/, () => dark.rendered.svg.match(/<style>[\s\S]*?<\/style>/)![0])).toBe(dark.rendered.svg);
+      const all = await Promise.all(THEMES.map((t) => renderCorpusDoc(doc, t)));
+      const styleOf = (svg: string): string => svg.match(/<style>[\s\S]*?<\/style>/)![0];
+      for (let i = 0; i < all.length; i += 1) {
+        for (let j = i + 1; j < all.length; j += 1) {
+          const [a, b] = [all[i]!, all[j]!];
+          const pair = `${THEMES[i]!.id} -> ${THEMES[j]!.id}`;
+          // A paint-only switch by construction: layout untouched.
+          expect(b.styled.geometryHash, pair).toBe(a.styled.geometryHash);
+          expect(b.result, pair).toEqual(a.result);
+          expect(structure(b.rendered.svg), pair).toBe(structure(a.rendered.svg));
+          expect(b.rendered.structureHash, pair).toBe(a.rendered.structureHash);
+          // Swapping the <style> text alone turns one render into the other, both ways.
+          expect(a.rendered.svg.replace(/<style>[\s\S]*?<\/style>/, () => styleOf(b.rendered.svg)), pair).toBe(b.rendered.svg);
+          expect(b.rendered.svg.replace(/<style>[\s\S]*?<\/style>/, () => styleOf(a.rendered.svg)), pair).toBe(a.rendered.svg);
+        }
+      }
+      // …and the paint really did change, in the <style> text: every theme
+      // paints differently from neutral-light. (high-contrast and print can
+      // paint a small document identically — black on white, no container,
+      // no label — which is still a paint-only switch.)
+      for (let j = 1; j < all.length; j += 1) expect(all[j]!.rendered.styleBlock, THEMES[j]!.id).not.toBe(all[0]!.rendered.styleBlock);
     });
   }
 });

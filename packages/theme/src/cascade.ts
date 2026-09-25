@@ -394,6 +394,7 @@ export function resolveTheme(
   const rawRules: Record<string, Record<string, StyleValue>> = {};
   const rawByShape: Record<string, Record<string, StyleValue>> = {};
   const rawByClass: Record<string, Record<string, StyleValue>> = {};
+  const rawForce: Record<string, StyleValue> = {};
   let rawBackground = '';
 
   for (let i = chain.length - 1; i >= 0; i -= 1) {
@@ -402,6 +403,7 @@ export function resolveTheme(
     mergeNested(rawRules, t.rules);
     mergeNested(rawByShape, t.byShape);
     mergeNested(rawByClass, t.byClass);
+    mergeFlat(rawForce, t.force);
     if (isPlainObject(t.canvas) && typeof t.canvas.background === 'string') {
       rawBackground = t.canvas.background;
     }
@@ -446,6 +448,15 @@ export function resolveTheme(
     background = COLOR_FALLBACK;
   }
 
+  // DD-04 §4 step 7 (C5): `force` takes paint properties only, so a theme's
+  // metrics can never depend on it; a geometry key is dropped as SGL5003.
+  const paintForce: Record<string, StyleValue> = {};
+  for (const name of sortedKeys(rawForce)) {
+    if (BY_NAME.get(name)?.affects === 'paint') paintForce[name] = rawForce[name] as StyleValue;
+    else diagnostics.push(diagnostic('SGL5003', NO_SPAN, { name, where: `theme \`${doc.id}\` force (paint properties only)` }));
+  }
+  const force = resolveStyleSet(paintForce, tokens, `theme \`${doc.id}\` force`, NO_SPAN, diagnostics);
+
   const value: ResolvedTheme = {
     id: doc.id,
     rules: resolveGroup(rawRules, 'rule'),
@@ -453,6 +464,7 @@ export function resolveTheme(
     byClass: resolveGroup(rawByClass, 'byClass'),
     canvas: { background },
     tokens,
+    ...(sortedKeys(force).length > 0 ? { force } : {}),
   };
   return { value, diagnostics };
 }
@@ -714,6 +726,7 @@ export function styleGraph(
     for (const set of layers.docClassSets) assign(bag, set, role); // 4
     assign(bag, layers.inline, role); // 5
     assign(bag, layers.size, role); // 6
+    assignThemeSet(bag, theme.force, role); // 7 (paint only)
     return bag;
   };
 
@@ -724,6 +737,7 @@ export function styleGraph(
     for (const set of layers.themeClassSets) assign(bag, set, 'text'); // 3
     for (const set of layers.docClassSets) assign(bag, set, 'text'); // 4
     assign(bag, layers.inline, 'text'); // 5
+    assignThemeSet(bag, theme.force, 'text'); // 7 (paint only)
     return bag;
   };
 

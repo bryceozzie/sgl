@@ -15,7 +15,7 @@ import { SYNTHETIC_A, SYNTHETIC_B, SYNTHETIC_DOC } from '../../../packages/rende
  * theme switch — the canvas swapping the new `<style>` text into the tree it
  * already shows (`showLastGood`, what `Canvas.tsx` runs) — the live DOM must
  * serialise exactly as the DOM of a full `render()` under the new theme does,
- * for the whole corpus under the built-in pair and the synthetic document
+ * for the whole corpus under the built-in themes (C5: all four) and the synthetic document
  * under the synthetic role-, shape- and class-specific pair. Both
  * directions, and a second swap on top of the first.
  */
@@ -84,13 +84,24 @@ afterEach(() => {
 const CASES: readonly (readonly [string, string, ThemeDoc, ThemeDoc])[] = [
   ...Object.keys(SOURCES)
     .sort()
-    .map((path) => [path.replace('../../../corpus/', ''), SOURCES[path]!, neutralLight, neutralDark] as const),
+    .flatMap((path) => {
+      const name = path.replace('../../../corpus/', '');
+      // C5: every built-in theme is reached from neutral-light and back, and
+      // high-contrast <-> print directly (the four themes' other pairs are the
+      // same paint-only swap; render-svg's paint-only test holds all six).
+      return [
+        [name, SOURCES[path]!, neutralLight, neutralDark] as const,
+        [name, SOURCES[path]!, neutralLight, BUILT_IN['high-contrast']!] as const,
+        [name, SOURCES[path]!, BUILT_IN['high-contrast']!, BUILT_IN['print']!] as const,
+      ];
+    }),
   ['synthetic', SYNTHETIC_DOC, SYNTHETIC_A, SYNTHETIC_B],
 ];
 
 describe('the paint-only swap leaves exactly the DOM of a full render (F9 P3 oracle)', () => {
   it('covers the whole corpus', () => {
-    expect(CASES.length).toBeGreaterThan(25);
+    expect(CASES.length).toBeGreaterThan(75);
+    expect(new Set(CASES.flatMap(([, , a, b]) => [a.id, b.id]))).toEqual(new Set(['neutral-light', 'neutral-dark', 'high-contrast', 'print', 'synthetic-a', 'synthetic-b']));
   });
 
   for (const [name, source, first, second] of CASES) {

@@ -3,7 +3,7 @@ import { compile, parse, resolve } from '@sgl/core';
 import { describe, expect, it } from 'vitest';
 import { cascadeSignature, resolveTheme, styleGraph } from '../src/cascade.js';
 import { styleGraph as referenceStyleGraph } from './fixtures/cascade-reference.js';
-import { BUILT_IN, neutralDark, neutralLight } from '../src/themes/index.js';
+import { BUILT_IN, highContrast, neutralDark, neutralLight, print } from '../src/themes/index.js';
 import type { ThemeDoc } from '../src/types.js';
 import { SYNTHETIC_A, SYNTHETIC_B, SYNTHETIC_DOC } from '../../render-svg/test/fixtures/synthetic.js';
 import { corpusGraph, listCorpusDocs } from './corpus.js';
@@ -30,7 +30,7 @@ function both(source: string, themeDoc: ThemeDoc): { readonly memo: string; read
 }
 
 describe('styleGraph: the per-signature memo is exact (F9)', () => {
-  for (const themeDoc of [neutralLight, neutralDark]) {
+  for (const themeDoc of [neutralLight, neutralDark, highContrast, print]) {
     it(`every corpus document under ${themeDoc.id}`, () => {
       const docs = listCorpusDocs();
       expect(docs.length).toBeGreaterThan(20);

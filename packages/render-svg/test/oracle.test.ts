@@ -1,5 +1,5 @@
 import type { ComputedStyle, ThemeDoc } from '@sgl/theme';
-import { neutralDark, neutralLight } from '@sgl/theme';
+import { BUILT_IN, neutralDark, neutralLight } from '@sgl/theme';
 import { describe, expect, it } from 'vitest';
 import { cssColor, edgeElementId, nodeElementId } from '../src/security.js';
 import { paintDeclarations, type RuleKind } from '../src/style.js';
@@ -99,7 +99,7 @@ async function oracle(source: string, theme: ThemeDoc): Promise<number> {
 const strip = (svg: string): string => svg.replace(/<style>[\s\S]*?<\/style>/, '<style></style>').replace(/<defs>[\s\S]*?<\/defs>/, '<defs></defs>');
 
 describe('paint oracle: every element\'s own paint class rule is its own computed paint (fix round 1, item 2)', () => {
-  for (const theme of [neutralLight, neutralDark]) {
+  for (const theme of [neutralLight, neutralDark, BUILT_IN['high-contrast']!, BUILT_IN['print']!]) {
     for (const doc of listCorpusDocs()) {
       it(`${doc} under ${theme.id}`, async () => {
         await oracle(corpusSource(doc), theme);

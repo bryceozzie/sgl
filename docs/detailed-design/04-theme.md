@@ -14,7 +14,7 @@ Supersedes the `metrics` / `paint` document sections sketched in [Architecture �
 | Validate and resolve a theme document (inheritance, token references) | Emit SVG (DD-07 consumes `ComputedStyle`) |
 | Apply the cascade per element: role → shape → theme class → document class → inline | Know layout coordinates |
 | Compute a **geometry hash** and a **paint hash** per element | **⟶ v1.x:** modes map (C4 light/dark inside one theme), custom shapes (C7), font embedding (C8) |
-| Ship the two built-in themes | |
+| Ship the four built-in themes (§7) | |
 
 ---
 
@@ -104,7 +104,8 @@ Adding a property means adding a row here first. **⟶ v1.x** rows: `gradient`, 
 
   "byShape": { "cylinder": { "fill": "@surface.sunken" } },
   "byClass": {},                            // theme-level class styling, e.g. "Critical": { "stroke": "@danger" }
-  "canvas":  { "background": "@bg" }
+  "canvas":  { "background": "@bg" },
+  "force":   {}                             // optional; paint properties forced over the whole cascade (§4 step 7)
 }
 ```
 
@@ -117,7 +118,8 @@ Adding a property means adding a row here first. **⟶ v1.x** rows: `gradient`, 
 1. **Inheritance.** Follow `extends` (max depth 8 → `SGL5001`; cycle → `SGL5002`). Child `tokens`, `rules`, `byShape`, `byClass` deep-merge over parent, later wins.
 2. **Token references.** Any string value beginning with `@` is a token name. Resolve transitively; unknown → `SGL5005` and the value becomes the type's fallback (`#FF00FF` for colours — loud on purpose); cycle → `SGL5006`.
 3. **Normalise** insets to `[t,r,b,l]`, dash keywords to dash arrays, lengths to numbers.
-4. Output `ResolvedTheme { id, rules, byShape, byClass, canvas, tokens }` with no `@` references left.
+4. **Force** (C5). `force`, merged down the `extends` chain like `tokens`, keeps only properties whose registry row says `affects: 'paint'`; a geometry property in it is `SGL5003` ("… in theme `{id}` force (paint properties only)") and dropped, so no theme's metrics can depend on it. The rest resolve like any `StyleSet`.
+5. Output `ResolvedTheme { id, rules, byShape, byClass, canvas, tokens, force? }` with no `@` references left; `force` is present only when it is non-empty, so a theme without one resolves to exactly what it did before C5.
 
 ---
 
@@ -133,10 +135,13 @@ Per element, lowest to highest precedence. Each step is a `StyleSet`; later keys
 | 4 | Document `@classes[c].style` for `c` in `classes` | ✔ | ✔ | ✔ |
 | 5 | Inline `config.style` | ✔ | ✔ | ✔ |
 | 6 | Inline `config.size`, **only** the size keys (`SIZE_KEYS`: `width height minWidth minHeight maxWidth aspectRatio`) | ✔ | ✔ | — |
+| 7 | The theme's `force` (paint only, §3 step 4), where the property applies to the role | ✔ | ✔ | ✔ |
 
 Step 6 is geometry only. Any other key under `@size` — `@size.fill`, say — is kept by the resolver with `SGL2010` (language spec §4: an unknown key in a known namespace) and never reaches the bag. Until fix round 1 of the Stage L re-baseline, step 6 applied any key, so `@size.fill` painted; and because the renderer names paint classes after the cascade signature, which leaves `@size` out (below; DD-07 §6), such an element shared its paint class with an unstyled sibling and repainted it.
 
-Text properties for the element's label resolve the same way but starting from `rules.<role>.title` / `rules.edge.label` at step 1, then the *same* steps 3–5 filtered to `appliesTo: text`. So `@style.fontSize: 16` on a node applies to its title; `@style.fill` does not.
+Step 7 (C5) is how `print` reaches colours no token can: a document's class or inline `@style` spelling a literal colour (`#123456`, a `$variable`). It is a theme input, not an element one, so it is not part of the cascade signature below; every element under one theme gets the same forced values, and paint class names stay the same under every theme.
+
+Text properties for the element's label resolve the same way but starting from `rules.<role>.title` / `rules.edge.label` at step 1, then the *same* steps 3–5 filtered to `appliesTo: text`, then step 7 (for text, `color` alone applies). So `@style.fontSize: 16` on a node applies to its title; `@style.fill` does not.
 
 A container is a node with children; it takes `rules.container` instead of `rules.node`. Everything else is identical.
 
@@ -204,24 +209,27 @@ container: contentFrame top inset += titleHeight + titleGap
 
 ---
 
-## 7. Built-in themes (MVP)
+## 7. Built-in themes
 
-Two, sharing everything except tokens:
+Four, sharing everything except paint. The MVP shipped the two neutral ones; C5 (Stage L) added `high-contrast` and `print`. All three others `extend: neutral-light` and set no `rules`, `byShape` or `byClass`:
 
-| | `neutral-light` | `neutral-dark` (`extends: neutral-light`) |
-|---|---|---|
-| `bg` | `#F7F8FA` | `#0E131C` |
-| `surface` | `#FFFFFF` | `#171E2B` |
-| `surface.sunken` | `#EEF1F5` | `#10161F` |
-| `ink` | `#1B2330` | `#E4E9F1` |
-| `ink.muted` | `#5B6675` | `#A6B1C2` |
-| `line` | `#8A96A8` | `#4A5768` |
-| `accent` | `#1F5F80` | `#62A8CA` |
-| `danger` | `#A8323F` | `#E4737E` |
+| | `neutral-light` | `neutral-dark` | `high-contrast` | `print` |
+|---|---|---|---|---|
+| `bg` | `#F7F8FA` | `#0E131C` | `#FFFFFF` | `#FFFFFF` |
+| `surface` | `#FFFFFF` | `#171E2B` | `#FFFFFF` | `#FFFFFF` |
+| `surface.sunken` | `#EEF1F5` | `#10161F` | `#EBEBEB` | `#FFFFFF` |
+| `ink` | `#1B2330` | `#E4E9F1` | `#000000` | `#000000` |
+| `ink.muted` | `#5B6675` | `#A6B1C2` | `#2E2E2E` | `#000000` |
+| `line` | `#8A96A8` | `#4A5768` | `#000000` | `#000000` |
+| `accent` | `#1F5F80` | `#62A8CA` | `#0033B8` | `#000000` |
+| `danger` | `#A8323F` | `#E4737E` | `#990000` | `#000000` |
+| `force` (§4 step 7) | — | — | — | `fill: @bg`, `labelPlate: @bg`, `stroke: @ink`, `color: @ink`, `shadow: none` |
 
-Because `neutral-dark` overrides tokens only, its `geometryHash` for any document equals `neutral-light`'s — which is the property MVP acceptance criterion 2 tests. Both themes must pass WCAG AA contrast for `ink`/`surface`, `ink.muted`/`surface`, and `edge.label`/`bg` (test in DD-09; **C15** later generalises this to user themes).
+Because none of them changes a geometry property, every theme's `geometryHash` for any document equals `neutral-light`'s — the property MVP acceptance criterion 2 tests, and what makes a switch between any two of the four a paint-only swap of the `<style>` text (DD-07 §6, DD-08 §3). The two neutral themes must pass WCAG AA contrast for `ink`/`surface`, `ink.muted`/`surface`, and `edge.label`/`bg` (test in DD-09; **C15** later generalises this to user themes).
 
-**⟶ v1.0 (C5):** `high-contrast`, `print` — print sets every `fill` to white and every `stroke` to black and disables `shadow`; still tokens only.
+**`high-contrast`.** Black on white, for low vision and bright screens. Every text colour clears **WCAG 2.2 AAA (≥ 7:1)** on every surface a text can sit on, and every stroke and arrowhead clears the **3:1 non-text** threshold against every surface it can meet, edge-label plates included. `ink` and `line` are pure black (21:1 on white): the outlines, the edges and the arrowheads carry the structure, so they get the most contrast there is. `ink.muted` stays a distinct dark grey so titles and labels keep their hierarchy, and is still AAA on the container grey (11.4:1). Containers keep a light grey fill (`#EBEBEB`) so nesting reads without relying on a 1 px outline alone. The two accents are a deep blue and a deep red dark enough to pass as *text*, not only as strokes (`#0033B8` 8.1:1, `#990000` 7.5:1 on the container grey), so a class that colours a label or a stroke with `@accent` or `@danger` stays legible and stays distinct in hue. Worst pairs over the rendered corpus: text `#2E2E2E` on `#EBEBEB` 11.39:1; a stroke `#990000` on `#EBEBEB` 7.48:1. (The neutral themes are AA, not this: their `line` is 2.3–3.0:1 against their own surfaces.) `packages/render-svg/test/themes-c5.test.ts` computes the ratios from the rendered `<style>` of the whole corpus — every title on its own shape's fill, every edge label on its plate (or, with no plate, on every surface), every stroke and arrowhead on the canvas and each container fill, every shape's stroke on its own fill — and fails below the thresholds. A colour the document spells out itself is the author's, not the theme's, and is left out of the check.
+
+**`print`.** For paper and monochrome output: every `fill` white, every `stroke` black, every text black, `shadow` off, including colours the document sets itself, which is why it needs `force` (§4 step 7) rather than tokens alone. A colour-coded class loses its colour by design; dashes (`strokeDash`), arrowhead kinds and stroke widths stay, and are what tells elements apart on paper. The same test checks the rendered corpus: no fill other than white or `none`, no stroke or text other than black, the dash of every class unchanged.
 
 ---
 
@@ -229,6 +237,7 @@ Because `neutral-dark` overrides tokens only, its `geometryHash` for any documen
 
 - Registry completeness: every property has `affects`, `type`, `appliesTo`.
 - Cascade goldens: a fixture graph × both themes → `styles` JSON.
-- Hash properties: change one paint property → `paintHash` differs, `geometryHash` identical; change one geometry property → both differ; the geometry-hash of `neutral-dark` equals `neutral-light` for the whole corpus.
+- Hash properties: change one paint property → `paintHash` differs, `geometryHash` identical; change one geometry property → both differ; the geometry-hash of every built-in theme equals `neutral-light`'s for the whole corpus (`test/builtin-c5.test.ts`, per element).
 - Token resolution: transitive, unknown, cycle.
-- Contrast assertions on both themes.
+- Contrast assertions: AA on the two neutral themes; AAA text and 3:1 non-text on `high-contrast` over the rendered corpus; `print`'s white/black paint over the rendered corpus (`render-svg/test/themes-c5.test.ts`).
+- `force`: paint only (a geometry key is `SGL5003`), beats a document class and inline `@style`, leaves `strokeDash` alone.

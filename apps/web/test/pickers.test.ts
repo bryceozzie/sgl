@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { engineOptionsFor, themeOptions } from '../src/state/pickers.js';
 
 describe('themeOptions (DD-08 §10)', () => {
-  it('lists both built-in themes, sorted by id, with a 4-colour swatch', () => {
+  it('lists all four built-in themes, sorted by id, with a 4-colour swatch (C5)', () => {
     const options = themeOptions('neutral-light');
-    expect(options.map((o) => o.id)).toEqual(['neutral-dark', 'neutral-light']);
+    expect(options.map((o) => o.id)).toEqual(['high-contrast', 'neutral-dark', 'neutral-light', 'print']);
+    expect(options.map((o) => o.name)).toEqual(['High Contrast', 'Neutral Dark', 'Neutral Light', 'Print']);
     for (const o of options) {
       expect(o.swatch.bg).toMatch(/^#/);
       expect(o.swatch.surface).toMatch(/^#/);
@@ -19,9 +20,16 @@ describe('themeOptions (DD-08 §10)', () => {
     expect(options.find((o) => o.id === 'neutral-light')?.selected).toBe(false);
   });
 
-  it('the two built-in themes have different swatches', () => {
-    const [dark, light] = themeOptions('neutral-light');
-    expect(dark!.swatch.bg).not.toBe(light!.swatch.bg);
+  it('the built-in themes have different swatches', () => {
+    const options = themeOptions('neutral-light');
+    expect(new Set(options.map((o) => JSON.stringify(o.swatch))).size).toBe(options.length);
+  });
+
+  it('high-contrast and print swatch their own tokens: black on white, one accent or none (C5)', () => {
+    const options = themeOptions('print');
+    expect(options.find((o) => o.id === 'high-contrast')?.swatch).toEqual({ bg: '#FFFFFF', surface: '#FFFFFF', ink: '#000000', accent: '#0033B8' });
+    expect(options.find((o) => o.id === 'print')?.swatch).toEqual({ bg: '#FFFFFF', surface: '#FFFFFF', ink: '#000000', accent: '#000000' });
+    expect(options.filter((o) => o.selected).map((o) => o.id)).toEqual(['print']);
   });
 });
 
