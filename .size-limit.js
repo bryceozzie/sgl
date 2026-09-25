@@ -16,6 +16,12 @@
 // runs `apps/web/scripts/check-core-chunks.mjs` (fix round 1, item 17), which
 // walks the entry's static imports and fails if any reaches elk.
 //
+// `file-actions-*.js` and `engine-options-form-*.js` are A8's lazy chunks
+// (Open/Save ▾/Share's work, the Options ▾ form); `documents-menu-*.js` is
+// the Documents ▾ list, lazy since A9 phase 2's first step (F20, DD-02
+// §10.9 I32), loaded when the menu is first opened. Each is precached and
+// has an offline case in `e2e/offline.spec.ts`.
+//
 // size-limit is pinned to 12.1.0 (fix round 1, item 20): 13+ require Node
 // ≥ 22.18 (14 uses `fs/promises` `glob`), and CI runs Node 20.19.0
 // (`.nvmrc`) with `engine-strict=true`.
@@ -25,7 +31,7 @@
 export default [
   {
     name: 'core (entry + static imports + layout worker), gzip',
-    path: ['apps/web/dist/assets/*.js', 'apps/web/dist/assets/*.css', '!apps/web/dist/assets/elk-*.js', '!apps/web/dist/assets/share-*.js', '!apps/web/dist/assets/file-actions-*.js', '!apps/web/dist/assets/engine-options-form-*.js'],
+    path: ['apps/web/dist/assets/*.js', 'apps/web/dist/assets/*.css', '!apps/web/dist/assets/elk-*.js', '!apps/web/dist/assets/share-*.js', '!apps/web/dist/assets/file-actions-*.js', '!apps/web/dist/assets/engine-options-form-*.js', '!apps/web/dist/assets/documents-menu-*.js'],
     gzip: true,
     limit: '180 kB',
   },

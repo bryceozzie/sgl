@@ -307,6 +307,51 @@ test('offline, the lazy engine-options-form chunk comes from the precache: Optio
 });
 
 /**
+ * A9 phase 2, first step (F20, DD-02 §10.9 I32): the Documents ▾ list
+ * (`toolbar/documents-menu.tsx`, with `state/documents-list.ts`) is the lazy
+ * `documents-menu` chunk, loaded when Documents ▾ is first opened. Offline,
+ * from the precache alone, it still loads, lists the stored documents and
+ * switches to one, and the chunk is answered by the service worker.
+ * Chromium only, as above.
+ */
+test('offline, the lazy documents-menu chunk comes from the precache: Documents ▾ lists and switches', async ({ page, context, browserName }) => {
+  test.skip(browserName !== 'chromium', 'fromServiceWorker() is proof only in Chromium');
+  await page.goto('/');
+  await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+  expect(await page.evaluate(async () => Boolean((await navigator.serviceWorker.ready).active))).toBe(true);
+  // A second stored document to switch to.
+  await openFile(page, 'second.sgl', 'a: "A"\nb: "B"\na -> b\n');
+  await waitForExactNodeCount(page, 2);
+  await clearHttpCache(page, context, browserName);
+  await context.setOffline(true);
+  const responses: Response[] = [];
+  const failed: string[] = [];
+  context.on('response', (r) => {
+    if (r.url().startsWith('http')) responses.push(r);
+  });
+  context.on('requestfailed', (r) => failed.push(`${r.url()} ${r.failure()?.errorText ?? ''}`));
+  try {
+    await page.reload();
+    await waitForExactNodeCount(page, 2);
+    // The first paint did not need it.
+    const chunk = (): Response[] => responses.filter((r) => /\/assets\/documents-menu-.*\.js$/.test(new URL(r.url()).pathname));
+    expect(chunk()).toEqual([]);
+
+    await page.locator('.docs-menu > summary').click();
+    await expect(page.locator('.docs-menu .docs-item')).toHaveCount(2);
+    await page.locator('.docs-menu .docs-item').nth(1).click();
+    await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
+
+    expect(chunk().length).toBe(1);
+    expect(chunk().every((r) => r.fromServiceWorker())).toBe(true);
+    expect(responses.filter((r) => !r.fromServiceWorker()).map((r) => r.url())).toEqual([]);
+    expect(failed).toEqual([]);
+  } finally {
+    await context.setOffline(false);
+  }
+});
+
+/**
  * C5: the `high-contrast` and `print` themes are in the core bundle, not a
  * lazy chunk (they cost 0.24 kB; execution plan §2), so a document stored in
  * one of them paints in it on an offline boot, and a pick between them works

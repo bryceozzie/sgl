@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Autosave } from '../src/state/autosave.js';
-import { documentList, formatUpdated, switchDocument } from '../src/state/documents.js';
+import { switchDocument } from '../src/state/documents.js';
+import { documentList, formatUpdated } from '../src/state/documents-list.js';
 import { createMemoryStore, type DocumentRecord } from '../src/state/storage.js';
 
 /** Fix round 2 (human decision 2026-09-23): Open makes a new local document,
