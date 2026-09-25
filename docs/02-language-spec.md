@@ -309,6 +309,7 @@ Classes may extend other classes (`@extends`). Class application order is the de
 3. `@classes` definitions, in `@type` order
 4. Selector rules (§7), in declaration order
 5. Inline `@style` / `@size` on the element itself
+6. **Theme force** — a theme may *force* paint properties (fill, stroke, text colour, plate, shadow) over everything above, including inline `@style`. Only the built-in `print` theme uses it (every fill white, every stroke and text black, no shadow). Force never touches geometry: a forced geometry key is ignored with a warning. (Human decision, 2026-09-25; DD-04 §4 step 7.)
 
 `@token` references (`"@accent"`, `"@surface.raised"`) resolve against the active theme, so a class written once works in light, dark, and print.
 
