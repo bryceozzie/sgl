@@ -66,7 +66,9 @@ test('the PNG’s background is the theme’s canvas colour, light and dark', as
 
 test('the PNG’s text is drawn with the embedded font, not a fallback', async ({ page }) => {
   const saved = await savePng(page, 2);
-  const svg = (await saveAs(page, 'svg')).text;
+  // `lastGood.svg` itself (Save ▾ SVG without the faces it embeds, D2).
+  const svg = (await saveAs(page, 'svg')).text.replace(/@font-face\{[^}]*\}\n/g, '');
+  expect(svg).not.toContain('@font-face');
   // The same SVG rasterised the naive way, as an <img> with no font of its
   // own: the isolated image document cannot see the page's Inter, so it
   // falls back. The exported PNG must not be that picture.
@@ -103,7 +105,7 @@ test.describe('clipboard', () => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   });
 
-  test('Copy SVG puts lastGood.svg on the clipboard as text', async ({ page }) => {
+  test('Copy SVG puts what Save ▾ SVG saves on the clipboard as text', async ({ page }) => {
     const svg = (await saveAs(page, 'svg')).text;
     await page.locator('.save-menu > summary').click();
     await page.locator('.save-menu .copy-svg').click();

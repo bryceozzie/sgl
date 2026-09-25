@@ -2,15 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { saveFileName } from '../src/state/filename.js';
 import {
   DEFAULT_PNG_SCALE,
-  embedFontFaces,
-  fontFaceRule,
   MAX_PNG_PIXELS,
   MAX_PNG_SIDE,
   PNG_SCALES,
   pngPlan,
   rasterCopy,
   svgSize,
-  usedFontWeights,
 } from '../src/state/png.js';
 
 /** D6 (DD-08 §7's PNG row), DOM-free: the size, the cap and the
@@ -90,36 +87,9 @@ describe('pngPlan: width × scale by height × scale, capped', () => {
   });
 });
 
-describe('usedFontWeights: the bundled Inter faces the SVG asks for', () => {
-  it('reads the style block’s weights, 400 always included', () => {
-    expect(usedFontWeights(SVG('1', '1', '.g-1{font-family:Inter;font-weight:600}.g-2{font-weight:500}.g-3{font-weight:600}'))).toEqual([400, 500, 600]);
-    expect(usedFontWeights(SVG('1', '1', '.g-1{font-weight:500}'))).toEqual([400, 500]);
-    expect(usedFontWeights(SVG('1', '1'))).toEqual([400]);
-  });
-
-  it('only weights Inter ships here (400/500/600)', () => {
-    expect(usedFontWeights(SVG('1', '1', '.g-1{font-weight:700}.g-2{font-weight:bold}'))).toEqual([400]);
-  });
-});
-
-describe('the rasterisation-only copy', () => {
-  it('a face per weight, as a data: URL', () => {
-    expect(fontFaceRule(500, 'AAAA')).toBe("@font-face{font-family:'Inter';font-style:normal;font-weight:500;src:url(data:font/woff2;base64,AAAA) format('woff2')}");
-  });
-
-  it('puts the faces first in the one <style> element', () => {
-    const out = embedFontFaces(SVG('10', '10'), '@font-face{X}');
-    expect(out).toContain('<style>@font-face{X}\n.canvas{fill:#F7F8FA}</style>');
-    expect(out.match(/<style>/g)).toHaveLength(1);
-  });
-
-  it('adds a <style> element when the SVG has none', () => {
-    const out = embedFontFaces('<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect/></svg>', '@font-face{X}');
-    expect(out).toBe('<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><style>@font-face{X}\n</style><rect/></svg>');
-  });
-
+describe('the rasterisation-only copy (its fonts: @sgl/render-svg’s fonts.test.ts)', () => {
   it('draws at the pixel size: width and height replaced, the viewBox kept, stretched to fill', () => {
-    const out = rasterCopy(SVG('456', '235.188'), { width: 912, height: 470 }, '');
+    const out = rasterCopy(SVG('456', '235.188'), { width: 912, height: 470 });
     expect(out.startsWith('<svg xmlns="http://www.w3.org/2000/svg" class="sgl" data-sgl="1.0" width="912" height="470" viewBox="0 0 456 235.188" preserveAspectRatio="none" role="img">')).toBe(true);
     // The nested .canvas rect is untouched.
     expect(out).toContain('<rect class="canvas" x="0" y="0" width="456" height="235.188"/>');
@@ -128,7 +98,7 @@ describe('the rasterisation-only copy', () => {
   it('leaves lastGood.svg itself alone (a copy, not an edit)', () => {
     const svg = SVG('10', '10');
     const before = svg;
-    rasterCopy(svg, { width: 20, height: 20 }, fontFaceRule(400, 'AA'));
+    rasterCopy(svg, { width: 20, height: 20 });
     expect(svg).toBe(before);
   });
 });
