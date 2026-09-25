@@ -38,7 +38,7 @@ import { breakExtendsCycles, extendsEdge } from './class-graph.js';
 import { LANGUAGE_SHAPES } from './config-registry.js';
 import { fnv1a64 } from './hash.js';
 import { asEdgeId, asLabelId, asNodeId, asPortId, DRAWABLE_SHAPES, nodeIdFromPath, type NodeId, type ShapeId } from './ids.js';
-import type { ClassModel, ConfigBag, ConfigValue, ContainerModel, DocumentModel, EdgeModel, SpanTable } from './model.js';
+import type { ClassModel, ConfigBag, ConfigValue, ContainerModel, DocumentModel, EdgeModel, ImportOrigin, SpanTable } from './model.js';
 import { NO_SPAN, type SourceSpan } from './span.js';
 
 export interface CompileResult {
@@ -247,18 +247,30 @@ interface NodeMap {
    *  container still need a stable position for ID/parallelIndex purposes (§5),
    *  even though the container itself is missing from `order`. */
   readonly fullOrder: readonly NodeId[];
+  /** A9: the import each grafted node came from (DD-02 I12). */
+  readonly origins: ReadonlyMap<NodeId, ImportOrigin>;
 }
 
-function buildNodeMap(model: DocumentModel, diags: Diagnostic[], linearize: Linearize): NodeMap {
+/** Where a diagnostic on an element goes: the document's list, or, for an
+ *  element grafted from an import, that import's (DD-02 I17), summarised as
+ *  one `SGL2021` at the end. */
+type Sink = (origin: ImportOrigin | undefined) => Diagnostic[];
+
+function buildNodeMap(model: DocumentModel, sink: Sink, linearize: Linearize): NodeMap {
   const nodes: Record<NodeId, GraphNode> = {};
   const containerByPath = new Map<string, ContainerModel>([['', model.root]]);
   const order: NodeId[] = [];
   const fullOrder: NodeId[] = [];
+  const origins = new Map<NodeId, ImportOrigin>();
 
-  const visit = (container: ContainerModel, parent: NodeId | null, depth: number, parentHidden: boolean): void => {
+  const visit = (container: ContainerModel, parent: NodeId | null, depth: number, parentHidden: boolean, from?: ImportOrigin): void => {
     const pathKey = nodeIdFromPath(container.path);
     const id = asNodeId(pathKey);
     containerByPath.set(pathKey, container);
+    // The outermost origin: an import's own imports are part of it.
+    const origin = from ?? container.origin;
+    if (origin !== undefined) origins.set(id, origin);
+    const diags = sink(origin);
 
     const classes = linearize(typeNamesOf(container.config));
     const span = model.spans.get(`n:${pathKey}`) ?? NO_SPAN;
@@ -286,12 +298,12 @@ function buildNodeMap(model: DocumentModel, diags: Diagnostic[], linearize: Line
     fullOrder.push(id);
     if (!hidden) order.push(id);
 
-    for (const child of container.children) visit(child, id, depth + 1, hidden);
+    for (const child of container.children) visit(child, id, depth + 1, hidden, origin);
   };
 
   for (const child of model.root.children) visit(child, null, 0, false);
 
-  return { nodes, containerByPath, order, fullOrder };
+  return { nodes, containerByPath, order, fullOrder, origins };
 }
 
 // ---------------------------------------------------------------------------
@@ -352,9 +364,22 @@ function expandEndpoint(
   isHidden: (path: readonly string[]) => boolean,
   stmtSpan: SourceSpan,
   diags: Diagnostic[],
+  /** Failed imports by `as` (DD-02 I17). */
+  failed: ReadonlyMap<string | undefined, string>,
   /** The endpoint's text when it is not a path at all (`EdgeModel.fromText`). */
   notAPath?: string,
 ): readonly (readonly string[])[] {
+  // An endpoint that does not resolve is `SGL2001`, or `SGL2024` (a warning)
+  // when it reaches into an import that failed (A9, DD-02 I17).
+  const unresolved = (target: readonly string[] | undefined): readonly string[][] => {
+    const from = failed.get(target?.[0]);
+    diags.push(
+      from === undefined
+        ? diagnostic('SGL2001', stmtSpan, { path: renderPath(path), container: declaringLabel })
+        : diagnostic('SGL2024', stmtSpan, { name: renderPath(path), path: from, what: 'the edge' }),
+    );
+    return [];
+  };
   if (notAPath !== undefined) {
     diags.push(diagnostic('SGL2001', stmtSpan, { path: notAPath, container: declaringLabel }));
     return [];
@@ -371,10 +396,7 @@ function expandEndpoint(
     // as a hit. The analogous check does not apply to the wildcard branch below:
     // there, an empty prefix legitimately means "root", used to enumerate root's
     // own children, never as an edge target in itself.
-    if (target === undefined || target.length === 0 || !containerByPath.has(nodeIdFromPath(target))) {
-      diags.push(diagnostic('SGL2001', stmtSpan, { path: renderPath(path), container: declaringLabel }));
-      return [];
-    }
+    if (target === undefined || target.length === 0 || !containerByPath.has(nodeIdFromPath(target))) return unresolved(target);
     return [target];
   }
 
@@ -389,10 +411,7 @@ function expandEndpoint(
   const base = resolveBase(path, declaringPath);
   const prefixPath = base && [...base, ...(path.segments.slice(0, wildcardIdx) as NameStep[]).map((s) => s.value)];
   const prefixContainer = prefixPath && containerByPath.get(nodeIdFromPath(prefixPath));
-  if (base === undefined || prefixContainer === undefined) {
-    diags.push(diagnostic('SGL2001', stmtSpan, { path: renderPath(path), container: declaringLabel }));
-    return [];
-  }
+  if (base === undefined || prefixContainer === undefined) return unresolved(prefixPath);
 
   // Apply every step from the first wildcard on to each node the previous step
   // reached. The frontier stays in order and each parent contributes its
@@ -470,12 +489,13 @@ function compileEdgeModel(
   ctx: NodeMap,
   linearize: Linearize,
   diags: Diagnostic[],
+  failed: ReadonlyMap<string | undefined, string>,
 ): readonly PendingEdge[] {
   const declaringLabel = declaringPath.length === 0 ? 'the document root' : declaringPath.join('.');
   const isHidden = (p: readonly string[]): boolean => ctx.nodes[asNodeId(nodeIdFromPath(p))]?.hidden === true;
 
-  const fromTargets = expandEndpoint(edgeModel.from, declaringPath, declaringLabel, ctx.containerByPath, isHidden, stmtSpan, diags, edgeModel.fromText);
-  const toTargets = expandEndpoint(edgeModel.to, declaringPath, declaringLabel, ctx.containerByPath, isHidden, stmtSpan, diags, edgeModel.toText);
+  const fromTargets = expandEndpoint(edgeModel.from, declaringPath, declaringLabel, ctx.containerByPath, isHidden, stmtSpan, diags, failed, edgeModel.fromText);
+  const toTargets = expandEndpoint(edgeModel.to, declaringPath, declaringLabel, ctx.containerByPath, isHidden, stmtSpan, diags, failed, edgeModel.toText);
   if (fromTargets.length === 0 || toTargets.length === 0) return [];
 
   const product = fromTargets.length * toTargets.length;
@@ -551,14 +571,16 @@ function compileEdgeModel(
 function collectPendingEdges(
   model: DocumentModel,
   ctx: NodeMap,
-  diags: Diagnostic[],
+  sink: Sink,
   linearize: Linearize,
+  failed: ReadonlyMap<string | undefined, string>,
 ): readonly PendingEdge[] {
   const out: PendingEdge[] = [];
   const processContainer = (container: ContainerModel, declaringPath: readonly string[], declaringId: NodeId | null): void => {
+    const diags = sink(declaringId === null ? undefined : ctx.origins.get(declaringId));
     container.edges.forEach((edgeModel, i) => {
       const stmtSpan = model.spans.get(`e:${nodeIdFromPath(declaringPath)}#${i}`) ?? NO_SPAN;
-      out.push(...compileEdgeModel(edgeModel, declaringPath, declaringId, stmtSpan, ctx, linearize, diags));
+      out.push(...compileEdgeModel(edgeModel, declaringPath, declaringId, stmtSpan, ctx, linearize, diags, failed));
     });
   };
 
@@ -604,13 +626,13 @@ function finalizeEdges(pending: readonly PendingEdge[]): { edges: GraphEdge[]; l
 
 /** One `SGL3002` per hidden node with at least one incident edge, counting each
  *  edge once even when both endpoints are the same hidden node (a self-loop). */
-function reportHiddenIncidence(edges: readonly GraphEdge[], nodes: Readonly<Record<NodeId, GraphNode>>, diags: Diagnostic[]): void {
+function reportHiddenIncidence(edges: readonly GraphEdge[], nodes: Readonly<Record<NodeId, GraphNode>>, sink: Sink, origins: NodeMap['origins']): void {
   const counts = new Map<NodeId, number>();
   for (const e of edges) {
     const touched = e.from.node === e.to.node ? [e.from.node] : [e.from.node, e.to.node];
     for (const nid of touched) if (nodes[nid]?.hidden) counts.set(nid, (counts.get(nid) ?? 0) + 1);
   }
-  for (const [nid, n] of counts) diags.push(diagnostic('SGL3002', (nodes[nid] as GraphNode).span, { node: nid, n }));
+  for (const [nid, n] of counts) sink(origins.get(nid)).push(diagnostic('SGL3002', (nodes[nid] as GraphNode).span, { node: nid, n }));
 }
 
 // ---------------------------------------------------------------------------
@@ -636,8 +658,16 @@ export function compile(model: DocumentModel, view?: ViewSelector): CompileResul
   const diags: Diagnostic[] = [];
 
   const linearize = classLinearizer(model, diags);
-  const nodeMap = buildNodeMap(model, diags, linearize);
-  const pending = collectPendingEdges(model, nodeMap, diags, linearize);
+  const sinks = new Map<ImportOrigin, Diagnostic[]>();
+  const sink: Sink = (origin) => {
+    if (origin === undefined) return diags;
+    let list = sinks.get(origin);
+    if (list === undefined) sinks.set(origin, (list = []));
+    return list;
+  };
+  const failed = new Map(model.imports?.filter((i) => i.failed && i.as !== undefined).map((i) => [i.as, i.path]));
+  const nodeMap = buildNodeMap(model, sink, linearize);
+  const pending = collectPendingEdges(model, nodeMap, sink, linearize, failed);
   const { edges, labels: edgeLabels } = finalizeEdges(pending);
 
   const labels: Record<string, LabelSpec> = { ...edgeLabels };
@@ -647,7 +677,13 @@ export function compile(model: DocumentModel, view?: ViewSelector): CompileResul
     labels[node.labelId] = { id: node.labelId, owner: { kind: 'node', id: node.id }, role: 'title', runs: textRuns(text) };
   }
 
-  reportHiddenIncidence(edges, nodeMap.nodes, diags);
+  reportHiddenIncidence(edges, nodeMap.nodes, sink, nodeMap.origins);
+  // One `SGL2021` per import whose grafted elements had problems (I17).
+  for (const [origin, list] of sinks) {
+    const problems = list.filter((d) => d.severity !== 'info');
+    const first = problems[0];
+    if (first !== undefined) diags.push(diagnostic('SGL2021', origin.span, { path: origin.path, n: problems.length, first: first.message.replace(/\.$/, '') }));
+  }
 
   const rootChildren = model.root.children.map((c) => asNodeId(nodeIdFromPath(c.path)));
   const containerCount = Object.values(nodeMap.nodes).filter((n) => n.children.length > 0).length;

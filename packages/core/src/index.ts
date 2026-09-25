@@ -17,7 +17,7 @@ export { LAYOUT_CATALOGUE, layoutDiagnostic, type LayoutDiagnosticCode } from '.
 export * from './model.js';
 export * from './not-implemented.js';
 export * from './parse.js';
-export * from './resolve.js';
+export { hasImports, resolve, type ImportLinker, type ResolveOptions, type ResolveResult } from './resolve.js';
 export * from './span.js';
 export { SIZE_KEYS } from './config-registry.js';
 

@@ -330,6 +330,29 @@ Decisions marked ⚑ go to the human first:
 Phase 2's first commit is F20's lazy `DocumentsMenu`; the boot-path cost of A9 is estimated at
 0.8–1.0 kB against 1.10 kB of headroom (DD-02 §10.9).
 
+**A9 phase 2, stopped under DD-02 §10.9's size rule** (human decisions on I14, I16, I17, I21
+and I29, 2026-09-25: all accepted as designed; `main` merged in at `672948a`). **Done:**
+- Documents ▾'s list is the lazy `documents-menu` chunk (178 911 → 178 667 B, −244 B; the
+  design hoped for −0.6 kB), with an offline e2e case.
+- I16 qualified names are in the grammar (`qualified { Identifier ("." Identifier)* }` for
+  `ClassRef` and `Word`, and a `Variable` tail), with DD-01 §2's token audit. Every committed
+  document's CST and AST was pinned before the change and is unchanged after it
+  (`grammar-trees.test.ts`). A single-token variant was rejected because it re-lexed
+  `a.b -> c` in 23 of them.
+- Core is `wip`: `@sgl/core/imports`, `resolve(ast, { imports })`, I10–I22 and I31, 72 tests
+  in `imports.test.ts` and `imports-limits.test.ts`. The corpus fixtures and the app side
+  are not built.
+
+**Why it stopped: the boot path does not fit.** Gzipped core bundle:
+- the grammar measured +350 B (the design estimated under 100 B), leaving 983 B;
+- core's hook as built costs +1 111 B (`resolve.ts` 799, the three catalogue rows 88,
+  `compile.ts` 224), which takes the bundle to **180 128 B, over the 180 kB limit**, before
+  the pipeline gate and the app's record, boot and title changes.
+
+Even at the top of the design's own estimates for the unbuilt pieces, the headroom would end
+near 0.03 kB, not the 0.3 kB §10.9 requires. Nothing else was trimmed and the limit was not
+raised; this waits for a human decision (the options are in the phase 2 report).
+
 **Stage K merged to `main` at `0e9ecfc`** (`--no-ff`, 2026-09-23) after a three-lens review and
 one fix round (23 items). `pnpm check`'s steps from clean are green on `main`, run by the
 orchestrator: 2139 Vitest passed (unit + browser project, Chromium only), e2e 55/55 in Chromium,

@@ -1,9 +1,13 @@
+import type { IMPORT_CATALOGUE } from './imports-catalogue.js';
 import { fromCatalogue, LAYOUT_CATALOGUE, type CodeSpec } from './layout-diagnostics.js';
 import type { SourceSpan } from './span.js';
 
 /** Codes are allocated per stage and never reused (DD-00 §3):
- *  1xxx syntax · 2xxx resolution · 3xxx semantic · 4xxx layout · 5xxx theme · 6xxx platform. */
-export type DiagnosticCode = keyof typeof CATALOGUE;
+ *  1xxx syntax · 2xxx resolution · 3xxx semantic · 4xxx layout · 5xxx theme · 6xxx platform.
+ *  A9's import rows that only the linker emits live in `IMPORT_CATALOGUE`
+ *  (`@sgl/core/imports`, off the boot path, DD-02 §10.6); the type still
+ *  names them, through a type-only import. */
+export type DiagnosticCode = keyof typeof CATALOGUE | keyof typeof IMPORT_CATALOGUE;
 
 export type Severity = 'error' | 'warning' | 'info';
 
@@ -54,6 +58,12 @@ export const CATALOGUE = {
   SGL2014: { severity: 'error', template: 'Variable `${name}` is not declared before `{user}` in its `@vars` block; the value was dropped.' },
   SGL2015: { severity: 'error', template: 'Variable `${name}` holds {kind}, which cannot be interpolated; the value was dropped.' },
   SGL2016: { severity: 'error', template: '`{text}` would take this document\'s variable expansion past {limit} units; the value was dropped.' },
+  // A9 imports (DD-02 §10.6). Every import failure and what it causes is a
+  // warning (I17). These three are emitted without the linker too; the rest
+  // are `IMPORT_CATALOGUE`'s.
+  SGL2017: { severity: 'warning', template: 'Cannot find `{path}` to import; nothing was imported from it.' },
+  SGL2021: { severity: 'warning', template: '`{path}` has {n} problems of its own; the first: {first}.' },
+  SGL2024: { severity: 'warning', template: '`{name}` may come from `{path}`, which could not be imported; {what} was skipped.' },
 
   // ---- 3xxx semantic (DD-03) ---------------------------------------------
   SGL3001: { severity: 'warning', template: 'Unknown shape `{name}`; using `rect`.' },
@@ -83,7 +93,7 @@ export const CATALOGUE = {
 
 /** Build a diagnostic from the catalogue, substituting `{placeholders}`. */
 export function diagnostic(
-  code: DiagnosticCode,
+  code: keyof typeof CATALOGUE,
   span: SourceSpan,
   values: Readonly<Record<string, string | number>> = {},
   related?: readonly { readonly span: SourceSpan; readonly message: string }[],

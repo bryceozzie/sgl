@@ -57,6 +57,7 @@ function writeConfig(target: Record<string, unknown>, config: ConfigBag): void {
 function writeClasses(classes: Readonly<Record<string, ClassModel>>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [name, cls] of Object.entries(classes)) {
+    if (cls.origin !== undefined) continue; // imported (A9, I31)
     const body: Record<string, unknown> = {};
     if (cls.authored !== undefined) {
       const { extends: written, ...rest } = cls.authored;
@@ -92,7 +93,7 @@ function writeEdge(edge: EdgeModel): Record<string, unknown> {
 function writeContainer(container: ContainerModel): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   writeConfig(out, container.authored ?? container.config);
-  for (const child of container.children) out[child.key] = writeContainer(child);
+  for (const child of container.children) if (child.origin === undefined) out[child.key] = writeContainer(child);
   if (container.edges.length > 0) out['@edges'] = container.edges.map(writeEdge);
   return out;
 }
@@ -101,8 +102,13 @@ function writeContainer(container: ContainerModel): Record<string, unknown> {
 export function toJson(model: DocumentModel): string {
   const out: Record<string, unknown> = { '@sgl': model.sgl };
   writeConfig(out, model.root.authored ?? model.root.config);
-  if (Object.keys(model.classes).length > 0) out['@classes'] = writeClasses(model.classes);
-  for (const child of model.root.children) out[child.key] = writeContainer(child);
+  // `@imports` exactly as written (A9, DD-02 I31), just before `@classes`;
+  // what it brought in (anything with an `origin`) is left out, so a
+  // `.sgl.json` needs its imports just as the `.sgl` does.
+  if (model.imports !== undefined) out['@imports'] = model.imports.map((i) => (i.form === 'string' ? i.path : { path: i.path, ...(i.as !== undefined ? { as: i.as } : {}) }));
+  const own = writeClasses(model.classes);
+  if (Object.keys(own).length > 0) out['@classes'] = own;
+  for (const child of model.root.children) if (child.origin === undefined) out[child.key] = writeContainer(child);
   if (model.root.edges.length > 0) out['@edges'] = model.root.edges.map(writeEdge);
   return `${JSON.stringify(out, null, 2)}\n`;
 }

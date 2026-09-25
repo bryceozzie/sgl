@@ -17,6 +17,10 @@ export const CONFIG_REGISTRY: readonly ConfigKeySpec[] = [
   { key: 'theme', scope: ['root'], type: 'string', order: 2 },
   { key: 'layout', scope: ['root', 'node'], type: 'object', order: 3 },
   { key: 'layout.*', scope: ['node', 'edge'], type: 'any', order: 3 },
+  // `@imports` (A9, DD-02 §10.5 I31): root only, so anywhere else it is
+  // `SGL2012`. `resolve()` takes the root's out of the configuration into
+  // `DocumentModel.imports`, and `toJson` prints it just before `@classes`.
+  { key: 'imports', scope: ['root'], type: 'array', order: 4 },
   { key: 'classes', scope: ['root'], type: 'object', order: 4 },
   // `@vars` (language spec §5): lexically scoped, so any container may declare
   // them, root included; not a class or an edge, which are not scopes. The
