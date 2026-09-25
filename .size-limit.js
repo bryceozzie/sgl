@@ -19,8 +19,13 @@
 // `file-actions-*.js` and `engine-options-form-*.js` are A8's lazy chunks
 // (Open/Save ▾/Share's work, the Options ▾ form); `documents-menu-*.js` is
 // the Documents ▾ list, lazy since A9 phase 2's first step (F20, DD-02
-// §10.9 I32), loaded when the menu is first opened. Each is precached and
-// has an offline case in `e2e/offline.spec.ts`.
+// §10.9 I32), loaded when the menu is first opened; `imports-*.js` is A9's
+// (`@sgl/core/imports`, the stored-document index and host, DD-08 §15),
+// loaded for the first document with `@imports`; `filename-*.js` is
+// `state/filename.ts`, which `file-actions` and `imports` share, so the
+// bundler gives it a chunk of its own. Each is precached and has an offline
+// case in `e2e/offline.spec.ts`; `check-core-chunks.mjs` fails if any
+// excluded chunk is reachable from the entry.
 //
 // size-limit is pinned to 12.1.0 (fix round 1, item 20): 13+ require Node
 // ≥ 22.18 (14 uses `fs/promises` `glob`), and CI runs Node 20.19.0
@@ -31,7 +36,7 @@
 export default [
   {
     name: 'core (entry + static imports + layout worker), gzip',
-    path: ['apps/web/dist/assets/*.js', 'apps/web/dist/assets/*.css', '!apps/web/dist/assets/elk-*.js', '!apps/web/dist/assets/share-*.js', '!apps/web/dist/assets/file-actions-*.js', '!apps/web/dist/assets/engine-options-form-*.js', '!apps/web/dist/assets/documents-menu-*.js'],
+    path: ['apps/web/dist/assets/*.js', 'apps/web/dist/assets/*.css', '!apps/web/dist/assets/elk-*.js', '!apps/web/dist/assets/share-*.js', '!apps/web/dist/assets/file-actions-*.js', '!apps/web/dist/assets/engine-options-form-*.js', '!apps/web/dist/assets/documents-menu-*.js', '!apps/web/dist/assets/imports-*.js', '!apps/web/dist/assets/filename-*.js'],
     gzip: true,
     limit: '180 kB',
   },

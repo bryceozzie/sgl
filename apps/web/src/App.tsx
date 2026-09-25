@@ -62,6 +62,9 @@ export function App({ boot }: { readonly boot: AppBoot }) {
         defaultEngineId: boot.record.engineId,
         defaultThemeId: boot.record.themeId,
         engineSchemas: (id) => REGISTERED_ENGINES.find((e) => e.id === id),
+        // A9 (DD-08 §15): the lazy `imports` chunk, for the first document
+        // with `@imports`; it wraps this store's writes (I23).
+        loadImports: () => import('./state/imports.js').then((m) => m.createImportsRuntime(boot.store)),
       },
       boot.record.source,
     );

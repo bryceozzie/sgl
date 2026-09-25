@@ -6,7 +6,7 @@ import type { DocumentRecord } from './storage.js';
 import type { LastGood } from './types.js';
 
 /** The slice of the pipeline a document record is built from. */
-export type SessionPipeline = Pick<Pipeline, 'source' | 'model' | 'engineId' | 'engineOptions' | 'themeId' | 'lastGood'>;
+export type SessionPipeline = Pick<Pipeline, 'source' | 'model' | 'engineId' | 'engineOptions' | 'themeId' | 'lastGood'> & Partial<Pick<Pipeline, 'held'>>;
 
 export interface DocumentSession {
   /** The open document as it stands now — DD-08 §9's whole record. */
@@ -85,7 +85,8 @@ export function createDocumentSession(pipeline: SessionPipeline, initial: Docume
   let stored: DocumentRecord = initial;
   const dispose = effect(() => {
     const current = record.value;
-    if (sameContent(current, stored)) return;
+    // A9 (I25): held for its imports, the model is not this document's yet.
+    if (pipeline.held?.value || sameContent(current, stored)) return;
     stored = current;
     // Copied by property descriptor, so a `lastGoodSvg` getter stays one (a
     // spread would read it).

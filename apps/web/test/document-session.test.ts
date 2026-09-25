@@ -172,6 +172,20 @@ describe('document session', () => {
     expect(session.record.value).toMatchObject({ id: 'doc-8', fileName: 'x.txt', group: 'g-2' });
   });
 
+  it('saves nothing while the pipeline holds a document for its imports: its model is not this document yet (A9, I25)', () => {
+    const autosave = fakeAutosave();
+    const fresh = initial({ title: 'diagram' });
+    const pipeline = { ...fakePipeline(fresh.source), held: signal(true) };
+    // The model the held pipeline still shows is another document's.
+    pipeline.source.value = '@title: "Somebody else"\n';
+    createDocumentSession(pipeline as unknown as SessionPipeline, fresh, autosave, () => 100);
+    expect(autosave.requests).toEqual([]);
+    pipeline.source.value = '@title: "Flow"\na: "A"\n';
+    pipeline.held.value = false;
+    expect(autosave.requests).toHaveLength(1);
+    expect(autosave.requests[0]).toMatchObject({ id: 'doc-1', title: 'Flow' });
+  });
+
   it('remembers the extension a file was opened from (DD-08 §7)', () => {
     const autosave = fakeAutosave();
     const session = createDocumentSession(fakePipeline(initial().source) as unknown as SessionPipeline, initial(), autosave, () => 1);

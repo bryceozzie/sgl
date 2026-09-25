@@ -45,7 +45,9 @@ export interface Harness {
   dispose(): void;
 }
 
-export async function createHarness(source: string, deps: Partial<PipelineDeps> = {}): Promise<Harness> {
+/** `firstRender: false` for a pipeline that is expected to hold its first
+ *  render (A9's import gate, DD-08 §15 I25). */
+export async function createHarness(source: string, deps: Partial<PipelineDeps> = {}, options: { readonly firstRender?: boolean } = {}): Promise<Harness> {
   const timers: { fn: () => void; ms: number; cancelled: boolean }[] = [];
   const schedule: Schedule = (fn, ms) => {
     const entry = { fn, ms, cancelled: false };
@@ -103,6 +105,6 @@ export async function createHarness(source: string, deps: Partial<PipelineDeps> 
     },
   };
   await settle();
-  if (pipeline.lastGood.peek() === null) throw new Error(`no first render: ${JSON.stringify(pipeline.diags.peek().slice(0, 3))}`);
+  if (options.firstRender !== false && pipeline.lastGood.peek() === null) throw new Error(`no first render: ${JSON.stringify(pipeline.diags.peek().slice(0, 3))}`);
   return harness;
 }

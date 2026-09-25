@@ -19,6 +19,7 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import sizeLimit from '../../../.size-limit.js';
 
 const DIST = fileURLToPath(new URL('../dist/', import.meta.url));
 /** A string elkjs's GWT code carries and nothing of ours does. */
@@ -67,6 +68,16 @@ if (!existsSync(`${DIST}index.html`)) {
   if (process.exitCode !== 1) {
     console.log(`check-core-chunks: ${seen.size} boot chunks (${[...seen].sort().join(', ')}); none reaches elk.`);
   }
+
+  // Every chunk `.size-limit.js` leaves out of the core budget as lazy must
+  // really be lazy: none may be reachable from the entry by static imports
+  // (A9 added `imports-*.js` and `filename-*.js` to that list).
+  const lazy = sizeLimit
+    .flatMap((entry) => entry.path)
+    .filter((p) => p.startsWith('!apps/web/dist/assets/'))
+    .map((p) => new RegExp(`^${p.slice('!apps/web/dist/assets/'.length).replace(/[.]/g, '\\.').replace('*', '[\\w-]+')}$`));
+  for (const file of seen) if (lazy.some((re) => re.test(file))) fail(`${file} is excluded from the core budget as lazy, but the entry reaches it by static imports.`);
+  for (const re of lazy) if (!assets.some((f) => re.test(f))) fail(`no emitted chunk matches ${re}; the exclusion in .size-limit.js names nothing.`);
 
   // A9 (DD-02 §10.9, I32): everything import-specific is `@sgl/core/imports`
   // and the app's lazy `imports` chunk. No boot chunk may be that chunk or
