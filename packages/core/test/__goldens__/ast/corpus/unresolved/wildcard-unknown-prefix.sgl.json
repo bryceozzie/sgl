@@ -1,0 +1,98 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "switch",
+    "keySpan": {
+     "from": 20,
+     "to": 26
+    },
+    "span": {
+     "from": 20,
+     "to": 26
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "nosuchlane",
+         "span": {
+          "from": 27,
+          "to": 37
+         }
+        },
+        {
+         "kind": "Wildcard",
+         "depth": "children",
+         "prefix": "",
+         "suffix": "",
+         "span": {
+          "from": 38,
+          "to": 39
+         }
+        }
+       ],
+       "span": {
+        "from": 27,
+        "to": 39
+       }
+      },
+      "span": {
+       "from": 27,
+       "to": 39
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "switch",
+         "span": {
+          "from": 43,
+          "to": 49
+         }
+        }
+       ],
+       "span": {
+        "from": 43,
+        "to": 49
+       }
+      },
+      "span": {
+       "from": 43,
+       "to": 49
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 27,
+     "to": 49
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 50
+  }
+ },
+ "diagnostics": []
+}

@@ -1,0 +1,160 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "layout"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "nodeSpacing",
+       "isConfig": false,
+       "keySpan": {
+        "from": 221,
+        "to": 232
+       },
+       "value": {
+        "kind": "Number",
+        "value": 30,
+        "span": {
+         "from": 234,
+         "to": 236
+        }
+       },
+       "span": {
+        "from": 221,
+        "to": 236
+       }
+      }
+     ],
+     "span": {
+      "from": 219,
+      "to": 238
+     }
+    },
+    "keySpan": {
+     "from": 210,
+     "to": 217
+    },
+    "span": {
+     "from": 210,
+     "to": 238
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 239,
+     "to": 240
+    },
+    "value": {
+     "kind": "String",
+     "value": "A",
+     "span": {
+      "from": 242,
+      "to": 245
+     }
+    },
+    "span": {
+     "from": 239,
+     "to": 245
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "b",
+    "keySpan": {
+     "from": 246,
+     "to": 247
+    },
+    "value": {
+     "kind": "String",
+     "value": "B",
+     "span": {
+      "from": 249,
+      "to": 252
+     }
+    },
+    "span": {
+     "from": 246,
+     "to": 252
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "a",
+         "span": {
+          "from": 253,
+          "to": 254
+         }
+        }
+       ],
+       "span": {
+        "from": 253,
+        "to": 254
+       }
+      },
+      "span": {
+       "from": 253,
+       "to": 254
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "b",
+         "span": {
+          "from": 258,
+          "to": 259
+         }
+        }
+       ],
+       "span": {
+        "from": 258,
+        "to": 259
+       }
+      },
+      "span": {
+       "from": 258,
+       "to": 259
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 253,
+     "to": 259
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 260
+  }
+ },
+ "diagnostics": []
+}

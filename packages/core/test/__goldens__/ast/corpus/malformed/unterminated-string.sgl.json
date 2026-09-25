@@ -1,0 +1,98 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 20,
+     "to": 21
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "Word",
+        "value": "never",
+        "span": {
+         "from": 34,
+         "to": 39
+        }
+       },
+       "keySpan": {
+        "from": 25,
+        "to": 31
+       },
+       "span": {
+        "from": 25,
+        "to": 39
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "closed",
+       "keySpan": {
+        "from": 40,
+        "to": 46
+       },
+       "span": {
+        "from": 40,
+        "to": 46
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "b",
+       "keySpan": {
+        "from": 47,
+        "to": 48
+       },
+       "span": {
+        "from": 47,
+        "to": 48
+       }
+      }
+     ],
+     "span": {
+      "from": 23,
+      "to": 49
+     }
+    },
+    "span": {
+     "from": 20,
+     "to": 49
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 49
+  }
+ },
+ "diagnostics": [
+  {
+   "code": "SGL1003",
+   "severity": "error",
+   "message": "Unterminated string.",
+   "span": {
+    "from": 33,
+    "to": 46
+   }
+  },
+  {
+   "code": "SGL1001",
+   "severity": "error",
+   "message": "Expected `}` here.",
+   "span": {
+    "from": 49,
+    "to": 49
+   }
+  }
+ ]
+}

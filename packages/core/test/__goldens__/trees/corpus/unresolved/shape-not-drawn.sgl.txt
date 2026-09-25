@@ -1,0 +1,18 @@
+Document 0-41
+  LineComment 0-19
+  Entry 20-40
+    NodeDecl 20-40
+      NodeKey 20-21
+        Identifier 20-21
+      : 21-22
+      NodeValue 23-40
+        Block 23-40
+          { 23-24
+          Entry 25-38
+            ConfigEntry 25-38
+              ConfigKey 25-31
+              : 31-32
+              Value 33-38
+                Word 33-38
+                  Identifier 33-38
+          } 39-40

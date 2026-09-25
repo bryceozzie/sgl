@@ -1,0 +1,612 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "router",
+    "keySpan": {
+     "from": 39,
+     "to": 45
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "ports"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "in",
+          "isConfig": false,
+          "keySpan": {
+           "from": 61,
+           "to": 63
+          },
+          "value": {
+           "kind": "Word",
+           "value": "west",
+           "span": {
+            "from": 65,
+            "to": 69
+           }
+          },
+          "span": {
+           "from": 61,
+           "to": 69
+          }
+         },
+         {
+          "kind": "Property",
+          "key": "out",
+          "isConfig": false,
+          "keySpan": {
+           "from": 71,
+           "to": 74
+          },
+          "value": {
+           "kind": "Word",
+           "value": "east",
+           "span": {
+            "from": 76,
+            "to": 80
+           }
+          },
+          "span": {
+           "from": 71,
+           "to": 80
+          }
+         },
+         {
+          "kind": "Property",
+          "key": "mgmt",
+          "isConfig": false,
+          "keySpan": {
+           "from": 82,
+           "to": 86
+          },
+          "value": {
+           "kind": "Word",
+           "value": "north",
+           "span": {
+            "from": 88,
+            "to": 93
+           }
+          },
+          "span": {
+           "from": 82,
+           "to": 93
+          }
+         },
+         {
+          "kind": "Property",
+          "key": "drain",
+          "isConfig": false,
+          "keySpan": {
+           "from": 95,
+           "to": 100
+          },
+          "value": {
+           "kind": "Word",
+           "value": "south",
+           "span": {
+            "from": 102,
+            "to": 107
+           }
+          },
+          "span": {
+           "from": 95,
+           "to": 107
+          }
+         }
+        ],
+        "span": {
+         "from": 59,
+         "to": 109
+        }
+       },
+       "keySpan": {
+        "from": 51,
+        "to": 57
+       },
+       "span": {
+        "from": 51,
+        "to": 109
+       }
+      }
+     ],
+     "span": {
+      "from": 47,
+      "to": 111
+     }
+    },
+    "span": {
+     "from": 39,
+     "to": 111
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "switch",
+    "keySpan": {
+     "from": 113,
+     "to": 119
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "ports"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "uplink",
+          "isConfig": false,
+          "keySpan": {
+           "from": 135,
+           "to": 141
+          },
+          "value": {
+           "kind": "Word",
+           "value": "west",
+           "span": {
+            "from": 143,
+            "to": 147
+           }
+          },
+          "span": {
+           "from": 135,
+           "to": 147
+          }
+         },
+         {
+          "kind": "Property",
+          "key": "down",
+          "isConfig": false,
+          "keySpan": {
+           "from": 149,
+           "to": 153
+          },
+          "value": {
+           "kind": "Word",
+           "value": "east",
+           "span": {
+            "from": 155,
+            "to": 159
+           }
+          },
+          "span": {
+           "from": 149,
+           "to": 159
+          }
+         }
+        ],
+        "span": {
+         "from": 133,
+         "to": 161
+        }
+       },
+       "keySpan": {
+        "from": 125,
+        "to": 131
+       },
+       "span": {
+        "from": 125,
+        "to": 161
+       }
+      }
+     ],
+     "span": {
+      "from": 121,
+      "to": 163
+     }
+    },
+    "span": {
+     "from": 113,
+     "to": 163
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "client",
+    "keySpan": {
+     "from": 165,
+     "to": 171
+    },
+    "span": {
+     "from": 165,
+     "to": 171
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "server",
+    "keySpan": {
+     "from": 172,
+     "to": 178
+    },
+    "span": {
+     "from": 172,
+     "to": 178
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "console",
+    "keySpan": {
+     "from": 179,
+     "to": 186
+    },
+    "span": {
+     "from": 179,
+     "to": 186
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "client",
+         "span": {
+          "from": 188,
+          "to": 194
+         }
+        }
+       ],
+       "span": {
+        "from": 188,
+        "to": 194
+       }
+      },
+      "span": {
+       "from": 188,
+       "to": 194
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "router",
+         "span": {
+          "from": 198,
+          "to": 204
+         }
+        }
+       ],
+       "span": {
+        "from": 198,
+        "to": 204
+       }
+      },
+      "port": "in",
+      "portSpan": {
+       "from": 205,
+       "to": 207
+      },
+      "span": {
+       "from": 198,
+       "to": 208
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 188,
+     "to": 208
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "router",
+         "span": {
+          "from": 209,
+          "to": 215
+         }
+        }
+       ],
+       "span": {
+        "from": 209,
+        "to": 215
+       }
+      },
+      "port": "out",
+      "portSpan": {
+       "from": 216,
+       "to": 219
+      },
+      "span": {
+       "from": 209,
+       "to": 220
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "switch",
+         "span": {
+          "from": 224,
+          "to": 230
+         }
+        }
+       ],
+       "span": {
+        "from": 224,
+        "to": 230
+       }
+      },
+      "port": "uplink",
+      "portSpan": {
+       "from": 231,
+       "to": 237
+      },
+      "span": {
+       "from": 224,
+       "to": 238
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 209,
+     "to": 238
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "switch",
+         "span": {
+          "from": 239,
+          "to": 245
+         }
+        }
+       ],
+       "span": {
+        "from": 239,
+        "to": 245
+       }
+      },
+      "port": "down",
+      "portSpan": {
+       "from": 246,
+       "to": 250
+      },
+      "span": {
+       "from": 239,
+       "to": 251
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "server",
+         "span": {
+          "from": 255,
+          "to": 261
+         }
+        }
+       ],
+       "span": {
+        "from": 255,
+        "to": 261
+       }
+      },
+      "span": {
+       "from": 255,
+       "to": 261
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 239,
+     "to": 261
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "console",
+         "span": {
+          "from": 262,
+          "to": 269
+         }
+        }
+       ],
+       "span": {
+        "from": 262,
+        "to": 269
+       }
+      },
+      "span": {
+       "from": 262,
+       "to": 269
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "router",
+         "span": {
+          "from": 273,
+          "to": 279
+         }
+        }
+       ],
+       "span": {
+        "from": 273,
+        "to": 279
+       }
+      },
+      "port": "mgmt",
+      "portSpan": {
+       "from": 280,
+       "to": 284
+      },
+      "span": {
+       "from": 273,
+       "to": 285
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 262,
+     "to": 285
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "router",
+         "span": {
+          "from": 286,
+          "to": 292
+         }
+        }
+       ],
+       "span": {
+        "from": 286,
+        "to": 292
+       }
+      },
+      "port": "drain",
+      "portSpan": {
+       "from": 293,
+       "to": 298
+      },
+      "span": {
+       "from": 286,
+       "to": 299
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "server",
+         "span": {
+          "from": 303,
+          "to": 309
+         }
+        }
+       ],
+       "span": {
+        "from": 303,
+        "to": 309
+       }
+      },
+      "span": {
+       "from": 303,
+       "to": 309
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 286,
+     "to": 309
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 310
+  }
+ },
+ "diagnostics": []
+}

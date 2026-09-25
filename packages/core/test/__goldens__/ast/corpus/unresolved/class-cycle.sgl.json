@@ -1,0 +1,141 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "classes"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "A",
+       "isConfig": false,
+       "keySpan": {
+        "from": 34,
+        "to": 35
+       },
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "extends",
+          "isConfig": true,
+          "keySpan": {
+           "from": 39,
+           "to": 47
+          },
+          "value": {
+           "kind": "Word",
+           "value": "B",
+           "span": {
+            "from": 49,
+            "to": 50
+           }
+          },
+          "span": {
+           "from": 39,
+           "to": 50
+          }
+         }
+        ],
+        "span": {
+         "from": 37,
+         "to": 52
+        }
+       },
+       "span": {
+        "from": 34,
+        "to": 52
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "B",
+       "isConfig": false,
+       "keySpan": {
+        "from": 55,
+        "to": 56
+       },
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "extends",
+          "isConfig": true,
+          "keySpan": {
+           "from": 60,
+           "to": 68
+          },
+          "value": {
+           "kind": "Word",
+           "value": "A",
+           "span": {
+            "from": 70,
+            "to": 71
+           }
+          },
+          "span": {
+           "from": 60,
+           "to": 71
+          }
+         }
+        ],
+        "span": {
+         "from": 58,
+         "to": 73
+        }
+       },
+       "span": {
+        "from": 55,
+        "to": 73
+       }
+      }
+     ],
+     "span": {
+      "from": 30,
+      "to": 75
+     }
+    },
+    "keySpan": {
+     "from": 20,
+     "to": 28
+    },
+    "span": {
+     "from": 20,
+     "to": 75
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 76,
+     "to": 77
+    },
+    "value": {
+     "kind": "Word",
+     "value": "A",
+     "span": {
+      "from": 79,
+      "to": 80
+     }
+    },
+    "span": {
+     "from": 76,
+     "to": 80
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 81
+  }
+ },
+ "diagnostics": []
+}

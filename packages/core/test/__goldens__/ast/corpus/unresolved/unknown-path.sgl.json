@@ -1,0 +1,88 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 20,
+     "to": 21
+    },
+    "span": {
+     "from": 20,
+     "to": 21
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "a",
+         "span": {
+          "from": 22,
+          "to": 23
+         }
+        }
+       ],
+       "span": {
+        "from": 22,
+        "to": 23
+       }
+      },
+      "span": {
+       "from": 22,
+       "to": 23
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "nowhere",
+         "span": {
+          "from": 27,
+          "to": 34
+         }
+        }
+       ],
+       "span": {
+        "from": 27,
+        "to": 34
+       }
+      },
+      "span": {
+       "from": 27,
+       "to": 34
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 22,
+     "to": 34
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 35
+  }
+ },
+ "diagnostics": []
+}

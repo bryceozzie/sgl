@@ -1,0 +1,10 @@
+Document 0-35
+  LineComment 0-19
+  Entry 20-34
+    NodeDecl 20-34
+      NodeKey 20-21
+        Identifier 20-21
+      : 21-22
+      NodeValue 23-34
+        ClassRef 23-34
+          Identifier 23-34

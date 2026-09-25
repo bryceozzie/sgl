@@ -1,0 +1,757 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "box",
+    "keySpan": {
+     "from": 171,
+     "to": 174
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "NodeDecl",
+       "key": "n0",
+       "keySpan": {
+        "from": 180,
+        "to": 182
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 184,
+         "to": 186
+        }
+       },
+       "span": {
+        "from": 180,
+        "to": 186
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n1",
+       "keySpan": {
+        "from": 189,
+        "to": 191
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 193,
+         "to": 195
+        }
+       },
+       "span": {
+        "from": 189,
+        "to": 195
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n2",
+       "keySpan": {
+        "from": 198,
+        "to": 200
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 202,
+         "to": 204
+        }
+       },
+       "span": {
+        "from": 198,
+        "to": 204
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n3",
+       "keySpan": {
+        "from": 207,
+        "to": 209
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 211,
+         "to": 213
+        }
+       },
+       "span": {
+        "from": 207,
+        "to": 213
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n4",
+       "keySpan": {
+        "from": 216,
+        "to": 218
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 220,
+         "to": 222
+        }
+       },
+       "span": {
+        "from": 216,
+        "to": 222
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n5",
+       "keySpan": {
+        "from": 225,
+        "to": 227
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 229,
+         "to": 231
+        }
+       },
+       "span": {
+        "from": 225,
+        "to": 231
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n6",
+       "keySpan": {
+        "from": 234,
+        "to": 236
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 238,
+         "to": 240
+        }
+       },
+       "span": {
+        "from": 234,
+        "to": 240
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n7",
+       "keySpan": {
+        "from": 243,
+        "to": 245
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 247,
+         "to": 249
+        }
+       },
+       "span": {
+        "from": 243,
+        "to": 249
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n8",
+       "keySpan": {
+        "from": 252,
+        "to": 254
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 256,
+         "to": 258
+        }
+       },
+       "span": {
+        "from": 252,
+        "to": 258
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n9",
+       "keySpan": {
+        "from": 261,
+        "to": 263
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 265,
+         "to": 267
+        }
+       },
+       "span": {
+        "from": 261,
+        "to": 267
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n10",
+       "keySpan": {
+        "from": 270,
+        "to": 273
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 275,
+         "to": 277
+        }
+       },
+       "span": {
+        "from": 270,
+        "to": 277
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n11",
+       "keySpan": {
+        "from": 280,
+        "to": 283
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 285,
+         "to": 287
+        }
+       },
+       "span": {
+        "from": 280,
+        "to": 287
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n12",
+       "keySpan": {
+        "from": 290,
+        "to": 293
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 295,
+         "to": 297
+        }
+       },
+       "span": {
+        "from": 290,
+        "to": 297
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n13",
+       "keySpan": {
+        "from": 300,
+        "to": 303
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 305,
+         "to": 307
+        }
+       },
+       "span": {
+        "from": 300,
+        "to": 307
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n14",
+       "keySpan": {
+        "from": 310,
+        "to": 313
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 315,
+         "to": 317
+        }
+       },
+       "span": {
+        "from": 310,
+        "to": 317
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n15",
+       "keySpan": {
+        "from": 320,
+        "to": 323
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 325,
+         "to": 327
+        }
+       },
+       "span": {
+        "from": 320,
+        "to": 327
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n16",
+       "keySpan": {
+        "from": 330,
+        "to": 333
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 335,
+         "to": 337
+        }
+       },
+       "span": {
+        "from": 330,
+        "to": 337
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n17",
+       "keySpan": {
+        "from": 340,
+        "to": 343
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 345,
+         "to": 347
+        }
+       },
+       "span": {
+        "from": 340,
+        "to": 347
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n18",
+       "keySpan": {
+        "from": 350,
+        "to": 353
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 355,
+         "to": 357
+        }
+       },
+       "span": {
+        "from": 350,
+        "to": 357
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n19",
+       "keySpan": {
+        "from": 360,
+        "to": 363
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 365,
+         "to": 367
+        }
+       },
+       "span": {
+        "from": 360,
+        "to": 367
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n20",
+       "keySpan": {
+        "from": 370,
+        "to": 373
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 375,
+         "to": 377
+        }
+       },
+       "span": {
+        "from": 370,
+        "to": 377
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n21",
+       "keySpan": {
+        "from": 380,
+        "to": 383
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 385,
+         "to": 387
+        }
+       },
+       "span": {
+        "from": 380,
+        "to": 387
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n22",
+       "keySpan": {
+        "from": 390,
+        "to": 393
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 395,
+         "to": 397
+        }
+       },
+       "span": {
+        "from": 390,
+        "to": 397
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n23",
+       "keySpan": {
+        "from": 400,
+        "to": 403
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 405,
+         "to": 407
+        }
+       },
+       "span": {
+        "from": 400,
+        "to": 407
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n24",
+       "keySpan": {
+        "from": 410,
+        "to": 413
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 415,
+         "to": 417
+        }
+       },
+       "span": {
+        "from": 410,
+        "to": 417
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n25",
+       "keySpan": {
+        "from": 420,
+        "to": 423
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 425,
+         "to": 427
+        }
+       },
+       "span": {
+        "from": 420,
+        "to": 427
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n26",
+       "keySpan": {
+        "from": 430,
+        "to": 433
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 435,
+         "to": 437
+        }
+       },
+       "span": {
+        "from": 430,
+        "to": 437
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n27",
+       "keySpan": {
+        "from": 440,
+        "to": 443
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 445,
+         "to": 447
+        }
+       },
+       "span": {
+        "from": 440,
+        "to": 447
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n28",
+       "keySpan": {
+        "from": 450,
+        "to": 453
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 455,
+         "to": 457
+        }
+       },
+       "span": {
+        "from": 450,
+        "to": 457
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n29",
+       "keySpan": {
+        "from": 460,
+        "to": 463
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 465,
+         "to": 467
+        }
+       },
+       "span": {
+        "from": 460,
+        "to": 467
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n30",
+       "keySpan": {
+        "from": 470,
+        "to": 473
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 475,
+         "to": 477
+        }
+       },
+       "span": {
+        "from": 470,
+        "to": 477
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "n31",
+       "keySpan": {
+        "from": 480,
+        "to": 483
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 485,
+         "to": 487
+        }
+       },
+       "span": {
+        "from": 480,
+        "to": 487
+       }
+      }
+     ],
+     "span": {
+      "from": 176,
+      "to": 489
+     }
+    },
+    "span": {
+     "from": 171,
+     "to": 489
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "box",
+         "span": {
+          "from": 491,
+          "to": 494
+         }
+        },
+        {
+         "kind": "Wildcard",
+         "depth": "children",
+         "prefix": "",
+         "suffix": "",
+         "span": {
+          "from": 495,
+          "to": 496
+         }
+        }
+       ],
+       "span": {
+        "from": 491,
+        "to": 496
+       }
+      },
+      "span": {
+       "from": 491,
+       "to": 496
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "box",
+         "span": {
+          "from": 500,
+          "to": 503
+         }
+        },
+        {
+         "kind": "Wildcard",
+         "depth": "children",
+         "prefix": "",
+         "suffix": "",
+         "span": {
+          "from": 504,
+          "to": 505
+         }
+        }
+       ],
+       "span": {
+        "from": 500,
+        "to": 505
+       }
+      },
+      "span": {
+       "from": 500,
+       "to": 505
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 491,
+     "to": 505
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 506
+  }
+ },
+ "diagnostics": []
+}

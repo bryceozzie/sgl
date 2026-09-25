@@ -1,0 +1,98 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 20,
+     "to": 21
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "First",
+        "span": {
+         "from": 33,
+         "to": 40
+        }
+       },
+       "keySpan": {
+        "from": 25,
+        "to": 31
+       },
+       "span": {
+        "from": 25,
+        "to": 40
+       }
+      }
+     ],
+     "span": {
+      "from": 23,
+      "to": 42
+     }
+    },
+    "span": {
+     "from": 20,
+     "to": 42
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 43,
+     "to": 44
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Second",
+        "span": {
+         "from": 56,
+         "to": 64
+        }
+       },
+       "keySpan": {
+        "from": 48,
+        "to": 54
+       },
+       "span": {
+        "from": 48,
+        "to": 64
+       }
+      }
+     ],
+     "span": {
+      "from": 46,
+      "to": 66
+     }
+    },
+    "span": {
+     "from": 43,
+     "to": 66
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 67
+  }
+ },
+ "diagnostics": []
+}

@@ -1,0 +1,121 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "vars"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "pad",
+       "isConfig": false,
+       "keySpan": {
+        "from": 169,
+        "to": 172
+       },
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "x",
+          "isConfig": false,
+          "keySpan": {
+           "from": 176,
+           "to": 177
+          },
+          "value": {
+           "kind": "Number",
+           "value": 4,
+           "span": {
+            "from": 179,
+            "to": 180
+           }
+          },
+          "span": {
+           "from": 176,
+           "to": 180
+          }
+         }
+        ],
+        "span": {
+         "from": 174,
+         "to": 182
+        }
+       },
+       "span": {
+        "from": 169,
+        "to": 182
+       }
+      }
+     ],
+     "span": {
+      "from": 167,
+      "to": 184
+     }
+    },
+    "keySpan": {
+     "from": 160,
+     "to": 165
+    },
+    "span": {
+     "from": 160,
+     "to": 184
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "x",
+    "keySpan": {
+     "from": 185,
+     "to": 186
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "pad ${pad}",
+        "span": {
+         "from": 198,
+         "to": 210
+        }
+       },
+       "keySpan": {
+        "from": 190,
+        "to": 196
+       },
+       "span": {
+        "from": 190,
+        "to": 210
+       }
+      }
+     ],
+     "span": {
+      "from": 188,
+      "to": 212
+     }
+    },
+    "span": {
+     "from": 185,
+     "to": 212
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 213
+  }
+ },
+ "diagnostics": []
+}

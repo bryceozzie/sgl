@@ -1,0 +1,1594 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "title"
+    ],
+    "value": {
+     "kind": "String",
+     "value": "Wildcard paths",
+     "span": {
+      "from": 226,
+      "to": 242
+     }
+    },
+    "keySpan": {
+     "from": 218,
+     "to": 224
+    },
+    "span": {
+     "from": 218,
+     "to": 242
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "payments",
+    "keySpan": {
+     "from": 244,
+     "to": 252
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Payments",
+        "span": {
+         "from": 266,
+         "to": 276
+        }
+       },
+       "keySpan": {
+        "from": 258,
+        "to": 264
+       },
+       "span": {
+        "from": 258,
+        "to": 276
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "api",
+       "keySpan": {
+        "from": 279,
+        "to": 282
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 284,
+         "to": 286
+        }
+       },
+       "span": {
+        "from": 279,
+        "to": 286
+       }
+      }
+     ],
+     "span": {
+      "from": 254,
+      "to": 288
+     }
+    },
+    "span": {
+     "from": 244,
+     "to": 288
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "bus",
+    "keySpan": {
+     "from": 290,
+     "to": 293
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Bus",
+        "span": {
+         "from": 305,
+         "to": 310
+        }
+       },
+       "keySpan": {
+        "from": 297,
+        "to": 303
+       },
+       "span": {
+        "from": 297,
+        "to": 310
+       }
+      }
+     ],
+     "span": {
+      "from": 295,
+      "to": 312
+     }
+    },
+    "span": {
+     "from": 290,
+     "to": 312
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "store1",
+    "keySpan": {
+     "from": 314,
+     "to": 320
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Store 1",
+        "span": {
+         "from": 334,
+         "to": 343
+        }
+       },
+       "keySpan": {
+        "from": 326,
+        "to": 332
+       },
+       "span": {
+        "from": 326,
+        "to": 343
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "api",
+       "keySpan": {
+        "from": 346,
+        "to": 349
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [
+         {
+          "kind": "ConfigEntry",
+          "key": [
+           "ports"
+          ],
+          "value": {
+           "kind": "Object",
+           "props": [
+            {
+             "kind": "Property",
+             "key": "out",
+             "isConfig": false,
+             "keySpan": {
+              "from": 363,
+              "to": 366
+             },
+             "value": {
+              "kind": "Word",
+              "value": "east",
+              "span": {
+               "from": 368,
+               "to": 372
+              }
+             },
+             "span": {
+              "from": 363,
+              "to": 372
+             }
+            }
+           ],
+           "span": {
+            "from": 361,
+            "to": 374
+           }
+          },
+          "keySpan": {
+           "from": 353,
+           "to": 359
+          },
+          "span": {
+           "from": 353,
+           "to": 374
+          }
+         }
+        ],
+        "span": {
+         "from": 351,
+         "to": 376
+        }
+       },
+       "span": {
+        "from": 346,
+        "to": 376
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "apiV2",
+       "keySpan": {
+        "from": 379,
+        "to": 384
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [
+         {
+          "kind": "ConfigEntry",
+          "key": [
+           "ports"
+          ],
+          "value": {
+           "kind": "Object",
+           "props": [
+            {
+             "kind": "Property",
+             "key": "out",
+             "isConfig": false,
+             "keySpan": {
+              "from": 398,
+              "to": 401
+             },
+             "value": {
+              "kind": "Word",
+              "value": "east",
+              "span": {
+               "from": 403,
+               "to": 407
+              }
+             },
+             "span": {
+              "from": 398,
+              "to": 407
+             }
+            }
+           ],
+           "span": {
+            "from": 396,
+            "to": 409
+           }
+          },
+          "keySpan": {
+           "from": 388,
+           "to": 394
+          },
+          "span": {
+           "from": 388,
+           "to": 409
+          }
+         }
+        ],
+        "span": {
+         "from": 386,
+         "to": 411
+        }
+       },
+       "span": {
+        "from": 379,
+        "to": 411
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "db",
+       "keySpan": {
+        "from": 414,
+        "to": 416
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 418,
+         "to": 420
+        }
+       },
+       "span": {
+        "from": 414,
+        "to": 420
+       }
+      }
+     ],
+     "span": {
+      "from": 322,
+      "to": 466
+     }
+    },
+    "span": {
+     "from": 314,
+     "to": 466
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "store2",
+    "keySpan": {
+     "from": 468,
+     "to": 474
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Store 2",
+        "span": {
+         "from": 488,
+         "to": 497
+        }
+       },
+       "keySpan": {
+        "from": 480,
+        "to": 486
+       },
+       "span": {
+        "from": 480,
+        "to": 497
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "api-edge",
+       "keySpan": {
+        "from": 500,
+        "to": 508
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [
+         {
+          "kind": "ConfigEntry",
+          "key": [
+           "ports"
+          ],
+          "value": {
+           "kind": "Object",
+           "props": [
+            {
+             "kind": "Property",
+             "key": "out",
+             "isConfig": false,
+             "keySpan": {
+              "from": 522,
+              "to": 525
+             },
+             "value": {
+              "kind": "Word",
+              "value": "east",
+              "span": {
+               "from": 527,
+               "to": 531
+              }
+             },
+             "span": {
+              "from": 522,
+              "to": 531
+             }
+            }
+           ],
+           "span": {
+            "from": 520,
+            "to": 533
+           }
+          },
+          "keySpan": {
+           "from": 512,
+           "to": 518
+          },
+          "span": {
+           "from": 512,
+           "to": 533
+          }
+         }
+        ],
+        "span": {
+         "from": 510,
+         "to": 535
+        }
+       },
+       "span": {
+        "from": 500,
+        "to": 535
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "cache",
+       "keySpan": {
+        "from": 538,
+        "to": 543
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 545,
+         "to": 547
+        }
+       },
+       "span": {
+        "from": 538,
+        "to": 547
+       }
+      }
+     ],
+     "span": {
+      "from": 476,
+      "to": 549
+     }
+    },
+    "span": {
+     "from": 468,
+     "to": 549
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "store3",
+    "keySpan": {
+     "from": 551,
+     "to": 557
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Store 3",
+        "span": {
+         "from": 571,
+         "to": 580
+        }
+       },
+       "keySpan": {
+        "from": 563,
+        "to": 569
+       },
+       "span": {
+        "from": 563,
+        "to": 580
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "db",
+       "keySpan": {
+        "from": 583,
+        "to": 585
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 587,
+         "to": 589
+        }
+       },
+       "span": {
+        "from": 583,
+        "to": 589
+       }
+      }
+     ],
+     "span": {
+      "from": 559,
+      "to": 678
+     }
+    },
+    "span": {
+     "from": 551,
+     "to": 678
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "stored",
+    "keySpan": {
+     "from": 680,
+     "to": 686
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Stored",
+        "span": {
+         "from": 698,
+         "to": 706
+        }
+       },
+       "keySpan": {
+        "from": 690,
+        "to": 696
+       },
+       "span": {
+        "from": 690,
+        "to": 706
+       }
+      }
+     ],
+     "span": {
+      "from": 688,
+      "to": 708
+     }
+    },
+    "span": {
+     "from": 680,
+     "to": 708
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "storefront",
+    "keySpan": {
+     "from": 770,
+     "to": 780
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "hidden"
+       ],
+       "value": {
+        "kind": "Bool",
+        "value": true,
+        "span": {
+         "from": 795,
+         "to": 799
+        }
+       },
+       "keySpan": {
+        "from": 786,
+        "to": 793
+       },
+       "span": {
+        "from": 786,
+        "to": 799
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "api",
+       "keySpan": {
+        "from": 879,
+        "to": 882
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 884,
+         "to": 886
+        }
+       },
+       "span": {
+        "from": 879,
+        "to": 886
+       }
+      }
+     ],
+     "span": {
+      "from": 782,
+      "to": 888
+     }
+    },
+    "span": {
+     "from": 770,
+     "to": 888
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Wildcard",
+         "depth": "children",
+         "prefix": "store",
+         "suffix": "",
+         "span": {
+          "from": 1013,
+          "to": 1019
+         }
+        },
+        {
+         "kind": "Wildcard",
+         "depth": "children",
+         "prefix": "api",
+         "suffix": "",
+         "span": {
+          "from": 1020,
+          "to": 1024
+         }
+        }
+       ],
+       "span": {
+        "from": 1013,
+        "to": 1024
+       }
+      },
+      "span": {
+       "from": 1013,
+       "to": 1024
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "payments",
+         "span": {
+          "from": 1028,
+          "to": 1036
+         }
+        },
+        {
+         "kind": "Name",
+         "value": "api",
+         "span": {
+          "from": 1037,
+          "to": 1040
+         }
+        }
+       ],
+       "span": {
+        "from": 1028,
+        "to": 1040
+       }
+      },
+      "span": {
+       "from": 1028,
+       "to": 1040
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 1013,
+     "to": 1040
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Wildcard",
+         "depth": "children",
+         "prefix": "store",
+         "suffix": "",
+         "span": {
+          "from": 1103,
+          "to": 1109
+         }
+        },
+        {
+         "kind": "Wildcard",
+         "depth": "children",
+         "prefix": "api",
+         "suffix": "",
+         "span": {
+          "from": 1110,
+          "to": 1114
+         }
+        }
+       ],
+       "span": {
+        "from": 1103,
+        "to": 1114
+       }
+      },
+      "port": "out",
+      "portSpan": {
+       "from": 1115,
+       "to": 1118
+      },
+      "span": {
+       "from": 1103,
+       "to": 1119
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "bus",
+         "span": {
+          "from": 1123,
+          "to": 1126
+         }
+        }
+       ],
+       "span": {
+        "from": 1123,
+        "to": 1126
+       }
+      },
+      "span": {
+       "from": 1123,
+       "to": 1126
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "value": {
+     "kind": "String",
+     "value": "events",
+     "span": {
+      "from": 1128,
+      "to": 1136
+     }
+    },
+    "span": {
+     "from": 1103,
+     "to": 1136
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "platform",
+    "keySpan": {
+     "from": 1138,
+     "to": 1146
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Platform",
+        "span": {
+         "from": 1160,
+         "to": 1170
+        }
+       },
+       "keySpan": {
+        "from": 1152,
+        "to": 1158
+       },
+       "span": {
+        "from": 1152,
+        "to": 1170
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "auth",
+       "keySpan": {
+        "from": 1173,
+        "to": 1177
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [
+         {
+          "kind": "NodeDecl",
+          "key": "handler",
+          "keySpan": {
+           "from": 1181,
+           "to": 1188
+          },
+          "value": {
+           "kind": "Block",
+           "entries": [],
+           "span": {
+            "from": 1190,
+            "to": 1192
+           }
+          },
+          "span": {
+           "from": 1181,
+           "to": 1192
+          }
+         }
+        ],
+        "span": {
+         "from": 1179,
+         "to": 1194
+        }
+       },
+       "span": {
+        "from": 1173,
+        "to": 1194
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "billing",
+       "keySpan": {
+        "from": 1197,
+        "to": 1204
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [
+         {
+          "kind": "NodeDecl",
+          "key": "handler",
+          "keySpan": {
+           "from": 1208,
+           "to": 1215
+          },
+          "value": {
+           "kind": "Block",
+           "entries": [],
+           "span": {
+            "from": 1217,
+            "to": 1219
+           }
+          },
+          "span": {
+           "from": 1208,
+           "to": 1219
+          }
+         },
+         {
+          "kind": "NodeDecl",
+          "key": "worker",
+          "keySpan": {
+           "from": 1220,
+           "to": 1226
+          },
+          "value": {
+           "kind": "Block",
+           "entries": [],
+           "span": {
+            "from": 1228,
+            "to": 1230
+           }
+          },
+          "span": {
+           "from": 1220,
+           "to": 1230
+          }
+         }
+        ],
+        "span": {
+         "from": 1206,
+         "to": 1232
+        }
+       },
+       "span": {
+        "from": 1197,
+        "to": 1232
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "docs",
+       "keySpan": {
+        "from": 1235,
+        "to": 1239
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [
+         {
+          "kind": "NodeDecl",
+          "key": "site",
+          "keySpan": {
+           "from": 1243,
+           "to": 1247
+          },
+          "value": {
+           "kind": "Block",
+           "entries": [],
+           "span": {
+            "from": 1249,
+            "to": 1251
+           }
+          },
+          "span": {
+           "from": 1243,
+           "to": 1251
+          }
+         }
+        ],
+        "span": {
+         "from": 1241,
+         "to": 1253
+        }
+       },
+       "span": {
+        "from": 1235,
+        "to": 1253
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "inner",
+       "keySpan": {
+        "from": 1314,
+        "to": 1319
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [
+         {
+          "kind": "EdgeStmt",
+          "endpoints": [
+           {
+            "kind": "Endpoint",
+            "path": {
+             "kind": "PathExpr",
+             "root": true,
+             "parents": 0,
+             "segments": [
+              {
+               "kind": "Name",
+               "value": "platform",
+               "span": {
+                "from": 1382,
+                "to": 1390
+               }
+              },
+              {
+               "kind": "Wildcard",
+               "depth": "children",
+               "prefix": "",
+               "suffix": "",
+               "span": {
+                "from": 1391,
+                "to": 1392
+               }
+              },
+              {
+               "kind": "Name",
+               "value": "handler",
+               "span": {
+                "from": 1393,
+                "to": 1400
+               }
+              }
+             ],
+             "span": {
+              "from": 1381,
+              "to": 1400
+             }
+            },
+            "span": {
+             "from": 1381,
+             "to": 1400
+            }
+           },
+           {
+            "kind": "Endpoint",
+            "path": {
+             "kind": "PathExpr",
+             "root": true,
+             "parents": 0,
+             "segments": [
+              {
+               "kind": "Name",
+               "value": "bus",
+               "span": {
+                "from": 1405,
+                "to": 1408
+               }
+              }
+             ],
+             "span": {
+              "from": 1404,
+              "to": 1408
+             }
+            },
+            "span": {
+             "from": 1404,
+             "to": 1408
+            }
+           }
+          ],
+          "ops": [
+           "->"
+          ],
+          "span": {
+           "from": 1381,
+           "to": 1408
+          }
+         }
+        ],
+        "span": {
+         "from": 1321,
+         "to": 1412
+        }
+       },
+       "span": {
+        "from": 1314,
+        "to": 1412
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "gateway",
+       "keySpan": {
+        "from": 1497,
+        "to": 1504
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [
+         {
+          "kind": "EdgeStmt",
+          "endpoints": [
+           {
+            "kind": "Endpoint",
+            "path": {
+             "kind": "PathExpr",
+             "root": false,
+             "parents": 1,
+             "segments": [
+              {
+               "kind": "Wildcard",
+               "depth": "children",
+               "prefix": "bill",
+               "suffix": "",
+               "span": {
+                "from": 1515,
+                "to": 1520
+               }
+              },
+              {
+               "kind": "Wildcard",
+               "depth": "children",
+               "prefix": "",
+               "suffix": "",
+               "span": {
+                "from": 1521,
+                "to": 1522
+               }
+              }
+             ],
+             "span": {
+              "from": 1512,
+              "to": 1522
+             }
+            },
+            "span": {
+             "from": 1512,
+             "to": 1522
+            }
+           },
+           {
+            "kind": "Endpoint",
+            "path": {
+             "kind": "PathExpr",
+             "root": false,
+             "parents": 1,
+             "segments": [
+              {
+               "kind": "Name",
+               "value": "auth",
+               "span": {
+                "from": 1529,
+                "to": 1533
+               }
+              },
+              {
+               "kind": "Name",
+               "value": "handler",
+               "span": {
+                "from": 1534,
+                "to": 1541
+               }
+              }
+             ],
+             "span": {
+              "from": 1526,
+              "to": 1541
+             }
+            },
+            "span": {
+             "from": 1526,
+             "to": 1541
+            }
+           }
+          ],
+          "ops": [
+           "->"
+          ],
+          "span": {
+           "from": 1512,
+           "to": 1541
+          }
+         }
+        ],
+        "span": {
+         "from": 1506,
+         "to": 1545
+        }
+       },
+       "span": {
+        "from": 1497,
+        "to": 1545
+       }
+      }
+     ],
+     "span": {
+      "from": 1148,
+      "to": 1547
+     }
+    },
+    "span": {
+     "from": 1138,
+     "to": 1547
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "lanes",
+    "keySpan": {
+     "from": 1667,
+     "to": 1672
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Lanes",
+        "span": {
+         "from": 1686,
+         "to": 1693
+        }
+       },
+       "keySpan": {
+        "from": 1678,
+        "to": 1684
+       },
+       "span": {
+        "from": 1678,
+        "to": 1693
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "lane1",
+       "keySpan": {
+        "from": 1696,
+        "to": 1701
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [
+         {
+          "kind": "NodeDecl",
+          "key": "cam1",
+          "keySpan": {
+           "from": 1705,
+           "to": 1709
+          },
+          "value": {
+           "kind": "Block",
+           "entries": [],
+           "span": {
+            "from": 1711,
+            "to": 1713
+           }
+          },
+          "span": {
+           "from": 1705,
+           "to": 1713
+          }
+         },
+         {
+          "kind": "NodeDecl",
+          "key": "cam2",
+          "keySpan": {
+           "from": 1714,
+           "to": 1718
+          },
+          "value": {
+           "kind": "Block",
+           "entries": [],
+           "span": {
+            "from": 1720,
+            "to": 1722
+           }
+          },
+          "span": {
+           "from": 1714,
+           "to": 1722
+          }
+         }
+        ],
+        "span": {
+         "from": 1703,
+         "to": 1724
+        }
+       },
+       "span": {
+        "from": 1696,
+        "to": 1724
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "lane2",
+       "keySpan": {
+        "from": 1727,
+        "to": 1732
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [
+         {
+          "kind": "NodeDecl",
+          "key": "camA",
+          "keySpan": {
+           "from": 1736,
+           "to": 1740
+          },
+          "value": {
+           "kind": "Block",
+           "entries": [
+            {
+             "kind": "NodeDecl",
+             "key": "lens",
+             "keySpan": {
+              "from": 1744,
+              "to": 1748
+             },
+             "value": {
+              "kind": "Block",
+              "entries": [],
+              "span": {
+               "from": 1750,
+               "to": 1752
+              }
+             },
+             "span": {
+              "from": 1744,
+              "to": 1752
+             }
+            }
+           ],
+           "span": {
+            "from": 1742,
+            "to": 1754
+           }
+          },
+          "span": {
+           "from": 1736,
+           "to": 1754
+          }
+         }
+        ],
+        "span": {
+         "from": 1734,
+         "to": 1756
+        }
+       },
+       "span": {
+        "from": 1727,
+        "to": 1756
+       }
+      }
+     ],
+     "span": {
+      "from": 1674,
+      "to": 1758
+     }
+    },
+    "span": {
+     "from": 1667,
+     "to": 1758
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "switch",
+    "keySpan": {
+     "from": 1759,
+     "to": 1765
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Switch",
+        "span": {
+         "from": 1777,
+         "to": 1785
+        }
+       },
+       "keySpan": {
+        "from": 1769,
+        "to": 1775
+       },
+       "span": {
+        "from": 1769,
+        "to": 1785
+       }
+      }
+     ],
+     "span": {
+      "from": 1767,
+      "to": 1787
+     }
+    },
+    "span": {
+     "from": 1759,
+     "to": 1787
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "lanes",
+         "span": {
+          "from": 1788,
+          "to": 1793
+         }
+        },
+        {
+         "kind": "Wildcard",
+         "depth": "children",
+         "prefix": "lane",
+         "suffix": "",
+         "span": {
+          "from": 1794,
+          "to": 1799
+         }
+        },
+        {
+         "kind": "Wildcard",
+         "depth": "descendants",
+         "prefix": "",
+         "suffix": "",
+         "span": {
+          "from": 1800,
+          "to": 1802
+         }
+        }
+       ],
+       "span": {
+        "from": 1788,
+        "to": 1802
+       }
+      },
+      "span": {
+       "from": 1788,
+       "to": 1802
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "switch",
+         "span": {
+          "from": 1806,
+          "to": 1812
+         }
+        }
+       ],
+       "span": {
+        "from": 1806,
+        "to": 1812
+       }
+      },
+      "span": {
+       "from": 1806,
+       "to": 1812
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 1788,
+     "to": 1812
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "lanes",
+         "span": {
+          "from": 1944,
+          "to": 1949
+         }
+        },
+        {
+         "kind": "Wildcard",
+         "depth": "children",
+         "prefix": "lane",
+         "suffix": "",
+         "span": {
+          "from": 1950,
+          "to": 1955
+         }
+        },
+        {
+         "kind": "Wildcard",
+         "depth": "children",
+         "prefix": "cam",
+         "suffix": "",
+         "span": {
+          "from": 1956,
+          "to": 1960
+         }
+        }
+       ],
+       "span": {
+        "from": 1944,
+        "to": 1960
+       }
+      },
+      "span": {
+       "from": 1944,
+       "to": 1960
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "lanes",
+         "span": {
+          "from": 1964,
+          "to": 1969
+         }
+        },
+        {
+         "kind": "Wildcard",
+         "depth": "children",
+         "prefix": "lane",
+         "suffix": "",
+         "span": {
+          "from": 1970,
+          "to": 1975
+         }
+        },
+        {
+         "kind": "Wildcard",
+         "depth": "children",
+         "prefix": "cam",
+         "suffix": "",
+         "span": {
+          "from": 1976,
+          "to": 1980
+         }
+        }
+       ],
+       "span": {
+        "from": 1964,
+        "to": 1980
+       }
+      },
+      "span": {
+       "from": 1964,
+       "to": 1980
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 1944,
+     "to": 1980
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 1981
+  }
+ },
+ "diagnostics": []
+}

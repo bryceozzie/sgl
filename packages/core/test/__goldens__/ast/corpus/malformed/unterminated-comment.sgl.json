@@ -1,0 +1,132 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 20,
+     "to": 21
+    },
+    "span": {
+     "from": 20,
+     "to": 21
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": true,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Wildcard",
+         "depth": "children",
+         "prefix": "",
+         "suffix": "",
+         "span": {
+          "from": 23,
+          "to": 24
+         }
+        }
+       ],
+       "span": {
+        "from": 22,
+        "to": 24
+       }
+      },
+      "span": {
+       "from": 22,
+       "to": 24
+      }
+     }
+    ],
+    "ops": [],
+    "span": {
+     "from": 22,
+     "to": 25
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "this",
+    "keySpan": {
+     "from": 25,
+     "to": 29
+    },
+    "span": {
+     "from": 25,
+     "to": 29
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "comment",
+    "keySpan": {
+     "from": 30,
+     "to": 37
+    },
+    "span": {
+     "from": 30,
+     "to": 37
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "never",
+    "keySpan": {
+     "from": 38,
+     "to": 43
+    },
+    "span": {
+     "from": 38,
+     "to": 43
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "ends",
+    "keySpan": {
+     "from": 44,
+     "to": 48
+    },
+    "span": {
+     "from": 44,
+     "to": 48
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "b",
+    "keySpan": {
+     "from": 49,
+     "to": 50
+    },
+    "span": {
+     "from": 49,
+     "to": 50
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 51
+  }
+ },
+ "diagnostics": [
+  {
+   "code": "SGL1005",
+   "severity": "error",
+   "message": "Unterminated block comment.",
+   "span": {
+    "from": 22,
+    "to": 51
+   }
+  }
+ ]
+}

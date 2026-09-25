@@ -1,0 +1,120 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "vars"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "a",
+       "isConfig": false,
+       "keySpan": {
+        "from": 252,
+        "to": 253
+       },
+       "value": {
+        "kind": "Variable",
+        "name": "b",
+        "span": {
+         "from": 255,
+         "to": 257
+        }
+       },
+       "span": {
+        "from": 252,
+        "to": 257
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "b",
+       "isConfig": false,
+       "keySpan": {
+        "from": 259,
+        "to": 260
+       },
+       "value": {
+        "kind": "String",
+        "value": "${a}",
+        "span": {
+         "from": 262,
+         "to": 268
+        }
+       },
+       "span": {
+        "from": 259,
+        "to": 268
+       }
+      }
+     ],
+     "span": {
+      "from": 250,
+      "to": 270
+     }
+    },
+    "keySpan": {
+     "from": 243,
+     "to": 248
+    },
+    "span": {
+     "from": 243,
+     "to": 270
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "x",
+    "keySpan": {
+     "from": 271,
+     "to": 272
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "Variable",
+        "name": "a",
+        "span": {
+         "from": 284,
+         "to": 286
+        }
+       },
+       "keySpan": {
+        "from": 276,
+        "to": 282
+       },
+       "span": {
+        "from": 276,
+        "to": 286
+       }
+      }
+     ],
+     "span": {
+      "from": 274,
+      "to": 288
+     }
+    },
+    "span": {
+     "from": 271,
+     "to": 288
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 289
+  }
+ },
+ "diagnostics": []
+}

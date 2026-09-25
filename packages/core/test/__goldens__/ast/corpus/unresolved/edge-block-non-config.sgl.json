@@ -1,0 +1,151 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 20,
+     "to": 21
+    },
+    "span": {
+     "from": 20,
+     "to": 21
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "b",
+    "keySpan": {
+     "from": 22,
+     "to": 23
+    },
+    "span": {
+     "from": 22,
+     "to": 23
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "a",
+         "span": {
+          "from": 24,
+          "to": 25
+         }
+        }
+       ],
+       "span": {
+        "from": 24,
+        "to": 25
+       }
+      },
+      "span": {
+       "from": 24,
+       "to": 25
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "b",
+         "span": {
+          "from": 29,
+          "to": 30
+         }
+        }
+       ],
+       "span": {
+        "from": 29,
+        "to": 30
+       }
+      },
+      "span": {
+       "from": 29,
+       "to": 30
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "ok",
+        "span": {
+         "from": 42,
+         "to": 46
+        }
+       },
+       "keySpan": {
+        "from": 34,
+        "to": 40
+       },
+       "span": {
+        "from": 34,
+        "to": 46
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "nested",
+       "keySpan": {
+        "from": 48,
+        "to": 54
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 56,
+         "to": 58
+        }
+       },
+       "span": {
+        "from": 48,
+        "to": 58
+       }
+      }
+     ],
+     "span": {
+      "from": 32,
+      "to": 60
+     }
+    },
+    "span": {
+     "from": 24,
+     "to": 60
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 61
+  }
+ },
+ "diagnostics": []
+}

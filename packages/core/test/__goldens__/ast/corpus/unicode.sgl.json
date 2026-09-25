@@ -1,0 +1,497 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "order service",
+    "keySpan": {
+     "from": 64,
+     "to": 79
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Order Service",
+        "span": {
+         "from": 91,
+         "to": 106
+        }
+       },
+       "keySpan": {
+        "from": 83,
+        "to": 89
+       },
+       "span": {
+        "from": 83,
+        "to": 106
+       }
+      }
+     ],
+     "span": {
+      "from": 81,
+      "to": 108
+     }
+    },
+    "span": {
+     "from": 64,
+     "to": 108
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "metrics.v2",
+    "keySpan": {
+     "from": 109,
+     "to": 121
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Metrics v2",
+        "span": {
+         "from": 136,
+         "to": 148
+        }
+       },
+       "keySpan": {
+        "from": 128,
+        "to": 134
+       },
+       "span": {
+        "from": 128,
+        "to": 148
+       }
+      }
+     ],
+     "span": {
+      "from": 126,
+      "to": 150
+     }
+    },
+    "span": {
+     "from": 109,
+     "to": 150
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "🚀",
+    "keySpan": {
+     "from": 151,
+     "to": 155
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Launch 🚀",
+        "span": {
+         "from": 178,
+         "to": 189
+        }
+       },
+       "keySpan": {
+        "from": 170,
+        "to": 176
+       },
+       "span": {
+        "from": 170,
+        "to": 189
+       }
+      }
+     ],
+     "span": {
+      "from": 168,
+      "to": 191
+     }
+    },
+    "span": {
+     "from": 151,
+     "to": 191
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "rtl",
+    "keySpan": {
+     "from": 192,
+     "to": 195
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "مرحبا بالعالم",
+        "span": {
+         "from": 219,
+         "to": 234
+        }
+       },
+       "keySpan": {
+        "from": 211,
+        "to": 217
+       },
+       "span": {
+        "from": 211,
+        "to": 234
+       }
+      }
+     ],
+     "span": {
+      "from": 209,
+      "to": 236
+     }
+    },
+    "span": {
+     "from": 192,
+     "to": 236
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "mixed",
+    "keySpan": {
+     "from": 237,
+     "to": 242
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Tokyo 東京 · Café",
+        "span": {
+         "from": 264,
+         "to": 281
+        }
+       },
+       "keySpan": {
+        "from": 256,
+        "to": 262
+       },
+       "span": {
+        "from": 256,
+        "to": 281
+       }
+      }
+     ],
+     "span": {
+      "from": 254,
+      "to": 283
+     }
+    },
+    "span": {
+     "from": 237,
+     "to": 283
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "multiline",
+    "keySpan": {
+     "from": 284,
+     "to": 293
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Line one\nLine two",
+        "span": {
+         "from": 311,
+         "to": 331
+        }
+       },
+       "keySpan": {
+        "from": 303,
+        "to": 309
+       },
+       "span": {
+        "from": 303,
+        "to": 331
+       }
+      }
+     ],
+     "span": {
+      "from": 301,
+      "to": 333
+     }
+    },
+    "span": {
+     "from": 284,
+     "to": 333
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "order service",
+         "span": {
+          "from": 335,
+          "to": 350
+         }
+        }
+       ],
+       "span": {
+        "from": 335,
+        "to": 350
+       }
+      },
+      "span": {
+       "from": 335,
+       "to": 350
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "metrics.v2",
+         "span": {
+          "from": 354,
+          "to": 366
+         }
+        }
+       ],
+       "span": {
+        "from": 354,
+        "to": 366
+       }
+      },
+      "span": {
+       "from": 354,
+       "to": 366
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "value": {
+     "kind": "String",
+     "value": "emits",
+     "span": {
+      "from": 368,
+      "to": 375
+     }
+    },
+    "span": {
+     "from": 335,
+     "to": 375
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "🚀",
+         "span": {
+          "from": 376,
+          "to": 380
+         }
+        }
+       ],
+       "span": {
+        "from": 376,
+        "to": 380
+       }
+      },
+      "span": {
+       "from": 376,
+       "to": 380
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "rtl",
+         "span": {
+          "from": 384,
+          "to": 387
+         }
+        }
+       ],
+       "span": {
+        "from": 384,
+        "to": 387
+       }
+      },
+      "span": {
+       "from": 384,
+       "to": 387
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 376,
+     "to": 387
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "rtl",
+         "span": {
+          "from": 388,
+          "to": 391
+         }
+        }
+       ],
+       "span": {
+        "from": 388,
+        "to": 391
+       }
+      },
+      "span": {
+       "from": 388,
+       "to": 391
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "mixed",
+         "span": {
+          "from": 395,
+          "to": 400
+         }
+        }
+       ],
+       "span": {
+        "from": 395,
+        "to": 400
+       }
+      },
+      "span": {
+       "from": 395,
+       "to": 400
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "multiline",
+         "span": {
+          "from": 404,
+          "to": 413
+         }
+        }
+       ],
+       "span": {
+        "from": 404,
+        "to": 413
+       }
+      },
+      "span": {
+       "from": 404,
+       "to": 413
+      }
+     }
+    ],
+    "ops": [
+     "->",
+     "->"
+    ],
+    "span": {
+     "from": 388,
+     "to": 413
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 414
+  }
+ },
+ "diagnostics": []
+}

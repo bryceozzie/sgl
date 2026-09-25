@@ -1,0 +1,187 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "switch",
+    "keySpan": {
+     "from": 228,
+     "to": 234
+    },
+    "span": {
+     "from": 228,
+     "to": 234
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "lane1",
+    "keySpan": {
+     "from": 235,
+     "to": 240
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "NodeDecl",
+       "key": "a1b2c3",
+       "keySpan": {
+        "from": 244,
+        "to": 250
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 252,
+         "to": 254
+        }
+       },
+       "span": {
+        "from": 244,
+        "to": 254
+       }
+      }
+     ],
+     "span": {
+      "from": 242,
+      "to": 256
+     }
+    },
+    "span": {
+     "from": 235,
+     "to": 256
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "lane1",
+         "span": {
+          "from": 257,
+          "to": 262
+         }
+        },
+        {
+         "kind": "Wildcard",
+         "depth": "children",
+         "prefix": "a",
+         "suffix": "b",
+         "span": {
+          "from": 263,
+          "to": 266
+         }
+        }
+       ],
+       "span": {
+        "from": 257,
+        "to": 266
+       }
+      },
+      "span": {
+       "from": 257,
+       "to": 266
+      }
+     }
+    ],
+    "ops": [],
+    "span": {
+     "from": 257,
+     "to": 266
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Wildcard",
+         "depth": "children",
+         "prefix": "",
+         "suffix": "c",
+         "span": {
+          "from": 266,
+          "to": 268
+         }
+        }
+       ],
+       "span": {
+        "from": 266,
+        "to": 268
+       }
+      },
+      "span": {
+       "from": 266,
+       "to": 268
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "switch",
+         "span": {
+          "from": 272,
+          "to": 278
+         }
+        }
+       ],
+       "span": {
+        "from": 272,
+        "to": 278
+       }
+      },
+      "span": {
+       "from": 272,
+       "to": 278
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 266,
+     "to": 278
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 279
+  }
+ },
+ "diagnostics": [
+  {
+   "code": "SGL1001",
+   "severity": "error",
+   "message": "Expected `an endpoint` here.",
+   "span": {
+    "from": 266,
+    "to": 266
+   }
+  }
+ ]
+}

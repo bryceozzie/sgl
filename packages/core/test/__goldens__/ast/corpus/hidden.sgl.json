@@ -1,0 +1,400 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "visible",
+    "keySpan": {
+     "from": 80,
+     "to": 87
+    },
+    "span": {
+     "from": 80,
+     "to": 87
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "ghost",
+    "keySpan": {
+     "from": 88,
+     "to": 93
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "hidden"
+       ],
+       "value": {
+        "kind": "Bool",
+        "value": true,
+        "span": {
+         "from": 106,
+         "to": 110
+        }
+       },
+       "keySpan": {
+        "from": 97,
+        "to": 104
+       },
+       "span": {
+        "from": 97,
+        "to": 110
+       }
+      }
+     ],
+     "span": {
+      "from": 95,
+      "to": 112
+     }
+    },
+    "span": {
+     "from": 88,
+     "to": 112
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "other",
+    "keySpan": {
+     "from": 113,
+     "to": 118
+    },
+    "span": {
+     "from": 113,
+     "to": 118
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "another",
+    "keySpan": {
+     "from": 119,
+     "to": 126
+    },
+    "span": {
+     "from": 119,
+     "to": 126
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "visible",
+         "span": {
+          "from": 128,
+          "to": 135
+         }
+        }
+       ],
+       "span": {
+        "from": 128,
+        "to": 135
+       }
+      },
+      "span": {
+       "from": 128,
+       "to": 135
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "ghost",
+         "span": {
+          "from": 139,
+          "to": 144
+         }
+        }
+       ],
+       "span": {
+        "from": 139,
+        "to": 144
+       }
+      },
+      "span": {
+       "from": 139,
+       "to": 144
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 128,
+     "to": 144
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "ghost",
+         "span": {
+          "from": 145,
+          "to": 150
+         }
+        }
+       ],
+       "span": {
+        "from": 145,
+        "to": 150
+       }
+      },
+      "span": {
+       "from": 145,
+       "to": 150
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "other",
+         "span": {
+          "from": 154,
+          "to": 159
+         }
+        }
+       ],
+       "span": {
+        "from": 154,
+        "to": 159
+       }
+      },
+      "span": {
+       "from": 154,
+       "to": 159
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 145,
+     "to": 159
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "visible",
+         "span": {
+          "from": 160,
+          "to": 167
+         }
+        }
+       ],
+       "span": {
+        "from": 160,
+        "to": 167
+       }
+      },
+      "span": {
+       "from": 160,
+       "to": 167
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "other",
+         "span": {
+          "from": 171,
+          "to": 176
+         }
+        }
+       ],
+       "span": {
+        "from": 171,
+        "to": 176
+       }
+      },
+      "span": {
+       "from": 171,
+       "to": 176
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 160,
+     "to": 176
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "visible",
+         "span": {
+          "from": 313,
+          "to": 320
+         }
+        }
+       ],
+       "span": {
+        "from": 313,
+        "to": 320
+       }
+      },
+      "span": {
+       "from": 313,
+       "to": 320
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "another",
+         "span": {
+          "from": 324,
+          "to": 331
+         }
+        }
+       ],
+       "span": {
+        "from": 324,
+        "to": 331
+       }
+      },
+      "span": {
+       "from": 324,
+       "to": 331
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "hidden"
+       ],
+       "value": {
+        "kind": "Bool",
+        "value": true,
+        "span": {
+         "from": 344,
+         "to": 348
+        }
+       },
+       "keySpan": {
+        "from": 335,
+        "to": 342
+       },
+       "span": {
+        "from": 335,
+        "to": 348
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "silent",
+        "span": {
+         "from": 358,
+         "to": 366
+        }
+       },
+       "keySpan": {
+        "from": 350,
+        "to": 356
+       },
+       "span": {
+        "from": 350,
+        "to": 366
+       }
+      }
+     ],
+     "span": {
+      "from": 333,
+      "to": 368
+     }
+    },
+    "span": {
+     "from": 313,
+     "to": 368
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 369
+  }
+ },
+ "diagnostics": []
+}

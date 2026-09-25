@@ -1,0 +1,55 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 20,
+     "to": 21
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "shape"
+       ],
+       "value": {
+        "kind": "Word",
+        "value": "actor",
+        "span": {
+         "from": 33,
+         "to": 38
+        }
+       },
+       "keySpan": {
+        "from": 25,
+        "to": 31
+       },
+       "span": {
+        "from": 25,
+        "to": 38
+       }
+      }
+     ],
+     "span": {
+      "from": 23,
+      "to": 40
+     }
+    },
+    "span": {
+     "from": 20,
+     "to": 40
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 41
+  }
+ },
+ "diagnostics": []
+}

@@ -1,0 +1,118 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "switch",
+    "keySpan": {
+     "from": 20,
+     "to": 26
+    },
+    "span": {
+     "from": 20,
+     "to": 26
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "empty",
+    "keySpan": {
+     "from": 27,
+     "to": 32
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [],
+     "span": {
+      "from": 34,
+      "to": 36
+     }
+    },
+    "span": {
+     "from": 27,
+     "to": 36
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "empty",
+         "span": {
+          "from": 37,
+          "to": 42
+         }
+        },
+        {
+         "kind": "Wildcard",
+         "depth": "children",
+         "prefix": "",
+         "suffix": "",
+         "span": {
+          "from": 43,
+          "to": 44
+         }
+        }
+       ],
+       "span": {
+        "from": 37,
+        "to": 44
+       }
+      },
+      "span": {
+       "from": 37,
+       "to": 44
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "switch",
+         "span": {
+          "from": 48,
+          "to": 54
+         }
+        }
+       ],
+       "span": {
+        "from": 48,
+        "to": 54
+       }
+      },
+      "span": {
+       "from": 48,
+       "to": 54
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 37,
+     "to": 54
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 55
+  }
+ },
+ "diagnostics": []
+}

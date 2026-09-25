@@ -1,0 +1,56 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 176,
+     "to": 177
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "style",
+        "stroke"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "not-a-colour",
+        "span": {
+         "from": 196,
+         "to": 210
+        }
+       },
+       "keySpan": {
+        "from": 181,
+        "to": 194
+       },
+       "span": {
+        "from": 181,
+        "to": 210
+       }
+      }
+     ],
+     "span": {
+      "from": 179,
+      "to": 212
+     }
+    },
+    "span": {
+     "from": 176,
+     "to": 212
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 213
+  }
+ },
+ "diagnostics": []
+}

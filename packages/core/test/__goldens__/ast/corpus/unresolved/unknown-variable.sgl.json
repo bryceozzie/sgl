@@ -1,0 +1,55 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 161,
+     "to": 162
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "Variable",
+        "name": "missing",
+        "span": {
+         "from": 174,
+         "to": 182
+        }
+       },
+       "keySpan": {
+        "from": 166,
+        "to": 172
+       },
+       "span": {
+        "from": 166,
+        "to": 182
+       }
+      }
+     ],
+     "span": {
+      "from": 164,
+      "to": 184
+     }
+    },
+    "span": {
+     "from": 161,
+     "to": 184
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 185
+  }
+ },
+ "diagnostics": []
+}

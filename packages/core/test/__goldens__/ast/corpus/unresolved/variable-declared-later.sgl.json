@@ -1,0 +1,165 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "vars"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "c",
+       "isConfig": false,
+       "keySpan": {
+        "from": 177,
+        "to": 178
+       },
+       "value": {
+        "kind": "String",
+        "value": "red",
+        "span": {
+         "from": 180,
+         "to": 185
+        }
+       },
+       "span": {
+        "from": 177,
+        "to": 185
+       }
+      }
+     ],
+     "span": {
+      "from": 175,
+      "to": 187
+     }
+    },
+    "keySpan": {
+     "from": 168,
+     "to": 173
+    },
+    "span": {
+     "from": 168,
+     "to": 187
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "x",
+    "keySpan": {
+     "from": 188,
+     "to": 189
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "vars"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "stroke",
+          "isConfig": false,
+          "keySpan": {
+           "from": 204,
+           "to": 210
+          },
+          "value": {
+           "kind": "Variable",
+           "name": "c",
+           "span": {
+            "from": 212,
+            "to": 214
+           }
+          },
+          "span": {
+           "from": 204,
+           "to": 214
+          }
+         },
+         {
+          "kind": "Property",
+          "key": "c",
+          "isConfig": false,
+          "keySpan": {
+           "from": 216,
+           "to": 217
+          },
+          "value": {
+           "kind": "String",
+           "value": "blue",
+           "span": {
+            "from": 219,
+            "to": 225
+           }
+          },
+          "span": {
+           "from": 216,
+           "to": 225
+          }
+         }
+        ],
+        "span": {
+         "from": 202,
+         "to": 227
+        }
+       },
+       "keySpan": {
+        "from": 195,
+        "to": 200
+       },
+       "span": {
+        "from": 195,
+        "to": 227
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "style",
+        "stroke"
+       ],
+       "value": {
+        "kind": "Variable",
+        "name": "stroke",
+        "span": {
+         "from": 245,
+         "to": 252
+        }
+       },
+       "keySpan": {
+        "from": 230,
+        "to": 243
+       },
+       "span": {
+        "from": 230,
+        "to": 252
+       }
+      }
+     ],
+     "span": {
+      "from": 191,
+      "to": 254
+     }
+    },
+    "span": {
+     "from": 188,
+     "to": 254
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 255
+  }
+ },
+ "diagnostics": []
+}
