@@ -1,6 +1,7 @@
 import type { Ref } from 'preact';
 import { useState } from 'preact/hooks';
 import { downloadBlob, downloadFile } from '../io/download.js';
+import { withEmbeddedFonts } from '../io/fonts.js';
 import { rasterizePng } from '../io/png.js';
 import type { DocumentSession } from '../state/document-session.js';
 import { saveFileName, type TextSaveKind } from '../state/filename.js';
@@ -41,8 +42,12 @@ function currentSvg({ pipeline, session }: FileDeps): string | null {
   return pipeline.lastGood.peek()?.svg ?? session.record.peek().lastGoodSvg ?? null;
 }
 
-/** One Save ▾ item: the file, downloaded, or the reason in a toast. */
-export function save(kind: TextSaveKind, deps: FileDeps): void {
+const FONT_FAILED = 'the diagram’s font (Inter) could not be loaded, so the file would not look right elsewhere.';
+
+/** One Save ▾ item: the file, downloaded, or the reason in a toast. SVG is
+ *  `lastGood.svg` with the Inter faces it uses embedded (D2), so the inputs
+ *  are read at the click and the fonts fetched after. */
+export async function save(kind: TextSaveKind, deps: FileDeps): Promise<void> {
   const { pipeline, session, toasts } = deps;
   const record = session.record.peek();
   const result = saveContent(kind, {
@@ -53,8 +58,19 @@ export function save(kind: TextSaveKind, deps: FileDeps): void {
     modelDiagnostics: [...pipeline.parsed.peek().diagnostics, ...pipeline.model.peek().diagnostics],
     lastGoodSvg: currentSvg(deps),
   });
-  if (result.ok) downloadFile(result.file);
-  else toasts.push(result.message, 'error');
+  if (!result.ok) {
+    toasts.push(result.message, 'error');
+    return;
+  }
+  if (kind !== 'svg') {
+    downloadFile(result.file);
+    return;
+  }
+  try {
+    downloadFile({ ...result.file, text: await withEmbeddedFonts(result.file.text) });
+  } catch {
+    toasts.push(`Could not save the SVG: ${FONT_FAILED}`, 'error');
+  }
 }
 
 const NOTHING_YET = 'Nothing has rendered yet, so there is no picture to save or copy.';
@@ -72,8 +88,13 @@ export async function savePng(scale: PngScale, deps: FileDeps): Promise<void> {
   else deps.toasts.push(result.message, 'error');
 }
 
-/** Copy SVG (D7): `lastGood.svg` as plain text, which every editor and
- *  design tool accepts. */
+/** Copy SVG (D7): the same text Save ▾ SVG saves — `lastGood.svg` with its
+ *  Inter faces embedded (D2) — as plain text, which every editor and design
+ *  tool accepts. The embedding is asynchronous (the fonts are fetched), so
+ *  where the browser has `ClipboardItem` the write starts inside the click
+ *  with the text still to come as a promise, as Copy PNG does: Safari
+ *  refuses a clipboard write that begins after an `await`. Elsewhere,
+ *  `writeText` once the text is ready. */
 export function copySvg(deps: FileDeps): void {
   const { toasts } = deps;
   const svg = currentSvg(deps);
@@ -81,15 +102,29 @@ export function copySvg(deps: FileDeps): void {
     toasts.push(NOTHING_YET, 'error');
     return;
   }
+  let failure: string | null = null;
   const refused = (): void => {
-    toasts.push('Could not copy the SVG: the browser refused access to the clipboard. Save ▾ → SVG image saves it as a file.', 'error');
+    toasts.push(failure ?? 'Could not copy the SVG: the browser refused access to the clipboard. Save ▾ → SVG image saves it as a file.', 'error');
+  };
+  const text = withEmbeddedFonts(svg).catch((e: unknown) => {
+    failure = `Could not copy the SVG: ${FONT_FAILED}`;
+    throw e;
+  });
+  text.catch(() => undefined); // reported below, once.
+  const copied = (): void => {
+    toasts.push('SVG copied to the clipboard.');
   };
   // `undefined` outside a secure context, whatever the type says.
-  if ((navigator.clipboard as Clipboard | undefined)?.writeText === undefined) {
+  const clipboard = navigator.clipboard as Clipboard | undefined;
+  if (clipboard?.write !== undefined && typeof ClipboardItem !== 'undefined') {
+    const blob = text.then((t) => new Blob([t], { type: 'text/plain' }));
+    blob.catch(() => undefined);
+    clipboard.write([new ClipboardItem({ 'text/plain': blob })]).then(copied, refused);
+  } else if (clipboard?.writeText !== undefined) {
+    text.then((t) => clipboard.writeText(t)).then(copied, refused);
+  } else {
     refused();
-    return;
   }
-  navigator.clipboard.writeText(svg).then(() => toasts.push('SVG copied to the clipboard.'), refused);
 }
 
 /** Copy PNG (D7): an `image/png` at the default scale (2×). The clipboard

@@ -1587,6 +1587,35 @@ worker's `SKIP_WAITING` handler by pattern: terser names its parameter by charac
 whole `sw.js`, asset hashes included, and this build named it `s`, not `e`. Docs: DD-04 §1, §3, §4, §7, §8; DD-07 §11;
 DD-08 §6, §10; DD-09 §3 criterion 2.
 
+**D2: exported SVGs embed their fonts** (Stage L, `feat/svg-fonts`, branched from `main` at `d3b491b`;
+not merged; no golden changed; **human decision 2026-09-25**: always embed the Inter weights the file
+uses). Clears §2.1 F22. **Where (orchestrator):** at export, never in `render()`, so the live view,
+`lastGood.svg`, autosave's `lastGoodSvg`, the J6 boot paint and every golden are unchanged.
+**`@sgl/render-svg/fonts`** (a new package entry, `src/fonts.ts`): `embedFonts(svg, fonts)` reads the
+families, weights and styles the main `<style>`'s rules name (a `font-family` rule without a weight
+is 400), picks from the caller's `{ family, weight, style, woff2Base64 }` faces the one CSS font
+matching would use for each, and writes one `@font-face` rule per face with a
+`data:font/woff2;base64,…` URL at the start of that `<style>`, XML- and CSS-escaped; sorted, so
+byte-stable; an SVG with no text comes back unchanged; a malformed face throws (caller bug).
+`usedFontFaces` is the selection alone. **App:** `io/fonts.ts` (`withEmbeddedFonts`) fetches only the
+used shipped WOFF2 files (`fonts.css`'s own; offline, the precache), once per page, and embeds.
+Save ▾ SVG, Copy SVG and the PNG's rasterisation-only copy all use it; `state/png.ts` loses its own
+weight scan and splice, and the PNG now embeds only used weights (400 was always added). A failed
+font fetch refuses the SVG with a toast, as for the PNG. Copy SVG hands `ClipboardItem` a text promise
+inside the click (Safari's user-activation rule), `writeText` as the fallback; it is byte-equal to
+Save ▾ SVG. **Size:** the app's `checkout.sgl` exports 8 206 → 105 131 bytes (three weights, no
+subsetting). **Bundle:** core 178 901 → **178 911 B** gzipped (+10 B); the lazy `file-actions` chunk
+11 602 → 15 598 B minified. **Inkscape 1.2.2** (checked by the implementer, `inkscape
+--export-type=png` on that export): it parses the rules, warns "font face rule limited support" and
+draws with an installed face (DejaVu Sans; Inter is not installed), the PNG byte-identical to the
+unembedded file's; the rest of the `<style>` still applies. That is Inkscape's limitation; Figma was
+not checked (no access). Tests: `packages/render-svg/test/fonts.test.ts`,
+`apps/web/e2e/svg-export.spec.ts` (exact weights; base64 decoding to the shipped bytes; the exported
+file loaded as an `<img>` inks its label 0.5 px from Inter's metrics, the unembedded one 9.75 px;
+Copy SVG equals Save ▾ SVG; a failed fetch), an offline case in `e2e/offline.spec.ts`;
+`files.spec.ts` and `png-export.spec.ts` updated for the embedded file, `test/png.test.ts` for the
+moved code. Docs: DD-07 §9, DD-08 §7.
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
@@ -1603,8 +1632,7 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F13** | A share link pasted into an already-open tab (Stage J fix round 1, item 14) imports by flushing autosave and **reloading**, not by switching in place like Open and Documents ▾ (fix round 2). That loses undo history, and when IndexedDB is unavailable (memory-store fallback) the reload loses the tab's documents outright. Also: criterion 5's offline test is falsifiable against the HTTP cache in Chromium and WebKit but not in Firefox, which has neither mechanism the spec uses; and error toasts persist until closed with no cap on how many pile up. | Stage L (E17, alongside the rest of the Documents UI) |
 | **F15** | `elk` misses DD-09 §2's performance budget as measured in Node by Stage K's review: `elkEngine.layout` alone takes 0.5–0.8 s warm / 1.4 s cold at n500 (budget: 400 ms for the whole pipeline) and ~1.9 s warm / 3.8 s cold at n2000 (budget 3 s). Gate 3 is not timed. **Decision (human, 2026-09-23): record it and measure in the browser before Gate 4; the budget is not reopened.** | Stage L, before Gate 4 (the Gate 4 bench) |
 | **F16** | Under `elk`, some edges enter a container through its own title (the endpoint's ancestor, so the K4 hierarchy-crossing check does not count them): `checkout` 2, `containers-edges` 1, `nesting-3` 1, `wildcards` 4, `wildcard-paths` 4 (added 2026-09-24 with the document), pinned by `titleCrossings` in `packages/layout-elk/test/elk.test.ts`. No ELK option tried removes them (`considerModelOrder` crashes ELK on 8 documents; `FIXED_SIDE` moves them). Candidates: a host-side nudge of the final segment, or port placement once ports are real (F6). | Stage L |
-| **F20** | **Bundle headroom.** After A8's fix round 2 the core bundle was 178.63 kB; after C5's two themes (+0.24 kB) it is **178.87 kB** of 180, and **178.90 kB** after D6/D7's +27 B on `main` (1.10 kB under, 0.40 kB short of the 1.5 kB aimed for): `@sgl/core/json` and the lazy `engine-options-form` chunk are done. Next candidate on the boot path: `DocumentsMenu` (about 1.75 kB minified) as a lazy chunk. | Stage L, before the next feature on the boot path |
-| **F22** | **D2 (a Must: 'self-contained SVG export, fonts embedded') is not met.** Save ▾ SVG names Inter in `font-family` but embeds no `@font-face`, so the file renders in a fallback face anywhere Inter is not installed, and text can overflow the boxes laid out for Inter (DD-07 §9 deferred it: 'fonts: by reference in MVP', C8). PNG export (D6) already embeds the WOFF2 subset in its rasterisation-only copy, so the mechanism exists. Embedding in the exported SVG changes every SVG golden and adds roughly the size of the used weights (base64) to every export, so it is a **human decision** (whether, and embed-always vs an export option). | Awaiting human decision — blocks Gate 4 (a Must) |
+| **F20** | **Bundle headroom.** After A8's fix round 2 the core bundle was 178.63 kB; after C5's two themes (+0.24 kB) it is **178.87 kB** of 180, **178.90 kB** after D6/D7's +27 B on `main`, and **178.91 kB** after D2's +10 B (`feat/svg-fonts`; 1.09 kB under, 0.41 kB short of the 1.5 kB aimed for): `@sgl/core/json` and the lazy `engine-options-form` chunk are done. Next candidate on the boot path: `DocumentsMenu` (about 1.75 kB minified) as a lazy chunk. | Stage L, before the next feature on the boot path |
 
 ---
 
@@ -2050,7 +2078,7 @@ complete the Playwright suite's engine-switch cases (DD-08 §14 test 4).
 | **A18 markdown labels + `@sgl/text`** | The largest non-engine subsystem. The `Measurer` is run-based already, so this is an addition, not a rewrite. |
 | B5 `fixed`, `tree`, `radial`, `force` | `fixed` first — about a day, and the escape hatch people ask for. `force` last, and it is the first thing to cut. |
 | C5 `high-contrast`, `print` themes | **Done, merged** (§2). Tokens only for metrics (every document's `geometryHash` is `neutral-light`'s; any switch among the four is paint only); `high-contrast` AAA text and 3:1 non-text over the rendered corpus; `print` white fills and black strokes and text, through the new paint-only theme `force` (DD-04 §4 step 7), which reaches the document's own colours. In the core bundle (+0.24 kB), not lazy. |
-| D6/D7 PNG and clipboard export | **Done, merged at `4a908d6`** (§2). Save ▾ PNG at 1×/2×/3× (2× default) through a rasterisation-only copy of `lastGood.svg` with Inter embedded as `data:` fonts, since an `<img>` SVG cannot use the page's fonts. Capped at 16 384 px a side and 8192² px in all. Copy SVG (text) and Copy PNG (2×). No CSP change. D2 (fonts embedded in the exported SVG) is still open: C8. |
+| D6/D7 PNG and clipboard export | **Done, merged at `4a908d6`** (§2). Save ▾ PNG at 1×/2×/3× (2× default) through a rasterisation-only copy of `lastGood.svg` with Inter embedded as `data:` fonts, since an `<img>` SVG cannot use the page's fonts. Capped at 16 384 px a side and 8192² px in all. Copy SVG (text) and Copy PNG (2×). No CSP change. D2 (fonts embedded in the exported SVG) is done on `feat/svg-fonts` (§2). |
 | F2 drag-and-drop, F5 `.sglpack` | Conveniences on F1. |
 | E17 multiple documents | Storage is already a list; this is UI. **Partly pulled into Stage J by human decision (2026-09-23):** Open creating a new local document, and a minimal Documents ▾ list (switch to any stored document, New document). **Remaining here:** delete, rename, search, tabs and multi-select. |
 | D10 SVG export options UI | Background on/off and scale for Save ▾ SVG (DD-08 §7); today it saves the defaults, `render()`'s own output. |

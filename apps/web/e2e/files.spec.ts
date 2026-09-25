@@ -255,8 +255,11 @@ test.describe('DD-08 §7 Open', () => {
       return { root: svg.localName, count: svg.getElementsByTagName('*').length + 1, viewBox: svg.getAttribute('viewBox') };
     }, onScreen);
     expect(parsed).toEqual(shown);
-    // Byte for byte, it is the same `lastGood.svg` autosave stores.
-    await expect.poll(async () => (await storedOpenDocument(page))?.lastGoodSvg).toBe(saved.text);
+    // Byte for byte, it is the same `lastGood.svg` autosave stores, plus the
+    // Inter faces it uses at the start of its `<style>` (D2; the faces
+    // themselves: `svg-export.spec.ts`).
+    expect(saved.text).toContain('<style>@font-face{');
+    await expect.poll(async () => (await storedOpenDocument(page))?.lastGoodSvg).toBe(saved.text.replace(/@font-face\{[^}]*\}\n/g, ''));
     expect(saved.text.startsWith('<svg xmlns="http://www.w3.org/2000/svg"')).toBe(true);
     expect(saved.text).toContain('<rect class="canvas"'); // background on (DD-07 §9).
   });

@@ -4,12 +4,12 @@
  * DOM half (`<img>` → canvas → `toBlob`, fetching the fonts) is
  * `io/png.ts`. Both live in the lazy `file-actions` chunk.
  *
- * The copy exists because an SVG drawn through `<img>` is an isolated
- * document: it cannot use the page's web fonts, so without a copy of Inter of
- * its own every label would be drawn in a fallback face, whose glyphs have
- * other shapes and widths than the ones the layout was measured with. The
- * copy carries Inter as `@font-face` rules with `data:` URLs. It is never
- * saved: the exported SVG (Save ▾ SVG, Copy SVG) stays `render()`'s output.
+ * The copy is drawn at the pixel size. Its fonts are embedded by `io/png.ts`
+ * with the same `embedFonts` Save ▾ SVG and Copy SVG use (D2, `io/fonts.ts`):
+ * an SVG drawn through `<img>` is an isolated document that cannot use the
+ * page's web fonts, so without its own copy of Inter every label would be
+ * drawn in a fallback face, whose glyphs have other shapes and widths than
+ * the ones the layout was measured with.
  */
 
 export const PNG_SCALES = [1, 2, 3] as const;
@@ -23,10 +23,6 @@ export const MAX_PNG_SIDE = 16384;
  *  twice over while `toBlob` encodes. Past this, browsers fail a canvas
  *  silently (a blank image or a `null` blob) rather than with an error. */
 export const MAX_PNG_PIXELS = 8192 * 8192;
-
-/** The Inter faces the app bundles (DD-08 §5, `fonts.css`). */
-export const INTER_WEIGHTS = [400, 500, 600] as const;
-export type InterWeight = (typeof INTER_WEIGHTS)[number];
 
 export interface Size {
   readonly width: number;
@@ -80,45 +76,20 @@ export function pngPlan(svg: string, scale: number): PngPlan {
   };
 }
 
-/** The bundled Inter weights the SVG's `<style>` asks for; 400, CSS's
- *  default weight, always. */
-export function usedFontWeights(svg: string): InterWeight[] {
-  const used = new Set<number>([400]);
-  for (const m of svg.matchAll(/font-weight:\s*(\d+)/g)) used.add(Number(m[1]));
-  return INTER_WEIGHTS.filter((w) => used.has(w));
-}
-
-/** One embedded face. Base64 has no character that XML text or CSS would
- *  need escaped. */
-export function fontFaceRule(weight: InterWeight, base64: string): string {
-  return `@font-face{font-family:'Inter';font-style:normal;font-weight:${weight};src:url(data:font/woff2;base64,${base64}) format('woff2')}`;
-}
-
-/** `faces` put first in the SVG's `<style>` element (DD-07 §6: there is
- *  exactly one), or in a new one when it has none. */
-export function embedFontFaces(svg: string, faces: string): string {
-  const open = svg.indexOf('<style>');
-  if (open >= 0) {
-    const at = open + '<style>'.length;
-    return `${svg.slice(0, at)}${faces}\n${svg.slice(at)}`;
-  }
-  return svg.replace(ROOT, (tag) => `${tag}<style>${faces}\n</style>`);
-}
-
 /** The rasterisation-only copy: drawn at `px` (the root's `width`/`height`
  *  set to the pixel size, the `viewBox` kept, so the vectors are drawn at the
- *  final resolution rather than a 1× bitmap scaled up), with `faces`
- *  embedded. `preserveAspectRatio="none"` makes the picture fill every pixel:
- *  rounding to whole pixels changes the aspect ratio by under half a pixel,
- *  and a letterbox would leave a transparent line along one edge. */
-export function rasterCopy(svg: string, px: Size, faces: string): string {
+ *  final resolution rather than a 1× bitmap scaled up). Fonts are embedded
+ *  after, by the caller. `preserveAspectRatio="none"` makes the picture fill
+ *  every pixel: rounding to whole pixels changes the aspect ratio by under
+ *  half a pixel, and a letterbox would leave a transparent line along one
+ *  edge. */
+export function rasterCopy(svg: string, px: Size): string {
   const size = svgSize(svg);
-  const resized = svg.replace(ROOT, (tag) => {
+  return svg.replace(ROOT, (tag) => {
     // Without a viewBox, a new width and height would crop, not scale.
     let out = attribute(tag, 'viewBox') === undefined && size !== null ? tag.replace(/(\s*\/?>)$/, ` viewBox="0 0 ${size.width} ${size.height}"$1`) : tag;
     out = out.replace(/(\swidth=")[^"]*"/, `$1${px.width}"`).replace(/(\sheight=")[^"]*"/, `$1${px.height}"`);
     out = out.replace(/\spreserveAspectRatio="[^"]*"/, '');
     return out.replace(/(\sviewBox="[^"]*")/, '$1 preserveAspectRatio="none"');
   });
-  return faces === '' ? resized : embedFontFaces(resized, faces);
 }

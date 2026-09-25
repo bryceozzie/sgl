@@ -227,6 +227,43 @@ test('offline, the lazy file-actions chunk comes from the precache: Open, Save, 
 });
 
 /**
+ * D2: Save ▾ SVG embeds the Inter weights it uses, fetched like the PNG's, so
+ * offline they must come from the precache: the saved file still carries
+ * every face, and no request reached anything but the service worker.
+ * Chromium only, as above.
+ */
+test('offline, Save ▾ SVG embeds its fonts from the precache', async ({ page, context, browserName }) => {
+  test.skip(browserName !== 'chromium', 'fromServiceWorker() is proof only in Chromium');
+  await page.goto('/');
+  await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+  expect(await page.evaluate(async () => Boolean((await navigator.serviceWorker.ready).active))).toBe(true);
+  await clearHttpCache(page, context, browserName);
+  await context.setOffline(true);
+  const responses: Response[] = [];
+  const failed: string[] = [];
+  context.on('response', (r) => {
+    if (r.url().startsWith('http')) responses.push(r);
+  });
+  context.on('requestfailed', (r) => failed.push(`${r.url()} ${r.failure()?.errorText ?? ''}`));
+  try {
+    await page.reload();
+    await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
+    const fonts = (): Response[] => responses.filter((r) => /\/assets\/inter-latin-\d+-normal-.*\.woff2$/.test(new URL(r.url()).pathname));
+    const fontsBefore = fonts().length;
+    const saved = await saveAs(page, 'svg');
+    expect(saved.name).toBe('Checkout Flow.svg');
+    // The example (checkout.sgl) draws text at 400, 500 and 600.
+    expect([...saved.text.matchAll(/@font-face\{[^}]*font-weight:(\d+);src:url\(data:font\/woff2;base64,/g)].map((m) => m[1])).toEqual(['400', '500', '600']);
+    expect(fonts().length).toBeGreaterThan(fontsBefore);
+    expect(fonts().every((r) => r.fromServiceWorker())).toBe(true);
+    expect(responses.filter((r) => !r.fromServiceWorker()).map((r) => r.url())).toEqual([]);
+    expect(failed).toEqual([]);
+  } finally {
+    await context.setOffline(false);
+  }
+});
+
+/**
  * A8 fix round 2: the Options ▾ form (`toolbar/engine-options-form.tsx`, with
  * `state/engine-form.ts`) is the lazy `engine-options-form` chunk, loaded when
  * Options ▾ is first opened. Offline, from the precache alone, it still loads
