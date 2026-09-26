@@ -250,6 +250,13 @@ compile(model: DocumentModel, view?: ViewSelector): CompileResult
 | `SGL3006` | info | Shape `{name}` is not drawn in this version; using `rect`. |
 | `SGL3007` | warning | `{node}` port `{port}` has side `{side}`; expected north, south, east or west. Using `east`. |
 
+**Imports (A9, DD-02 §10.3 I17).** `compile()` itself knows nothing of imports. For a model with `imports`, the caller uses `compileImports(model)` from the lazy `@sgl/core/imports` entry: `compile()` and then two rules over its diagnostics, so a failed import produces warnings only and the picture is still adopted (DD-08 §3):
+
+- A diagnostic on a grafted element (every span in a grafted subtree is its `@imports` item's, DD-02 I12) is not reported itself; the import's diagnostics are one `SGL2021` warning per import, with the count and the first message (info not counted).
+- An `SGL2001` whose endpoint reaches into an import that failed (`ImportModel.failed`: `api -> aws.lambda` with `aws` unresolved, refused or skipped) becomes `SGL2024` (warning), and the edge is still skipped.
+
+A model without `imports` compiles through `compileImports` exactly as through `compile()`.
+
 ---
 
 ## 10. Tests

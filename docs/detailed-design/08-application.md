@@ -567,8 +567,8 @@ document ends with a trailing newline, so the cursor lands on an empty final lin
 
 ## 15. Imports (A9): the app side, design
 
-**Status: Phase 1, design only (2026-09-25). Nothing here is built yet.** The language and core
-side, with decisions I1–I22 and I31–I32, is DD-02 §10. This section continues the numbering. **⚑**
+**Status: implemented (A9 phase 2, branch `feat/imports`, 2026-09-26).** Deviations are listed in
+§15.6. The language and core side, with decisions I1–I22 and I31–I32, is DD-02 §10. This section continues the numbering. **⚑**
 marks a decision that changes a product promise, for the human.
 
 ### 15.1 Records
@@ -710,3 +710,39 @@ marks a decision that changes a product promise, for the human.
   - `csp.spec.ts` shows no violation.
 - **Size.** `pnpm size` passes after the Documents ▾ prerequisite, with the `imports` chunk
   excluded by name; `check-core-chunks.mjs` fails if the chunk reaches the entry.
+
+**As built**, each item above maps to:
+
+| Item | Test |
+|---|---|
+| `import-host.test.ts`: I1–I5, I19, tiers, I30 groups, the ambiguity pick | `apps/web/test/import-host.test.ts` |
+| `import-index.test.ts`: the put wrapper, list/wrapper ordering, refresh | `apps/web/test/import-index.test.ts`; the `visibilitychange` wiring itself in `imports-runtime.test.ts` |
+| Share's closure (I27): breadth first, each once, only resolved, a name for two documents | `apps/web/test/imports-runtime.test.ts` |
+| `pipeline.test.ts`: I24 re-resolve on an imported write and not on the importer's own; I25 gate | `apps/web/test/pipeline.test.ts`, "imports (A9, DD-08 §15: I24, I25)" |
+| `share.test.ts`: `i=` codec, no `i=`, other `v`, bomb, malformed, 64 entries, length guard | `apps/web/test/share.test.ts` |
+| `boot.test.ts`: group stored before `lastOpenDocId`, twice is two groups, bad bundle | `apps/web/test/boot.test.ts` |
+| `documents.test.ts`: `fileName`/`group` through `DocumentSession` | `apps/web/test/document-session.test.ts` (where `DocumentSession`'s tests live), with "saves nothing while the pipeline holds" |
+| e2e: A imports B and renders its classes; B edited, A follows | `e2e/imports.spec.ts` (the first case, and `as: aws` with a grafted subtree) |
+| e2e: unresolved is a warning, A still renders | `e2e/imports.spec.ts` |
+| e2e: a cycle and an ambiguity each warn | `e2e/imports.spec.ts` (two cases) |
+| e2e: Share to a fresh context, both in Documents ▾, same rendering; the recipient's own `classes` unchanged | `e2e/imports.spec.ts`, which also covers the dialog's two I27 messages and a long link counting `i=` |
+| e2e: offline reload of a document with imports | `e2e/offline.spec.ts`, "the lazy imports chunk comes from the precache" |
+| e2e: `csp.spec.ts` shows no violation | `e2e/csp.spec.ts` loads the imports chunk and makes an `i=` link under the policy |
+| Size | `pnpm size`; `check-core-chunks.mjs` (entry reachability, and no import catalogue row at boot) |
+
+### 15.6 As built: deviations
+
+- **The `filename` chunk.** `state/filename.ts` is shared by `file-actions` and `imports`, so the
+  bundler gives it a chunk of its own; `size-limit` excludes it by name too, and the offline case
+  checks it comes from the service worker.
+- **If the chunk cannot load** (not precached, say), the pipeline does not hold for ever: it resolves
+  and compiles with core's `resolve()`/`compile()`, which keep `@imports` with no effect (DD-02 I9's
+  step A). Names that would have come from the imports are then core's errors (`SGL2002`,
+  `SGL2013`), not `SGL2017`/`SGL2024`, because `resolveImports` and `IMPORT_CATALOGUE` are in the
+  chunk that failed. Offline the chunk is precached, so this is a broken install, not a normal path.
+- **The session saves nothing while the pipeline holds** (I25): the model a title would come from is
+  not this document's yet.
+- **The index's put wrapper** does not call `isDocumentRecord`, which reads `lastGoodSvg`, a getter
+  that renders on read in autosave's records; it checks `id` and `source` only.
+- **A link pasted into an open tab** (I29's last bullet) is F13, still open: nothing in this branch
+  changes that route.

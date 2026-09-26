@@ -14,9 +14,10 @@ The resolver turns syntax into a **canonical document model**: shorthands expand
 | Merge dotted config keys and redeclarations | Apply themes or compute styles (DD-04) |
 | Expand `a: "Label"` and `a: Class` shorthands | Validate ports against endpoints (DD-03) |
 | Split edge chains into edge records, normalise `<-` | Interpret `@layout.*` hint semantics (engines do) |
-| Collect `@classes`, validate `@type` references | **⟶ v1.0:** `@imports` (A9; designed in §10, not built) |
+| Collect `@classes`, validate `@type` references | Find or read an imported document (the caller's `ImportHost`, §10.2) |
 | Validate config keys against the key registry | |
 | Substitute `@vars` (A8, §3.5) | |
+| Link `@imports` (A9, §10), through `resolveImports` in the lazy `@sgl/core/imports` entry; `resolve()` itself keeps `@imports` with no effect (§10.2, step A) | |
 | Serialise to and parse from `.sgl.json` | |
 
 ---
@@ -29,7 +30,18 @@ interface DocumentModel {
   readonly root: ContainerModel;               // key '' — the document itself
   readonly classes: Readonly<Record<string, ClassModel>>;
   readonly spans: SpanTable;                   // side table; never serialised
+  readonly imports?: readonly ImportModel[];   // A9 (§10.5 I31): `@imports` as written; only when present
 }
+
+interface ImportModel {                        // one `@imports` item (§10.2)
+  readonly path: string;
+  readonly as?: string;
+  readonly form: 'string' | 'object';          // how it was written, for toJson
+  readonly span: SourceSpan;
+  readonly failed?: true;                      // unresolved, refused, or skipped (cycle, cap): compileImports reads it (I17)
+}
+
+interface ImportOrigin { readonly path: string; readonly span: SourceSpan }   // §10.3 I12
 
 interface ContainerModel {
   readonly key: string;                        // '' for root
@@ -38,6 +50,7 @@ interface ContainerModel {
   readonly children: readonly ContainerModel[];// declaration order, redeclarations merged
   readonly edges: readonly EdgeModel[];        // edges DECLARED here (endpoints unresolved)
   readonly authored?: ConfigBag;               // @-keys as written, for toJson only (§3.5)
+  readonly origin?: ImportOrigin;              // A9: a grafted import's container (I11, I12); toJson leaves it out
 }
 
 interface EdgeModel {
@@ -58,6 +71,7 @@ interface ClassModel {
   readonly extends: readonly string[];
   readonly config: ConfigBag;                  // only @-keys are meaningful in a class body
   readonly authored?: ConfigBag;               // @-keys and `extends` as written, for toJson only (§3.5)
+  readonly origin?: ImportOrigin;              // A9: an imported class (I11, I13); toJson leaves it out
 }
 
 type ConfigBag = Readonly<Record<string, ConfigValue>>;
@@ -75,6 +89,8 @@ A span-table path is joined and escaped by `nodeIdFromPath` (`packages/core/src/
 ## 3. Algorithm: building the tree
 
 `resolve(ast)` performs one recursive pass over `Document.entries`.
+
+**With imports (A9, §10).** `resolveImports(ast, linker)` (the lazy `@sgl/core/imports` entry) wraps that pass: it splits the root's `@imports` out, links it (lookup, cycles, caps, parse and resolve of each import, §10.4), drops the own dotted class names I14 reserves, and calls `resolve(ast, seam)`, whose `ImportSeam` declares the root's `@vars` on a scope around the imported variables and makes the imported class names known. It then folds in what comes back: imported classes first, the merged table's `@extends` cycles, grafted containers first among the root's children, and I17's warnings (§10.3).
 
 **3.1 Node keys and paths.** A child's path is the parent path plus its key. Keys containing `.` are legal (they were quoted) and are kept verbatim as a single segment; path *strings* used for IDs escape them as `\.` (DD-03 §2). Comparison and lookup always use the segment array, never the joined string.
 
@@ -107,7 +123,7 @@ Variables (A8; the language rules are language spec §5) are substituted here, s
 - **Scopes** (fix round 1, item 3). A scope holds only its own entries and a pointer to its parent's; a lookup walks the chain. (The first version copied the parent's map into every scoped container, 19 s for 20 000 root variables under 5 000 scoped siblings; now about 0.15 s.)
 - **One `@vars` block** is declared in a single pass in declaration order: names only. For each entry, each name its value mentions is resolved once, in the declaring scope: an earlier entry of the same block, or an enclosing scope's variable. A reference to an entry of the same block declared at or after it is `SGL2014` (error) even when an enclosing scope has the name: the block's own declaration shadows it for the whole block. Every self or mutual reference is such a reference, so cycles need no detection of their own: in `a: $b, b: $a` the error is at `a`, and `b` then uses a failed `a`. An unknown name is `SGL2013` here. A variable name must be an identifier (`SGL2011` otherwise): only an identifier can follow `$`, and it keeps the declaration order this pass depends on intact through canonical JSON, where an object moves integer-like keys first (execution plan §1). A redeclared container has one merged `@vars` bag (§3.2, later wins key by key), and "declaration order" is the merged bag's key order, which is order of first appearance.
 - **Values are computed lazily** (fix round 1, item 1a). A variable's value is computed on its first use and memoised; its dependencies first, with an explicit stack (the dependency graph is acyclic by the rule above), so no chain length is a stack limit. A variable nobody uses is never computed. While computing, values share arrays and objects (`[$v0, $v0]` holds `v0`'s value twice); each use in an element's configuration then gets its own copy (`copyJson`), so no two elements of the model share an object.
-- **Expansion budget** (fix round 1, items 1b and 2). Substitution is charged per document against 2 Mi units: a `$name` costs the size of the value it copies (one unit per value — scalar, array or object — plus one per character of each string, sizes memoised per built object so a shared value is measured once), and a `${name}` string costs its length, checked *before* the string is built. Past the budget the substitution is refused: one `SGL2016` for the document, at the reference that crossed, and that value is dropped like any other (a variable being computed fails, silently for its later uses). The unit and the cap follow DD-09 §1.1's 2 MB posture: a document inside the 2 MB cap cannot spell out more than 2 Mi values and characters itself. It bounds both work and memory: the first version took 38.8 s for `v24` of a doubling chain from a 421-byte document, and threw `RangeError: Invalid string length` for the string form at `n = 28`; now each is a few milliseconds and one `SGL2016`. Measured with 2^12 elements used 2 000 times: the budget is spent after about 250 uses, ~0.35 s.
+- **Expansion budget** (fix round 1, items 1b and 2). Substitution is charged per document against 2 Mi units (with `@imports`, per root resolve: the whole import closure shares one budget, §10.4 I21): a `$name` costs the size of the value it copies (one unit per value — scalar, array or object — plus one per character of each string, sizes memoised per built object so a shared value is measured once), and a `${name}` string costs its length, checked *before* the string is built. Past the budget the substitution is refused: one `SGL2016` for the document, at the reference that crossed, and that value is dropped like any other (a variable being computed fails, silently for its later uses). The unit and the cap follow DD-09 §1.1's 2 MB posture: a document inside the 2 MB cap cannot spell out more than 2 Mi values and characters itself. It bounds both work and memory: the first version took 38.8 s for `v24` of a doubling chain from a 421-byte document, and threw `RangeError: Invalid string length` for the string form at `n = 28`; now each is a few milliseconds and one `SGL2016`. Measured with 2^12 elements used 2 000 times: the budget is spent after about 250 uses, ~0.35 s.
 - **Substitution.** `$name` takes the value with its type. `${name}` inserts a string as itself, a number as `String(n)` (so `1e-7`, `1e+21`), a bool as `true`/`false`; an object, array or null is `SGL2015` (error) and the value is dropped, like an unknown name (fix round 1, item 7: it used to leave the placeholder out and keep the string). A placeholder that is not `${identifier}` is literal text. A name no enclosing scope declares is `SGL2013` (error), and the value that holds the reference is dropped: the key at the top of the bag, an array item, or an object property, as if it were absent; the objects around it stay. A string with an unknown placeholder is dropped whole. Registry validation (§7) then runs on the substituted value, so `@order: $n` is checked as the number it is.
 - **`@type` and `@extends`** hold class names. A reference in either is substituted and may give one name or a list; each name is then checked against `@classes` (`SGL2002`, spanning the reference), and a non-string is `SGL2011`.
 - **`authored`.** Beside `config`, an element whose values use a variable, or a container that declares `@vars`, carries `authored`: the same bag as written, references unsubstituted, `@vars` included, and with the keys validation dropped also removed. A reference that failed to resolve stays in `authored` (so a round trip reproduces the same diagnostic) while its value is absent from `config`. `toJson` prints `authored` when present (§6); every other consumer reads `config`. Elements without variables have no `authored`, so a document without variables serialises byte-for-byte as before.
@@ -120,7 +136,7 @@ Variables (A8; the language rules are language spec §5) are substituted here, s
 
 ## 4. Classes
 
-Collected from `config.classes` on the **root only** (**⟶ v1.0 (A9):** imported documents contribute namespaced classes; designed in §10, I11 and I13).
+Collected from `config.classes` on the **root only**. Imported documents contribute classes too, unqualified or as `ns.Name`, first in the table and replaced whole by a class of the same name declared here (A9, §10.3 I11, I13).
 
 ```ts
 // @classes: { Service: { @shape: round }, Critical: { @extends: Service, @style.stroke: "@danger" } }
@@ -220,6 +236,8 @@ substituted, so `"$a"` here is not a variable reference.
 
 **Variables (A8).** A container, edge or class with an `authored` bag (§3.5) is printed from it rather than from `config`: `"@vars"` and every reference appear as written (`"stroke": "$hot"`, `"@label": "API (${tier})"`, `"@type": ["$kind"]`), which is what the worked example in language spec §9 has always shown. Reading them back, a string that is exactly `$name` is a reference again, so `fromJson(toJson(m))` substitutes the same values and rebuilds the same `authored`.
 
+**Imports (A9, §10.5 I31).** `@imports` is printed as written (each item a string or `{ "path", "as" }`, as it was written), just before `"@classes"`; grafted containers and imported classes (anything with `origin`) are left out, so a document with imports round-trips given the same host. A document without `@imports` serialises byte for byte as before.
+
 Because the grammar reads JSON directly, `fromJson` is not a separate parser and cannot drift from the surface syntax. The round-trip invariant tested in DD-09: `resolve(parse(toJson(m))).model ≡ m` (ignoring `spans`).
 
 ---
@@ -246,6 +264,7 @@ MVP registry (order = row order):
 | `title` | root | string |
 | `theme` | root | string |
 | `layout` | root, node | object (`engine`, `direction`, plus engine keys) |
+| `imports` | root | array — A9: taken out into `DocumentModel.imports` (§10.5); printed just before `@classes` |
 | `classes` | root | object |
 | `vars` | root, node (containers) | object — taken out of `config` into the variable scope; kept in `authored` (§3.5) |
 | `label` | node, edge, class | string |
@@ -294,7 +313,7 @@ validate and then reach no consumer — a decision for whichever stage adds
 class-derived fallback for other keys, not one to make by relaxing a scope
 list ahead of it.
 
-**⟶ v1.0** adds `imports`, `pin` (`vars` landed with A8); **⟶ v1.x** adds `icon`, `rules`.
+**⟶ v1.0** adds `pin` (`vars` landed with A8, `imports` with A9); **⟶ v1.x** adds `icon`, `rules`.
 
 ---
 
@@ -318,6 +337,8 @@ list ahead of it.
 
 `SGL2009` ("Variable `${name}` is not substituted in this version; kept as literal text.") was A8's placeholder and is retired: substitution made it unreachable, and the coverage gate (DD-09 §3.4) requires a fixture that emits every catalogued code, so its row and its fixture were removed. The number is never reused (DD-00 §3).
 
+A9's ten codes, `SGL2017`–`SGL2026`, all warning or info, are `IMPORT_CATALOGUE` in `@sgl/core/imports`, off the boot path: §10.6 has the table. `SGL2016` counts the whole import closure's expansion, not one document's (§10.4 I21).
+
 (`SGL2001` and `SGL2003` — unresolved endpoint and unknown port — are DD-03's.)
 
 ---
@@ -330,13 +351,14 @@ list ahead of it.
 - Class linearisation: diamond inheritance, override order, cycle diagnostic.
 - Registry: one test per diagnostic code with the exact expected span.
 - Round-trip property test over the corpus (DD-09 §3).
+- Imports (A9, §10.8): `imports.test.ts`, `imports-limits.test.ts`, `imports-corpus.test.ts` over `corpus/imports/`, and the keystroke bench `imports-keystroke.test.ts`.
 - Variables (`packages/core/test/variables.test.ts`): type preservation, interpolation, shadowing across nested containers, order within a block, self, mutual and long (20 000-entry) cycles, unknown names, the expansion budget and scope-chain cost (`variables-limits.test.ts`), interpolating an object, keys never substituted, and the canonical-JSON round trip keeping the written form; `corpus/variables.sgl` is the clean corpus document.
 
 ---
 
 ## 10. Imports (A9): design
 
-**Status: Phase 1, design only (2026-09-25). Nothing here is built yet.** The human decided the
+**Status: implemented (A9 phase 2, branch `feat/imports`, 2026-09-26).** Deviations from the design as first written are marked where they apply: step A (§10.2, I9, I14: the import machinery is the lazy `@sgl/core/imports` entry, and core's `resolve()` does not link), the grammar's measured cost (§10.9), the corpus host picking the first of several files in sorted order where the app picks the most recently updated (§10.8), and the cache keeping what the last two root runs used (§10.8, "Cache"). The design as agreed follows. The human decided the
 key question: **a relative import path resolves against the user's stored documents** (Documents ▾,
 DD-08 §9), so imports work offline in every browser; **Share bundles the imported documents into
 the link**; **an unresolved import is a warning** and the rest of the document still renders; F5
@@ -655,9 +677,31 @@ still names every code, through a type-only import, and the coverage gate reads 
   golden changes.
 - **Round trip.** `fromJson(toJson(m)) ≡ m` over `corpus/imports/`, with the same host (I31).
 - **Cache.** A second `resolve` with an unchanged closure does no parse, which the test checks by
-  counting the host's and the parser's calls.
+  counting the host's and the parser's calls. *As built:* the cache keeps what the last two root runs
+  used, so after a switch to another document the first run may parse again and the next does not;
+  `imports-corpus.test.ts` runs every `corpus/imports/` document twice through a cache primed by all
+  the others, byte-identical to a cold run, the second parsing nothing.
 - **Performance.** `bench/generate.js` gains an importer of a 500-node import. The keystroke path
-  stays within DD-09 §2 (50 nodes: < 60 ms, with the import cached).
+  stays within DD-09 §2 (50 nodes: < 60 ms, with the import cached). *As built:*
+  `bench/imports/importer50.sgl` imports `lib500.sgl`; `imports-keystroke.test.ts` asserts a keystroke
+  costs one lookup and no parse or resolve of the import, and measured 1.8–2.0 ms per keystroke
+  (`parse -> resolveImports -> compileImports`, Node), against 1.2–1.3 ms without the import
+  (bench/README.md).
+
+**As built**, each item above maps to:
+
+| Item | Test |
+|---|---|
+| Both forms; classes, variables, subtree; qualifiers composing (I10, I11, I15) | `imports.test.ts`, "the two forms", "transitive imports" |
+| Precedence, `SGL2023`, late-bound `@extends`, `SGL2004` (I13); clashes (I14) | `imports.test.ts`, "precedence and shadowing", "clashes" |
+| Absolute and escaping paths; spans remapped (I12) | `imports.test.ts`, "the grafted subtree" |
+| `SGL2024` containment, `SGL2021` summaries incl. `compile()`'s (I17) | `imports.test.ts`, "failed imports are warnings" |
+| Qualified-name parsing; `"$user.name"` kept literal (I16) | `parse.test.ts`, `grammar.test.ts`, `grammar-trees.test.ts` (every existing CST/AST pinned, unchanged), `imports.test.ts` |
+| Double run; `hasImports` | `imports.test.ts`; `imports-corpus.test.ts` (cold, and through a warm shared cache) |
+| Every `SGL2025` form; self, mutual, long cycles; depth 8/9; 64/65 instances; 2 Mi source (exact edges); diamond n = 30; shared `SGL2016` | `imports-limits.test.ts` |
+| Corpus, one fixture per code, `main.sgl` goldens; round trip (I31) | `corpus/imports/`, `imports-corpus.test.ts`, `diagnostics-coverage.test.ts`; `render-svg`'s `pipeline.test.ts` and `render.test.ts` (whole pipeline, and its SVG double run) |
+| Cache | `imports.test.ts` ("parses nothing and only looks up"), `imports-corpus.test.ts`, `imports-limits.test.ts` (a capped entry not reused elsewhere) |
+| Performance | `imports-keystroke.test.ts` |
 
 ### 10.9 Bundle budget
 
@@ -694,6 +738,10 @@ commit `544fe6d` measured each step some 120–160 B higher, but the steps' diff
 | after the I16 grammar | 178 856 B | +189: parser tables +157 (the `qualified` production's LR states about +120; the `Variable` token +4), `buildAst`'s `qualifiedName` +32 |
 | the first hook, `resolve(ast, { imports })` (wip, `544fe6d`) | 180 004 B | +1 148, over the limit |
 | **step A: everything import-specific in `@sgl/core/imports`** | **178 941 B** | +85 over the grammar; `qualifiedName` rewritten with `getChildren` (−15) |
+| records keep `fileName` and `group`; a title skips grafted containers (DD-08 §15.1) | 179 004 B | +63 |
+| the pipeline's gate (I25) and App's lazy load of the `imports` chunk | 179 329 B | +325 (the gate +200, the dynamic import and its preload list +125) |
+| Share bundling and group storage (I26–I29) | 179 472 B | +143 |
+| **final** (the rest of the branch is tests and docs) | **179 472 B (179.47 kB)** | 528 B of headroom under 180 kB |
 
 Step A's boot share is `hasImports`, the `ImportSeam` (a scope, a list of class names, the root
 scope handed back), the swappable `REF_PATTERNS`, a `sink` per imported variable, and the budget
