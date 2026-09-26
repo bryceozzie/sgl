@@ -114,7 +114,7 @@ bench/                              perf harness against the DD-09 §2 budgets
 
 Dependency direction is strictly downward and enforced by lint: `core` knows nothing about layout; `layout-*` knows nothing about rendering; `render-svg` knows nothing about the app.
 
-**Font attribution.** `apps/web` bundles the Inter typeface, Copyright 2016 The Inter Project Authors, under the SIL Open Font License 1.1; the licence text ships with the built app as `fonts/OFL.txt` ([`apps/web/public/fonts/OFL.txt`](apps/web/public/fonts/OFL.txt)).
+**Font attribution.** `apps/web` bundles the Inter typeface, Copyright 2016 The Inter Project Authors, under the SIL Open Font License 1.1; the licence text ships with the built app as `fonts/OFL.txt` ([`apps/web/public/fonts/OFL.txt`](apps/web/public/fonts/OFL.txt)), and the IBM Plex Mono typeface (for `code` in labels), Copyright 2017 IBM Corp., under the SIL Open Font License 1.1; its licence text ships as `fonts/OFL-IBM-Plex-Mono.txt` ([`apps/web/public/fonts/OFL-IBM-Plex-Mono.txt`](apps/web/public/fonts/OFL-IBM-Plex-Mono.txt)).
 
 ## Documents
 

@@ -8,6 +8,8 @@ import { EXAMPLE_NODE_COUNT, renderedSvg, setSource, waitForExactNodeCount, wait
  */
 
 const isRichText = (r: Request): boolean => /\/assets\/rich-text-[^/]*\.js$/.test(new URL(r.url()).pathname);
+/** One of A18's eight faces (DD-11 T26): Inter 700, an Inter italic, IBM Plex Mono. */
+const isRunFace = (r: Request): boolean => /\/assets\/(inter-latin-700-normal|inter-latin-\d+-italic|ibm-plex-mono-latin-\d+-normal)-[^/]*\.woff2$/.test(new URL(r.url()).pathname);
 
 /** The width of a node's own shape, as drawn. */
 async function shapeWidth(page: Page, id: string): Promise<number> {
@@ -16,10 +18,10 @@ async function shapeWidth(page: Page, id: string): Promise<number> {
     .evaluate((p) => (p as SVGGraphicsElement).getBBox().width);
 }
 
-test('a document without markup in a label or a label to wrap never fetches the chunk, across boot and edits', async ({ page }) => {
+test('a document without markup in a label or a label to wrap never fetches the chunk or a run face, across boot and edits', async ({ page }) => {
   const fetched: string[] = [];
   page.on('request', (r) => {
-    if (isRichText(r)) fetched.push(r.url());
+    if (isRichText(r) || isRunFace(r)) fetched.push(r.url());
   });
   await page.goto('/');
   await waitForNodeCount(page, EXAMPLE_NODE_COUNT);

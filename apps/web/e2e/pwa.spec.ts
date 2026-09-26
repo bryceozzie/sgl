@@ -35,7 +35,13 @@ test.describe('PWA (DD-08 §12)', () => {
     expect(has(/^assets\/inter-latin-400-normal-[\w-]+\.woff2$/)).toBe(true);
     expect(has(/^assets\/inter-latin-500-normal-[\w-]+\.woff2$/)).toBe(true);
     expect(has(/^assets\/inter-latin-600-normal-[\w-]+\.woff2$/)).toBe(true);
+    // A18's faces (DD-11 T26): lazy, never on the boot path, but precached.
+    expect(has(/^assets\/inter-latin-700-normal-[\w-]+\.woff2$/)).toBe(true);
+    for (const w of [400, 500, 600, 700]) expect(has(new RegExp(`^assets/inter-latin-${w}-italic-[\\w-]+\\.woff2$`)), `italic ${w}`).toBe(true);
+    expect(has(/^assets\/ibm-plex-mono-latin-400-normal-[\w-]+\.woff2$/)).toBe(true);
+    expect(has(/^assets\/ibm-plex-mono-latin-700-normal-[\w-]+\.woff2$/)).toBe(true);
     expect(has(/^fonts\/OFL\.txt$/)).toBe(true);
+    expect(has(/^fonts\/OFL-IBM-Plex-Mono\.txt$/)).toBe(true);
     expect(has(/^manifest\.webmanifest$/)).toBe(true);
     // No duplicates (Workbox rejects a URL listed twice with two revisions).
     expect(precacheUrls().length).toBe(precached.size);
