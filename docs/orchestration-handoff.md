@@ -73,6 +73,13 @@ It **does not replace** [07 — Execution plan](07-execution-plan.md) §2 and §
   - triage, at most two fix rounds, then merge `--no-ff`.
 - **Before resuming, check** whether the human wants it resumed. They interrupted it.
 
+**Update 2026-09-26.** Phase 2 was completed at `667f6d2`, orchestrator-verified from clean (4462 Vitest, 95/95 e2e, 179.47 kB), and reviewed by three agents. Two blockers were found: a nested import failure still produces errors (I17), and a failed import makes compile quadratic (56 s at 16 000 edges). **Fix round 1 is in flight**, sent to the same implementer: 16 items plus these human decisions:
+- **H1**: I14 applies only to documents with `@imports` (the implementer's narrower scope is accepted).
+- **H2**: a document from a share group resolves imports **only within its own group**, never the recipient's own documents (security).
+- **H3**: the core bundle limit is raised **180 → 182 kB** in a separate commit. The hard ceiling stays 300 kB.
+
+After the fix round: re-verify, then merge `--no-ff`. The `wip` commit `544fe6d` stays as a documented exception; `main`'s first-parent history is still green. Then A18, whose boot-path cost now fits under 182 kB.
+
 ### A18 markdown labels: branch `design/a18-text` at `8ca91c9` (design only, not merged)
 
 - **Design:** DD-11 `docs/detailed-design/11-text.md` (T1–T60).
