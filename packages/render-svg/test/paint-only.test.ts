@@ -63,7 +63,7 @@ describe('F7 contract: switching between any two built-in themes changes only th
       // paint a small document identically — black on white, no container,
       // no label — which is still a paint-only switch.)
       for (let j = 1; j < all.length; j += 1) expect(all[j]!.rendered.styleBlock, THEMES[j]!.id).not.toBe(all[0]!.rendered.styleBlock);
-    });
+    }, 30_000); // n2000 under four themes: over 5 s under a full parallel run.
   }
 });
 

@@ -63,7 +63,7 @@ describe('renderPaintOnly is exactly render() under the new paint (P3), and its 
       expect(back).not.toBeNull();
       sameRender(back!, render(a.styled, layout, a.theme, a.table));
       expect(back!.svg).toBe(a.rendered.svg);
-    });
+    }, 30_000);
   }
 
   it('the rich documents really draw nested run tspans and their rules', async () => {
@@ -83,7 +83,7 @@ describe('withStyleBlock: replacing the <style> text is byte-exact (P4)', () => 
       const full = render(b.styled, a.result, b.theme, a.table);
       expect(withStyleBlock(a.rendered.svg, full.styleBlock)).toBe(full.svg);
       expect(withStyleBlock(full.svg, a.rendered.styleBlock)).toBe(a.rendered.svg);
-    });
+    }, 30_000);
   }
 
   it('escapes the new text exactly as render() does', async () => {

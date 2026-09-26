@@ -104,7 +104,7 @@ describe('paint oracle: every element\'s own paint class rule is its own compute
     for (const doc of listCorpusDocs()) {
       it(`${doc} under ${theme.id}`, async () => {
         await oracle(corpusSource(doc), theme);
-      });
+      }, 30_000); // n2000 through the whole pipeline: over 5 s under a full parallel run.
     }
   }
 });
