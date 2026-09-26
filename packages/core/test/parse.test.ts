@@ -27,6 +27,7 @@ const CLEAN_DOCS = [
   'unicode.sgl',
   'hidden.sgl',
   'variables.sgl',
+  'multiline.sgl',
 ];
 
 describe('parse() over the corpus', () => {

@@ -1,0 +1,33 @@
+{
+  "@sgl": "1.0",
+  "@vars": {
+    "tier": "production"
+  },
+  "api": {
+    "@label": "**Payments API**\nhandles `POST /pay`"
+  },
+  "ledger": {
+    "@label": "  Ledger\n(${tier})"
+  },
+  "outbox": {
+    "@label": "Outbox\nasync"
+  },
+  "single": {
+    "@label": "one line"
+  },
+  "@edges": [
+    {
+      "from": "api",
+      "to": "ledger",
+      "directed": "forward",
+      "ordinal": 0,
+      "@label": "charges\nrefunds"
+    },
+    {
+      "from": "ledger",
+      "to": "outbox",
+      "directed": "forward",
+      "ordinal": 0
+    }
+  ]
+}

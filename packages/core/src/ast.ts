@@ -122,7 +122,8 @@ export interface Block {
 
 export type Value = StringLit | NumberLit | BoolLit | NullLit | Word | Variable | ArrayLit | ObjectLit;
 
-/** Escapes are already decoded. */
+/** Escapes are already decoded. A `"""` string (A18, DD-11 T19) is one too:
+ *  `value` is its dedented, decoded text, and nothing marks the spelling. */
 export interface StringLit { readonly kind: 'String'; readonly value: string; readonly span: SourceSpan }
 export interface NumberLit { readonly kind: 'Number'; readonly value: number; readonly span: SourceSpan }
 export interface BoolLit { readonly kind: 'Bool'; readonly value: boolean; readonly span: SourceSpan }

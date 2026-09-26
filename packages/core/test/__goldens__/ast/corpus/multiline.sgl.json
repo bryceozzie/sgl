@@ -1,0 +1,341 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "vars"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "tier",
+       "isConfig": false,
+       "keySpan": {
+        "from": 212,
+        "to": 216
+       },
+       "value": {
+        "kind": "String",
+        "value": "production",
+        "span": {
+         "from": 218,
+         "to": 230
+        }
+       },
+       "span": {
+        "from": 212,
+        "to": 230
+       }
+      }
+     ],
+     "span": {
+      "from": 210,
+      "to": 232
+     }
+    },
+    "keySpan": {
+     "from": 203,
+     "to": 208
+    },
+    "span": {
+     "from": 203,
+     "to": 232
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "api",
+    "keySpan": {
+     "from": 234,
+     "to": 237
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "**Payments API**\nhandles `POST /pay`",
+        "span": {
+         "from": 251,
+         "to": 307
+        }
+       },
+       "keySpan": {
+        "from": 243,
+        "to": 249
+       },
+       "span": {
+        "from": 243,
+        "to": 307
+       }
+      }
+     ],
+     "span": {
+      "from": 239,
+      "to": 309
+     }
+    },
+    "span": {
+     "from": 234,
+     "to": 309
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "ledger",
+    "keySpan": {
+     "from": 311,
+     "to": 317
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "  Ledger\n(${tier})",
+        "span": {
+         "from": 331,
+         "to": 369
+        }
+       },
+       "keySpan": {
+        "from": 323,
+        "to": 329
+       },
+       "span": {
+        "from": 323,
+        "to": 369
+       }
+      }
+     ],
+     "span": {
+      "from": 319,
+      "to": 371
+     }
+    },
+    "span": {
+     "from": 311,
+     "to": 371
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "outbox",
+    "keySpan": {
+     "from": 373,
+     "to": 379
+    },
+    "value": {
+     "kind": "String",
+     "value": "Outbox\nasync",
+     "span": {
+      "from": 381,
+      "to": 400
+     }
+    },
+    "span": {
+     "from": 373,
+     "to": 400
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "single",
+    "keySpan": {
+     "from": 402,
+     "to": 408
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "one line",
+        "span": {
+         "from": 420,
+         "to": 434
+        }
+       },
+       "keySpan": {
+        "from": 412,
+        "to": 418
+       },
+       "span": {
+        "from": 412,
+        "to": 434
+       }
+      }
+     ],
+     "span": {
+      "from": 410,
+      "to": 436
+     }
+    },
+    "span": {
+     "from": 402,
+     "to": 436
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "api",
+         "span": {
+          "from": 438,
+          "to": 441
+         }
+        }
+       ],
+       "span": {
+        "from": 438,
+        "to": 441
+       }
+      },
+      "span": {
+       "from": 438,
+       "to": 441
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "ledger",
+         "span": {
+          "from": 445,
+          "to": 451
+         }
+        }
+       ],
+       "span": {
+        "from": 445,
+        "to": 451
+       }
+      },
+      "span": {
+       "from": 445,
+       "to": 451
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "value": {
+     "kind": "String",
+     "value": "charges\nrefunds",
+     "span": {
+      "from": 453,
+      "to": 482
+     }
+    },
+    "span": {
+     "from": 438,
+     "to": 482
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "ledger",
+         "span": {
+          "from": 483,
+          "to": 489
+         }
+        }
+       ],
+       "span": {
+        "from": 483,
+        "to": 489
+       }
+      },
+      "span": {
+       "from": 483,
+       "to": 489
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "outbox",
+         "span": {
+          "from": 493,
+          "to": 499
+         }
+        }
+       ],
+       "span": {
+        "from": 493,
+        "to": 499
+       }
+      },
+      "span": {
+       "from": 493,
+       "to": 499
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 483,
+     "to": 499
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 500
+  }
+ },
+ "diagnostics": []
+}

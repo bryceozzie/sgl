@@ -41,4 +41,5 @@ export const CLEAN_DOCS: readonly string[] = [
   'forty-three-level.sgl',
   'nested-crossing.sgl',
   'variables.sgl',
+  'multiline.sgl',
 ];
