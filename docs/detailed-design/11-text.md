@@ -853,6 +853,7 @@ The decisions:
   *The expensive part, canvas calls, is bounded by words and cached by fragment. Nothing new runs
   on a keystroke for an unchanged label.*
   - *Branch 2:* not measured. The `labelRunKey` memo is for `render()`'s per-label lookup (T42), so it comes with the render branch, as do the `{ rich: true }` scale variant and its bench. The breaker memoises measurements within a call.
+  - **Fix round 1, item 5: the estimates above do not hold; the real numbers.** In Node, with static metrics, `premeasure` at n2000 with long labels is 11.7 ms unwrapped and **20.5 ms with every node wrapped** (about 1.75×; branch 2's quadratic breaker made it 30.8 ms here, and the review measured 17 → 87–98 ms, about 5×, on its document). A keystroke re-runs `premeasure` over every label, so wrapped labels are re-broken each time: the per-run cache makes it cache hits, not canvas calls, until the cache overflows. `CanvasMeasurer`'s 20 000-entry clear-all cache holds about three entries per wrapped label and thrashes from about 7 000 wrapped labels (every pass misses); an LRU was tried and does not help. Recorded as execution plan §2.1 **F24**, with the remedy (reuse the previous table's entries by key) and the browser measurement to take with F15.
 - **T57. F9's paint-only theme switch stays paint-only.**
   - A theme switch between themes of equal geometry does not re-measure (the table and every break
     are unchanged) and takes the paint-only path. `renderPaintOnly` swaps the `<style>` text, and
