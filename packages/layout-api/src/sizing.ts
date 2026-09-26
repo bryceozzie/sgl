@@ -1,5 +1,5 @@
 import type { Insets, LabelId, NodeId, SemanticGraph, Size } from '@sgl/core';
-import { contentInsets } from './content-insets.js';
+import { contentInsets } from '@sgl/core';
 import type { LayoutInput, NodeSizing } from './contract.js';
 
 /**

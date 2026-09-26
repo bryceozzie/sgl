@@ -46,6 +46,10 @@ export const REGISTRY: readonly StyleProperty[] = [
   { name: 'radius', affects: 'geometry', type: 'length', appliesTo: NODE_AND_CONTAINER, inherits: false },
   { name: 'minWidth', affects: 'geometry', type: 'length', appliesTo: NODE, inherits: false },
   { name: 'minHeight', affects: 'geometry', type: 'length', appliesTo: NODE, inherits: false },
+  // `maxWidth` (A18, DD-11 T35): spec §4 and `SIZE_KEYS` always listed it, but
+  // with no row here the cascade dropped it with SGL5003, so `@size.maxWidth`
+  // never reached `geometry`. It is where a node title wraps.
+  { name: 'maxWidth', affects: 'geometry', type: 'length', appliesTo: NODE, inherits: false },
   { name: 'width', affects: 'geometry', type: 'length', appliesTo: NODE, inherits: false },
   { name: 'height', affects: 'geometry', type: 'length', appliesTo: NODE, inherits: false },
   { name: 'aspectRatio', affects: 'geometry', type: 'number', appliesTo: NODE, inherits: false },

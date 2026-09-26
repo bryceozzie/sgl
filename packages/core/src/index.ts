@@ -18,6 +18,7 @@ export * from './model.js';
 export * from './not-implemented.js';
 export * from './parse.js';
 export { hasImports, resolve, type ImportSeam, type ResolveResult } from './resolve.js';
+export * from './shape-insets.js';
 export * from './span.js';
 export { SIZE_KEYS } from './config-registry.js';
 

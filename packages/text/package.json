@@ -1,0 +1,17 @@
+{
+  "name": "@sgl/text",
+  "version": "0.0.0",
+  "description": "Text runs and their faces, the measure-table key, and the line models (DD-11). Pure arithmetic: no DOM.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": ["dist"],
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./wrap": { "types": "./dist/wrap.d.ts", "default": "./dist/wrap.js" }
+  },
+  "scripts": {
+    "build": "tsdown"
+  },
+  "dependencies": { "@sgl/core": "workspace:*", "@sgl/theme": "workspace:*" }
+}

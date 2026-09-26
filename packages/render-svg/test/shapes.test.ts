@@ -1,4 +1,6 @@
-import { anchorPoint, contentInsets as layoutContentInsets } from '@sgl/layout-api';
+import * as layoutApi from '@sgl/layout-api';
+import { anchorPoint } from '@sgl/layout-api';
+import { contentInsets } from '@sgl/core';
 import type { Point, Rect, ShapeId } from '@sgl/core';
 import { describe, expect, it } from 'vitest';
 import { cylinderRy, hexagonInset, resolveShape, SHAPE_IDS, SHAPES } from '../src/shapes.js';
@@ -189,7 +191,7 @@ describe('shapes: contentInsets() containment property (DD-07 §4)', () => {
   for (const id of SHAPE_IDS) {
     for (const [w, h] of LABEL_SIZES) {
       it(`${id}: a shape sized to its own insets(${w}x${h}) content box holds exactly that label`, () => {
-        const [t, r, b, l] = SHAPES[id]!.contentInsets(w, h);
+        const [t, r, b, l] = contentInsets(id, w, h);
         const shapeW = w + l + r;
         const shapeH = h + t + b;
         const f = frame(0, 0, shapeW, shapeH);
@@ -253,22 +255,12 @@ describe('cross-package agreement: @sgl/layout-api anchor.ts vs render-svg shape
   });
 });
 
-describe('cross-package agreement: @sgl/layout-api content-insets.ts vs render-svg shapes.ts', () => {
-  const ALL_SHAPES: readonly ShapeId[] = ['rect', 'round', 'ellipse', 'diamond', 'hexagon', 'cylinder', 'package'];
-  const LABEL_SIZES: readonly [number, number][] = [
-    [10, 10],
-    [40, 12],
-    [12, 40],
-    [1, 1],
-    [0, 0],
-    [200, 8],
-  ];
-
-  for (const id of ALL_SHAPES) {
-    for (const [w, h] of LABEL_SIZES) {
-      it(`${id}: contentInsets(${w}x${h}) agrees exactly between the two packages`, () => {
-        expect(layoutContentInsets(id, w, h)).toEqual(SHAPES[id]!.contentInsets(w, h));
-      });
-    }
-  }
+describe('one copy of the content insets (DD-11 T4)', () => {
+  // Before A18, `@sgl/layout-api` and this package each kept a copy of DD-07 §4's
+  // inset column, and a test here held them equal. Both now import `@sgl/core`'s,
+  // so the guard is that neither grows a copy back.
+  it('@sgl/layout-api exports no contentInsets of its own, and no shape carries one', () => {
+    expect('contentInsets' in layoutApi).toBe(false);
+    for (const id of SHAPE_IDS) expect('contentInsets' in SHAPES[id]!).toBe(false);
+  });
 });

@@ -128,14 +128,14 @@ function fixtureGraph(): StyledGraph {
         id: id<LabelId>('l:platform.api'),
         owner: { kind: 'node', id: id<NodeId>('platform.api') },
         role: 'title',
-        runs: [{ text: 'API Gateway' }, { text: 'edge · public' }],
+        runs: [{ text: 'API Gateway\nedge · public' }],
       },
       // Byte-identical text and style to `l:platform.api` — one table entry, two labels.
       [id<LabelId>('l:platform.worker')]: {
         id: id<LabelId>('l:platform.worker'),
         owner: { kind: 'node', id: id<NodeId>('platform.worker') },
         role: 'title',
-        runs: [{ text: 'API Gateway' }, { text: 'edge · public' }],
+        runs: [{ text: 'API Gateway\nedge · public' }],
       },
       [id<LabelId>('l:store')]: {
         id: id<LabelId>('l:store'),
@@ -239,15 +239,15 @@ describe('hashRuns', () => {
 // Line model
 // ---------------------------------------------------------------------------
 
-describe('the MVP line model', () => {
+describe('the hard-break line model (DD-11 §7; the MVP one-run-per-line model before A18)', () => {
   /** Fixed advances, so the arithmetic is checkable by hand (DD-05 §8). */
   const stub: MeasureRun = (text, style) => ({
     width: text.length * style.fontSize,
     ascent: style.fontSize * 0.8,
   });
 
-  it('puts one run on one line, with no wrapping', () => {
-    const layout = layoutLines(stub, [run('ab'), run('cde'), run('f')], UNCONSTRAINED);
+  it('puts each hard line on its own line, with no wrapping', () => {
+    const layout = layoutLines(stub, [run('ab\ncde\nf')], UNCONSTRAINED);
     expect(layout.lines).toHaveLength(3);
     for (const line of layout.lines) {
       expect(line.runs).toHaveLength(1);
@@ -258,7 +258,7 @@ describe('the MVP line model', () => {
 
   it('computes height and baselines from fontSize * lineHeight', () => {
     const style: TextStyle = { ...BASE_STYLE, fontSize: 10, lineHeight: 2 };
-    const layout = layoutLines(stub, [run('a', style), run('bb', style), run('c', style)], {});
+    const layout = layoutLines(stub, [run('a\nbb\nc', style)], {});
 
     // lineHeightPx = 10 * 2 = 20; ascent = 8.
     expect(layout.height).toBe(60);
@@ -294,7 +294,7 @@ describe('the MVP line model', () => {
 
   it('still occupies a line for an empty string', () => {
     const style: TextStyle = { ...BASE_STYLE, fontSize: 10, lineHeight: 1.5 };
-    const layout = layoutLines(stub, [run('a', style), run('', style)], UNCONSTRAINED);
+    const layout = layoutLines(stub, [run('a\n', style)], UNCONSTRAINED);
     expect(layout.lines).toHaveLength(2);
     expect(layout.height).toBe(30);
   });

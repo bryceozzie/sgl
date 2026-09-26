@@ -30,6 +30,7 @@
     "@sgl/layout-std": "workspace:*",
     "@sgl/measure": "workspace:*",
     "@sgl/render-svg": "workspace:*",
+    "@sgl/text": "workspace:*",
     "@sgl/theme": "workspace:*",
     "idb": "^8.0.3",
     "preact": "^10.27.2"

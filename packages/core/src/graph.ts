@@ -75,15 +75,22 @@ export interface LabelSpec {
   readonly owner: { readonly kind: 'node'; readonly id: NodeId } | { readonly kind: 'edge'; readonly id: EdgeId };
   /** `'title'` covers node and container titles. */
   readonly role: 'title' | 'edge';
-  /** MVP: one plain run per line.  ⟶ v1.0 (A18) rich runs. */
+  /** Canonical (DD-11 T21): maximal runs, none empty, and a hard break is a `\n`
+   *  inside `text`, so a plain label is one run. */
   readonly runs: readonly TextRun[];
 }
 
-/** `style` is unused in the MVP; the run-based shape is what makes A18 an addition
- *  rather than a rewrite (06 §3). */
+/**
+ * One styled run of a label (DD-11 T21). A flag is `true` or absent, never
+ * `false`; two neighbouring runs never carry the same three flags. `text` is never
+ * empty, and a `code` run never contains `\n` (T8). Replaces the MVP's unused
+ * `style?: 'code' | 'strong' | 'em'`, which could not say "bold and italic".
+ */
 export interface TextRun {
   readonly text: string;
-  readonly style?: 'code' | 'strong' | 'em';
+  readonly strong?: true;
+  readonly em?: true;
+  readonly code?: true;
 }
 
 /** ⟶ I1 (one model, many views). `compile` takes it from day one so the signature

@@ -4,8 +4,8 @@
     "composite": true,
     "rootDir": "src",
     "outDir": "dist",
-    "tsBuildInfoFile": "../../.tsbuild/render-svg.tsbuildinfo"
+    "tsBuildInfoFile": "../../.tsbuild/text.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
-  "references": [{ "path": "../core" }, { "path": "../theme" }, { "path": "../text" }]
+  "references": [{ "path": "../core" }, { "path": "../theme" }]
 }

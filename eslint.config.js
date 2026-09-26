@@ -34,7 +34,7 @@ const boundaries = (patterns) => ({
 });
 
 const NO_PREACT = { group: ['preact', 'preact/*', '@preact/*'], message: 'DD-00 §2 rule 5: only apps/web may import preact.' };
-const NO_DOM_PKG = { group: ['@sgl/render-svg', '@sgl/layout-*', '@sgl/measure', '@sgl/theme'], message: 'DD-00 §2 rule 1: core imports nothing from the workspace.' };
+const NO_DOM_PKG = { group: ['@sgl/render-svg', '@sgl/layout-*', '@sgl/measure', '@sgl/text', '@sgl/theme'], message: 'DD-00 §2 rule 1: core imports nothing from the workspace.' };
 
 export default tseslint.config(
   { ignores: ['.claude/worktrees/**', '**/dist/**', '**/node_modules/**', '**/*.parser.js', '**/*.parser.terms.js'] },
@@ -53,17 +53,23 @@ export default tseslint.config(
     rules: boundaries([NO_PREACT, NO_DOM_PKG, { group: ['@sgl/core*'], message: 'Use a relative import inside core.' }]),
   },
 
-  // 2. theme, layout-api, render-svg, measure import only core.
-  //    measure and render-svg additionally consume @sgl/theme, because DD-05 §4
-  //    takes a StyledGraph and DD-07 takes a StyledGraph plus a ResolvedTheme.
-  //    DD-00 §2 rule 2 as worded does not allow this — see README, open questions.
+  // 2. theme and layout-api import only core.
   {
     files: ['packages/theme/**/*.ts', 'packages/layout-api/**/*.ts'],
     rules: boundaries([NO_PREACT, { group: ['@sgl/*', '!@sgl/core'], message: 'DD-00 §2 rule 2: this package may import only @sgl/core.' }]),
   },
+  //    text imports core and theme (DD-11 T2: `labelRuns` reads a StyledGraph).
+  {
+    files: ['packages/text/**/*.ts'],
+    rules: boundaries([NO_PREACT, { group: ['@sgl/*', '!@sgl/core', '!@sgl/theme'], message: 'DD-00 §2 rule 2: @sgl/text may import only @sgl/core and @sgl/theme.' }]),
+  },
+  //    measure and render-svg import core, theme and text: DD-05 §4 takes a
+  //    StyledGraph, DD-07 a StyledGraph plus a ResolvedTheme, and both key the
+  //    measure table with @sgl/text's one key function (DD-11 T2).
+  //    `core, theme ← text ← measure, render-svg` (DD-00 §2).
   {
     files: ['packages/measure/**/*.ts', 'packages/render-svg/**/*.ts'],
-    rules: boundaries([NO_PREACT, { group: ['@sgl/*', '!@sgl/core', '!@sgl/theme'], message: 'DD-00 §2 rule 2: this package may import only @sgl/core and @sgl/theme.' }]),
+    rules: boundaries([NO_PREACT, { group: ['@sgl/*', '!@sgl/core', '!@sgl/core/*', '!@sgl/theme', '!@sgl/text', '!@sgl/text/*'], message: 'DD-00 §2 rule 2: this package may import only @sgl/core, @sgl/theme and @sgl/text.' }]),
   },
 
   // 3. Engines import only layout-api and core.

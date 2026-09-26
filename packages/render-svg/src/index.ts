@@ -19,6 +19,7 @@ import {
   type Rect,
   type SemanticGraph,
 } from '@sgl/core';
+import { plainText } from '@sgl/text';
 import type { ComputedStyle, ResolvedTheme, StyledGraph } from '@sgl/theme';
 
 import type { EdgeLayoutView, LabelPlacementView, LayoutView } from './layout-view.js';
@@ -86,7 +87,7 @@ function renderedConfig(config: Readonly<Record<string, unknown>>): string {
 function labelText(graph: SemanticGraph, labelId: LabelId | null): string {
   if (labelId === null) return '';
   const spec = graph.labels[labelId];
-  return spec === undefined ? '' : labelLines(spec.runs).join('\n');
+  return spec === undefined ? '' : plainText(spec.runs);
 }
 
 /**
@@ -248,19 +249,15 @@ function segment(seg: PathSeg): string {
 }
 
 /**
- * The label's lines, from its runs.
- *
- * `LabelSpec.runs` is already one plain run per line — `compile()`'s `textRuns`
- * splits on `\n` before a `TextRun` is ever created (DD-03), and no run's text
- * contains an embedded newline. `.map((r) => r.text)` is therefore the whole
- * function: the previous `.join('').split('\n')` concatenated every run's text
- * with no separator and then searched the result for a `\n` that could no longer
- * be there, silently collapsing every multi-line label — title and edge label
- * alike — onto one line (found via the golden churn Fix 2's baseline change
- * exposed: a label frame sized for two lines rendered as one).
+ * The label's lines, from its runs: their text, split at every `\n` (DD-11 T21,
+ * T34). A run may hold a hard break and a line may hold several runs, so this is
+ * the concatenation split, not one line per run. Until the render branch (DD-11
+ * T42, T43) the renderer draws only these hard lines, as plain text: a run's marks
+ * are not drawn, and a label that measurement wrapped at `@size.maxWidth` is drawn
+ * on its unwrapped lines.
  */
 function labelLines(runs: readonly { readonly text: string }[]): readonly string[] {
-  return runs.map((r) => r.text);
+  return plainText(runs).split('\n');
 }
 
 interface Ctx {

@@ -27,7 +27,10 @@
 // `state/filename.ts`, which `file-actions` and `imports` share, so the
 // bundler gives it a chunk of its own. Each is precached and has an offline
 // case in `e2e/offline.spec.ts`; `check-core-chunks.mjs` fails if any
-// excluded chunk is reachable from the entry.
+// excluded chunk is reachable from the entry. `rich-text-*.js` is A18's
+// (DD-11 T53: the inline parser `@sgl/core/inline` and the word breaker
+// `@sgl/text/wrap`), loaded for the first document with markup in a label or a
+// label to wrap; a document with neither never fetches it.
 //
 // size-limit is pinned to 12.1.0 (fix round 1, item 20): 13+ require Node
 // ≥ 22.18 (14 uses `fs/promises` `glob`), and CI runs Node 20.19.0
@@ -38,7 +41,7 @@
 export default [
   {
     name: 'core (entry + static imports + layout worker), gzip',
-    path: ['apps/web/dist/assets/*.js', 'apps/web/dist/assets/*.css', '!apps/web/dist/assets/elk-*.js', '!apps/web/dist/assets/share-*.js', '!apps/web/dist/assets/file-actions-*.js', '!apps/web/dist/assets/engine-options-form-*.js', '!apps/web/dist/assets/documents-menu-*.js', '!apps/web/dist/assets/imports-*.js', '!apps/web/dist/assets/filename-*.js'],
+    path: ['apps/web/dist/assets/*.js', 'apps/web/dist/assets/*.css', '!apps/web/dist/assets/elk-*.js', '!apps/web/dist/assets/share-*.js', '!apps/web/dist/assets/file-actions-*.js', '!apps/web/dist/assets/engine-options-form-*.js', '!apps/web/dist/assets/documents-menu-*.js', '!apps/web/dist/assets/imports-*.js', '!apps/web/dist/assets/filename-*.js', '!apps/web/dist/assets/rich-text-*.js'],
     gzip: true,
     limit: '182 kB',
   },

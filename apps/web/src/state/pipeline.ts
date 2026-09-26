@@ -5,6 +5,7 @@ import {
   compile,
   diagnostic,
   hasImports,
+  needsInline,
   parse,
   resolve,
   type CompileResult,
@@ -16,6 +17,7 @@ import {
 } from '@sgl/core';
 import { buildLayoutInput, layoutConfigDiagnostics, type LayoutInput, type LayoutResult } from '@sgl/layout-api';
 import { labelRunKey, premeasure, type MeasureTable } from '@sgl/measure';
+import { needsWrap } from '@sgl/text';
 import { BUILT_IN, DEFAULT_THEME_ID, resolveTheme, styleGraph, type ResolvedTheme, type StyledGraph } from '@sgl/theme';
 import { render, renderPaintOnly, type RenderResult } from '@sgl/render-svg';
 import { boundsChangedSignificantly, type Extent } from '../canvas/viewport.js';
@@ -24,7 +26,7 @@ import { optionsForEngine } from './engine-options.js';
 import { distinctTextStyles } from './measure-styles.js';
 import { documentEngineOverride, documentThemeOverride } from './overrides.js';
 import { makePipelineError, type PipelineError } from './pipeline-error.js';
-import type { Cancel, GuardedStageName, ImportsRuntime, LabelSizes, LastGood, PipelineDeps, Schedule } from './types.js';
+import type { Cancel, GuardedStageName, ImportsRuntime, LabelSizes, LastGood, PipelineDeps, RichText, Schedule } from './types.js';
 
 const DEFAULT_DEBOUNCE_MS = 120;
 /** DD-08 §11: the chip shows "laying out…" only after this long in flight, so
@@ -316,13 +318,41 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   const effectiveThemeId = computed<string>(() => documentThemeId.value ?? themeId.value);
   const effectiveEngineId = computed<string>(() => documentEngineId.value ?? engineId.value);
 
+  // A18 (DD-11 T53): the lazy `rich-text` chunk — the inline parser and the
+  // word breaker — loads for the first document whose labels hold `*` or a
+  // backtick (compiled without the parser, `needsInline`) or that has a label
+  // to wrap (`needsWrap`, after `styleGraph`). Until it has, those stages hold
+  // like A9's import gate, so nothing is measured or laid out with literal
+  // runs or unwrapped labels; the canvas keeps the last good or stored
+  // picture. Once loaded, compile always runs with the parser and the
+  // measurer with `layoutWrapped`, and every keystroke is synchronous again.
+  // A failed load is retried on the next change of the document.
+  const rich = signal<RichText | null>(null);
+  let richLoad: Promise<void> | undefined;
+  const holdForRichText = (): never => {
+    richLoad ??= deps.loadRichText!().then(
+      (loaded) => {
+        deps.measurer.lineModel = loaded.lineModel;
+        rich.value = loaded;
+      },
+      (err: unknown) => {
+        console.warn('[SGL] the rich-text chunk could not be loaded.', err);
+        richLoad = undefined;
+      },
+    );
+    throw HOLD;
+  };
+
   const graphOutcome = guardedStage(
     [modelOutcome],
     () => {
       const documentModel = model.value.model;
+      const loaded = rich.value;
       inject('compile');
       const runtime = documentModel.imports && imports.value;
-      const g = runtime ? runtime.compile(documentModel) : compile(documentModel);
+      const options = loaded?.inline && { inline: loaded.inline };
+      const g = runtime ? runtime.compile(documentModel, options || undefined) : compile(documentModel, undefined, options || undefined);
+      if (!loaded && deps.loadRichText && needsInline(g.graph)) holdForRichText();
       return DEGRADED.has(documentModel) ? { ...g, diagnostics: g.diagnostics.filter((d) => d.code !== 'SGL2001') } : g;
     },
     () => emptyStages().graph,
@@ -346,8 +376,11 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
       const semanticGraph = graph.value.graph;
       const resolvedTheme = theme.value.value;
       const classes = model.value.model.classes;
+      const loaded = rich.value;
       inject('styleGraph');
-      return styleGraph(semanticGraph, resolvedTheme, classes);
+      const s = styleGraph(semanticGraph, resolvedTheme, classes);
+      if (!loaded && deps.loadRichText && needsWrap(s.value)) holdForRichText();
+      return s;
     },
     () => emptyStages().styled,
   );
@@ -512,6 +545,12 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   const disposeMeasureEffect = effect(() => {
     const styledSnapshot = styled.value.value;
     void effectiveThemeId.value; // explicit dependency per DD-08 §3, alongside geometryHash below
+    // A stage held at boot (A9's imports, A18's rich-text chunk) leaves
+    // `styled` at its boot-time fallback, the empty document: measuring and
+    // laying that out would make its empty layout the one the document's
+    // first render is drawn with, a blank frame in place of the stored
+    // picture. Nothing is measured until a real styled graph exists.
+    if (!hasMeasuredOnce && styledOutcome.value.blocked) return;
     if (measuredFor !== null && measuredFor.graph === styledSnapshot.graph && measuredFor.geometryHash === styledSnapshot.geometryHash) return;
     measuredFor = styledSnapshot;
     const generation = (measureGeneration += 1);

@@ -98,6 +98,9 @@ importers:
       '@sgl/render-svg':
         specifier: workspace:*
         version: link:../../packages/render-svg
+      '@sgl/text':
+        specifier: workspace:*
+        version: link:../../packages/text
       '@sgl/theme':
         specifier: workspace:*
         version: link:../../packages/theme
@@ -167,6 +170,9 @@ importers:
       '@sgl/measure':
         specifier: workspace:*
         version: link:../measure
+      '@sgl/text':
+        specifier: workspace:*
+        version: link:../text
       '@sgl/theme':
         specifier: workspace:*
         version: link:../theme
@@ -183,6 +189,9 @@ importers:
       '@sgl/measure':
         specifier: workspace:*
         version: link:../measure
+      '@sgl/text':
+        specifier: workspace:*
+        version: link:../text
       '@sgl/theme':
         specifier: workspace:*
         version: link:../theme
@@ -192,6 +201,9 @@ importers:
       '@sgl/core':
         specifier: workspace:*
         version: link:../core
+      '@sgl/text':
+        specifier: workspace:*
+        version: link:../text
       '@sgl/theme':
         specifier: workspace:*
         version: link:../theme
@@ -201,6 +213,9 @@ importers:
       '@sgl/core':
         specifier: workspace:*
         version: link:../core
+      '@sgl/text':
+        specifier: workspace:*
+        version: link:../text
       '@sgl/theme':
         specifier: workspace:*
         version: link:../theme
@@ -220,6 +235,15 @@ importers:
       fast-xml-parser:
         specifier: ^4.5.0
         version: 4.5.7
+
+  packages/text:
+    dependencies:
+      '@sgl/core':
+        specifier: workspace:*
+        version: link:../core
+      '@sgl/theme':
+        specifier: workspace:*
+        version: link:../theme
 
   packages/theme:
     dependencies:

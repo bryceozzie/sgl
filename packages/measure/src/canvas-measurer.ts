@@ -1,7 +1,13 @@
-import { layoutLines, type MeasureRun, type RunMetrics } from './line-model.js';
-import { hashRuns, UNCONSTRAINED } from './run-key.js';
+import { hashRuns, layoutLines, UNCONSTRAINED, type LineModel, type MeasureRun, type RunMetrics } from '@sgl/text';
 import { staticRunMetrics } from './static-measurer.js';
 import type { BoxConstraints, Measurer, StyledRun, TextLayout, TextStyle } from './types.js';
+
+/** A measurer's options (DD-11 T53). */
+export interface MeasurerOptions {
+  /** The line model: `layoutLines` (the default; hard breaks only, and it throws
+   *  on a box) or `layoutWrapped` from the lazy `@sgl/text/wrap`. */
+  readonly lineModel?: LineModel;
+}
 
 /**
  * The MVP `Measurer` (DD-05 §4, ADR-0003 amendment).
@@ -98,6 +104,18 @@ export class CanvasMeasurer implements Measurer {
   readonly #cache = new Map<string, RunMetrics>();
 
   /**
+   * The line model (DD-11 §7). Writable, so the app can hand it `layoutWrapped`
+   * once the lazy `rich-text` chunk has loaded (T53) without replacing the
+   * measurer the worker host already holds; the per-run cache stays valid, since
+   * it caches runs, not lines.
+   */
+  lineModel: LineModel;
+
+  constructor(options: MeasurerOptions = {}) {
+    this.lineModel = options.lineModel ?? layoutLines;
+  }
+
+  /**
    * True when no canvas could be obtained and measurement has degraded to
    * `StaticMetricsMeasurer`'s advance tables.
    *
@@ -112,7 +130,7 @@ export class CanvasMeasurer implements Measurer {
   }
 
   layoutRuns(runs: readonly StyledRun[], box: BoxConstraints): TextLayout {
-    return layoutLines(this.#measureRun, runs, box);
+    return this.lineModel(this.#measureRun, runs, box);
   }
 
   layoutRunsAsync(runs: readonly StyledRun[], box: BoxConstraints): Promise<TextLayout> {

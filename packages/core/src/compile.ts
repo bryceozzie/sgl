@@ -63,7 +63,27 @@ const typeNamesOf = (config: ConfigBag): readonly string[] => {
   return Array.isArray(raw) ? raw.filter((v): v is string => typeof v === 'string') : [];
 };
 
-const textRuns = (text: string): readonly TextRun[] => text.split('\n').map((line) => ({ text: line }));
+/** A label's text as runs, without the inline parser: one plain run, `\n`
+ *  included (DD-11 T21). The empty text has none. */
+const plainRuns = (text: string): readonly TextRun[] => (text === '' ? [] : [{ text }]);
+
+/** `compile()`'s options (DD-11 T1). */
+export interface CompileOptions {
+  /** The inline markdown parser (`parseInline`, `@sgl/core/inline`), run on every
+   *  `@label` value after variable substitution (T13, T14). Without it, every
+   *  label is one plain run. A node's key used as its title is never parsed. */
+  readonly inline?: (text: string) => readonly TextRun[];
+}
+
+/**
+ * The markup gate (DD-11 T53): true when some label's text contains `*` or `` ` ``,
+ * so compiling with the inline parser could change the graph. Run on a graph
+ * compiled without it; a key-derived title containing one costs only a needless
+ * load of the parser.
+ */
+export function needsInline(graph: SemanticGraph): boolean {
+  return Object.values(graph.labels).some((l) => l.runs.some((r) => /[*`]/.test(r.text)));
+}
 
 // ---------------------------------------------------------------------------
 // Class linearisation (DD-02 §4, DD-03 §4)
@@ -573,7 +593,7 @@ function collectPendingEdges(
 // Edge IDs (DD-03 §5) and labels (§6)
 // ---------------------------------------------------------------------------
 
-function finalizeEdges(pending: readonly PendingEdge[]): { edges: GraphEdge[]; labels: Record<string, LabelSpec> } {
+function finalizeEdges(pending: readonly PendingEdge[], inline: (text: string) => readonly TextRun[]): { edges: GraphEdge[]; labels: Record<string, LabelSpec> } {
   const parallelCounts = new Map<string, number>();
   const edges: GraphEdge[] = [];
   const labels: Record<string, LabelSpec> = {};
@@ -596,7 +616,7 @@ function finalizeEdges(pending: readonly PendingEdge[]): { edges: GraphEdge[]; l
     const labelId = p.hidden || labelText === '' ? null : asLabelId(`l:${id}`);
 
     edges.push({ id, from, to, directed: p.directed, classes: p.classes, labelId, config: p.config, declaredIn: p.declaredIn, hidden: p.hidden, span: p.span });
-    if (labelId !== null) labels[labelId] = { id: labelId, owner: { kind: 'edge', id }, role: 'edge', runs: textRuns(labelText) };
+    if (labelId !== null) labels[labelId] = { id: labelId, owner: { kind: 'edge', id }, role: 'edge', runs: inline(labelText) };
   }
 
   return { edges, labels };
@@ -627,24 +647,28 @@ function reportHiddenIncidence(edges: readonly GraphEdge[], nodes: Readonly<Reco
  * wildcard intact in the model keeps `.sgl.json` a record of what the author wrote
  * rather than of what it expanded to (DD-02 §6).
  *
- * `view` is reserved for I1 (one model, many views) — see 04 §8.
+ * `view` is reserved for I1 (one model, many views) — see 04 §8. `options.inline`
+ * parses every `@label` value as inline markdown (DD-11 T1, T13); without it, a
+ * label is one plain run.
  *
  * Design: DD-03.
  */
-export function compile(model: DocumentModel, view?: ViewSelector): CompileResult {
+export function compile(model: DocumentModel, view?: ViewSelector, options?: CompileOptions): CompileResult {
   void view;
   const diags: Diagnostic[] = [];
+  const inline = options?.inline ?? plainRuns;
 
   const linearize = classLinearizer(model, diags);
   const nodeMap = buildNodeMap(model, diags, linearize);
   const pending = collectPendingEdges(model, nodeMap, diags, linearize);
-  const { edges, labels: edgeLabels } = finalizeEdges(pending);
+  const { edges, labels: edgeLabels } = finalizeEdges(pending, inline);
 
   const labels: Record<string, LabelSpec> = { ...edgeLabels };
   for (const node of Object.values(nodeMap.nodes)) {
     if (node.labelId === null) continue;
-    const text = typeof node.config.label === 'string' ? node.config.label : (node.path[node.path.length - 1] as string);
-    labels[node.labelId] = { id: node.labelId, owner: { kind: 'node', id: node.id }, role: 'title', runs: textRuns(text) };
+    const label = node.config.label;
+    const runs = typeof label === 'string' ? inline(label) : plainRuns(node.path[node.path.length - 1] as string);
+    labels[node.labelId] = { id: node.labelId, owner: { kind: 'node', id: node.id }, role: 'title', runs };
   }
 
   reportHiddenIncidence(edges, nodeMap.nodes, diags);

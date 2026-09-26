@@ -1,35 +1,11 @@
-export interface TextStyle {
-  readonly fontFamily: string;
-  readonly fontSize: number;
-  readonly fontWeight: number;
-  readonly fontStyle: 'normal' | 'italic';
-  /** Multiplier. */
-  readonly lineHeight: number;
-  readonly letterSpacing: number;
-}
+import type { BoxConstraints, StyledRun, TextLayout } from '@sgl/text';
 
-export interface StyledRun {
-  readonly text: string;
-  readonly style: TextStyle;
-}
-
-/** `undefined` = unconstrained, which is every MVP call (DD-05). */
-export interface BoxConstraints {
-  readonly maxWidth?: number;
-}
-
-export interface TextLayout {
-  readonly width: number;
-  readonly height: number;
-  readonly lines: readonly {
-    /** Baseline offset from the top of the block. */
-    readonly y: number;
-    readonly width: number;
-    readonly runs: readonly { readonly x: number; readonly text: string; readonly style: TextStyle }[];
-  }[];
-  /** Of the first line, for aligning the block. */
-  readonly ascent: number;
-}
+/**
+ * The run and layout types moved to `@sgl/text` (DD-11 T2, T23), so that the table
+ * key and the renderer can share them; they are re-exported here unchanged, and
+ * `Measurer`, `MeasureMiss` and `MeasureTable` stay.
+ */
+export type { BoxConstraints, LaidRun, LineModel, MeasureRun, RunMarks, RunMetrics, StyledRun, TextLayout, TextLine, TextStyle } from '@sgl/text';
 
 /**
  * The measurement boundary. Run-based from day one, so A18 (markdown labels) is an

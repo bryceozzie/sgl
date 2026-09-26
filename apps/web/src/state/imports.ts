@@ -59,7 +59,7 @@ export async function createImportsRuntime(store: DocumentStore, visibility: Pic
       last = { self, linked: linker.linker.linked() };
       return result;
     },
-    compile: (model) => compileImports(model),
+    compile: (model, options) => compileImports(model, undefined, options),
     bundle(self) {
       const children = new Map<string | undefined, LinkedDocument[]>();
       for (const l of last?.self === self ? last.linked : []) (children.get(l.from) ?? children.set(l.from, []).get(l.from)!).push(l);

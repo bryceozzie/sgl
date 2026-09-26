@@ -26,7 +26,7 @@
 
 import type { ConfigEntry, Document, Entry, PathExpr, PathStep, Value } from './ast.js';
 import { breakExtendsCycles } from './class-graph.js';
-import { compile, renderPath, resolveBase, type CompileResult } from './compile.js';
+import { compile, renderPath, resolveBase, type CompileOptions, type CompileResult } from './compile.js';
 import { CATALOGUE, diagnostic, type Diagnostic } from './diagnostics.js';
 import type { ViewSelector } from './graph.js';
 import { nodeIdFromPath } from './ids.js';
@@ -858,10 +858,11 @@ const sameSpan = (a: SourceSpan, b: SourceSpan): boolean => a.from === b.from &&
  * is its `@imports` item's (I12) — are one `SGL2021` per import, and an edge
  * endpoint that reaches into an import that failed is `SGL2024`, a warning,
  * instead of `SGL2001`. A model without `imports` compiles exactly as
- * `compile()` compiles it.
+ * `compile()` compiles it. `options` are `compile()`'s (the inline parser,
+ * DD-11 T1).
  */
-export function compileImports(model: DocumentModel, view?: ViewSelector): CompileResult {
-  const result = compile(model, view);
+export function compileImports(model: DocumentModel, view?: ViewSelector, options?: CompileOptions): CompileResult {
+  const result = compile(model, view, options);
   if (model.imports === undefined) return result;
   // Every qualifier a failed import could have filled, at any depth (I17,
   // fix round 1); `''` (an unqualified import) brings no nodes.
