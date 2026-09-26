@@ -389,6 +389,37 @@ or a mutant it kills:
   182 kB.
 - **Docs**: spec §2/§5/§8; DD-02 §2, §3.5, §10; DD-03 §9; DD-08 §15/§15.6; DD-09 §1.1 and §2; DD-10 §4.
 
+**A18 branch 1, `"""` strings and the markdown escapes** (Stage L, `feat/a18-grammar`, branched from
+`main` at `31db16c` with `design/a18-text` (DD-11) merged in; **not merged; no existing golden
+changed**). DD-11 T10's decoder half, T11 and T15–T20, each now marked implemented there with its
+deviations. Labels still draw as literal text.
+- **Grammar.** One token, `MultilineString { '"""' mlBody ('"""' | '"'? '"'? @eof) }`, in `Value`,
+  `NodeValue` and `EdgeValue` only, and `@precedence { MultilineString, ConfigString, String }`.
+  `@eof` in a token is accepted, so T16's fallback was not needed. The audit (DD-01 §2, "The `"""`
+  token audit") corrects DD-11 twice: `String` and `MultilineString` share a Lezer token group, so
+  `"""` lexes as one token in key and path positions too and is `SGL1002` there; and three quotes in
+  a row after `:`, at an entry start or after `->` were valid pre-A18 input (adjacent strings or
+  keys), not only inside arrays. No committed document has any. All 92 committed documents' CST/AST
+  pins (`e65dda4`) were confirmed complete first and are byte-identical after.
+- **`buildAst`.** `decodeMultiline` (T17's dedent, then escapes decoded line by line in place, so
+  `SGL1004` offsets are source offsets; a `\` ending a line is `SGL1004`, T18); `\*` and `` \` ``
+  decode to themselves with no `SGL1004`; `scanLexicalErrors` skips closed `"""` bodies and reports
+  an unterminated one as exactly one `SGL1003` to the end of the input (from the scanner, not the
+  decoder as T19 said), with the error left at the end of the input not reported again.
+- **Editor.** `tags.string`, folding, and `"""` in `closeBrackets`, so typing the third quote closes
+  the string.
+- **Tests.** `packages/core/test/multiline-string.test.ts` (84: the audit rows, the dedent table,
+  key and path positions, unterminated strings, interpolation and variables, the escapes' round trip
+  through `toJson`/`fromJson`, double runs; 64 failed before the change), `editor.test.ts` (+2),
+  `e2e/multiline.spec.ts` (3: highlighting, typing `"""`, a pasted unterminated one). New corpus
+  documents `multiline.sgl` (in `CLEAN_DOCS`: resolve, compile, grid, elk and four render goldens)
+  and `malformed/unterminated-triple-string.sgl`, with CST/AST pins.
+- **Size.** Core bundle 179.63 → **180.25 kB** of 182 kB: parse tables +0.12, `buildAst` +0.49.
+  DD-11 T54 estimated 0.20–0.25 kB for this row, so branches 2 and 3 have 1.75 kB where T54
+  planned about 0.6–0.8 kB of the rest.
+- **Docs.** Language spec §3 (Strings) and §4 (`@label`); DD-01 §2 (listing, notes, audit), §3, §4,
+  §6, §8; DD-02 §6 rule 7; DD-11 status, T10–T20 notes, T58 note, §19 item 4.
+
 **Stage K merged to `main` at `0e9ecfc`** (`--no-ff`, 2026-09-23) after a three-lens review and
 one fix round (23 items). `pnpm check`'s steps from clean are green on `main`, run by the
 orchestrator: 2139 Vitest passed (unit + browser project, Chromium only), e2e 55/55 in Chromium,

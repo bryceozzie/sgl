@@ -5,7 +5,9 @@
 **Inputs:** a label's string. **Outputs:** styled `TextRun`s in the IR, a wrapped `TextLayout` in the
 measure table, nested `<tspan>`s in the SVG.
 
-**Status: Phase 1, design only (2026-09-25).** Nothing here is built. The decisions are numbered
+**Status: Phase 2 in progress.** Branch 1, `feat/a18-grammar` (2026-09-26), implements T10's decoder
+half, T11 and T15–T20; each carries an *Implemented* note with its deviations. Everything else is
+still design. Phase 1 (2026-09-25) was design only. The decisions are numbered
 **T1–T60**. Each carries a one-line reason in italics. Decisions marked **⚑** go to the human before
 Phase 2 starts; each has options and a recommendation (§18). Where this document changes a type or a
 rule in DD-01…DD-10, the change is listed in §17 and made in those documents in the Phase 2 branch
@@ -114,6 +116,8 @@ that implements it, not here.
   `` \` `` a literal backtick. Any other backslash is literal, `\\` included. *Pre-A18 labels that
   contain backslashes, such as Windows paths or regexes, keep every one. The only cost is that a
   label cannot put a literal backslash directly before an emphasis delimiter.*
+  - *Implemented (branch 1), the decoder's half:* `\*` and `` \` `` reach the model with their
+    backslash (T11). The inline parser that consumes it is branch 2.
 - **T11. How the escape gets past the string decoder.** Today `\*` in a `"…"` string is `SGL1004`
   and the decoder keeps it as written. From A18, `\*` and `` \` `` are *recognised* string escapes
   that decode **to themselves**, backslash included, with no diagnostic. The inline parser then
@@ -122,6 +126,9 @@ that implements it, not here.
   without the warning. *The model keeps plain text, so `.sgl.json` round-trips. `toJson` writes
   `"\\*"`, which is valid JSON. The only visible change for a non-label string is that a warning
   goes away.*
+  - *Implemented (branch 1, T11), as written:* `SIMPLE_ESCAPES` maps `*` and `` ` `` to themselves
+    with the backslash, in `"…"`, `ConfigString`, quoted keys and `"""` alike, with no `SGL1004`.
+    Tested through parse, resolve, `toJson` and `fromJson` (`multiline-string.test.ts`).
 - **T12. Nothing else is markup.** `~~x~~`, `[a](b)`, `# h`, `- item`, `1. item`, `![i](u)`,
   `<b>`, `&amp;`, autolinks and trailing-double-space line breaks are all literal text, escaped on
   output like any text (DD-07 §8). *This is the human's decision. Each item left out also removes
@@ -207,6 +214,10 @@ that implements it, not here.
 
   A quote that would otherwise close the string is written `\"`. To put `"""` inside, escape the
   quotes (`\"\"\"`).
+  - *Implemented (branch 1), as written.* The token and the three productions are exactly the block
+    above. One correction to the reasoning, not the rule: a key position does not reject `"""`
+    because the lexer never offers the token there (it does, see T16), but because no key or path
+    production accepts it, so it is an error node and `SGL1002`.
 - **T16. The precedence audit.** Three tokens start with `"`: `String`, `ConfigString` and
   `MultilineString`. The table below lists every overlap, and each row becomes a lexer test in
   Phase 2. *This project has been burned by token precedence twice before: `Wildcard` against
@@ -238,6 +249,20 @@ that implements it, not here.
   `'"'? '"'? @eof` alternative. An unterminated `"""` then lexes as `""` followed by an unterminated
   `"…`, and `scanLexicalErrors` recognises the three quotes and reports one `SGL1003` from them to
   the end of the input.
+  - *Implemented (branch 1), with two corrections to the table* (DD-01 §2, "The `"""` token audit",
+    has the full, measured version):
+    - **"Lezer only considers tokens that are valid in the current parse state" is wrong** for
+      tokens in one token group. `String` and `MultilineString` overlap and are ranked, so they
+      share a group, and `"""` lexes as a `MultilineString` wherever a `String` could start, keys
+      included. The "key or path position" row still holds (a syntax error), but as `SGL1002` over
+      the whole `"""…"""`, and it is tested, not assumed.
+    - **More pre-A18 inputs change than the table says.** Three or more quotes in a row after a
+      node or edge `:` were *not* errors: `a: """a"""` was node `a` with label `""` plus nodes
+      `"a"` and `""`. At an entry start or after `->` they were valid adjacent keys:
+      `"""k""": v` was three nodes, and is now `SGL1002`. No committed document contains any of
+      them (the CST/AST pins prove it).
+    - `lezer-generator` accepted `@eof` inside the token, so the fallback was not needed. The
+      explicit `@precedence` entry changes the generated precedence data but no audited input.
 - **T17. Dedent rules** (Java text blocks, which lean on the closing delimiter). They are applied to
   the raw body, **before** escapes are decoded:
   1. `\r\n` and a lone `\r` become `\n`. *A document saved with CRLF must not put `\r` into
@@ -267,11 +292,17 @@ that implements it, not here.
   gives ``` **Payments API**\nhandles `POST /pay` ```. `@label: """one line"""` gives `one line`. *Escapes
   are decoded after dedenting, so `\t` or `\u0020` can put back whitespace that steps 6 and 7 would
   remove. Trailing whitespace is invisible in source and should not decide what a label measures.*
+  - *Implemented (branch 1), as written*, with two clarifications. "Whitespace" in steps 3–7 is
+    spaces and tabs only; other Unicode spaces are text. Step 8 decodes each kept line in place in
+    the source rather than the joined text, which gives the same value and keeps every `SGL1004`
+    offset a source offset without a mapping table.
 - **T18. Newlines inside `"""` are hard breaks.** CommonMark's soft break, where a single newline
   becomes a space, is **not** used. A `\` at the end of a line is reserved for a later
   line-continuation rule. Until then it is `SGL1004` and kept as written, which is today's
   behaviour. *The human asked for explicit breaks, and what you see in the source is what the
   label shows. Long lines are what `maxWidth` wrapping is for.*
+  - *Implemented (branch 1), as written.* A `\` that ends a line (after T17 step 7) is `SGL1004`
+    over the backslash and the next source character, and is kept.
 - **T19. Diagnostics and the AST.** An unterminated `"""` is **`SGL1003`** ("Unterminated
   string."), from the opening `"""` to the end of the input. `decodeString` reports it when the
   token does not end in `"""`. `scanLexicalErrors` learns to skip a `"""…"""` body, so that a `"`,
@@ -280,6 +311,13 @@ that implements it, not here.
   (`MultilineString`) says which form was used, for highlighting and for a future formatter.
   `styleTags` maps it to `tags.string`, and `foldNodeProp` folds it. *No new code: the existing
   message says exactly what is wrong. And no AST consumer needs to know the spelling.*
+  - *Implemented (branch 1), with one deviation:* the `SGL1003` for an unterminated `"""` comes
+    from `scanLexicalErrors`, not `decodeString`. The scanner has to find the string anyway, to skip
+    closed bodies and to explain the rest of the input, and one place reporting it is what keeps it
+    to exactly one. The error Lezer leaves at the end of the input (a `}` never reached) falls in
+    the `SGL1003`'s region and is not reported again. `StringLit` is unchanged. Highlighting
+    (`tags.string`), folding and a `"""` entry in the editor's `closeBrackets` list (so typing the
+    third quote closes the string) are in `@sgl/core/editor`.
 - **T20. Interpolation (A8) works inside `"""` unchanged.** The resolver reads `${name}` and a
   whole-string `$name` out of `StringLit.value` (DD-02 §3.5), and that value is already dedented,
   so an interpolated value's own newlines are inserted as they are and are not re-indented. The
@@ -287,9 +325,15 @@ that implements it, not here.
   reads the decoded value, so it cannot tell which spelling the author used, and it does not need
   to.*
 
+  - *Implemented (branch 1): nothing to change.* `multiline-string.test.ts` covers `${name}` in the
+    dedented text, a value's own newlines inserted as they are, a whole `"""$n"""` keeping its
+    type, the label shorthands, and `SGL2013`. `corpus/multiline.sgl` uses it.
+
 ### 4.2 What changes in the corpus
 
-No corpus document, `.sgl.json` document, app example or generated scale document contains `"""`,
+*Branch 1 added `corpus/multiline.sgl` and `corpus/malformed/unterminated-triple-string.sgl`, the
+first documents with `"""`. Before it:* no corpus document, `.sgl.json` document, app example or
+generated scale document contained `"""`,
 `""""`, `\*` or `` \` ``. Strict JSON cannot contain three quotes in a row outside a string. No
 existing golden changes because of §4.
 
@@ -797,6 +841,12 @@ The decisions:
   *A plain label's IR representation changes, and nothing downstream of it does. That is the
   property Phase 2 must prove before it updates the one golden.*
 
+  *Note from branch 1:* `corpus/multiline.sgl` now exists, with compile, resolve, layout and render
+  goldens written under the MVP's one-run-per-line form. Its compile golden changes in branch 2
+  the same way as `unicode.sgl`'s (four labels with `\n`), and nothing downstream of it should.
+  The `unicode.sgl` change itself is branch 2's (it comes with the `TextRun` flags), so branch 1
+  changed no existing golden.
+
 ---
 
 ## 15. Diagnostics
@@ -960,7 +1010,8 @@ Each change is made in the branch that implements it (§16).
    normative `layoutRuns` and `TextLayout`, which the code implements (T24).
 3. **Architecture §7** says exported fonts are "embedded as subsetted base64 WOFF2". DD-07 §9 (D2)
    says there is no subsetting.
-4. **DD-01 §2's grammar block** omits the `ConfigString` token, its `@precedence`, and `Variable`,
+4. *(Resolved: A9 had already brought the block in line; branch 1 re-checked it and added
+   `MultilineString`.)* **DD-01 §2's grammar block** omits the `ConfigString` token, its `@precedence`, and `Variable`,
    all of which the real `sgl.grammar` has. The design notes mention `Variable`, but the block does
    not include it.
 5. **DD-07 §5** positions the `<text>` at `frame.y + layout.ascent` from the label's `TextLayout`.

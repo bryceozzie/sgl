@@ -194,6 +194,10 @@ Both live in `packages/core/src/json.ts`, exported as the subpath **`@sgl/core/j
 4. `@type` is always an array. Labels are always `"@label"`, never the string shorthand.
 5. Edges: `{ "from": "payments.api", "to": "../psp", "fromPort"?, "toPort"?, "directed": "forward", "ordinal": 0, …config }` — paths printed with the surface syntax (`/`, `../`, `.`, `*`, `**`). A wildcard endpoint round-trips as itself: `{ "from": "lane1.*", "to": "switch", … }`.
 6. Two-space indent, `\n` line endings, UTF-8, trailing newline. Numbers via `JSON.stringify`.
+7. (A18, DD-11 T51.) A `"""` string is written as the ordinary JSON string of its dedented, decoded
+   text, with `\n` for its line breaks: the `"""` spelling is not preserved, since JSON has none.
+   `\*` and `` \` `` are two characters in the model and are written `"\\*"` and ``"\\`"``, which
+   read back as the same two characters.
 
 **Two corrections made while implementing this, both because they would otherwise break the round-trip invariant below:**
 

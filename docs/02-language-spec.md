@@ -88,6 +88,37 @@ api -> db: "reads"                       // string shorthand => @label
 api -> db: { @label: "reads", @style: dashed, @width: 2 }
 ```
 
+### Strings
+
+A string is written one of two ways. Both mean the same thing once read; nothing after parsing can
+tell which one was used, and `.sgl.json` stores either as an ordinary JSON string.
+
+- **`"…"`**, JSON's string, on one line. Escapes: `\n` `\t` `\"` `\\` `\/` and `\uXXXX`, and (A18)
+  `\*` and `` \` ``. The last two are kept as written, backslash included: they exist so a label can
+  hold a literal `*` or `` ` `` once labels read inline markup (A18), and `"\\*"` means the same.
+  Any other escape is a warning (`SGL1004`) and is kept as written.
+- **`"""…"""`** (A18), a multi-line string, **wherever a value may go**: a label shorthand, a config
+  value, an array item, a property value. Never as a key or in a path, where it is a syntax error.
+  Newlines inside it are line breaks. The text is dedented to the closing `"""`: a first line that
+  is empty or only spaces is dropped, as is a last line of only spaces, and the indent that every line shares
+  with the closing delimiter is removed, as is trailing whitespace on each line. Tabs and spaces
+  never match each other. `\r\n` becomes `\n`. Escapes are the same as in `"…"` and are read after
+  dedenting, so `\t` can put back whitespace dedenting removes. A `"` or `""` needs no escape unless it runs into
+  the closing `"""`; a `"""` inside is written `\"\"\"`. `${name}` interpolation works as in any string (§5).
+
+```sgl
+api: {
+  @label: """
+    Payments API
+    handles POST /pay
+    """                                    // "Payments API\nhandles POST /pay"
+}
+api -> db: """reads
+  and writes"""                            // "reads\nand writes"
+```
+
+An unterminated `"""` is `SGL1003` from the opening quotes to the end of the file.
+
 ### Scoping and references
 
 Edges may be declared at any depth. Endpoints resolve **relative to the enclosing container**, with:
@@ -204,7 +235,7 @@ gives every expanded edge that label and that style. There is no way to tell, do
 
 | Key | Applies to | Notes |
 |---|---|---|
-| `@label` | node, edge, container | Text or inline-markup string |
+| `@label` | node, edge, container | Text or inline-markup string, `"…"` or `"""…"""` (§3, Strings). `\*` and `` \` `` are kept for the markup (A18) |
 | `@type` | node, edge | Class reference; may be a list |
 | `@shape` | node | `rect` `round` `circle` `ellipse` `diamond` `hexagon` `cylinder` `cloud` `document` `actor` `package` `note`, or a theme-defined shape |
 | `@icon` | node | Icon reference (see backlog) |
