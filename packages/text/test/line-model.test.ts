@@ -110,6 +110,17 @@ describe('layoutLines: fragments (DD-11 T31, T32, T34)', () => {
     expect(layout.lines.map((l) => l.y)).toEqual([9, 9 + 13 * 1.3]);
   });
 
+  it('takes the largest ascent even when it comes first, on one line or across lines (fix round 1, item 4: mutant M7)', () => {
+    // One line: the italic fragment (ascent 9) before a plain one (8).
+    const one = layoutLines(stub, [{ text: 'a', style: italic, marks: { em: true } }, { text: 'b', style: BASE }], UNCONSTRAINED);
+    expect(one.ascent).toBe(9);
+    expect(one.lines.map((l) => l.y)).toEqual([9]);
+    // Two lines: the larger ascent on the first.
+    const two = layoutLines(stub, [{ text: 'a\n', style: italic, marks: { em: true } }, { text: 'b', style: BASE }], UNCONSTRAINED);
+    expect(two.ascent).toBe(9);
+    expect(two.lines.map((l) => l.y)).toEqual([9, 9 + 13 * 1.3]);
+  });
+
   it('throws when handed a maxWidth: the caller must have loaded layoutWrapped (DD-11 §7)', () => {
     expect(() => layoutLines(stub, [{ text: 'a', style: BASE }], { maxWidth: 100 })).toThrow(/layoutWrapped/);
   });
