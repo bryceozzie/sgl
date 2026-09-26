@@ -81,6 +81,8 @@ After the fix round: re-verify, then merge `--no-ff`. The `wip` commit `544fe6d`
 
 **A18 part 1 (`feat/a18-grammar`) merged to `main` at `0ba4339`** (2026-09-26; one review, one fix round; 5050 Vitest, 98/98 e2e, 180.38 of 182 kB). Next: `feat/a18-text` (parser, runs, measurement, wrapping; T58's `unicode.sgl` and `multiline.sgl` compile-golden updates belong there), then `feat/a18-render`.
 
+**A18 parts 2+3 in flight (2026-09-26).** `feat/a18-text` (24e5638) is in fix round 1: human decisions H1 (a fixed width breaks a word only when `maxWidth` is set) and H2 (a class's `@size` applies to its nodes), plus 10 review fixes. `feat/a18-render` (865e4aa: 181.82 of 182 kB, 5333 Vitest, 107 e2e, no existing golden changed) is moving the eight new `@font-face` rules into the lazy rich-text chunk to regain headroom, then waits. Two reviewers (seams/security; mutation) are running on 865e4aa. Plan: verify text from clean → render merges `origin/feat/a18-text` → triage reviews → at most two fix rounds → merge **both** into `main` together (`--no-ff`). Escalate to the human: F24 (ascent 0.8 em vs `fontBoundingBoxAscent`, ~2.5 px; fixing it re-baselines every render golden) and T57 (rich theme switch 54 ms against a 50 ms budget on the slower pick).
+
 ### A18 markdown labels: branch `design/a18-text` at `8ca91c9` (design only, not merged)
 
 **Status 2026-09-26: branch 1, `feat/a18-grammar`, is complete and pushed; awaiting orchestrator
