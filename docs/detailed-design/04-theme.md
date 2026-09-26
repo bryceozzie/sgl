@@ -135,10 +135,12 @@ Per element, lowest to highest precedence. Each step is a `StyleSet`; later keys
 | 3 | `byClass[c]` for `c` in `classes` (linearised order) | ✔ | ✔ | ✔ |
 | 4 | Document `@classes[c].style` for `c` in `classes`, each followed by that class's `@size`, **only** the size keys (human decision H2, 2026-09-26; a node, not an edge) | ✔ | ✔ | ✔ (`style` only) |
 | 5 | Inline `config.style` | ✔ | ✔ | ✔ |
-| 6 | Inline `config.size`, **only** the size keys (`SIZE_KEYS`: `width height minWidth minHeight maxWidth aspectRatio`) | ✔ | ✔ | — |
+| 6 | Inline `config.size`, **only** the size keys (`SIZE_KEYS`: `width height minWidth minHeight maxWidth aspectRatio`) | ✔ | — (`SGL2012`, dropped by the resolver) | — |
 | 7 | The theme's `force` (paint only, §3 step 4), where the property applies to the role | ✔ | ✔ | ✔ |
 
 A class's `@size` (H2) is merged at step 4, in `@type` order, so a later class wins per key, and the element's own `@size` (step 6) overrides it per key. It is geometry only, like step 6: the cascade signature leaves it out (so paint class names and F9's paint-only path are untouched), the element's `geometryHash`, and so the graph's and the renderer's `structureHash`, cover it, and elements with one signature and no `@size` of their own still share one style, since their classes' sizes are the same. Until H2 a class's `@size` validated and did nothing (DD-11 §19 item 10).
+
+The size keys apply to nodes only (the registry's rows say `node`), so a container never takes them: its own `@size` is `SGL2012` at the key, dropped by the resolver (fix round 1, item 10; until then the cascade dropped it silently), and a class's `@size` on a container is filtered out at step 4 like any property that does not apply to the role.
 
 Step 6 is geometry only. Any other key under `@size` — `@size.fill`, say — is kept by the resolver with `SGL2010` (language spec §4: an unknown key in a known namespace) and never reaches the bag. Until fix round 1 of the Stage L re-baseline, step 6 applied any key, so `@size.fill` painted; and because the renderer names paint classes after the cascade signature, which leaves `@size` out (below; DD-07 §6), such an element shared its paint class with an unstyled sibling and repainted it.
 
