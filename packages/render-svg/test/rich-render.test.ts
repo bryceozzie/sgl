@@ -52,6 +52,21 @@ describe('T42: render() draws the measured lines', () => {
     }
   });
 
+  it('only a label with a box is looked up: an unboxed label\'s measured lines are its hard lines, so nothing is hashed for it', async () => {
+    const { styled, table, result, theme, rendered } = await rich(WRAP);
+    const reads: string[] = [];
+    const watched = new Proxy(table, {
+      get(target, key, receiver) {
+        if (typeof key === 'string') reads.push(key);
+        return Reflect.get(target, key, receiver) as unknown;
+      },
+    });
+    expect(render(styled, result, theme, watched).svg).toBe(rendered.svg);
+    expect(reads).toEqual([labelRunKey(styled, 'l:a' as LabelId)]);
+    // …and for the unboxed label the table's lines are exactly the hard split drawn.
+    expect(table[labelRunKey(styled, 'l:b' as LabelId)]!.lines.map((l) => l.runs.map((r) => r.text).join(''))).toEqual(['one', 'two']);
+  });
+
   it('the vertical model is the renderer\'s own: 0.8 × fontSize to the first baseline, fontSize × lineHeight per line', async () => {
     const { rendered } = await rich(WRAP);
     const text = /<g id="n-a"[^]*?<text [^>]*y="([\d.]+)"[^>]*>([^]*?)<\/text>/.exec(rendered.svg)!;

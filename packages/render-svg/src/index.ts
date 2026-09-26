@@ -20,7 +20,7 @@ import {
   type SemanticGraph,
   type TextRun,
 } from '@sgl/core';
-import { labelRunKey, plainText } from '@sgl/text';
+import { labelBox, labelRunKey, plainText } from '@sgl/text';
 import type { ComputedStyle, ResolvedTheme, StyledGraph } from '@sgl/theme';
 
 import type { EdgeLayoutView, LabelPlacementView, LayoutView, RunView, TextLayoutView } from './layout-view.js';
@@ -263,13 +263,16 @@ function segment(seg: PathSeg): string {
 }
 
 /**
- * A label's lines, each its fragments with their marks (DD-11 T42): the lines
- * the measure table holds for the label (`labelRunKey`, as `premeasure` keyed
- * it), so a wrapped label is drawn on exactly the lines that sized its node;
- * with no table, or on a miss, its runs split at every `\n` (T21, T34).
+ * A label's lines, each its fragments with their marks (DD-11 T42): for a
+ * label with a box (`labelBox`: its node has `@size.maxWidth` or `width`), the
+ * lines the measure table holds for it (`labelRunKey`, as `premeasure` keyed
+ * it), so a wrapped label is drawn on exactly the lines that sized its node.
+ * Otherwise — and with no table, or on a miss — its runs split at every `\n`
+ * (T21, T34), which is exactly what an unboxed label was measured as
+ * (`layoutLines`), so no key is hashed for it on a render.
  */
 function labelLines(ctx: Ctx, labelId: LabelId, runs: readonly TextRun[]): readonly (readonly RunView[])[] {
-  const measured = ctx.text?.[labelRunKey(ctx.styled, labelId)];
+  const measured = labelBox(ctx.styled, labelId).maxWidth === undefined ? undefined : ctx.text?.[labelRunKey(ctx.styled, labelId)];
   if (measured) return measured.lines.map((l) => l.runs);
   const lines: RunView[][] = [[]];
   for (const r of runs) {
