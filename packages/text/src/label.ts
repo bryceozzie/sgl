@@ -79,8 +79,9 @@ export function labelBox(styled: StyledGraph, labelId: LabelId): BoxConstraints 
   const node = styled.graph.nodes[owner.id];
   if (width === Infinity || node === undefined) return UNCONSTRAINED;
   const maxWidth = labelMaxWidth(node.shape, width, g?.['padding']);
-  // Only an author's maxWidth asks for words to be split (human decision H1).
-  return max === Infinity ? { maxWidth, keepWords: true } : { maxWidth };
+  // Only an author's maxWidth asks for words to be split (human decision H1); a
+  // hexagon's width depends on the label's height, which the breaker settles.
+  return { maxWidth, ...(max === Infinity && { keepWords: true as const }), ...(node.shape === 'hexagon' && { hexagon: true as const }) };
 }
 
 /** The `MeasureTable` key for a label: `hashRuns(labelRuns(…), labelBox(…))`. */

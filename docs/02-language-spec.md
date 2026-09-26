@@ -170,8 +170,8 @@ calc: "2*3*4 and snake_case"               // literal: no markup here
 long for a line is also split between characters, and text without spaces (CJK) breaks between
 any two characters; with only a fixed `@size.width`, a word is never split and a word too long
 for the node overflows it, as it always has. The node's
-padding and its shape are allowed for, so an ellipse or a diamond wraps narrower than a rectangle
-of the same width. A label with neither key never wraps, and an edge label breaks only where it
+padding and its shape are allowed for, so an ellipse, a diamond or a tall hexagon wraps narrower
+than a rectangle of the same width. A label with neither key never wraps, and an edge label breaks only where it
 has a line break.
 
 ### Scoping and references

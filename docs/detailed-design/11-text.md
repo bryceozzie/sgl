@@ -586,6 +586,7 @@ The decisions:
     rect, round, cylinder, package, and any other shape → avail
     ellipse                          → avail / √2
     diamond, hexagon                 → avail / 2      // hexagon: exact when the label is taller than wide, conservative otherwise
+                                                      // (fix round 1, item 3: hexagon → avail, and the breaker keeps L + min(L, H) ≤ avail; see below)
   ```
 
   Containers wrap their titles the same way. Edge labels have no `@size`, so they never wrap: an
@@ -598,6 +599,14 @@ The decisions:
   wanted. The human's decision names only `maxWidth`, so this is an extension that needs a yes. No
   corpus document sets `@size`, so no golden depends on it.*
   - *Implemented (branch 2, `feat/a18-text`), as accepted by the human:* the smaller of `maxWidth` and `width` wins.
+  - **Fix round 1, item 3: hexagons.** `avail / 2` over-wrapped: a 200-wide hexagon wrapped
+    "Order fulfilment" (110 px) onto two lines. A hexagon's side insets are `min(L, H)/2`, so a
+    label fits when `L + min(L, H) ≤ avail`. `labelMaxWidth('hexagon', …)` now returns `avail`
+    and `labelBox` marks the box `hexagon: true` (`␟h` in the key); `layoutWrapped` breaks at
+    `max(avail/2, avail − one line height)` and, while the result breaks the rule, again at
+    `max(avail/2, avail − H)`. `H` only grows and the width only shrinks, to `avail/2` at worst,
+    where the rule always holds. Only `text/wrap.sgl`'s hexagon changed (4 lines → 2), and its two
+    rich layout goldens with it.
   - **Human decision H1 (2026-09-26, fix round 1): a fixed `@size.width` breaks only at spaces.** A
     single word too wide for the line overflows, as before A18; T37's mid-word split happens only
     when the author set `@size.maxWidth`, an explicit request to constrain text. With both, the

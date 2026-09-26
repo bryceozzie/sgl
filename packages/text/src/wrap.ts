@@ -1,5 +1,5 @@
 import { glyphCount, hardLines, layLine, layoutLines, stack, type Fragment } from './line-model.js';
-import type { LineModel, MeasureRun, RunMetrics, TextStyle } from './types.js';
+import type { BoxConstraints, LineModel, MeasureRun, RunMetrics, StyledRun, TextLayout, TextStyle } from './types.js';
 
 /**
  * `layoutWrapped` (DD-11 §7, T32–T38): `@sgl/text/wrap`, the lazy half of the
@@ -76,9 +76,24 @@ interface Piece {
 }
 
 export const layoutWrapped: LineModel = (measureRun, runs, box) => {
-  const maxWidth = box.maxWidth;
-  if (maxWidth === undefined) return layoutLines(measureRun, runs, box);
+  const A = box.maxWidth;
+  if (A === undefined) return layoutLines(measureRun, runs, box);
   const measure = memoise(measureRun);
+  if (!box.hexagon) return breakAt(measure, runs, box, A);
+  // A hexagon (fix round 1, item 3): a label L wide and H tall fits when
+  // L + min(L, H) <= A. Start from one line's height; each miss means the label
+  // is taller than assumed, so narrow to A - H and break again. H only grows
+  // and the width only shrinks, down to A/2, where the rule always holds.
+  const style = runs[0]?.style;
+  let width = Math.max(A / 2, A - (style === undefined ? 0 : style.fontSize * style.lineHeight));
+  for (;;) {
+    const layout = breakAt(measure, runs, box, width);
+    if (width <= A / 2 || layout.width + Math.min(layout.width, layout.height) <= A) return layout;
+    width = Math.max(A / 2, A - layout.height);
+  }
+};
+
+function breakAt(measure: MeasureRun, runs: readonly StyledRun[], box: BoxConstraints, maxWidth: number): TextLayout {
   const laid: ReturnType<typeof layLine>[] = [];
   for (const fragments of hardLines(runs)) {
     const lineOf = (pieces: readonly Piece[]): Fragment[] => {
@@ -182,7 +197,7 @@ export const layoutWrapped: LineModel = (measureRun, runs, box) => {
     emit(line);
   }
   return stack(laid, runs[0]?.style);
-};
+}
 
 /** A word's `breakUnits`, each as the pieces it takes from the word's fragments. */
 function unitsOf(word: readonly Piece[]): Piece[][] {

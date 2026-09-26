@@ -172,6 +172,29 @@ describe('keepWords: a fixed @size.width breaks only at spaces (human decision H
   });
 });
 
+describe('the hexagon rule (fix round 1, item 3)', () => {
+  // A hexagon's side insets are min(L, H)/2 each (DD-07 §4 solved for the label),
+  // so a label L wide and H tall fits a width A when L + min(L, H) <= A. The box
+  // carries A and `hexagon`; the breaker starts at max(A/2, A - one line) and
+  // narrows until the rule holds, so a one-line label is never over-wrapped.
+  const hex = (runs: readonly StyledRun[], maxWidth: number): TextLayout => layoutWrapped(stub, runs, { maxWidth, hexagon: true });
+  it('one line fits up to A minus one line height, not A/2', () => {
+    // A = 176, one line is 15 high: "Order fulfilment" (160) fits on one line.
+    expect(lines(hex([plain('Order fulfilment')], 176))).toEqual(['Order fulfilment']);
+    expect(lines(hex([plain('Order fulfilmentX')], 176)).length).toBeGreaterThan(1);
+  });
+  it('holds for random text and widths, unless a line is one unit', () => {
+    const unitArb = fc.constantFrom('a', 'bb', 'ccc', ' ', ' ', '\n');
+    fc.assert(
+      fc.property(fc.array(unitArb, { maxLength: 40 }).map((a) => a.join('')), fc.integer({ min: 20, max: 400 }), (text, A) => {
+        const layout = hex([plain(text)], A);
+        const oneUnit = layout.lines.some((l) => breakUnits(l.runs.map((r) => r.text).join('')).length <= 1 && l.width > A / 2);
+        if (!oneUnit) expect(layout.width + Math.min(layout.width, layout.height), JSON.stringify(text)).toBeLessThanOrEqual(A + 1e-9);
+      }),
+    );
+  });
+});
+
 describe('properties, for random text and widths', () => {
   const unit = fc.constantFrom('a', 'b', 'W', ' ', ' ', '\t', '\u200b', '\u00a0', '\n', '\u6771', '\u{1f642}', 'e\u0301', '\u{1f469}\u200d\u{1f4bb}', '\u{1f1ef}\u{1f1f5}', '-');
   const runsArb = fc.array(fc.record({ text: fc.array(unit, { maxLength: 12 }).map((a) => a.join('')), bold: fc.boolean() }), { minLength: 1, maxLength: 4 }).map((spec) =>

@@ -73,6 +73,19 @@ describe('wrapped labels lay out at their wrapped size (DD-11 T35, T39, T40)', (
     for (const id of ['l:a', 'l:d']) expect(table[labelRunKey(styled, id as LabelId)]!.lines, id).toHaveLength(1);
   });
 
+  it('a 200-wide hexagon keeps "Order fulfilment" on one line, and a long label still fits its width (fix round 1, item 3)', async () => {
+    for (const engine of ENGINES) {
+      const src = `h: { @shape: hexagon, @label: "Order fulfilment", @size: { maxWidth: 200 } }\nk: { @shape: hexagon, @label: "${LONG} ${LONG}", @size: { maxWidth: 200 } }\n`;
+      const { styled, table, result } = await runPipeline(src, undefined, engine);
+      expect(table[labelRunKey(styled, 'l:h' as LabelId)]!.lines, engine.id).toHaveLength(1);
+      const k = table[labelRunKey(styled, 'l:k' as LabelId)]!;
+      expect(k.lines.length).toBeGreaterThan(2);
+      // The hexagon's own inset rule, min(L, H)/2 a side, within the width inside the padding.
+      expect(k.width + Math.min(k.width, k.height)).toBeLessThanOrEqual(176 + 1e-9);
+      expect(result.nodes[asNodeId('k')]!.frame.w, engine.id).toBeLessThanOrEqual(200 + 1 / 64);
+    }
+  });
+
   it('@size.maxWidth still splits an overlong word (T37, H1)', async () => {
     const { styled, table } = await runPipeline('a: { @label: "Supercalifragilisticexpialidocious", @size: { maxWidth: 100 } }\nb: { @label: "Supercalifragilisticexpialidocious", @size: { maxWidth: 100, width: 300 } }\n');
     for (const id of ['l:a', 'l:b']) expect(table[labelRunKey(styled, id as LabelId)]!.lines.length, id).toBeGreaterThan(1);
