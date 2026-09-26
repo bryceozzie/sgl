@@ -93,8 +93,8 @@ always on for `@label` (T13), a fixed `@size.width` wraps (T36), the full font s
   three valid pre-A18 nodes. No committed document is affected (92 CST/AST pins byte-identical).
 - **No existing golden changed.** T58's `unicode.sgl` change is branch 2's. `multiline.sgl`'s new
   compile golden will change in branch 2 the same way.
-- **Size:** 180.25 kB of 182 (this branch +0.61 kB; T54 estimated 0.20–0.25). Branches 2–3 have
-  1.75 kB. If branch 3 does not fit, that is a human budget decision.
+- **Size:** 180.31 kB of 182 (this branch +0.68 kB; T54 estimated 0.20–0.25). Branches 2–3 have
+  1.69 kB. If branch 3 does not fit, that is a human budget decision.
 - Next: `feat/a18-text` from `main` once this merges.
 
 - **Design:** DD-11 `docs/detailed-design/11-text.md` (T1–T60).
