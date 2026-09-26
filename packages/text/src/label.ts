@@ -53,11 +53,8 @@ export function labelRuns(styled: StyledGraph, labelId: LabelId): readonly Style
   const spec = styled.graph.labels[labelId];
   if (spec === undefined) return [];
   const base = textStyleOf(styled.labelStyles[labelId]);
-  return spec.runs.map((run: TextRun) => {
-    if (!run.strong && !run.em && !run.code) return { text: run.text, style: base };
-    const marks = { ...(run.strong && { strong: true as const }), ...(run.em && { em: true as const }), ...(run.code && { code: true as const }) };
-    return { text: run.text, style: runStyle(base, marks), marks };
-  });
+  // A canonical run's keys other than `text` are its flags, each `true` (T21).
+  return spec.runs.map(({ text, ...marks }: TextRun) => (Object.keys(marks).length === 0 ? { text, style: base } : { text, style: runStyle(base, marks), marks }));
 }
 
 /**

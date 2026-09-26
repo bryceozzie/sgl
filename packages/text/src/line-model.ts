@@ -45,7 +45,7 @@ export function hardLines(runs: readonly StyledRun[]): Fragment[][] {
         line = [];
         lineStyle = run.style;
       }
-      if (text !== '') line.push(run.marks === undefined ? { text, style: run.style } : { text, style: run.style, marks: run.marks });
+      if (text !== '') line.push({ text, style: run.style, ...(run.marks && { marks: run.marks }) });
     });
   }
   close();
@@ -66,7 +66,7 @@ export function layLine(measureRun: MeasureRun, fragments: readonly Fragment[]):
   let ascent = 0;
   for (const f of fragments) {
     const m = measureRun(f.text, f.style);
-    runs.push(f.marks === undefined ? { x: sum + ls * glyphs, text: f.text, style: f.style } : { x: sum + ls * glyphs, text: f.text, style: f.style, marks: f.marks });
+    runs.push({ x: sum + ls * glyphs, text: f.text, style: f.style, ...(f.marks && { marks: f.marks }) });
     sum += m.width;
     glyphs += glyphCount(f.text);
     if (m.ascent > ascent) ascent = m.ascent;

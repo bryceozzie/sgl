@@ -322,8 +322,9 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   // A18 (DD-11 T53): the lazy `rich-text` chunk — the inline parser and the
   // word breaker — loads for the first document whose labels hold `*` or a
   // backtick (compiled without the parser, `needsInline`) or that has a label
-  // to wrap (`needsWrap`, after `styleGraph`). Until it has, those stages hold
-  // like A9's import gate, so nothing is measured or laid out with literal
+  // to wrap (`needsWrap`). Both are checked after `styleGraph`, which holds
+  // until it has loaded, like A9's import gate (the graph it was handed, with
+  // literal runs, goes no further), so nothing is measured or laid out with literal
   // runs or unwrapped labels; the canvas keeps the last good or stored
   // picture. Once loaded, compile always runs with the parser and the
   // measurer with `layoutWrapped`, and every keystroke is synchronous again.
@@ -365,12 +366,10 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     () => {
       const documentModel = model.value.model;
       const loaded = rich.value;
-      void richFailed.value; // a failed load recomputes this stage, degraded
       inject('compile');
       const runtime = documentModel.imports && imports.value;
       const options = loaded ? { inline: loaded.inline } : undefined;
       const g = runtime ? runtime.compile(documentModel, options) : compile(documentModel, undefined, options);
-      if (!loaded && deps.loadRichText && needsInline(g.graph) && requestRichText()) throw HOLD;
       return DEGRADED.has(documentModel) ? { ...g, diagnostics: g.diagnostics.filter((d) => d.code !== 'SGL2001') } : g;
     },
     () => emptyStages().graph,

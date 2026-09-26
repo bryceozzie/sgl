@@ -116,9 +116,11 @@ accept. `distinctTextStyles` (DD-05 §4's "fonts first") is not exported by
 
 **A18 addition (DD-11 T53): the `rich-text` gate.** `PipelineDeps.loadRichText` loads the lazy
 `rich-text` chunk (`state/rich-text.ts`: `parseInline` from `@sgl/core/inline` and `layoutWrapped`
-from `@sgl/text/wrap`). The `graph` stage compiles without the parser and, if `needsInline(graph)`
-(a label holding `*` or a backtick), starts the load and holds; the `styled` stage does the same
-when `needsWrap(styled)` (a node title with `@size.maxWidth` or `@size.width`). Holding is A9's
+from `@sgl/text/wrap`). The `graph` stage compiles without the parser until it has loaded; the `styled` stage then
+starts the load and holds if `needsInline(graph)` (a label holding `*` or a backtick) or
+`needsWrap(styled)` (a node title with `@size.maxWidth` or `@size.width`). *(Fix round 1: one
+check, in the styled stage, where the graph stage had its own; the graph with literal runs goes no
+further than `styleGraph`.)* Holding is A9's
 `HOLD`: the stages below keep their last value, nothing is reported, and the canvas keeps the last
 good or stored picture, so nothing is measured or laid out with literal runs or unwrapped labels.
 Once loaded, `measurer.lineModel` becomes `layoutWrapped` and compile always runs with the parser.
