@@ -1,0 +1,1801 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "rect",
+    "keySpan": {
+     "from": 305,
+     "to": 309
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "shape"
+       ],
+       "value": {
+        "kind": "Word",
+        "value": "rect",
+        "span": {
+         "from": 325,
+         "to": 329
+        }
+       },
+       "keySpan": {
+        "from": 317,
+        "to": 323
+       },
+       "span": {
+        "from": 317,
+        "to": 329
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Payments ledger reconciliation service",
+        "span": {
+         "from": 343,
+         "to": 383
+        }
+       },
+       "keySpan": {
+        "from": 335,
+        "to": 341
+       },
+       "span": {
+        "from": 335,
+        "to": 383
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "size"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "maxWidth",
+          "isConfig": false,
+          "keySpan": {
+           "from": 394,
+           "to": 402
+          },
+          "value": {
+           "kind": "Number",
+           "value": 150,
+           "span": {
+            "from": 404,
+            "to": 407
+           }
+          },
+          "span": {
+           "from": 394,
+           "to": 407
+          }
+         }
+        ],
+        "span": {
+         "from": 392,
+         "to": 409
+        }
+       },
+       "keySpan": {
+        "from": 385,
+        "to": 390
+       },
+       "span": {
+        "from": 385,
+        "to": 409
+       }
+      }
+     ],
+     "span": {
+      "from": 315,
+      "to": 411
+     }
+    },
+    "span": {
+     "from": 305,
+     "to": 411
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "round",
+    "keySpan": {
+     "from": 412,
+     "to": 417
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "shape"
+       ],
+       "value": {
+        "kind": "Word",
+        "value": "round",
+        "span": {
+         "from": 432,
+         "to": 437
+        }
+       },
+       "keySpan": {
+        "from": 424,
+        "to": 430
+       },
+       "span": {
+        "from": 424,
+        "to": 437
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Payments ledger reconciliation service",
+        "span": {
+         "from": 450,
+         "to": 490
+        }
+       },
+       "keySpan": {
+        "from": 442,
+        "to": 448
+       },
+       "span": {
+        "from": 442,
+        "to": 490
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "size"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "maxWidth",
+          "isConfig": false,
+          "keySpan": {
+           "from": 501,
+           "to": 509
+          },
+          "value": {
+           "kind": "Number",
+           "value": 150,
+           "span": {
+            "from": 511,
+            "to": 514
+           }
+          },
+          "span": {
+           "from": 501,
+           "to": 514
+          }
+         }
+        ],
+        "span": {
+         "from": 499,
+         "to": 516
+        }
+       },
+       "keySpan": {
+        "from": 492,
+        "to": 497
+       },
+       "span": {
+        "from": 492,
+        "to": 516
+       }
+      }
+     ],
+     "span": {
+      "from": 422,
+      "to": 518
+     }
+    },
+    "span": {
+     "from": 412,
+     "to": 518
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "ellipse",
+    "keySpan": {
+     "from": 519,
+     "to": 526
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "shape"
+       ],
+       "value": {
+        "kind": "Word",
+        "value": "ellipse",
+        "span": {
+         "from": 539,
+         "to": 546
+        }
+       },
+       "keySpan": {
+        "from": 531,
+        "to": 537
+       },
+       "span": {
+        "from": 531,
+        "to": 546
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Payments ledger reconciliation service",
+        "span": {
+         "from": 557,
+         "to": 597
+        }
+       },
+       "keySpan": {
+        "from": 549,
+        "to": 555
+       },
+       "span": {
+        "from": 549,
+        "to": 597
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "size"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "maxWidth",
+          "isConfig": false,
+          "keySpan": {
+           "from": 608,
+           "to": 616
+          },
+          "value": {
+           "kind": "Number",
+           "value": 150,
+           "span": {
+            "from": 618,
+            "to": 621
+           }
+          },
+          "span": {
+           "from": 608,
+           "to": 621
+          }
+         }
+        ],
+        "span": {
+         "from": 606,
+         "to": 623
+        }
+       },
+       "keySpan": {
+        "from": 599,
+        "to": 604
+       },
+       "span": {
+        "from": 599,
+        "to": 623
+       }
+      }
+     ],
+     "span": {
+      "from": 529,
+      "to": 625
+     }
+    },
+    "span": {
+     "from": 519,
+     "to": 625
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "diamond",
+    "keySpan": {
+     "from": 626,
+     "to": 633
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "shape"
+       ],
+       "value": {
+        "kind": "Word",
+        "value": "diamond",
+        "span": {
+         "from": 646,
+         "to": 653
+        }
+       },
+       "keySpan": {
+        "from": 638,
+        "to": 644
+       },
+       "span": {
+        "from": 638,
+        "to": 653
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Payments ledger reconciliation service",
+        "span": {
+         "from": 664,
+         "to": 704
+        }
+       },
+       "keySpan": {
+        "from": 656,
+        "to": 662
+       },
+       "span": {
+        "from": 656,
+        "to": 704
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "size"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "maxWidth",
+          "isConfig": false,
+          "keySpan": {
+           "from": 715,
+           "to": 723
+          },
+          "value": {
+           "kind": "Number",
+           "value": 200,
+           "span": {
+            "from": 725,
+            "to": 728
+           }
+          },
+          "span": {
+           "from": 715,
+           "to": 728
+          }
+         }
+        ],
+        "span": {
+         "from": 713,
+         "to": 730
+        }
+       },
+       "keySpan": {
+        "from": 706,
+        "to": 711
+       },
+       "span": {
+        "from": 706,
+        "to": 730
+       }
+      }
+     ],
+     "span": {
+      "from": 636,
+      "to": 732
+     }
+    },
+    "span": {
+     "from": 626,
+     "to": 732
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "hexagon",
+    "keySpan": {
+     "from": 733,
+     "to": 740
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "shape"
+       ],
+       "value": {
+        "kind": "Word",
+        "value": "hexagon",
+        "span": {
+         "from": 753,
+         "to": 760
+        }
+       },
+       "keySpan": {
+        "from": 745,
+        "to": 751
+       },
+       "span": {
+        "from": 745,
+        "to": 760
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Payments ledger reconciliation service",
+        "span": {
+         "from": 771,
+         "to": 811
+        }
+       },
+       "keySpan": {
+        "from": 763,
+        "to": 769
+       },
+       "span": {
+        "from": 763,
+        "to": 811
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "size"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "maxWidth",
+          "isConfig": false,
+          "keySpan": {
+           "from": 822,
+           "to": 830
+          },
+          "value": {
+           "kind": "Number",
+           "value": 200,
+           "span": {
+            "from": 832,
+            "to": 835
+           }
+          },
+          "span": {
+           "from": 822,
+           "to": 835
+          }
+         }
+        ],
+        "span": {
+         "from": 820,
+         "to": 837
+        }
+       },
+       "keySpan": {
+        "from": 813,
+        "to": 818
+       },
+       "span": {
+        "from": 813,
+        "to": 837
+       }
+      }
+     ],
+     "span": {
+      "from": 743,
+      "to": 839
+     }
+    },
+    "span": {
+     "from": 733,
+     "to": 839
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "cylinder",
+    "keySpan": {
+     "from": 840,
+     "to": 848
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "shape"
+       ],
+       "value": {
+        "kind": "Word",
+        "value": "cylinder",
+        "span": {
+         "from": 860,
+         "to": 868
+        }
+       },
+       "keySpan": {
+        "from": 852,
+        "to": 858
+       },
+       "span": {
+        "from": 852,
+        "to": 868
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Payments ledger reconciliation service",
+        "span": {
+         "from": 878,
+         "to": 918
+        }
+       },
+       "keySpan": {
+        "from": 870,
+        "to": 876
+       },
+       "span": {
+        "from": 870,
+        "to": 918
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "size"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "maxWidth",
+          "isConfig": false,
+          "keySpan": {
+           "from": 929,
+           "to": 937
+          },
+          "value": {
+           "kind": "Number",
+           "value": 150,
+           "span": {
+            "from": 939,
+            "to": 942
+           }
+          },
+          "span": {
+           "from": 929,
+           "to": 942
+          }
+         }
+        ],
+        "span": {
+         "from": 927,
+         "to": 944
+        }
+       },
+       "keySpan": {
+        "from": 920,
+        "to": 925
+       },
+       "span": {
+        "from": 920,
+        "to": 944
+       }
+      }
+     ],
+     "span": {
+      "from": 850,
+      "to": 946
+     }
+    },
+    "span": {
+     "from": 840,
+     "to": 946
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "fixed",
+    "keySpan": {
+     "from": 947,
+     "to": 952
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "A fixed width wraps as well",
+        "span": {
+         "from": 967,
+         "to": 996
+        }
+       },
+       "keySpan": {
+        "from": 959,
+        "to": 965
+       },
+       "span": {
+        "from": 959,
+        "to": 996
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "size"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "width",
+          "isConfig": false,
+          "keySpan": {
+           "from": 1007,
+           "to": 1012
+          },
+          "value": {
+           "kind": "Number",
+           "value": 110,
+           "span": {
+            "from": 1014,
+            "to": 1017
+           }
+          },
+          "span": {
+           "from": 1007,
+           "to": 1017
+          }
+         }
+        ],
+        "span": {
+         "from": 1005,
+         "to": 1019
+        }
+       },
+       "keySpan": {
+        "from": 998,
+        "to": 1003
+       },
+       "span": {
+        "from": 998,
+        "to": 1019
+       }
+      }
+     ],
+     "span": {
+      "from": 957,
+      "to": 1021
+     }
+    },
+    "span": {
+     "from": 947,
+     "to": 1021
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "overlong",
+    "keySpan": {
+     "from": 1022,
+     "to": 1030
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Supercalifragilisticexpialidocious",
+        "span": {
+         "from": 1042,
+         "to": 1078
+        }
+       },
+       "keySpan": {
+        "from": 1034,
+        "to": 1040
+       },
+       "span": {
+        "from": 1034,
+        "to": 1078
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "size"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "maxWidth",
+          "isConfig": false,
+          "keySpan": {
+           "from": 1089,
+           "to": 1097
+          },
+          "value": {
+           "kind": "Number",
+           "value": 100,
+           "span": {
+            "from": 1099,
+            "to": 1102
+           }
+          },
+          "span": {
+           "from": 1089,
+           "to": 1102
+          }
+         }
+        ],
+        "span": {
+         "from": 1087,
+         "to": 1104
+        }
+       },
+       "keySpan": {
+        "from": 1080,
+        "to": 1085
+       },
+       "span": {
+        "from": 1080,
+        "to": 1104
+       }
+      }
+     ],
+     "span": {
+      "from": 1032,
+      "to": 1106
+     }
+    },
+    "span": {
+     "from": 1022,
+     "to": 1106
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "cjk",
+    "keySpan": {
+     "from": 1107,
+     "to": 1110
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "東京都港区六本木一丁目",
+        "span": {
+         "from": 1127,
+         "to": 1140
+        }
+       },
+       "keySpan": {
+        "from": 1119,
+        "to": 1125
+       },
+       "span": {
+        "from": 1119,
+        "to": 1140
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "size"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "maxWidth",
+          "isConfig": false,
+          "keySpan": {
+           "from": 1151,
+           "to": 1159
+          },
+          "value": {
+           "kind": "Number",
+           "value": 100,
+           "span": {
+            "from": 1161,
+            "to": 1164
+           }
+          },
+          "span": {
+           "from": 1151,
+           "to": 1164
+          }
+         }
+        ],
+        "span": {
+         "from": 1149,
+         "to": 1166
+        }
+       },
+       "keySpan": {
+        "from": 1142,
+        "to": 1147
+       },
+       "span": {
+        "from": 1142,
+        "to": 1166
+       }
+      }
+     ],
+     "span": {
+      "from": 1117,
+      "to": 1168
+     }
+    },
+    "span": {
+     "from": 1107,
+     "to": 1168
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "zwj",
+    "keySpan": {
+     "from": 1169,
+     "to": 1172
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Team 👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻",
+        "span": {
+         "from": 1189,
+         "to": 1236
+        }
+       },
+       "keySpan": {
+        "from": 1181,
+        "to": 1187
+       },
+       "span": {
+        "from": 1181,
+        "to": 1236
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "size"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "maxWidth",
+          "isConfig": false,
+          "keySpan": {
+           "from": 1247,
+           "to": 1255
+          },
+          "value": {
+           "kind": "Number",
+           "value": 100,
+           "span": {
+            "from": 1257,
+            "to": 1260
+           }
+          },
+          "span": {
+           "from": 1247,
+           "to": 1260
+          }
+         }
+        ],
+        "span": {
+         "from": 1245,
+         "to": 1262
+        }
+       },
+       "keySpan": {
+        "from": 1238,
+        "to": 1243
+       },
+       "span": {
+        "from": 1238,
+        "to": 1262
+       }
+      }
+     ],
+     "span": {
+      "from": 1179,
+      "to": 1264
+     }
+    },
+    "span": {
+     "from": 1169,
+     "to": 1264
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "mixed",
+    "keySpan": {
+     "from": 1265,
+     "to": 1270
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "**Payments** *ledger* `svc_v2` reconciliation",
+        "span": {
+         "from": 1285,
+         "to": 1332
+        }
+       },
+       "keySpan": {
+        "from": 1277,
+        "to": 1283
+       },
+       "span": {
+        "from": 1277,
+        "to": 1332
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "size"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "maxWidth",
+          "isConfig": false,
+          "keySpan": {
+           "from": 1343,
+           "to": 1351
+          },
+          "value": {
+           "kind": "Number",
+           "value": 130,
+           "span": {
+            "from": 1353,
+            "to": 1356
+           }
+          },
+          "span": {
+           "from": 1343,
+           "to": 1356
+          }
+         }
+        ],
+        "span": {
+         "from": 1341,
+         "to": 1358
+        }
+       },
+       "keySpan": {
+        "from": 1334,
+        "to": 1339
+       },
+       "span": {
+        "from": 1334,
+        "to": 1358
+       }
+      }
+     ],
+     "span": {
+      "from": 1275,
+      "to": 1360
+     }
+    },
+    "span": {
+     "from": 1265,
+     "to": 1360
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "breaks",
+    "keySpan": {
+     "from": 1361,
+     "to": 1367
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "First line\nsecond line wraps here",
+        "span": {
+         "from": 1381,
+         "to": 1417
+        }
+       },
+       "keySpan": {
+        "from": 1373,
+        "to": 1379
+       },
+       "span": {
+        "from": 1373,
+        "to": 1417
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "size"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "maxWidth",
+          "isConfig": false,
+          "keySpan": {
+           "from": 1428,
+           "to": 1436
+          },
+          "value": {
+           "kind": "Number",
+           "value": 120,
+           "span": {
+            "from": 1438,
+            "to": 1441
+           }
+          },
+          "span": {
+           "from": 1428,
+           "to": 1441
+          }
+         }
+        ],
+        "span": {
+         "from": 1426,
+         "to": 1443
+        }
+       },
+       "keySpan": {
+        "from": 1419,
+        "to": 1424
+       },
+       "span": {
+        "from": 1419,
+        "to": 1443
+       }
+      }
+     ],
+     "span": {
+      "from": 1371,
+      "to": 1445
+     }
+    },
+    "span": {
+     "from": 1361,
+     "to": 1445
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "unwrapped",
+    "keySpan": {
+     "from": 1446,
+     "to": 1455
+    },
+    "value": {
+     "kind": "String",
+     "value": "Payments ledger reconciliation service",
+     "span": {
+      "from": 1457,
+      "to": 1497
+     }
+    },
+    "span": {
+     "from": 1446,
+     "to": 1497
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "group",
+    "keySpan": {
+     "from": 1498,
+     "to": 1503
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Settlement\nand clearing",
+        "span": {
+         "from": 1517,
+         "to": 1543
+        }
+       },
+       "keySpan": {
+        "from": 1509,
+        "to": 1515
+       },
+       "span": {
+        "from": 1509,
+        "to": 1543
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "inner",
+       "keySpan": {
+        "from": 1546,
+        "to": 1551
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [
+         {
+          "kind": "ConfigEntry",
+          "key": [
+           "label"
+          ],
+          "value": {
+           "kind": "String",
+           "value": "Clearing house connector",
+           "span": {
+            "from": 1563,
+            "to": 1589
+           }
+          },
+          "keySpan": {
+           "from": 1555,
+           "to": 1561
+          },
+          "span": {
+           "from": 1555,
+           "to": 1589
+          }
+         },
+         {
+          "kind": "ConfigEntry",
+          "key": [
+           "size"
+          ],
+          "value": {
+           "kind": "Object",
+           "props": [
+            {
+             "kind": "Property",
+             "key": "maxWidth",
+             "isConfig": false,
+             "keySpan": {
+              "from": 1600,
+              "to": 1608
+             },
+             "value": {
+              "kind": "Number",
+              "value": 110,
+              "span": {
+               "from": 1610,
+               "to": 1613
+              }
+             },
+             "span": {
+              "from": 1600,
+              "to": 1613
+             }
+            }
+           ],
+           "span": {
+            "from": 1598,
+            "to": 1615
+           }
+          },
+          "keySpan": {
+           "from": 1591,
+           "to": 1596
+          },
+          "span": {
+           "from": 1591,
+           "to": 1615
+          }
+         }
+        ],
+        "span": {
+         "from": 1553,
+         "to": 1617
+        }
+       },
+       "span": {
+        "from": 1546,
+        "to": 1617
+       }
+      }
+     ],
+     "span": {
+      "from": 1505,
+      "to": 1619
+     }
+    },
+    "span": {
+     "from": 1498,
+     "to": 1619
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "rect",
+         "span": {
+          "from": 1621,
+          "to": 1625
+         }
+        }
+       ],
+       "span": {
+        "from": 1621,
+        "to": 1625
+       }
+      },
+      "span": {
+       "from": 1621,
+       "to": 1625
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "round",
+         "span": {
+          "from": 1629,
+          "to": 1634
+         }
+        }
+       ],
+       "span": {
+        "from": 1629,
+        "to": 1634
+       }
+      },
+      "span": {
+       "from": 1629,
+       "to": 1634
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "ellipse",
+         "span": {
+          "from": 1638,
+          "to": 1645
+         }
+        }
+       ],
+       "span": {
+        "from": 1638,
+        "to": 1645
+       }
+      },
+      "span": {
+       "from": 1638,
+       "to": 1645
+      }
+     }
+    ],
+    "ops": [
+     "->",
+     "->"
+    ],
+    "span": {
+     "from": 1621,
+     "to": 1645
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "diamond",
+         "span": {
+          "from": 1646,
+          "to": 1653
+         }
+        }
+       ],
+       "span": {
+        "from": 1646,
+        "to": 1653
+       }
+      },
+      "span": {
+       "from": 1646,
+       "to": 1653
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "hexagon",
+         "span": {
+          "from": 1657,
+          "to": 1664
+         }
+        }
+       ],
+       "span": {
+        "from": 1657,
+        "to": 1664
+       }
+      },
+      "span": {
+       "from": 1657,
+       "to": 1664
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "cylinder",
+         "span": {
+          "from": 1668,
+          "to": 1676
+         }
+        }
+       ],
+       "span": {
+        "from": 1668,
+        "to": 1676
+       }
+      },
+      "span": {
+       "from": 1668,
+       "to": 1676
+      }
+     }
+    ],
+    "ops": [
+     "->",
+     "->"
+    ],
+    "span": {
+     "from": 1646,
+     "to": 1676
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "fixed",
+         "span": {
+          "from": 1677,
+          "to": 1682
+         }
+        }
+       ],
+       "span": {
+        "from": 1677,
+        "to": 1682
+       }
+      },
+      "span": {
+       "from": 1677,
+       "to": 1682
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "overlong",
+         "span": {
+          "from": 1686,
+          "to": 1694
+         }
+        }
+       ],
+       "span": {
+        "from": 1686,
+        "to": 1694
+       }
+      },
+      "span": {
+       "from": 1686,
+       "to": 1694
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "cjk",
+         "span": {
+          "from": 1698,
+          "to": 1701
+         }
+        }
+       ],
+       "span": {
+        "from": 1698,
+        "to": 1701
+       }
+      },
+      "span": {
+       "from": 1698,
+       "to": 1701
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "zwj",
+         "span": {
+          "from": 1705,
+          "to": 1708
+         }
+        }
+       ],
+       "span": {
+        "from": 1705,
+        "to": 1708
+       }
+      },
+      "span": {
+       "from": 1705,
+       "to": 1708
+      }
+     }
+    ],
+    "ops": [
+     "->",
+     "->",
+     "->"
+    ],
+    "span": {
+     "from": 1677,
+     "to": 1708
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "mixed",
+         "span": {
+          "from": 1709,
+          "to": 1714
+         }
+        }
+       ],
+       "span": {
+        "from": 1709,
+        "to": 1714
+       }
+      },
+      "span": {
+       "from": 1709,
+       "to": 1714
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "breaks",
+         "span": {
+          "from": 1718,
+          "to": 1724
+         }
+        }
+       ],
+       "span": {
+        "from": 1718,
+        "to": 1724
+       }
+      },
+      "span": {
+       "from": 1718,
+       "to": 1724
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "unwrapped",
+         "span": {
+          "from": 1728,
+          "to": 1737
+         }
+        }
+       ],
+       "span": {
+        "from": 1728,
+        "to": 1737
+       }
+      },
+      "span": {
+       "from": 1728,
+       "to": 1737
+      }
+     }
+    ],
+    "ops": [
+     "->",
+     "->"
+    ],
+    "span": {
+     "from": 1709,
+     "to": 1737
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "unwrapped",
+         "span": {
+          "from": 1738,
+          "to": 1747
+         }
+        }
+       ],
+       "span": {
+        "from": 1738,
+        "to": 1747
+       }
+      },
+      "span": {
+       "from": 1738,
+       "to": 1747
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "group",
+         "span": {
+          "from": 1751,
+          "to": 1756
+         }
+        },
+        {
+         "kind": "Name",
+         "value": "inner",
+         "span": {
+          "from": 1757,
+          "to": 1762
+         }
+        }
+       ],
+       "span": {
+        "from": 1751,
+        "to": 1762
+       }
+      },
+      "span": {
+       "from": 1751,
+       "to": 1762
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 1738,
+     "to": 1762
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 1763
+  }
+ },
+ "diagnostics": []
+}

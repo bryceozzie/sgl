@@ -5,6 +5,7 @@ import { runHostSequence } from '@sgl/layout-api/conformance';
 import { gridEngine } from '@sgl/layout-std';
 import { labelRunKey, premeasure, StaticMetricsMeasurer } from '@sgl/measure';
 import { render, renderPaintOnly, type RenderResult } from '@sgl/render-svg';
+import { layoutWrapped } from '@sgl/text/wrap';
 import { BUILT_IN, neutralDark, neutralLight, resolveTheme, styleGraph, type ResolvedTheme, type StyledGraph, type ThemeDoc } from '@sgl/theme';
 import { showLastGood } from '../src/canvas/paint.js';
 import type { LastGood } from '../src/state/types.js';
@@ -38,7 +39,7 @@ function styleUnder(source: string, doc: ThemeDoc): Styled {
 }
 
 async function layOut(styled: StyledGraph): Promise<LayoutResult> {
-  const table = premeasure(styled, new StaticMetricsMeasurer());
+  const table = premeasure(styled, new StaticMetricsMeasurer({ lineModel: layoutWrapped }));
   const sizes: Record<LabelId, Size> = {};
   for (const id of Object.keys(styled.graph.labels).sort() as LabelId[]) {
     const t = table[labelRunKey(styled, id)];
