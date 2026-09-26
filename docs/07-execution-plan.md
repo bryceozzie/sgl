@@ -7,6 +7,8 @@ This document is **operational**. [01](01-requirements.md)–[06](06-feasibility
 [detailed design](detailed-design/00-overview.md) say *what* to build and *why*. This says *in what
 order*, and *how you know a stage is finished*.
 
+**Restarting an orchestrator session?** Read [the orchestration handoff](orchestration-handoff.md) after §2 and §2.1: in-flight branches, pending next steps and working practices.
+
 **Keep §2 current.** It is the first thing every agent reads, and a stale one sends work in the wrong
 direction.
 
