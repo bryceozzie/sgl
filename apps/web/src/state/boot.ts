@@ -174,16 +174,12 @@ export async function bootDocument(deps: BootDeps): Promise<BootResult> {
   const share = shareModule ? await shareModule.decodeShareFragment(deps.hash, deps.codec) : ({ kind: 'none' } as const);
   const clearHash = share.kind !== 'none';
   if (shareModule && share.kind === 'ok') {
-    const { source, imports } = share.payload;
     const engineId = engineOr(share.payload.engineId);
     const themeId = themeOr(share.payload.themeId);
-    // A9 (I29): the documents the link imports are new documents too, in a
-    // new group with the main one, stored before it becomes the one to open.
-    const group = imports && newId();
-    for (const d of imports ?? []) await create(d.s, engineId, themeId, { title: d.t, fileName: `${d.n}.sgl`, group: group as string }, false);
-    const record = await create(source, engineId, themeId, group ? { group } : undefined);
-    const toast = shareModule.bundleToast(share.payload);
-    return { record, created: true, clearHash, notices: [...new Set<BootNotice>(imports ? notices : ['share-opened', ...notices])], ...(toast ? { toasts: [toast] } : {}) };
+    // A9 (I29): storing what the link carries is the lazy `share` chunk's
+    // (fix round 1, item 16: off the boot path).
+    const { record, toast } = await shareModule.openShared(share.payload, (source, extra, open) => create(source, engineId, themeId, extra, open), newId);
+    return { record, created: true, clearHash, notices: share.payload.imports ? notices : ['share-opened', ...notices], ...(toast ? { toasts: [toast] } : {}) };
   }
   if (share.kind === 'invalid') notices.push('share-invalid');
 

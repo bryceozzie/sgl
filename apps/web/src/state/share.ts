@@ -1,4 +1,5 @@
 import { decodeBase64Url, encodeBase64Url } from './base64url.js';
+import type { DocumentRecord } from './storage.js';
 
 /**
  * Share by URL (DD-08 §8): `#s={base64url(deflate-raw(utf8(source)))}&e={engineId}&t={themeId}`,
@@ -265,6 +266,23 @@ async function decodeImports(i: string, codec: ShareCodec, cap: number): Promise
     imports.push({ n, t, s });
   }
   return imports.length > 0 ? { imports } : {};
+}
+
+/**
+ * Stores what a share link opened (A9, I29; boot calls it, fix round 1 item
+ * 16 moved it here, off the boot path): the documents it imports as new
+ * records in a new group with the main one, not remembered as the one to
+ * open, then the main one, which is. `create` is boot's (engine and theme
+ * already chosen). Returns the main record and boot's toast.
+ */
+export async function openShared(
+  payload: SharePayload,
+  create: (source: string, extra?: Partial<DocumentRecord>, open?: boolean) => Promise<DocumentRecord>,
+  newId: () => string,
+): Promise<{ readonly record: DocumentRecord; readonly toast: ReturnType<typeof bundleToast> }> {
+  const group = payload.imports && newId();
+  for (const d of payload.imports ?? []) await create(d.s, { title: d.t, fileName: `${d.n}.sgl`, group: group as string }, false);
+  return { record: await create(payload.source, group ? { group } : undefined), toast: bundleToast(payload) };
 }
 
 /** What boot says about a link's imported documents (I28, I29), if
