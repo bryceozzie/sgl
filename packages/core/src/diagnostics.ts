@@ -4,7 +4,7 @@ import type { SourceSpan } from './span.js';
 
 /** Codes are allocated per stage and never reused (DD-00 §3):
  *  1xxx syntax · 2xxx resolution · 3xxx semantic · 4xxx layout · 5xxx theme · 6xxx platform.
- *  A9's import rows (`SGL2017`–`SGL2026`) live in `IMPORT_CATALOGUE`, in the
+ *  A9's import rows (`SGL2017`–`SGL2031` but `SGL2027`) live in `IMPORT_CATALOGUE`, in the
  *  lazy `@sgl/core/imports` entry, the only code that emits them (DD-02
  *  §10.6, §10.9); the type still names them, through a type-only import. */
 export type DiagnosticCode = keyof typeof CATALOGUE | keyof typeof IMPORT_CATALOGUE;
@@ -58,6 +58,10 @@ export const CATALOGUE = {
   SGL2014: { severity: 'error', template: 'Variable `${name}` is not declared before `{user}` in its `@vars` block; the value was dropped.' },
   SGL2015: { severity: 'error', template: 'Variable `${name}` holds {kind}, which cannot be interpolated; the value was dropped.' },
   SGL2016: { severity: 'error', template: '`{text}` would take this document\'s variable expansion past {limit} units; the value was dropped.' },
+  // A9 fix round 1: the app could not load the `imports` chunk, so
+  // `IMPORT_CATALOGUE` is not there either; one warning for the whole
+  // `@imports`, and names that may come from it are not errors (DD-02 I17).
+  SGL2027: { severity: 'warning', template: 'The imported documents could not be loaded; names that may come from them were skipped.' },
 
   // ---- 3xxx semantic (DD-03) ---------------------------------------------
   SGL3001: { severity: 'warning', template: 'Unknown shape `{name}`; using `rect`.' },

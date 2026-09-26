@@ -6,7 +6,7 @@ import { createMemoryStore, type DocumentRecord } from '../src/state/storage.js'
 /**
  * The lazy imports chunk's runtime (DD-08 §15.2, §15.3): what Share bundles
  * (I27: the closure of the last resolve, each document once, breadth first,
- * only those that resolved, and a name that led to two documents), and the
+ * only those that resolved, under every name it was reached by), and the
  * index re-read when the tab becomes visible again (I23: another tab's
  * writes).
  */
@@ -46,15 +46,14 @@ describe("Share's bundle: the import closure of the last resolve (I27)", () => {
         { n: 'd', t: 'Title d', s: docs[3]!.source },
         { n: 'e', t: 'Title e', s: docs[4]!.source },
       ],
-      differ: [],
     });
   });
 
   it('is the last resolve of that document: another document, or none yet, bundles nothing', async () => {
     const runtime = await createImportsRuntime(createMemoryStore({ documents: docs }), undefined);
-    expect(runtime.bundle('main')).toEqual({ docs: [], differ: [] });
+    expect(runtime.bundle('main')).toEqual({ docs: [] });
     runtime.resolve(parse(docs[0]!.source).ast, 'main');
-    expect(runtime.bundle('b')).toEqual({ docs: [], differ: [] });
+    expect(runtime.bundle('b')).toEqual({ docs: [] });
   });
 
   it('follows the last resolve: an import removed from the text is no longer carried', async () => {
@@ -64,25 +63,36 @@ describe("Share's bundle: the import closure of the last resolve (I27)", () => {
     expect(runtime.bundle('main').docs.map((d) => d.n)).toEqual(['c', 'e', 'd', 'b']);
   });
 
-  it('a name that led to two documents: the first is carried, and the name is reported', async () => {
-    // main is in a group with its own `lib`; the ungrouped `x` it also
-    // imports finds the ungrouped `lib` (I4). Both are `lib`.
+  it('a document reached under two names is carried under each, so every import of it resolves for the recipient (fix round 1, item 7)', async () => {
+    // `lib` answers to its file name and to its save name ("Title lib").
+    const main = '@imports: ["./lib.sgl", { path: "./Title lib.sgl", as: t }]\nx: L\ny: t.L\n';
+    const lib = '@imports: ["./d.sgl"]\n@classes: { L: { @shape: round } }\n';
+    const runtime = await createImportsRuntime(createMemoryStore({ documents: [rec('main', main), rec('lib', lib), rec('d', '@classes: { D: {} }\n')] }), undefined);
+    runtime.resolve(parse(main).ast, 'main');
+    const { docs: carried } = runtime.bundle('main');
+    expect(carried.map((d) => [d.n, d.s])).toEqual([
+      ['lib', lib],
+      ['title lib', lib],
+      ['d', '@classes: { D: {} }\n'],
+    ]);
+
+    // The recipient's store, as boot writes it (I29): a group of new records.
+    const received = createMemoryStore({
+      documents: [rec('r-main', main, { group: 'g', fileName: undefined }), ...carried.map((d, i) => rec(`r${i}`, d.s, { title: d.t, fileName: `${d.n}.sgl`, group: 'g' }))],
+    });
+    const recipient = await createImportsRuntime(received, undefined);
+    const { diagnostics } = recipient.resolve(parse(main).ast, 'r-main');
+    expect(diagnostics).toEqual([]);
+  });
+
+  it('a received document never carries (or finds) the recipient\'s own documents (H2)', async () => {
     const store = createMemoryStore({
-      documents: [
-        rec('main', '@imports: ["./lib.sgl", "./x.sgl"]\n', { group: 'g' }),
-        rec('lib1', '@classes: { L: { @shape: round } }\n', { group: 'g', fileName: 'lib.sgl' }),
-        rec('x', '@imports: ["./lib.sgl"]\n'),
-        rec('lib2', '@classes: { L: { @shape: diamond } }\n', { fileName: 'lib.sgl' }),
-      ],
+      documents: [rec('main', '@imports: ["./notes.sgl"]\n', { group: 'g' }), rec('notes', '@classes: { N: {} }\n')],
     });
     const runtime = await createImportsRuntime(store, undefined);
-    runtime.resolve(parse('@imports: ["./lib.sgl", "./x.sgl"]\n').ast, 'main');
-    const { docs: carried, differ } = runtime.bundle('main');
-    expect(carried.map((d) => [d.n, d.s])).toEqual([
-      ['lib', '@classes: { L: { @shape: round } }\n'],
-      ['x', '@imports: ["./lib.sgl"]\n'],
-    ]);
-    expect(differ).toEqual(['lib']);
+    const { diagnostics } = runtime.resolve(parse('@imports: ["./notes.sgl"]\n').ast, 'main');
+    expect(diagnostics.map((d) => d.code)).toEqual(['SGL2017']);
+    expect(runtime.bundle('main')).toEqual({ docs: [] });
   });
 });
 

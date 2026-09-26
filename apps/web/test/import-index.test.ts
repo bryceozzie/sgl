@@ -1,5 +1,6 @@
 import { effect } from '@preact/signals';
 import { describe, expect, it } from 'vitest';
+import { createStoreHost } from '../src/state/import-host.js';
 import { createImportIndex } from '../src/state/import-index.js';
 import { createMemoryStore, type DocumentRecord, type DocumentStore } from '../src/state/storage.js';
 
@@ -122,5 +123,26 @@ describe('the import index', () => {
     await store.putDocument({ id: 'broken' } as unknown as DocumentRecord);
     const index = await createImportIndex(store);
     expect(index.entry('broken')).toBeUndefined();
+  });
+});
+
+describe('refresh (fix round 1, item 12c)', () => {
+  it('drops a document another tab deleted, and it is no longer found', async () => {
+    const base = createMemoryStore({ documents: [rec('lib', { fileName: 'lib.sgl' }), rec('main')] });
+    let gone = false;
+    const store: DocumentStore = {
+      getDocument: (id) => base.getDocument(id),
+      putDocument: (r) => base.putDocument(r),
+      listDocuments: async () => (await base.listDocuments()).filter((r) => !gone || r.id !== 'lib'),
+      getSetting: (k) => base.getSetting(k),
+      putSetting: (k, v) => base.putSetting(k, v),
+    };
+    const index = await createImportIndex(store);
+    const host = createStoreHost(index);
+    expect(host.lookup('./lib.sgl', 'main')).toMatchObject({ key: 'lib' });
+    gone = true;
+    await index.refresh();
+    expect(index.entry('lib')).toBeUndefined();
+    expect(host.lookup('./lib.sgl', 'main')).toBeUndefined();
   });
 });

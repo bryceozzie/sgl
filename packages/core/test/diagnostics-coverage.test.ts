@@ -32,6 +32,10 @@ const NOT_YET_REACHABLE: ReadonlySet<DiagnosticCode> = new Set<DiagnosticCode>([
   'SGL4002',
   'SGL4003',
   'SGL4011',
+  // A9 fix round 1: emitted by the app's pipeline when the lazy `imports`
+  // chunk cannot load, which no document can cause (DD-08 §15.6);
+  // `apps/web/test/pipeline.test.ts` covers it.
+  'SGL2027',
 ]);
 
 function listCorpusFiles(dir: string, rel = ''): string[] {

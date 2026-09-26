@@ -1,7 +1,6 @@
 import { inflateRawSync } from 'node:zlib';
 import { expect, test, type Page } from '@playwright/test';
 import {
-  diagnosticCodes,
   editorText,
   EXAMPLE_NODE_COUNT,
   nodeGeometry,
@@ -74,6 +73,24 @@ async function diagnosticRows(page: Page): Promise<string[]> {
     .evaluateAll((rows) => rows.map((r) => `${r.querySelector('.diag-code')?.textContent ?? ''} ${/\bdiag-(error|warning|info)\b/.exec(r.className)?.[1] ?? ''}`));
 }
 
+/** Two animation frames: the pipeline's signals, the panel's render and
+ *  CodeMirror's view have all had a turn. */
+async function frames(page: Page): Promise<void> {
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+}
+
+/** The panel shows exactly `expected` (`code severity`, in offset order),
+ *  and keeps showing it (fix round 1, item 13): an empty panel is also what
+ *  a page shows before the pipeline has caught up, so it must hold across
+ *  several frames after the render the caller waited for. */
+async function expectDiagnostics(page: Page, expected: readonly string[]): Promise<void> {
+  await expect.poll(() => diagnosticRows(page)).toEqual(expected);
+  for (let i = 0; i < 6; i += 1) {
+    await frames(page);
+    expect(await diagnosticRows(page)).toEqual(expected);
+  }
+}
+
 /** Boots on the example, then opens `files` in order, each a new document. */
 async function withStored(page: Page, files: readonly (readonly [string, string])[]): Promise<void> {
   await page.goto('/');
@@ -92,7 +109,7 @@ test("a stored classes.sgl, imported from another document: its classes and vari
   await waitForExactNodeCount(page, 2);
   await expect.poll(() => shapeOf(page, 'api')).toBe('hexagon'); // the imported class…
   await expect(renderedSvg(page).locator('g[id="n-api"] text')).toHaveText('API (prod)'); // …and variable
-  await expect(page.locator('.diagnostics-panel')).toHaveCount(0);
+  await expectDiagnostics(page, []);
 
   // Freshness (I24): switch to the library, change the class, switch back.
   await switchTo(page, 'Shared classes');
@@ -119,7 +136,7 @@ test('`as: aws`: `aws.Lambda` is a class, and the import\'s nodes and edge arriv
   await expect(renderedSvg(page).locator('text', { hasText: /^AWS$/ })).toHaveCount(1);
   // fn -> aws.queue and the import's own aws.lambda -> aws.queue.
   await expect(renderedSvg(page).locator('g.L-edges > g.e')).toHaveCount(2);
-  await expect(page.locator('.diagnostics-panel')).toHaveCount(0);
+  await expectDiagnostics(page, []);
   // The document is still named after its own @title, not the import.
   expect((await storedOpenDocument(page))?.title).toBe('Uses AWS');
 });
@@ -132,9 +149,12 @@ test('an unresolved import is a warning in the diagnostics panel, and the diagra
   await waitForExactNodeCount(page, 3);
   await expect(renderedSvg(page).locator('g.L-edges > g.e')).toHaveCount(1);
   // SGL2017 for the import; SGL2024 for the class through it and the edge into it (I17).
-  await expect.poll(() => diagnosticRows(page)).toEqual(['SGL2017 warning', 'SGL2024 warning', 'SGL2024 warning']);
+  await expectDiagnostics(page, ['SGL2017 warning', 'SGL2024 warning', 'SGL2024 warning']);
   await expect(page.locator('.diagnostics-panel .diag-message').first()).toContainText('Cannot find `./nowhere.sgl` to import');
-  await expect(page.locator('.diagnostics-panel .diag-error')).toHaveCount(0);
+  // The editor's lint (it runs after a delay) has drawn the three warnings,
+  // and no error among them.
+  await expect(page.locator('.cm-lintRange-warning').first()).toBeVisible();
+  await frames(page);
   await expect(page.locator('.cm-lintRange-error')).toHaveCount(0);
 });
 
@@ -145,7 +165,7 @@ test('a cycle is a warning, the import that closes it is skipped, and the rest r
   ]);
   // cycle-a is open: it imports cycle-b, which imports cycle-a (itself).
   await waitForExactNodeCount(page, 2);
-  await expect.poll(() => diagnosticCodes(page)).toEqual(['SGL2019']);
+  await expectDiagnostics(page, ['SGL2019 warning']);
   await expect(page.locator('.diagnostics-panel .diag-warning .diag-message')).toHaveText(
     '`./cycle-a.sgl` imports itself via `this document -> ./cycle-b.sgl -> ./cycle-a.sgl`; this import was skipped.',
   );
@@ -159,7 +179,7 @@ test('an import that matches two documents is a warning, and the most recently u
   ]);
   await newDocument(page, '@imports: ["./dup.sgl"]\nn: Dup\n');
   await waitForExactNodeCount(page, 1);
-  await expect.poll(() => diagnosticCodes(page)).toEqual(['SGL2018']);
+  await expectDiagnostics(page, ['SGL2018 warning']);
   await expect(page.locator('.diagnostics-panel .diag-warning .diag-message')).toContainText('`./dup.sgl` matches 2 documents');
   expect(await shapeOf(page, 'n')).toBe('diamond'); // dup.sgl.json, opened second
 });
@@ -186,7 +206,10 @@ test('Share carries the imports (`i=`): a fresh browser gets them as a group in 
   try {
     const other = await fresh.newPage();
     // The recipient has a `classes.sgl` of their own, and a document using it.
-    await withStored(other, [['classes.sgl', '@classes: { Service: { @shape: ellipse } }\n']]);
+    await withStored(other, [
+      ['classes.sgl', '@classes: { Service: { @shape: ellipse } }\n'],
+      ['notes.sgl', '@classes: { Note: { @shape: diamond } }\n'],
+    ]);
     await newDocument(other, '@title: "Mine"\n@imports: ["./classes.sgl"]\nmine: Service\n');
     await waitForExactNodeCount(other, 1);
     await expect.poll(() => shapeOf(other, 'mine')).toBe('ellipse');
@@ -197,7 +220,7 @@ test('Share carries the imports (`i=`): a fresh browser gets them as a group in 
     await expect.poll(() => shapeOf(other, 'api')).toBe('hexagon'); // the bundled classes, not the recipient's
     expect(await nodeGeometry(other)).toEqual(sent);
     await expect(toastMessages(other)).toContainText(['Opened the shared diagram and its imported document as new documents.']);
-    await expect(other.locator('.diagnostics-panel')).toHaveCount(0);
+    await expectDiagnostics(other, []);
 
     // Stored as a group (I29): the bundled document and the main one share it.
     const { documents, lastOpenDocId } = await readStorage(other);
@@ -210,8 +233,8 @@ test('Share carries the imports (`i=`): a fresh browser gets them as a group in 
 
     await openList(other);
     // Listed like any other document (DD-08 §15.4): the two from the link
-    // beside the recipient's own three.
-    await expect(items(other)).toHaveCount(5);
+    // beside the recipient's own four.
+    await expect(items(other)).toHaveCount(6);
     for (const title of ['Importer', 'Shared classes', 'Mine']) await expect(items(other).locator('.docs-title', { hasText: new RegExp(`^${title}$`) })).toHaveCount(1);
     await other.keyboard.press('Escape');
 
@@ -220,27 +243,16 @@ test('Share carries the imports (`i=`): a fresh browser gets them as a group in 
     await waitForExactNodeCount(other, 1);
     await expect.poll(() => shapeOf(other, 'mine')).toBe('ellipse');
 
-    // I27: the received document now also imports "Mine" (first, so the
-    // bundled `classes` after it still wins, I13), and Mine finds the
-    // recipient's own `classes`. One name, two documents: Share carries the
-    // first it reached and says so.
+    // H2 (human decision 2026-09-26): a received document resolves its
+    // imports only among the documents that came with it. Importing the
+    // recipient's own `notes` finds nothing, although the recipient has one.
     await switchTo(other, 'Importer');
-    await setSource(other, IMPORTER.replace('["./shared/classes.sgl"]', '["./Mine.sgl", "./shared/classes.sgl"]'));
-    // Mine's node is not imported (SGL2026); the later import's Service replaces Mine's (SGL2023).
-    await expect.poll(async () => (await diagnosticCodes(other)).sort()).toEqual(['SGL2023', 'SGL2026']);
-    await expect.poll(() => shapeOf(other, 'api')).toBe('hexagon');
-    await other.locator('.share-open').click();
-    await expect(other.locator('.share-note')).toContainText('with the 2 documents it imports');
-    await expect(other.locator('.share-differ')).toHaveText(
-      'The import “classes” led to more than one of your documents. The link carries the first, so the recipient’s copy of it will differ.',
-    );
-    const resent = JSON.parse(inflateRawSync(Buffer.from(new URLSearchParams(new URL(await other.locator('.share-link').inputValue()).hash.slice(1)).get('i')!, 'base64url')).toString('utf8')) as {
-      d: { n: string; s: string }[];
-    };
-    expect(resent.d.map((d) => [d.n, d.s])).toEqual([
-      ['mine', '@title: "Mine"\n@imports: ["./classes.sgl"]\nmine: Service\n'],
-      ['classes', CLASSES],
-    ]);
+    await waitForExactNodeCount(other, 2);
+    await setSource(other, `${IMPORTER.replace('["./shared/classes.sgl"]', '["./shared/classes.sgl", "./notes.sgl"]')}n: Note\n`);
+    await waitForExactNodeCount(other, 3);
+    await expectDiagnostics(other, ['SGL2017 warning', 'SGL2024 warning']);
+    await expect(other.locator('.diagnostics-panel .diag-message').first()).toHaveText('Cannot find `./notes.sgl` to import; nothing was imported from it.');
+    expect(await shapeOf(other, 'n')).toBe('rect');
   } finally {
     await fresh.close();
   }

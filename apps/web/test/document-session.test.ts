@@ -172,18 +172,23 @@ describe('document session', () => {
     expect(session.record.value).toMatchObject({ id: 'doc-8', fileName: 'x.txt', group: 'g-2' });
   });
 
-  it('saves nothing while the pipeline holds a document for its imports: its model is not this document yet (A9, I25)', () => {
+  it('while the pipeline holds a document for its imports, typing is still saved, under the stored title (A9, I25; fix round 1, item 6)', () => {
     const autosave = fakeAutosave();
-    const fresh = initial({ title: 'diagram' });
+    const fresh = initial({ title: 'Stored title' });
     const pipeline = { ...fakePipeline(fresh.source), held: signal(true) };
-    // The model the held pipeline still shows is another document's.
-    pipeline.source.value = '@title: "Somebody else"\n';
     createDocumentSession(pipeline as unknown as SessionPipeline, fresh, autosave, () => 100);
+    // Nothing changed yet: nothing to save.
     expect(autosave.requests).toEqual([]);
+    // Typed while the imports load: saved, so a stalled load and a closed tab
+    // lose nothing. The model a held pipeline shows is not this document's,
+    // so the title is the stored one, not one taken from it.
+    pipeline.source.value = '@title: "Somebody else"\n';
+    expect(autosave.requests).toHaveLength(1);
+    expect(autosave.requests[0]).toMatchObject({ id: 'doc-1', source: '@title: "Somebody else"\n', title: 'Stored title' });
+    // Released: the title follows the document's own model again.
     pipeline.source.value = '@title: "Flow"\na: "A"\n';
     pipeline.held.value = false;
-    expect(autosave.requests).toHaveLength(1);
-    expect(autosave.requests[0]).toMatchObject({ id: 'doc-1', title: 'Flow' });
+    expect(autosave.requests.at(-1)).toMatchObject({ id: 'doc-1', source: '@title: "Flow"\na: "A"\n', title: 'Flow' });
   });
 
   it('remembers the extension a file was opened from (DD-08 §7)', () => {

@@ -90,9 +90,19 @@ describe('groups (I4, I30)', () => {
     expect(host.lookup('./classes.sgl', 'bundled-main')).toMatchObject({ key: 'bundled', candidates: 1 });
   });
 
-  it('what its group does not have falls through to the ungrouped documents', async () => {
+  it('what its group does not have is not found: a received document never imports your own (H2, 2026-09-26)', async () => {
     const { host } = await hostOver(records);
-    expect(host.lookup('./extra.sgl', 'bundled-main')).toMatchObject({ key: 'only-ungrouped' });
+    expect(host.lookup('./extra.sgl', 'bundled-main')).toBeUndefined();
+    expect(host.lookup('./main.sgl', 'bundled')).toMatchObject({ key: 'bundled-main' });
+  });
+
+  it('inside a group, the file name tier still beats the save name tier (fix round 1, item 12b)', async () => {
+    const { host } = await hostOver([
+      rec('by-file', { title: 'Something else', fileName: 'lib.sgl', group: 'g', updatedAt: 1 }),
+      rec('by-title', { title: 'lib', group: 'g', updatedAt: 99 }),
+      rec('main', { title: 'main', group: 'g' }),
+    ]);
+    expect(host.lookup('./lib.sgl', 'main')).toMatchObject({ key: 'by-file', candidates: 1 });
   });
 
   it("an ungrouped document never sees any group's documents: a bundle cannot change how your documents resolve", async () => {
@@ -104,5 +114,12 @@ describe('groups (I4, I30)', () => {
   it("another group's documents are never candidates", async () => {
     const { host } = await hostOver(records);
     expect(host.lookup('./Shared.sgl', 'other-bundle')).toBeUndefined();
+  });
+});
+
+describe('a name that is empty is no name (fix round 1, item 9)', () => {
+  it.each(['./', '.', '..', 'sub/', './sub/', './.sgl', '.\\', '...'])('%j finds nothing, not the newest untitled document', async (path) => {
+    const { host } = await hostOver([rec('untitled', { title: 'diagram', updatedAt: 99 }), rec('dots', { title: '...' })]);
+    expect(host.lookup(path, 'me')).toBeUndefined();
   });
 });

@@ -58,7 +58,10 @@ export function createDocumentSession(pipeline: SessionPipeline, initial: Docume
     const ext = fileExtension.value;
     const out: { -readonly [K in keyof DocumentRecord]: DocumentRecord[K] } = {
       id: from.id,
-      title: documentTitle(pipeline.model.value.model),
+      // A9 (I25): held for its imports, the model is not this document's yet,
+      // so the title stays the stored one; the source is still saved (fix
+      // round 1, item 6).
+      title: pipeline.held?.value ? from.title : documentTitle(pipeline.model.value.model),
       source: pipeline.source.value,
       engineId: pipeline.engineId.value,
       engineOptions: pipeline.engineOptions.value,
@@ -85,8 +88,7 @@ export function createDocumentSession(pipeline: SessionPipeline, initial: Docume
   let stored: DocumentRecord = initial;
   const dispose = effect(() => {
     const current = record.value;
-    // A9 (I25): held for its imports, the model is not this document's yet.
-    if (pipeline.held?.value || sameContent(current, stored)) return;
+    if (sameContent(current, stored)) return;
     stored = current;
     // Copied by property descriptor, so a `lastGoodSvg` getter stays one (a
     // spread would read it).

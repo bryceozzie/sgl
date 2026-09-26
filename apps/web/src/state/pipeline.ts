@@ -3,6 +3,7 @@ import type { Tree } from '@lezer/common';
 import {
   buildAst,
   compile,
+  diagnostic,
   hasImports,
   parse,
   resolve,
@@ -38,6 +39,10 @@ function defaultSchedule(fn: () => void, ms: number): Cancel {
 /** Thrown by a stage that holds, without an error (A9, I25): it blocks the
  *  stages below it like a throw, and nothing is reported. */
 const HOLD = Symbol('hold');
+
+/** Models resolved without their imports because the `imports` chunk could
+ *  not load (A9 fix round 1, item 4): their compile drops `SGL2001` too. */
+const DEGRADED = new WeakSet<object>();
 
 function isAbortError(err: unknown): boolean {
   return err instanceof Error && err.name === 'AbortError';
@@ -264,9 +269,14 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   // A9 (DD-08 §15, I25): a document with `@imports` is resolved by the lazy
   // `imports` chunk, and until it has loaded the model stage holds — the
   // canvas keeps the stored picture, and no render missing the imported
-  // classes can become `lastGood`. Loading failed: it resolves without them.
+  // classes can become `lastGood`. If loading fails (fix round 1, item 4),
+  // it resolves without them: one `SGL2027` warning, and the names that may
+  // come from them are not errors (I17); the load is tried again on the next
+  // change of the document, not in a loop.
   const imports = signal<ImportsRuntime | null>(null);
+  const importsFailed = signal(false);
   let importsLoad: Promise<void> | undefined;
+  let failedFor: SglDocument | undefined;
   const modelOutcome = guardedStage(
     [parsedOutcome],
     () => {
@@ -275,14 +285,23 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
       if (hasImports(ast) && deps.loadImports) {
         const runtime = imports.value;
         if (runtime) return runtime.resolve(ast, docId.value);
-        importsLoad ??= deps.loadImports().then(
-          (loaded) => void (imports.value = loaded),
-          (err: unknown) => {
-            console.warn('[SGL] the imports could not be loaded.', err);
-            imports.value = { resolve: (a) => resolve(a), compile: (m) => compile(m) };
-          },
-        );
-        throw HOLD;
+        const failed = importsFailed.value;
+        if (importsLoad === undefined && ast !== failedFor) {
+          importsLoad = deps.loadImports().then(
+            (loaded) => void (imports.value = loaded),
+            (err: unknown) => {
+              console.warn('[SGL] the imports could not be loaded.', err);
+              importsLoad = undefined;
+              failedFor = ast;
+              importsFailed.value = true;
+            },
+          );
+        }
+        if (!failed) throw HOLD;
+        const r = resolve(ast);
+        DEGRADED.add(r.model);
+        const entry = ast.entries.find((e) => e.kind === 'ConfigEntry' && e.key[0] === 'imports') ?? ast;
+        return { ...r, diagnostics: [diagnostic('SGL2027', entry.span), ...r.diagnostics.filter((d) => d.code !== 'SGL2002' && d.code !== 'SGL2013')] };
       }
       return resolve(ast);
     },
@@ -303,7 +322,8 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
       const documentModel = model.value.model;
       inject('compile');
       const runtime = documentModel.imports && imports.value;
-      return runtime ? runtime.compile(documentModel) : compile(documentModel);
+      const g = runtime ? runtime.compile(documentModel) : compile(documentModel);
+      return DEGRADED.has(documentModel) ? { ...g, diagnostics: g.diagnostics.filter((d) => d.code !== 'SGL2001') } : g;
     },
     () => emptyStages().graph,
   );

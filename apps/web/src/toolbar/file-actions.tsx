@@ -32,9 +32,6 @@ export interface ShareState {
   readonly long: boolean;
   /** How many imported documents the link carries (A9, DD-08 §15.3). */
   readonly imports: number;
-  /** Names that led to more than one document (I27): the link carries the
-   *  first, so the recipient's copy will differ. */
-  readonly differ: readonly string[];
 }
 
 /** DD-08 §7's Open: the checks (extension, 2 MB) and the read. */
@@ -257,7 +254,7 @@ export async function makeShare({ pipeline, toasts }: FileDeps): Promise<ShareSt
     return null;
   }
   const link = shareLink(`${window.location.origin}${window.location.pathname}`, encoded.fragment);
-  return { link, long: isLongShareLink(link), imports: bundle?.docs.length ?? 0, differ: bundle?.differ ?? [] };
+  return { link, long: isLongShareLink(link), imports: bundle?.docs.length ?? 0 };
 }
 
 function copy(link: string, toasts: Toasts): void {
@@ -299,11 +296,6 @@ export function ShareDialog({ share, deps, linkRef, onClose, onSave }: ShareDial
           ? `The whole diagram is inside this link, with the ${share.imports === 1 ? 'document' : `${share.imports} documents`} it imports. Nothing is uploaded anywhere.`
           : 'The whole diagram is inside this link. Nothing is uploaded anywhere.'}
       </p>
-      {share.differ.map((name) => (
-        <p class="share-differ" key={name}>
-          The import “{name}” led to more than one of your documents. The link carries the first, so the recipient’s copy of it will differ.
-        </p>
-      ))}
       <input
         ref={linkRef}
         class="share-link"

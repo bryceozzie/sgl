@@ -20,15 +20,18 @@ export interface BundledDocument {
 }
 
 export interface ShareBundle {
+  /** One entry per name the closure reached a document by: a document
+   *  imported under two names is carried under both, so each import of it
+   *  resolves for the recipient (fix round 1). One name never leads to two
+   *  documents in one closure, since every lookup in it stays inside one
+   *  group, or among the ungrouped documents (H2). */
   readonly docs: readonly BundledDocument[];
-  /** Names that led to more than one document in the closure (I27): the
-   *  first is bundled, and the recipient's copy of the others will differ. */
-  readonly differ: readonly string[];
 }
 
 export interface AppImportsRuntime extends ImportsRuntime {
-  /** The import closure of the last resolve of `self` (I27): each document
-   *  once, breadth first, only those that resolved. */
+  /** The import closure of the last resolve of `self` (I27): breadth
+   *  first, only documents that resolved, under every name they were
+   *  reached by. */
   bundle(self: string): ShareBundle;
 }
 
@@ -61,28 +64,23 @@ export async function createImportsRuntime(store: DocumentStore, visibility: Pic
       const children = new Map<string | undefined, LinkedDocument[]>();
       for (const l of last?.self === self ? last.linked : []) (children.get(l.from) ?? children.set(l.from, []).get(l.from)!).push(l);
       const docs: BundledDocument[] = [];
-      const differ: string[] = [];
-      const byName = new Map<string, string>();
+      const names = new Set<string>();
       const seen = new Set([self]);
       const queue = [self];
       for (let key = queue.shift(); key !== undefined; key = queue.shift()) {
         for (const l of children.get(key) ?? []) {
+          const n = pathName(l.path);
+          const entry = index.entry(l.key)?.peek();
+          if (entry !== undefined && !names.has(n)) {
+            names.add(n);
+            docs.push({ n, t: entry.title, s: entry.source });
+          }
           if (seen.has(l.key)) continue;
           seen.add(l.key);
           queue.push(l.key);
-          const entry = index.entry(l.key)?.peek();
-          if (entry === undefined) continue;
-          const n = pathName(l.path);
-          const prior = byName.get(n);
-          if (prior !== undefined) {
-            if (prior !== l.key && !differ.includes(n)) differ.push(n);
-            continue;
-          }
-          byName.set(n, l.key);
-          docs.push({ n, t: entry.title, s: entry.source });
         }
       }
-      return { docs, differ };
+      return { docs };
     },
   };
 }

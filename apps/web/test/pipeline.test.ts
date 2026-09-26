@@ -973,13 +973,34 @@ describe('imports (A9, DD-08 §15: I24, I25)', () => {
     h.dispose();
   });
 
-  it('if the imports cannot be loaded, the document resolves without them rather than holding for ever', async () => {
-    const loadImports = vi.fn(() => Promise.reject(new Error('offline, and not cached')));
+  it('if the imports cannot be loaded: one SGL2027 warning, no errors, the picture adopted; retried on the next change, not in a loop (I17; fix round 1, item 4)', async () => {
+    const KIT = '@vars: { tier: "prod" }\n@classes: { K: {} }\nx\n';
+    const store = createMemoryStore({ documents: [record('lib', LIB), record('kit', KIT), record('main', MAIN)] });
+    let attempts = 0;
+    const loadImports = vi.fn(async (): Promise<ImportsRuntime> => {
+      attempts += 1;
+      if (attempts === 1) throw new Error('offline, and not cached');
+      return createImportsRuntime(store, undefined);
+    });
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const h = await createHarness(MAIN, { loadImports }, { firstRender: false });
+    // An imported class, an imported variable and an edge into a namespace:
+    // without the chunk, none of them may be an error.
+    const source = '@imports: ["./lib.sgl", { path: "./kit.sgl", as: kit }]\napi: Svc\nl: kit.K\ndb: { @label: $kit.tier }\napi -> kit.x\n';
+    const h = await createHarness(source, { loadImports }, { firstRender: false });
+    h.pipeline.docId.value = 'main';
     await h.settle();
     expect(h.pipeline.held.value).toBe(false);
-    expect(h.pipeline.diags.value.map((d) => d.code)).toContain('SGL2002');
+    expect(h.pipeline.diags.value.map((d) => `${d.code} ${d.severity}`)).toEqual(['SGL2027 warning']);
+    expect(h.pipeline.lastGood.value).not.toBeNull();
+    await h.settle();
+    expect(attempts).toBe(1); // no retry without a change
+
+    h.setSource(`${source}more\n`);
+    await h.settle();
+    expect(attempts).toBe(2);
+    await h.settle();
+    expect(h.pipeline.diags.value).toEqual([]);
+    expect(shapeOf(h, 'api')).toBe('diamond');
     h.dispose();
   });
 });
