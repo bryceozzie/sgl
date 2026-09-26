@@ -61,6 +61,7 @@ describe('hashRuns (DD-11 T29)', () => {
   it('the box is part of the key', () => {
     const runs = [{ text: 'x', style: BASE }];
     expect(hashRuns(runs, { maxWidth: 10 })).not.toBe(hashRuns(runs, UNCONSTRAINED));
+    expect(hashRuns(runs, { maxWidth: 10, keepWords: true })).not.toBe(hashRuns(runs, { maxWidth: 10 }));
     expect(hashRuns(runs, { maxWidth: -0 })).toBe(hashRuns(runs, { maxWidth: 0 }));
   });
 });
@@ -96,8 +97,8 @@ describe('labelBox (DD-11 T29, T35, T36)', () => {
     expect(box('a: { @shape: ellipse, @size: { maxWidth: 124 } }\n')).toEqual({ maxWidth: labelMaxWidth('ellipse', 124, [8, 12, 8, 12]) });
     expect(box('a: { @shape: diamond, @size: { maxWidth: 124 } }\n')).toEqual({ maxWidth: 50 });
   });
-  it('a fixed width wraps too, and the smaller of the two wins (T36)', () => {
-    expect(box('a: { @size: { width: 104 } }\n')).toEqual({ maxWidth: 80 });
+  it('a fixed width wraps too, at spaces only; the narrower of the two wins; splitting needs maxWidth (T36, human decision H1)', () => {
+    expect(box('a: { @size: { width: 104 } }\n')).toEqual({ maxWidth: 80, keepWords: true });
     expect(box('a: { @size: { width: 104, maxWidth: 124 } }\n')).toEqual({ maxWidth: 80 });
     expect(box('a: { @size: { width: 204, maxWidth: 124 } }\n')).toEqual({ maxWidth: 100 });
   });

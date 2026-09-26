@@ -16,7 +16,9 @@ import type { LineModel, MeasureRun, RunMetrics, TextStyle } from './types.js';
  *   start of the next. Whitespace at the **start or end of a hard line** is kept
  *   and measured: it travels with the first or last word.
  * - A word too wide for a line of its own is split at the last unit boundary that
- *   fits, repeatedly, and a line always gets at least one unit (T37, `breakUnits`).
+ *   fits, repeatedly, and a line always gets at least one unit (T37, `breakUnits`),
+ *   unless the box keeps words whole (`keepWords`: a fixed `@size.width` without
+ *   `maxWidth`, human decision H1), when it overflows on a line of its own.
  *   No hyphen, no UAX #14, no `Intl.Segmenter` (its rules follow each engine's ICU,
  *   so they are not deterministic across environments).
  *
@@ -163,7 +165,7 @@ export const layoutWrapped: LineModel = (measureRun, runs, box) => {
         }
         emit(line);
       }
-      if (fits(word.w, word.g)) {
+      if (box.keepWords || fits(word.w, word.g)) {
         line = word;
         return;
       }

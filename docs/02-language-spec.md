@@ -166,8 +166,10 @@ calc: "2*3*4 and snake_case"               // literal: no markup here
 ```
 
 **Wrapping.** A node title wraps to fit the node when the node sets `@size.maxWidth` or a fixed
-`@size.width` (the narrower of the two): lines break at spaces, a word too long for a line is split
-between characters, and text without spaces (CJK) breaks between any two characters. The node's
+`@size.width` (the narrower of the two): lines break at spaces. With `@size.maxWidth`, a word too
+long for a line is also split between characters, and text without spaces (CJK) breaks between
+any two characters; with only a fixed `@size.width`, a word is never split and a word too long
+for the node overflows it, as it always has. The node's
 padding and its shape are allowed for, so an ellipse or a diamond wraps narrower than a rectangle
 of the same width. A label with neither key never wraps, and an edge label breaks only where it
 has a line break.

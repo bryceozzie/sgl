@@ -39,6 +39,9 @@ export interface StyledRun {
  *  *label's* width, not the node's (`labelBox`). */
 export interface BoxConstraints {
   readonly maxWidth?: number;
+  /** Break only at spaces: a word wider than `maxWidth` overflows rather than
+   *  being split (human decision H1: a fixed `@size.width` without `maxWidth`). */
+  readonly keepWords?: true;
 }
 
 export interface LaidRun {

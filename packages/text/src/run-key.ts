@@ -6,8 +6,9 @@ import type { BoxConstraints, StyledRun } from './types.js';
  *
  * `fnv1a64` over `text ␟ family ␟ size ␟ weight ␟ style ␟ lh ␟ ls` per run, then,
  * **only for a run with marks**, `␟` and the letters `s`, `e`, `c` it carries, in
- * that order; runs joined by ␞, then ␝ and the box's `maxWidth` (or `*`). A plain
- * run's key is therefore exactly what it was before A18.
+ * that order; runs joined by ␞, then ␝ and the box's `maxWidth` (or `*`), then
+ * `␟k` for a box that keeps words whole (H1). A plain run's key is therefore
+ * exactly what it was before A18.
  *
  * Every side that keys or reads the table computes it here: `premeasure`, the
  * app's label-size join and the test pipelines, through `labelRunKey`. Moved from
@@ -40,7 +41,7 @@ export function canonicalRunKey(runs: readonly StyledRun[], box: BoxConstraints)
     })
     .join(RECORD);
 
-  return `${body}${GROUP}${box.maxWidth === undefined ? '*' : numeral(box.maxWidth)}`;
+  return `${body}${GROUP}${box.maxWidth === undefined ? '*' : numeral(box.maxWidth)}${box.keepWords ? `${UNIT}k` : ''}`;
 }
 
 /** The key. 16 lowercase hex digits. */

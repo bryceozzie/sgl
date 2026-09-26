@@ -598,9 +598,16 @@ The decisions:
   wanted. The human's decision names only `maxWidth`, so this is an extension that needs a yes. No
   corpus document sets `@size`, so no golden depends on it.*
   - *Implemented (branch 2, `feat/a18-text`), as accepted by the human:* the smaller of `maxWidth` and `width` wins.
+  - **Human decision H1 (2026-09-26, fix round 1): a fixed `@size.width` breaks only at spaces.** A
+    single word too wide for the line overflows, as before A18; T37's mid-word split happens only
+    when the author set `@size.maxWidth`, an explicit request to constrain text. With both, the
+    narrower width is where lines break, and words may be split. `labelBox` marks a width-only box
+    `keepWords: true`, which the key carries (`␟k` after the width, T29), and `layoutWrapped` then
+    puts an overlong word on a line of its own, unsplit.
 - **T37. Words that are too long, and text without spaces.** A word wider than the wrap width is
   split at the last code-point boundary that fits, repeatedly, and a line always gets at least one
-  unit. No hyphen is inserted. A split never lands:
+  unit. *(H1: only when `@size.maxWidth` is set; under a fixed `@size.width` alone the word
+  overflows, see T36.)* No hyphen is inserted. A split never lands:
   - inside a surrogate pair;
   - before a combining mark (U+0300–036F, U+1AB0–1AFF, U+20D0–20FF, U+FE20–FE2F);
   - before a variation selector (U+FE00–FE0F, U+E0100–E01EF);

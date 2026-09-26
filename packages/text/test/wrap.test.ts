@@ -160,6 +160,18 @@ describe('words that are too long, and text without spaces (T37)', () => {
   });
 });
 
+describe('keepWords: a fixed @size.width breaks only at spaces (human decision H1)', () => {
+  const keep = (runs: readonly StyledRun[], maxWidth: number): TextLayout => layoutWrapped(stub, runs, { maxWidth, keepWords: true });
+  it('an overlong word overflows on a line of its own, never split', () => {
+    expect(lines(keep([plain('abcdefgh')], 30))).toEqual(['abcdefgh']);
+    expect(lines(keep([plain('aa abcdefgh bb')], 30))).toEqual(['aa', 'abcdefgh', 'bb']);
+    expect(lines(keep([plain('\u6771\u4eac\u90fd\u6e2f')], 15))).toEqual(['\u6771\u4eac\u90fd\u6e2f']);
+  });
+  it('still breaks at spaces', () => {
+    expect(lines(keep([plain('aa bb cc dd')], 50))).toEqual(['aa bb', 'cc dd']);
+  });
+});
+
 describe('properties, for random text and widths', () => {
   const unit = fc.constantFrom('a', 'b', 'W', ' ', ' ', '\t', '\u200b', '\u00a0', '\n', '\u6771', '\u{1f642}', 'e\u0301', '\u{1f469}\u200d\u{1f4bb}', '\u{1f1ef}\u{1f1f5}', '-');
   const runsArb = fc.array(fc.record({ text: fc.array(unit, { maxLength: 12 }).map((a) => a.join('')), bold: fc.boolean() }), { minLength: 1, maxLength: 4 }).map((spec) =>

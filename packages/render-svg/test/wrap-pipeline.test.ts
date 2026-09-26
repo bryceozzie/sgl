@@ -68,6 +68,16 @@ describe('wrapped labels lay out at their wrapped size (DD-11 T35, T39, T40)', (
     expect(measured.width).toBeLessThanOrEqual(100);
   });
 
+  it('a fixed @size.width never splits a word: "Checkout" at width 60 and a small diamond\'s "Ok?" stay one line (H1)', async () => {
+    const { styled, table } = await runPipeline('a: { @label: "Checkout", @size: { width: 60 } }\nd: { @shape: diamond, @label: "Ok?", @size: { width: 40, height: 40 } }\n');
+    for (const id of ['l:a', 'l:d']) expect(table[labelRunKey(styled, id as LabelId)]!.lines, id).toHaveLength(1);
+  });
+
+  it('@size.maxWidth still splits an overlong word (T37, H1)', async () => {
+    const { styled, table } = await runPipeline('a: { @label: "Supercalifragilisticexpialidocious", @size: { maxWidth: 100 } }\nb: { @label: "Supercalifragilisticexpialidocious", @size: { maxWidth: 100, width: 300 } }\n');
+    for (const id of ['l:a', 'l:b']) expect(table[labelRunKey(styled, id as LabelId)]!.lines.length, id).toBeGreaterThan(1);
+  });
+
   it('a container\'s title band grows with its line count, pushing its children down (T40)', async () => {
     for (const engine of ENGINES) {
       const one = await runPipeline('box: { @label: "Title", a }\n', undefined, engine);
