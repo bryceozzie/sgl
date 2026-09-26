@@ -1,6 +1,7 @@
 import type { CompileOptions, Diagnostic, LabelId, Size } from '@sgl/core';
 import { compile, parse, resolve } from '@sgl/core';
 import { compileImports, createImportLinker, resolveImports } from '@sgl/core/imports';
+import { parseInline } from '@sgl/core/inline';
 import {
   applyHostFallbacks,
   buildLayoutInput,
@@ -23,6 +24,12 @@ import { corpusPath, corpusSource, listCorpusDocs } from '../../theme/test/corpu
 import { render, type RenderResult } from '../src/index.js';
 
 export { corpusPath, corpusSource, listCorpusDocs };
+
+/** A18: the corpus documents that hold markdown or wrap, which the rich
+ *  pipeline (`INLINE`: compile with `@sgl/core/inline`) draws with marks and
+ *  soft breaks (DD-11 T42–T47, T58). */
+export const RICH_DOCS: readonly string[] = ['multiline.sgl', 'text/markdown.sgl', 'text/wrap.sgl', 'injection/markdown-in-label.sgl'];
+export const INLINE: CompileOptions = { inline: parseInline };
 
 /**
  * `source -> RenderResult`: `parse -> resolve -> compile -> resolveTheme ->
@@ -133,7 +140,7 @@ export async function runPipeline(
   const { value: theme, diagnostics: d4 } = resolveTheme(themeDoc, (id) => BUILT_IN[id]);
   const { value: styled, diagnostics: d5 } = styleGraph(graph, theme, model.classes);
   const { input, result, table, diagnostics: d6 } = await layOut(styled, engine, options);
-  const rendered = render(styled, result, theme);
+  const rendered = render(styled, result, theme, table);
   return {
     styled,
     input,

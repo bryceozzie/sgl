@@ -20,7 +20,7 @@
  */
 
 import type { StyledGraph } from '@sgl/theme';
-import type { LayoutView } from './layout-view.js';
+import type { LayoutView, TextLayoutView } from './layout-view.js';
 import { escapeXml } from './security.js';
 import { buildStyleBlock, ClassTable, type RuleKind } from './style.js';
 
@@ -42,8 +42,14 @@ export type PaintRule = readonly [kind: RuleKind | 'mf' | 'ms', key: string, id:
  */
 export interface PaintPlan {
   readonly layout: LayoutView;
+  /** The measure table it was drawn with (DD-11 T42): which fragments sit on
+   *  which line. `renderPaintOnly` requires the same object. */
+  readonly text: Readonly<Record<string, TextLayoutView>> | undefined;
   readonly svg: string;
   readonly rules: readonly PaintRule[];
+  /** The run rules it emitted, as `markBits` (T44): the paint-only path emits
+   *  the same ones. */
+  readonly runs: number;
 }
 
 /**
@@ -56,6 +62,7 @@ export interface PaintPlan {
  */
 export function paintOnlyStyleBlock(plan: PaintPlan, styled: StyledGraph): string | null {
   const table = new ClassTable();
+  table.runs = plan.runs;
   for (const [kind, key, id] of plan.rules) {
     const style = kind === 'text' ? styled.labelStyles[id as keyof StyledGraph['labelStyles']] : styled.styles[id as keyof StyledGraph['styles']];
     if (style === undefined) return null;

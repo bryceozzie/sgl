@@ -2,6 +2,7 @@ import { effect } from '@preact/signals';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { asNodeId, type LabelId } from '@sgl/core';
 import { labelRunKey, layoutLines, StaticMetricsMeasurer } from '@sgl/measure';
+import { render } from '@sgl/render-svg';
 import { layoutWrapped } from '@sgl/text/wrap';
 import type { RichText } from '../src/state/types.js';
 import { createHarness } from './harness.js';
@@ -138,9 +139,41 @@ describe('the rich-text chunk (DD-11 T53)', () => {
     const good = h.pipeline.lastGood.value!;
     expect(good.styled.graph.labels['l:a' as LabelId]!.runs).toEqual([{ text: 'Payments', strong: true }, { text: ' ' }, { text: 'v2', code: true }]);
     expect(good.styled.graph.labels['l:b' as LabelId]!.runs).toEqual([{ text: '2 * 3' }]);
-    // Until the render branch, the runs are drawn as plain text, markers removed.
-    expect(good.svg).toContain('>Payments v2</tspan>');
+    // The marks are drawn as nested run tspans (DD-11 T43), the markers gone.
+    expect(good.svg).toContain('<tspan class="r-strong">Payments</tspan> <tspan class="r-code">v2</tspan></tspan>');
+    expect(good.styleBlock).toContain('.r-strong{font-weight:700}');
     expect(good.svg).not.toContain('**');
+    h.dispose();
+  });
+
+  it('a wrapped label is drawn on exactly the lines it was measured and laid out with (T42, through the app)', async () => {
+    const lazy = lazyRichText();
+    lazy.release();
+    const h = await createHarness(WRAPPED, { loadRichText: lazy.loadRichText }, { firstRender: false });
+    await h.settle();
+    const good = h.pipeline.lastGood.value!;
+    const measured = h.pipeline.table.value[labelRunKey(good.styled, 'l:a' as LabelId)]!;
+    expect(good.paintPlan.text).toBe(h.pipeline.table.value);
+    const text = /<g id="n-a"[^]*?<text [^>]*>([^]*?)<\/text>/.exec(good.svg)![1]!;
+    const lines = [...text.matchAll(/<tspan x="[^"]*" dy="[^"]*">([^<]*)<\/tspan>/g)].map((m) => m[1]);
+    expect(lines).toEqual(measured.lines.map((l) => l.runs.map((r) => r.text).join('')));
+    expect(lines.length).toBeGreaterThan(1);
+    h.dispose();
+  });
+
+  it('a theme switch on a rich document keeps the element tree: paint only, exactly a full render (T57)', async () => {
+    const lazy = lazyRichText();
+    lazy.release();
+    const h = await createHarness('a: { @label: "**Pay** *ledger* `svc` and more words", @size: { maxWidth: 100 } }\nb\na -> b: "*async*"\n', { loadRichText: lazy.loadRichText, defaultThemeId: 'neutral-light' }, { firstRender: false });
+    await h.settle();
+    const before = h.pipeline.lastGood.value!;
+    expect(before.svg).toContain('class="r-em"');
+    h.pipeline.themeId.value = 'neutral-dark';
+    await h.settle();
+    const after = h.pipeline.lastGood.value!;
+    expect(after.styled.themeId).toBe('neutral-dark');
+    expect(after.paintPlan).toBe(before.paintPlan);
+    expect(after.svg).toBe(render(after.styled, after.layout, h.pipeline.theme.peek().value, h.pipeline.table.value).svg);
     h.dispose();
   });
 

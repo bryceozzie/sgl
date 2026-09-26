@@ -19,7 +19,7 @@ const APP_EXAMPLE = fileURLToPath(new URL('../../../apps/web/src/examples/checko
 const SCALE = ['n50.sgl', 'n500.sgl', 'n2000.sgl'];
 
 /** The documents written to hold markdown, and nothing else. */
-const MARKDOWN_DOCS = ['multiline.sgl', 'text/markdown.sgl', 'text/wrap.sgl'];
+const MARKDOWN_DOCS = ['multiline.sgl', 'text/markdown.sgl', 'text/wrap.sgl', 'injection/markdown-in-label.sgl'];
 
 function graphJson(source: string, withParser: boolean): string {
   const { model } = resolve(parse(source).ast);

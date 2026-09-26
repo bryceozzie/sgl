@@ -77,9 +77,18 @@ export function labelBox(styled: StyledGraph, labelId: LabelId): BoxConstraints 
   return width === Infinity || node === undefined ? UNCONSTRAINED : { maxWidth: labelMaxWidth(node.shape, width, g?.['padding']) };
 }
 
+/** Keys already computed, per `StyledGraph` object (DD-11 T56): a `StyledGraph`
+ *  is immutable, so `render()`'s per-label lookup after `premeasure` rehashes
+ *  nothing. */
+const KEYS = new WeakMap<StyledGraph, Map<LabelId, string>>();
+
 /** The `MeasureTable` key for a label: `hashRuns(labelRuns(…), labelBox(…))`. */
 export function labelRunKey(styled: StyledGraph, labelId: LabelId): string {
-  return hashRuns(labelRuns(styled, labelId), labelBox(styled, labelId));
+  let keys = KEYS.get(styled);
+  if (!keys) KEYS.set(styled, (keys = new Map()));
+  let key = keys.get(labelId);
+  if (key === undefined) keys.set(labelId, (key = hashRuns(labelRuns(styled, labelId), labelBox(styled, labelId))));
+  return key;
 }
 
 /** The wrap gate (T53): true when some label has a box, so its measurement needs

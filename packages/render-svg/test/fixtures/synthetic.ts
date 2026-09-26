@@ -60,3 +60,18 @@ f -> a: { @style: { stroke: "#654321" } }
 g.x -> g.y: { @label: "inner", @type: [Hot, Cold] }
 a <-> c
 `;
+
+/**
+ * A18 (DD-11 T44, T57): the synthetic document with every label marked up —
+ * each mark and their combinations, on nodes, a container and edges, one
+ * label wrapped at `@size.maxWidth` — for the paint-only property over
+ * nested run tspans. Rendered through the rich pipeline (`parseInline`).
+ */
+export const SYNTHETIC_RICH_DOC = SYNTHETIC_DOC.replace('@label: "a" }', '@label: "**a** *it*" }')
+  .replace('@label: "b" }', '@label: "`b` and ***both***" }')
+  .replace('@label: "c" }', '@label: "c with a **long bold tail** to wrap", @size: { maxWidth: 90 } }')
+  .replace('@label: "d" }', '@label: "**`d`**" }')
+  .replace('@label: "group"', '@label: "*group*"')
+  .replace('@label: "hot"', '@label: "**hot**"')
+  .replace('@label: "cold"', '@label: "`cold`"')
+  .replace('@label: "inner"', '@label: "*in* **ner**"');

@@ -1,6 +1,6 @@
 import type { ComputedStyle } from '@sgl/theme';
 import { describe, expect, it } from 'vitest';
-import type { LabelPlacementView, TextLayoutView } from '../src/layout-view.js';
+import type { LabelPlacementView } from '../src/layout-view.js';
 import { renderText, textBlock } from '../src/text.js';
 
 function style(geometry: Readonly<Record<string, number>> = {}): ComputedStyle {
@@ -22,27 +22,26 @@ function placement(overrides: Partial<LabelPlacementView> = {}): LabelPlacementV
   };
 }
 
-describe('textBlock()', () => {
-  it('returns the supplied block untouched when given one', () => {
-    const supplied: TextLayoutView = { width: 5, height: 6, lines: [], ascent: 1 };
-    expect(textBlock(['a'], style(), supplied)).toBe(supplied);
-  });
+/** Plain lines, one unmarked fragment each. (A18 removed `textBlock`'s
+ *  `supplied` block with `LabelPlacementView.text`, DD-11 T42.) */
+const lines = (...texts: string[]): { text: string }[][] => texts.map((text) => [{ text }]);
 
+describe('textBlock()', () => {
   it('reconstructs line y-positions from fontSize x lineHeight alone', () => {
-    const block = textBlock(['one', 'two', 'three'], style({ fontSize: 10, lineHeight: 1.5 }));
+    const block = textBlock(lines('one', 'two', 'three'), style({ fontSize: 10, lineHeight: 1.5 }));
     // ascent = fontSize * 0.8; line i's y = ascent + i * fontSize * lineHeight.
     expect(block.ascent).toBeCloseTo(8, 9);
     expect(block.lines.map((l) => l.y)).toEqual([8, 23, 38]);
   });
 
   it('height is lines.length * fontSize * lineHeight, at least one line tall', () => {
-    expect(textBlock([], style({ fontSize: 10, lineHeight: 1.5 })).height).toBeCloseTo(15, 9);
-    expect(textBlock(['a'], style({ fontSize: 10, lineHeight: 1.5 })).height).toBeCloseTo(15, 9);
-    expect(textBlock(['a', 'b'], style({ fontSize: 10, lineHeight: 1.5 })).height).toBeCloseTo(30, 9);
+    expect(textBlock(lines(), style({ fontSize: 10, lineHeight: 1.5 })).height).toBeCloseTo(15, 9);
+    expect(textBlock(lines('a'), style({ fontSize: 10, lineHeight: 1.5 })).height).toBeCloseTo(15, 9);
+    expect(textBlock(lines('a', 'b'), style({ fontSize: 10, lineHeight: 1.5 })).height).toBeCloseTo(30, 9);
   });
 
   it('falls back to defaults when the style has no fontSize/lineHeight', () => {
-    const block = textBlock(['a'], style());
+    const block = textBlock(lines('a'), style());
     expect(block.ascent).toBeCloseTo(13 * 0.8, 9);
   });
 });
@@ -53,14 +52,14 @@ describe('renderText()', () => {
   });
 
   it('y is frame.y + block.ascent', () => {
-    const block = textBlock(['hi'], style({ fontSize: 10 }));
+    const block = textBlock(lines('hi'), style({ fontSize: 10 }));
     const svg = renderText(placement({ frame: { x: 0, y: 100, w: 50, h: 20 } }), block, 't-1', 'n-title', true);
     const y = Number(/ y="([\d.-]+)"/.exec(svg)?.[1]);
     expect(y).toBeCloseTo(100 + block.ascent, 6);
   });
 
   it('the first tspan has dy=0 and each later one has dy = its line y minus the previous line y', () => {
-    const block = textBlock(['a', 'b', 'c'], style({ fontSize: 10, lineHeight: 1.2 }));
+    const block = textBlock(lines('a', 'b', 'c'), style({ fontSize: 10, lineHeight: 1.2 }));
     const svg = renderText(placement(), block, 't-1', 'n-title', true);
     const dys = [...svg.matchAll(/dy="([\d.-]+)"/g)].map((m) => Number(m[1]));
     expect(dys[0]).toBe(0);
@@ -69,7 +68,7 @@ describe('renderText()', () => {
   });
 
   it('x follows text-anchor: start -> left, middle -> centre, end -> right', () => {
-    const block = textBlock(['hi'], style());
+    const block = textBlock(lines('hi'), style());
     const frame = { x: 10, y: 0, w: 100, h: 20 };
     const xOf = (align: LabelPlacementView['align']): number =>
       Number(/ x="([\d.-]+)"/.exec(renderText(placement({ frame, align }), block, 't', 'n', true))?.[1]);
@@ -79,26 +78,26 @@ describe('renderText()', () => {
   });
 
   it('rotation adds a transform="rotate(deg cx cy)" about the frame centre', () => {
-    const block = textBlock(['hi'], style());
+    const block = textBlock(lines('hi'), style());
     const frame = { x: 0, y: 0, w: 40, h: 20 };
     const svg = renderText(placement({ frame, rotation: 45 }), block, 't', 'n', true);
     expect(svg).toContain('transform="rotate(45 20 10)"');
   });
 
   it('rotation of exactly 0 omits the transform', () => {
-    const block = textBlock(['hi'], style());
+    const block = textBlock(lines('hi'), style());
     const svg = renderText(placement({ rotation: 0 }), block, 't', 'n', true);
     expect(svg).not.toContain('transform=');
   });
 
   it('aria-hidden is present only when requested', () => {
-    const block = textBlock(['hi'], style());
+    const block = textBlock(lines('hi'), style());
     expect(renderText(placement(), block, 't', 'n', true)).toContain('aria-hidden="true"');
     expect(renderText(placement(), block, 't', 'n', false)).not.toContain('aria-hidden');
   });
 
   it('escapes text content and preserves leading whitespace via xml:space', () => {
-    const block = textBlock(['<b>&"\''], style());
+    const block = textBlock(lines('<b>&"\''), style());
     const svg = renderText(placement(), block, 't', 'n', true);
     expect(svg).toContain('xml:space="preserve"');
     expect(svg).not.toContain('<b>');
@@ -106,7 +105,7 @@ describe('renderText()', () => {
   });
 
   it('the class attribute joins extraClass and className, dropping empties', () => {
-    const block = textBlock(['hi'], style());
+    const block = textBlock(lines('hi'), style());
     expect(renderText(placement(), block, '', 'n-title', true)).toContain('class="n-title"');
     expect(renderText(placement(), block, 't-1', 'n-title', true)).toContain('class="n-title t-1"');
   });

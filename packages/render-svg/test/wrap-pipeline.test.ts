@@ -77,11 +77,13 @@ describe('wrapped labels lay out at their wrapped size (DD-11 T35, T39, T40)', (
     }
   });
 
-  it('the renderer draws, until the render branch, only the hard lines of a wrapped label (DD-11 T42 is branch 3)', async () => {
-    const { rendered } = await runPipeline(`a: { @label: "${LONG}", @size: { maxWidth: 150 } }\n`);
-    // One <tspan> per hard line: the wrapped breaks are measured and laid out, not yet drawn.
+  it('the renderer draws a wrapped label on its measured lines, with no overflow (DD-11 T42)', async () => {
+    const { rendered, table, styled } = await runPipeline(`a: { @label: "${LONG}", @size: { maxWidth: 150 } }\n`);
+    const entry = table[labelRunKey(styled, 'l:a' as LabelId)]!;
+    expect(entry.lines.length).toBeGreaterThan(1);
     const text = /<g id="n-a"[^]*?<text [^>]*>([^]*?)<\/text>/.exec(rendered.svg)![1]!;
-    expect(text.match(/<tspan /g)).toHaveLength(1);
-    expect(text).toContain(LONG);
+    const lines = [...text.matchAll(/<tspan x="[^"]*" dy="[^"]*">([^<]*)<\/tspan>/g)].map((m) => m[1]);
+    expect(lines).toEqual(entry.lines.map((l) => l.runs.map((r) => r.text).join('')));
+    for (const l of entry.lines) expect(l.width).toBeLessThanOrEqual(labelBox(styled, 'l:a' as LabelId).maxWidth!);
   });
 });

@@ -388,6 +388,8 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
 
   const table = signal<MeasureTable>({});
   const layout = signal<LayoutResult | null>(null);
+  /** The table `layout` was sized from (A18, DD-11 T42; set with it). */
+  let layoutTable: MeasureTable | undefined;
   const layoutDiags = signal<readonly Diagnostic[]>([]);
   const inFlight = signal(false);
 
@@ -425,6 +427,12 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   // `geometryHash` below is also covered by `renderPaintOnly`'s own guard
   // (`structureHash` includes it): it is kept only as a cheap early exit
   // that skips hashing the structure when the geometry has visibly changed.
+  //
+  // A18 (DD-11 T42): the render is drawn with the measure table the layout
+  // was sized from, `layoutTable`, which the layout effect sets together with
+  // `layout` — so a label is drawn on exactly the lines that sized its node,
+  // never on a newer table's breaks inside older frames. A theme switch keeps
+  // both objects, so the paint-only guard (`paintPlan.text`) holds.
   let lastRendered: Rendered | null = null;
   const svgOutcome = guardedStage<Rendered | null>(
     [styledOutcome, themeOutcome],
@@ -437,9 +445,9 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
       const previous = lastRendered;
       const paintOnly =
         previous !== null && previous.layout === layoutValue && previous.styled.graph === styledValue.graph && previous.styled.geometryHash === styledValue.geometryHash
-          ? renderPaintOnly(previous.result, styledValue, layoutValue)
+          ? renderPaintOnly(previous.result, styledValue, layoutValue, layoutTable)
           : null;
-      const rendered: Rendered = { result: paintOnly ?? render(styledValue, layoutValue, resolvedTheme), styled: styledValue, layout: layoutValue };
+      const rendered: Rendered = { result: paintOnly ?? render(styledValue, layoutValue, resolvedTheme, layoutTable), styled: styledValue, layout: layoutValue };
       lastRendered = rendered;
       return rendered;
     },
@@ -671,6 +679,7 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
           if (generation !== layoutGeneration) return; // superseded; the new request owns layoutDiags now
           layoutDiags.value = result.diagnostics;
           if (result.value !== null) {
+            layoutTable = tableSnapshot;
             layout.value = result.value;
             lastRequest = { engineId: engine, optionsKey: key, inputKey, spansKey, graph: styledSnapshot.graph, table: tableSnapshot, geometryHash };
           }

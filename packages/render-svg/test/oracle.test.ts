@@ -1,10 +1,11 @@
+import type { CompileOptions } from '@sgl/core';
 import type { ComputedStyle, ThemeDoc } from '@sgl/theme';
 import { BUILT_IN, neutralDark, neutralLight } from '@sgl/theme';
 import { describe, expect, it } from 'vitest';
 import { cssColor, edgeElementId, nodeElementId } from '../src/security.js';
 import { paintDeclarations, type RuleKind } from '../src/style.js';
-import { SYNTHETIC_A, SYNTHETIC_B, SYNTHETIC_DOC } from './fixtures/synthetic.js';
-import { corpusSource, listCorpusDocs, runPipeline } from './pipeline.js';
+import { SYNTHETIC_A, SYNTHETIC_B, SYNTHETIC_DOC, SYNTHETIC_RICH_DOC } from './fixtures/synthetic.js';
+import { corpusSource, INLINE, listCorpusDocs, RICH_DOCS, runPipeline } from './pipeline.js';
 
 /**
  * Fix round 1, items 2 and 3: the per-element paint oracle. A paint class is
@@ -46,8 +47,8 @@ function group(svg: string, id: string): string | null {
 
 const unescape = (s: string): string => s.replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 
-async function oracle(source: string, theme: ThemeDoc): Promise<number> {
-  const { styled, rendered } = await runPipeline(source, theme);
+async function oracle(source: string, theme: ThemeDoc, options?: CompileOptions): Promise<number> {
+  const { styled, rendered } = await runPipeline(source, theme, undefined, {}, undefined, options);
   const rules = rulesOf(unescape(rendered.styleBlock));
   const svg = rendered.svg;
   let checked = 0;
@@ -133,6 +134,37 @@ describe('synthetic role-, shape- and class-specific themes (fix round 1, item 3
     expect(b.result).toEqual(a.result);
     expect(strip(b.rendered.svg)).toBe(strip(a.rendered.svg));
     expect(b.rendered.structureHash).toBe(a.rendered.structureHash);
+    expect(b.rendered.styleBlock).not.toBe(a.rendered.styleBlock);
+  });
+});
+
+describe('A18 (DD-11 T44, T57): the oracle and the paint-only switch over rich documents', () => {
+  for (const theme of [neutralLight, neutralDark, BUILT_IN['high-contrast']!, BUILT_IN['print']!]) {
+    for (const doc of RICH_DOCS) {
+      it(`${doc} (rich) under ${theme.id}`, async () => {
+        await oracle(corpusSource(doc), theme, INLINE);
+      });
+    }
+  }
+
+  for (const theme of [SYNTHETIC_A, SYNTHETIC_B]) {
+    it(`the oracle holds on the rich synthetic document under ${theme.id}`, async () => {
+      expect(await oracle(SYNTHETIC_RICH_DOC, theme, INLINE)).toBeGreaterThan(30);
+    });
+  }
+
+  it('switching synthetic-a <-> synthetic-b over the rich synthetic document changes only the <style>/<defs> text, run rules included', async () => {
+    const a = await runPipeline(SYNTHETIC_RICH_DOC, SYNTHETIC_A, undefined, {}, undefined, INLINE);
+    const b = await runPipeline(SYNTHETIC_RICH_DOC, SYNTHETIC_B, undefined, {}, undefined, INLINE);
+    expect(a.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    expect(a.rendered.svg).toMatch(/<tspan class="r-strong r-em">/);
+    expect(a.rendered.svg).toMatch(/<tspan class="r-strong r-code">/);
+    expect(b.result).toEqual(a.result);
+    expect(strip(b.rendered.svg)).toBe(strip(a.rendered.svg));
+    expect(b.rendered.structureHash).toBe(a.rendered.structureHash);
+    const runRules = (block: string): string[] => block.split('\n').filter((l) => l.startsWith('.r-'));
+    expect(runRules(a.rendered.styleBlock)).toHaveLength(3);
+    expect(runRules(b.rendered.styleBlock)).toEqual(runRules(a.rendered.styleBlock));
     expect(b.rendered.styleBlock).not.toBe(a.rendered.styleBlock);
   });
 });

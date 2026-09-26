@@ -1,7 +1,7 @@
 import { BUILT_IN, neutralDark, neutralLight, type ComputedStyle, type StyledGraph, type ThemeDoc } from '@sgl/theme';
 import { describe, expect, it } from 'vitest';
 import { render, structureHash } from '../src/index.js';
-import { corpusSource, listCorpusDocs, renderCorpusDoc, runPipeline } from './pipeline.js';
+import { corpusSource, INLINE, listCorpusDocs, renderCorpusDoc, RICH_DOCS, runPipeline } from './pipeline.js';
 
 /**
  * F7 (execution plan §2.1, DD-07 §6, §11): the paint-only property. A theme
@@ -38,9 +38,11 @@ describe('F7 contract: switching between any two built-in themes changes only th
     expect(THEMES.map((t) => t?.id)).toEqual(['neutral-light', 'neutral-dark', 'high-contrast', 'print']);
   });
 
-  for (const doc of listCorpusDocs()) {
-    it(doc, async () => {
-      const all = await Promise.all(THEMES.map((t) => renderCorpusDoc(doc, t)));
+  // A18 (DD-11 T57): the documents with markdown and wrapping through the rich
+  // pipeline too, which draws nested run tspans, run rules and soft breaks.
+  for (const [doc, rich] of [...listCorpusDocs().map((d) => [d, false] as const), ...RICH_DOCS.map((d) => [d, true] as const)]) {
+    it(rich ? `${doc} (rich)` : doc, async () => {
+      const all = await Promise.all(THEMES.map((t) => (rich ? runPipeline(corpusSource(doc), t, undefined, {}, undefined, INLINE) : renderCorpusDoc(doc, t))));
       const styleOf = (svg: string): string => svg.match(/<style>[\s\S]*?<\/style>/)![0];
       for (let i = 0; i < all.length; i += 1) {
         for (let j = i + 1; j < all.length; j += 1) {
@@ -97,10 +99,10 @@ describe('F7: structure rules — which elements and names exist never depends o
 
   for (const doc of DOCS) {
     it(`${doc}: paint with no declarations at all, and labelPlate none, keep every class, plate and marker`, async () => {
-      const { styled, result, theme, rendered } = await renderCorpusDoc(doc, neutralLight);
+      const { styled, result, theme, rendered, table } = await renderCorpusDoc(doc, neutralLight);
       // Every paint property gone except the arrowhead kind; plates off.
       const bare = repaint(styled, (paint) => ({ ...('arrowhead' in paint ? { arrowhead: paint['arrowhead']! } : {}), ...('labelPlate' in paint ? { labelPlate: 'none' } : {}) }));
-      const out = render(bare, result, theme);
+      const out = render(bare, result, theme, table);
       expect(structure(out.svg)).toBe(structure(rendered.svg));
       expect(out.structureHash).toBe(rendered.structureHash);
       if (rendered.svg.includes('class="el-plate ')) expect(out.styleBlock).toMatch(/\.p-[0-9a-f]{16}\{fill:none\}/);
@@ -108,15 +110,15 @@ describe('F7: structure rules — which elements and names exist never depends o
   }
 
   it('the arrowhead kind is the one paint property the structure follows, and structureHash says so', async () => {
-    const { styled, result, theme, rendered } = await renderCorpusDoc('parallel-selfloop.sgl', neutralLight);
+    const { styled, result, theme, rendered, table } = await renderCorpusDoc('parallel-selfloop.sgl', neutralLight);
     for (const kind of ['open', 'none'] as const) {
       const other = repaint(styled, (paint) => ('arrowhead' in paint ? { ...paint, arrowhead: kind } : paint));
-      const out = render(other, result, theme);
+      const out = render(other, result, theme, table);
       expect(structure(out.svg)).not.toBe(structure(rendered.svg));
       expect(out.structureHash).not.toBe(rendered.structureHash);
       expect(structureHash(other)).toBe(out.structureHash);
     }
-    const none = render(repaint(styled, (paint) => ('arrowhead' in paint ? { ...paint, arrowhead: 'none' } : paint)), result, theme);
+    const none = render(repaint(styled, (paint) => ('arrowhead' in paint ? { ...paint, arrowhead: 'none' } : paint)), result, theme, table);
     expect(none.svg).not.toContain('marker-end');
     expect(none.svg).toContain('<defs></defs>');
   });

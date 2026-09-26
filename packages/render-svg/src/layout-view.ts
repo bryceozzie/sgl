@@ -14,6 +14,7 @@
  */
 
 import type { PathSeg, Point, Rect, Vec2 } from '@sgl/core';
+import type { RunMarks } from '@sgl/text';
 
 export interface LayoutView {
   /** Diagram-space extents. */
@@ -54,20 +55,18 @@ export interface LabelPlacementView {
   /** Draw a background plate (edge labels). */
   readonly occlusion?: 'plate' | 'none';
   readonly priority?: number;
-  /**
-   * The measured text block, when the host has it.
-   *
-   * DD-07 §5 positions tspans from "a `LabelPlacement` and its `TextLayout`", but
-   * `LayoutResult` (DD-06 §2) carries no `TextLayout` and `render()` is not given
-   * the `MeasureTable`, so there is no field on the contract that holds one. The
-   * renderer accepts it here when a caller can supply it, and otherwise
-   * reconstructs an equivalent block from the label's runs and its resolved text
-   * geometry — see `textBlock` in `text.ts`.
-   */
-  readonly text?: TextLayoutView;
+  // A18 (DD-11 T42) removed the unused `text?: TextLayoutView` field: the
+  // measured lines reach `render()` as its fourth argument, the measure table.
 }
 
-/** The part of `@sgl/measure`'s `TextLayout` the renderer reads. */
+/** A fragment of a line: its text and marks (DD-11 T23). */
+export interface RunView {
+  readonly text: string;
+  readonly marks?: RunMarks;
+}
+
+/** The part of `@sgl/text`'s `TextLayout` the renderer reads: `render()`'s
+ *  measure table holds these, and `textBlock` builds one per label. */
 export interface TextLayoutView {
   readonly width: number;
   readonly height: number;
@@ -75,7 +74,7 @@ export interface TextLayoutView {
     /** Baseline offset from the top of the block. */
     readonly y: number;
     readonly width: number;
-    readonly runs: readonly { readonly x: number; readonly text: string }[];
+    readonly runs: readonly (RunView & { readonly x: number })[];
   }[];
   /** Of the first line, for aligning the block. */
   readonly ascent: number;
