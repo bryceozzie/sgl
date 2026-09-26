@@ -187,7 +187,7 @@ as `""`, `"k"`, `""`. That is not how `@lezer/lr` works: tokens that overlap and
 whatever the parse state. `String` and `MultilineString` share one, so wherever a `String` can
 start, a `"""` lexes as a `MultilineString`. In a key or path position no production accepts it,
 and the parser wraps it in an error node: `SGL1002` over the whole `"""…"""`. It never reaches the
-AST as a key. This is the outcome T15 wants, but for one pre-A18 input it is a change (row 7).
+AST as a key. This is the outcome T15 wants, but for three pre-A18 inputs it is a change (rows 7–9).
 
 | Input | Position | Before A18 | After A18 | Why |
 |---|---|---|---|---|
@@ -197,15 +197,18 @@ AST as a key. This is the outcome T15 wants, but for one pre-A18 input it is a c
 | `"""@x"""` | a value | `""`, `ConfigString "@x"`, `""`: `SGL1001` | `MultilineString`, a label that starts with `@` | `ConfigString` needs `"@` right after its first quote |
 | `"@style.stroke"` | a key or a value | `ConfigString` | same | `MultilineString` cannot match it |
 | `""""` (4 quotes) | a value | two empty strings | the start of a `MultilineString` (to its closing `"""`, or `SGL1003` to the end) | |
-| `"""k"""` | an entry's start (a node key, an edge's first endpoint), or an endpoint after `->` | **valid**: adjacent quoted keys `""`, `"k"`, `""` (commas are optional), e.g. `"""k""": v` was three nodes | `SGL1002` over `"""k"""` (and a second `SGL1002` on a stray `:` or `->`) | the shared token group, above |
-| `"""k"""` | a `PropKey`, or a `PathSegment` after `.` | `SGL1001` | `SGL1002` over `"""k"""` | the same |
+| `"""k""": v` | an entry's start at the top level (a node key, or an edge's first endpoint in `"""k""" -> b`) | **valid**: adjacent quoted keys `""`, `"k"`, `""` (commas are optional), so three nodes | `SGL1002` over `"""k"""`, and a second `SGL1002` over the stray `:` or `->` | the shared token group, above |
+| `x: {"""k""": 1}` | a node key at an entry's start inside a block | **valid**: three nodes, as above | `SGL1002` over `"""k"""` (4–11), then `SGL1001` at 11 (the entry `: 1` has no key) | the same |
+| `a -> """k""" -> b` | an endpoint after `->` | **valid**: `a -> ""`, a node `"k"`, then `"" -> b` | one `SGL1002` over `"""k"""` | the same |
+| `@x: {"""k""": 1}` | an object key (`PropKey`) | `SGL1001` | `SGL1002` over `"""k"""` (5–12), then `SGL1001` at 12 (the property has no key) | the same |
+| `a."""k""" -> b` | a `PathSegment` after `.` | `SGL1001` | one `SGL1002` over `"""k"""` | the same |
 | `"""` never closed | a value | `""` then an unterminated `"…`: `SGL1003` to the end of the line, then whatever the rest of the file lexed as | one `MultilineString` to the end of the input: exactly one `SGL1003`, from `"""` to the end, and nothing else | the `@eof` arm; `scanLexicalErrors` |
 | `/*`, `//` or `"` inside `"""…"""` | a value | n/a | part of the string, nothing reported | the token owns its body, and `scanLexicalErrors` skips it |
 
 **The pre-A18 inputs that change** are three or more quotes in a row, which before A18 were always
 adjacent strings with nothing between them: inside an array (`[""""]`, `["""a"""]`), after a node
 or edge `:`, and at an entry start or after an edge operator, where they were valid adjacent keys.
-DD-11 said only arrays were affected, and that the rest were already errors; rows 2 and 7 correct
+DD-11 said only arrays were affected, and that the rest were already errors; rows 2 and 7–9 correct
 that. No corpus, `.sgl.json`, app example or e2e fixture contains one (the pins below prove it).
 Every row is a test in `packages/core/test/multiline-string.test.ts`.
 
@@ -334,6 +337,10 @@ the input. `scanLexicalErrors` reports it (it mirrors the token with the shared
 `multilineBodyEnd`, and skips a closed `"""` body, so a `"`, `//` or `/*` inside one is never
 reported), and stops there. The zero-length error Lezer leaves at the end of the input (a `}` the
 enclosing block never got) is inside the region the `SGL1003` explains, and is not reported again.
+An unclosed `/*` that is not a comment (`x -> /*` is an edge to every root child), or whose error
+nodes a later unterminated `"""` explains, no longer ends the scan: it resumes just after the `/*`,
+so `x -> /*` followed by an unterminated `"""` is one `SGL1003` (A18 fix round 1). With no `"""`
+after it, an unterminated comment is `SGL1005` exactly as before.
 Ordinary strings and comments keep their exact pre-A18 behaviour: an unterminated `"…` is still
 `SGL1003` to the end of its line, followed by whatever the rest of the file produces.
 
