@@ -463,6 +463,20 @@ each marked implemented there with its deviations; §19 items 1, 2, 6 and 7 fixe
 - **Docs**: spec §3 ("Markdown in labels") and §4; DD-00 §2; DD-02 §7; DD-03 §2, §6; DD-04 §2;
   DD-05 §2–§5, §7; DD-06 §2; DD-07 §4 (the `Shape` interface lost `contentInsets`); DD-08 §3;
   DD-11; architecture §6 and backlog notes; `corpus/README.md`.
+
+**A18 branch 2, fix round 1** (two reviews; each item its own commit, tests shown failing first).
+Human decisions: **H1** a fixed `@size.width` breaks only at spaces (a `keepWords` box; only
+`@size.maxWidth` splits a word); **H2** a class's `@size` applies to its nodes (DD-04 §4 step 4,
+in `@type` order; geometry only). Fixes: the breaker keeps a running width per line (8 000 words
+6.7 s → 29 ms; output byte-identical over 22 330 corpus layouts); a rich-text chunk that cannot
+load degrades (plain runs, the box ignored, one new `SGL6002` warning, retried on the next change)
+instead of freezing the picture; hexagons wrap by `L + min(L, H) ≤ avail` instead of `avail/2`;
+M7 killed; T56's real numbers and **F24** (the canvas cache thrashes past ~7 000 wrapped labels;
+an LRU does not help); `Intl.Segmenter` banned below `apps/web` and `@sgl/core/inline` banned in
+`measure` and `render-svg`; flanking's Unicode-table caveat in DD-11; `loadRichText`'s comment;
+`@sgl/text`'s test dependencies; a container's `@size` is `SGL2012`. Goldens: only the two rich
+layout goldens of `text/wrap.sgl` changed (its hexagon, 4 lines → 2); none on `main`. Core bundle
+181.22 → **181.47 kB**: the render branch has **0.53 kB**, under the ~0.6 kB planned.
 - **Docs.** Language spec §3 (Strings) and §4 (`@label`); DD-01 §2 (listing, notes, audit), §3, §4,
   §6, §8; DD-02 §6 rule 7; DD-11 status, T10–T20 notes, T58 note, §19 item 4.
 

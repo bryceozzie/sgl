@@ -99,6 +99,10 @@ here from branch 3 by the brief). For the reviewer:
 - DD-11 §19 items 1, 2, 6, 7 fixed; 3, 5, 8 remain (render branch's), 9 found and fixed, 10 and 11
   found (10 open).
 - Next: `feat/a18-render` (T42–T50, fonts, T57), from `main` once this merges.
+- **Fix round 1 done** (2026-09-26): H1, H2 and fixes 1–10, each its own commit; see 07 §2. Core
+  181.47 kB, so **the render branch has 0.53 kB**, less than the ~0.6 kB planned: a budget
+  question for the human if branch 3 does not fit. Only `text/wrap.sgl`'s two rich layout goldens
+  changed (the hexagon fix).
 
 ### A18 markdown labels: branch `design/a18-text` at `8ca91c9` (design only, not merged)
 

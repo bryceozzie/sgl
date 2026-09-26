@@ -818,7 +818,7 @@ The decisions:
 
   The lazy `rich-text` chunk is about 1.2 kB gzipped: the parser about 0.55 kB, the breaker about
   0.65 kB. With it on the boot path, A18 would cost about 2.0–2.3 kB.
-  - *Measured (branch 2):* the boot path grew **+0.84 kB** (180.38 → 181.22 kB): the `@sgl/text` boot half with `labelBox`, `runStyle` and the fragment line model, `labelMaxWidth`, the marks in the key, and the app's two gates and lazy import, net of render-svg's per-shape insets removed. The lazy chunk is **2.01 kB** gzipped (estimated 1.2). 0.78 kB is left for the render branch.
+  - *Measured (branch 2):* the boot path grew **+0.84 kB** (180.38 → 181.22 kB): the `@sgl/text` boot half with `labelBox`, `runStyle` and the fragment line model, `labelMaxWidth`, the marks in the key, and the app's two gates and lazy import, net of render-svg's per-shape insets removed. The lazy chunk is **2.01 kB** gzipped (estimated 1.2). 0.78 kB is left for the render branch. *Fix round 1* (H1, the hexagon flag, H2, the container check, `SGL6002`'s degraded path, less a compaction) brings the boot path to **181.47 kB**: 0.53 kB left.
 - **T55. ⚑ A18 and A9 together do not fit the current headroom without the F20 trim, and fit only
   narrowly with it.**
   - Headroom today is 1.09 kB. A9 estimates its boot cost at 0.8–1.0 kB (DD-02 §10.9 on
