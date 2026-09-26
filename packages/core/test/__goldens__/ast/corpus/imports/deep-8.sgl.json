@@ -1,0 +1,87 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "imports"
+    ],
+    "value": {
+     "kind": "Array",
+     "items": [
+      {
+       "kind": "String",
+       "value": "./nothing.sgl",
+       "span": {
+        "from": 134,
+        "to": 149
+       }
+      }
+     ],
+     "span": {
+      "from": 133,
+      "to": 150
+     }
+    },
+    "keySpan": {
+     "from": 123,
+     "to": 131
+    },
+    "span": {
+     "from": 123,
+     "to": 150
+    }
+   },
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "classes"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "D8",
+       "isConfig": false,
+       "keySpan": {
+        "from": 163,
+        "to": 165
+       },
+       "value": {
+        "kind": "Object",
+        "props": [],
+        "span": {
+         "from": 167,
+         "to": 169
+        }
+       },
+       "span": {
+        "from": 163,
+        "to": 169
+       }
+      }
+     ],
+     "span": {
+      "from": 161,
+      "to": 171
+     }
+    },
+    "keySpan": {
+     "from": 151,
+     "to": 159
+    },
+    "span": {
+     "from": 151,
+     "to": 171
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 172
+  }
+ },
+ "diagnostics": []
+}

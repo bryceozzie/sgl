@@ -31,18 +31,18 @@ Lezer is the single parser (decided). The same grammar drives CodeMirror highlig
 Entry { ConfigEntry | EdgeStmt | NodeDecl }
 
 // ---- configuration ----------------------------------------------------
-ConfigEntry { ConfigKey ":" Value }
+ConfigEntry { (ConfigKey | ConfigString) ":" Value }
 
 // ---- nodes ------------------------------------------------------------
 NodeDecl  { NodeKey (":" NodeValue)? }
 NodeKey   { Identifier | String }
-NodeValue { Block | String | ClassRef }
-ClassRef  { Identifier }
+NodeValue { Block | String | ConfigString | ClassRef }
+ClassRef  { qualified }                      // A9, I16: `aws.Lambda`
 Block     { "{" Entry* "}" }
 
 // ---- edges ------------------------------------------------------------
 EdgeStmt  { Endpoint (EdgeOp Endpoint)+ (":" EdgeValue)? }
-EdgeValue { String | Block }
+EdgeValue { String | ConfigString | Block }
 Endpoint  { Path Port? }
 Port      { "[" Identifier "]" }
 Path      { Root? Parent* PathStep ("." PathStep)* }
@@ -50,12 +50,13 @@ PathStep  { PathSegment | Wildcard }
 PathSegment { Identifier | String }
 
 // ---- values (configuration context only) ------------------------------
-Value  { String | Number | Bool | Null | Word | Array | Object }
-Word   { Identifier }                       // bareword enum: hexagon, down, dashed
+Value  { String | ConfigString | Number | Bool | Null | Word | Variable | Array | Object }
+Word   { qualified }                         // bareword enum: hexagon, down, dashed; or a class, `aws.Lambda` (I16)
+qualified { Identifier ("." Identifier)* }   // lower case: no node of its own, one set of LR states for both
 Array  { "[" Value* "]" }
 Object { "{" Property* "}" }
 Property { PropKey ":" Value }
-PropKey  { Identifier | String | ConfigKey }  // @-keys allowed inside class bodies
+PropKey  { Identifier | String | ConfigKey | ConfigString }  // @-keys allowed inside class bodies
 
 Bool { @specialize<Identifier, "true" | "false"> }
 Null { @specialize<Identifier, "null"> }
@@ -69,9 +70,11 @@ Null { @specialize<Identifier, "null"> }
 
   // A dash is allowed inside an identifier only when followed by an identifier
   // character, so `a->b` lexes as Identifier EdgeOp Identifier, not `a-` `>b`.
-  Identifier { $[A-Za-z_] ($[A-Za-z0-9_] | "-" $[A-Za-z0-9_])* }
-  ConfigKey  { "@" Identifier ("." Identifier)* }
-  String     { '"' (![\\"\n] | "\\" _)* '"' }
+  Identifier   { $[A-Za-z_] ($[A-Za-z0-9_] | "-" $[A-Za-z0-9_])* }
+  ConfigKey    { "@" Identifier ("." Identifier)* }
+  ConfigString { '"' "@" (![\\"\n] | "\\" _)* '"' }
+  Variable     { "$" Identifier ("." Identifier)* }   // A9, I16: `$aws.brand`
+  String       { '"' (![\\"\n] | "\\" _)* '"' }
   Number     { "-"? @digit+ ("." @digit+)? }
   EdgeOp     { "->" | "<-" | "<->" | "--" }
   // Fan-out over children (*) or descendants (**), optionally narrowed by a name
@@ -90,10 +93,14 @@ Null { @specialize<Identifier, "null"> }
   @precedence { LineComment, BlockComment, Root }
   @precedence { Parent, "." }
   @precedence { Wildcard, Identifier }
+  @precedence { ConfigString, String }
 }
 
 @detectDelim
 ```
+
+The block mirrors `sgl.grammar` without its comments. (Until A9 it had drifted: it lacked Stage A's
+`ConfigString` and A8's `Variable`, both of which the grammar file has had since.)
 
 ### Design notes on the grammar
 
@@ -112,6 +119,36 @@ Null { @specialize<Identifier, "null"> }
 - **A wildcard in a non-final position parses.** `lane1.*.handler` and `store*.api*` are well-formed `Path`s, and since the human decision of 2026-09-24 (language spec §3) they are valid endpoints too: DD-03 §3.1 expands them. `platform.**.api` parses just as well and becomes a faithful AST; DD-03 §3.1 rejects it with `SGL3004` (`**` is final-only), spanning the edge statement. No grammar change was needed for the decision: `PathStep { PathSegment | Wildcard }` already admitted a wildcard in every step. This follows the same line as unknown `@` keys — the grammar describes shape, the later stages describe meaning — and it is what lets the editor keep highlighting the rest of the line while the author is mid-edit.
 - **Multi-line strings** (`"""`) are **⟶ v1.0 (A18)**. The `String` token reserves `\` escapes now: `\n \t \" \\ \uXXXX`.
 - **Variables need no grammar beyond `Variable`** (A8). `Variable { "$" Identifier }` is a `Value` alternative, so `$name` is legal exactly where a value is and nowhere else: a `$` in a node key, a config key or a path is a syntax error (`SGL1002`), which is how "keys, paths and names are never substituted" (language spec §5) is enforced. `${name}` interpolation, and a string that is exactly `$name` (canonical JSON's spelling), are read by the resolver out of an ordinary `String`'s decoded text (DD-02 §3.5), not by the lexer, so a JSON document needs nothing new either. There is **no escape for `$`**: `\$` is an unknown escape (`SGL1004`, kept as written), so a literal `${name}` cannot be written as text. Adding one (`$$` or `\$`) is a grammar and language-spec decision, left open.
+- **Qualified names (A9, I16; human decision 2026-09-25).** `ClassRef` and `Word` are `Identifier ("." Identifier)*` (the shared rule `qualified`), a **production**, so `lambda: aws.Lambda` and `@type: [aws.Lambda, b.c.D]` parse; the `Variable` token is `"$" Identifier ("." Identifier)*`, so `$aws.brand` is one token. `buildAst` joins a `Word`'s or `ClassRef`'s `Identifier` children with `.`: the `@skip` set may sit between the parts, as in a `Path`, so `aws . Lambda` is `aws.Lambda`. A `Variable`'s name is its text after `$`. What a qualified name *means* is DD-02 §10.3; the grammar only lets it be written. There is still no qualified node key, config key or path form (paths already had dots).
+
+### Qualified names: the token audit (A9, I16)
+
+This project has been bitten by Lezer token precedence before (Stage A's `ConfigString`; the glob token eating an arrow's dash). So the I16 change was audited token by token, and then proved against every document that already exists.
+
+**What changed.** No new token. Two productions grew a tail: `ClassRef` and `Word` are both the anonymous rule `qualified { Identifier ("." Identifier)* }`, which puts no node of its own in the tree (so a one-part name is still `ClassRef(Identifier)`, exactly as before) and lets both share one set of LR states. One token grew a tail (`Variable`: `("." Identifier)*`). No `@precedence` was added, because no new overlap between two tokens arises. The one overlap the change newly *exercises* was already declared.
+
+**Cost, and the token that was not added.** The parse tables grew by about 0.35 kB gzipped (core bundle 178 667 → 179 017 B; the `Variable` tail is 2 B of it, the productions the rest). DD-02 §10.9 had estimated under 0.1 kB. Writing the two tails as separate productions cost 27 B more. A single token, `QualifiedName { Identifier ("." Identifier)+ }` with `@precedence { Wildcard, QualifiedName, Identifier }` and `ClassRef`/`Word` as `Identifier | QualifiedName`, measured about 0.11 kB smaller, and was **rejected**: `QualifiedName` shares a token group with `Identifier`, the precedence applies in every state where that group is active, and an edge endpoint `a.b -> c` at the start of a statement lexed as one `QualifiedName` instead of `Identifier "." Identifier`. The parse pins below failed for 23 existing documents (`checkout.sgl`, `nesting-3.sgl`, `wildcard-globs.sgl`, …) before anything else noticed. That is the precedence trap this audit exists for.
+
+**Where `"."` is now valid that it was not before**, and every token that can start at a `.` there:
+
+| After | `"."` newly valid? | Other tokens starting with `.` that are valid there | Resolution |
+|---|---|---|---|
+| a `ClassRef`'s `Identifier` (the end of a `NodeDecl`) | yes | `Parent` (`../`), which starts the next entry's `Path` | `@precedence { Parent, "." }`, which already existed: `a: Service` then `../b -> c` still lexes `Parent` (pinned by `grammar.test.ts`). A lone `.` there was a syntax error before, and now continues the name. |
+| a `Word`'s `Identifier` in a `ConfigEntry` at document or block level | yes | `Parent`, as above | the same precedence |
+| a `Word` inside an `Array` or an `Object` | yes | none (`Parent` only starts an `Entry`) | — |
+| a `Variable` | no: the token itself now consumes `.ident` | — | see below |
+
+**Every production the shadowed tokens appear in.** The tokens whose reading can change are `"."` and `Parent` (above), and `Identifier`, which the tails consume after a dot.
+
+- **`"."`** appears in `Path` (`PathStep ("." PathStep)*`), and now in `ClassRef` and `Word`. It is also inside the `ConfigKey`, `Number` and `Variable` tokens. Those are single tokens, unaffected by the parser's use of `"."`. `Path` is reachable only from `Endpoint`, and an `Endpoint` never directly follows a `ClassRef` or a `Word`: there is always an entry boundary in between, and an entry never starts with `"."`.
+- **`Parent`** appears only at the start of `Path`. Its precedence over `"."` is what keeps a following `../` an edge (the table).
+- **`Identifier`** appears in `NodeKey`, `ClassRef`, `Port`, `PathSegment`, `Word` and `PropKey`, and through `@specialize` in `Bool` and `Null`. After `ClassRef "."` or `Word "."` only `Identifier` is valid.
+  - `Wildcard` (`@precedence { Wildcard, Identifier }`) is valid only in a `PathStep`. So `a: b.cam*` is `b.cam` then an unexpected `*`, just as `a: b` followed by `.cam*` was an error before.
+  - `true`, `false` and `null` lex as `Bool`/`Null` in a value, so `true.x` is not a `Word`, before or after. `resolve()` refuses them as an `as` name (`SGL2011`), so no namespace needs them.
+- **`Number`** (`"-"? @digit+ ("." @digit+)?`) starts with a digit or `-`, never with `.`, and an `Identifier` never starts with a digit. So `@x: a.5` is an error, as before.
+- **`Variable`'s tail** cannot shadow anything in a valid document. `Variable` is only a `Value`, and nothing that may follow a `Value` (`}`, `]`, another `Value`, a `PropKey`, an `Entry`, the end) starts with `.`, except `Parent`. The token cannot eat that: in `$a../b` it ends at `$a`, because its `.` must be followed by an identifier character. It overlaps no other token, since only `Variable` starts with `$`.
+
+**The proof.** Before the grammar changed, `packages/core/test/grammar-trees.test.ts` pinned every committed corpus document (`malformed/` and the rest, 61 files), the app's example and the e2e fixture. It pins the whole CST, as node names and ranges with error nodes included (`__goldens__/trees/`), and `parse()`'s AST and syntax diagnostics (`__goldens__/ast/`). These were committed on their own, against the old grammar (`e65dda4`). They are byte-identical after the change, as is every other golden in the repository (resolve, compile, layout, render). `lezer-generator` reports no conflict.
 
 ---
 
@@ -155,12 +192,13 @@ interface WildcardStep { kind: 'Wildcard'; depth: 'children' | 'descendants';
 
 interface Block      { kind: 'Block'; entries: readonly Entry[]; span }
 
-type Value = StringLit | NumberLit | BoolLit | NullLit | Word | ArrayLit | ObjectLit;
+type Value = StringLit | NumberLit | BoolLit | NullLit | Word | Variable | ArrayLit | ObjectLit;
 interface StringLit  { kind: 'String'; value: string; span }   // escapes already decoded
 interface NumberLit  { kind: 'Number'; value: number; span }
 interface BoolLit    { kind: 'Bool'; value: boolean; span }
 interface NullLit    { kind: 'Null'; span }
-interface Word       { kind: 'Word'; value: string; span }
+interface Word       { kind: 'Word'; value: string; span }     // 'aws.Lambda': parts joined by '.' (I16)
+interface Variable   { kind: 'Variable'; name: string; span }  // '$aws.brand' => 'aws.brand' (A8, I16)
 interface ArrayLit   { kind: 'Array'; items: readonly Value[]; span }
 interface ObjectLit  { kind: 'Object'; props: readonly Property[]; span }
 interface Property   { kind: 'Property'; key: string; isConfig: boolean; keySpan; value: Value; span }
@@ -224,4 +262,5 @@ Lezer parses at well over 1 MB/s; a 2 000-node document is ~60 kB and parses in 
 - **JSON subset**: every `.sgl.json` in the corpus parses under the *same* grammar with zero diagnostics.
 - **Malformed corpus**: each file has an expected diagnostics list (code + span) and an expected *partial AST shape* — the test that guards FR-E4.
 - **Property**: for random ASTs printed by the formatter's printer, `buildAst(parse(print(x))) ≡ x` modulo spans. (Formatter is A14/Should; the printer needed here is small and ships with the tests.)
-- **Conflict check**: `lezer-generator` runs in CI with `--strict`; an unexpected conflict fails the build.
+- **Conflict check**: `lezer-generator` fails on an unresolved conflict. The installed 1.x has no `--strict` option, contrary to what this line used to say. CI runs `pnpm grammar` and fails if the regenerated parser differs from the committed one (`.github/workflows/ci.yml`).
+- **Parse pins** (A9, I16): `grammar-trees.test.ts` holds every committed document's CST and AST (§2, "Qualified names: the token audit").

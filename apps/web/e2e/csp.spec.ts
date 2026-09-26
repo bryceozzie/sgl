@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { headersFor, parseHeadersFile } from '../build/headers.js';
-import { EXAMPLE_NODE_COUNT, openFile, pngSize, saveAs, savePng, toastMessages, waitForExactNodeCount, waitForNodeCount, waitForTheme } from './helpers.js';
+import { EXAMPLE_NODE_COUNT, openFile, pngSize, saveAs, savePng, setSource, toastMessages, waitForExactNodeCount, waitForNodeCount, waitForTheme } from './helpers.js';
 
 /** J4: the build's `_headers` (DD-10 §5, DD-09 §1.2's CSP), served by the
  *  e2e server, and the app working under it. */
@@ -54,6 +54,14 @@ test('the app works under the CSP with no violation', async ({ page, context }) 
   await expect(toastMessages(page)).toContainText(['SVG copied', 'PNG copied']);
   await page.locator('.share-open').click();
   await expect(page.locator('.share-link')).toHaveValue(/#s=/);
+  await page.keyboard.press('Escape');
+  // A9 (DD-08 §15.5): a document with @imports loads the lazy `imports`
+  // chunk, and its Share link carries the imported document (`i=`).
+  // (x.sgl is open, so it imports the stored example by its save name.)
+  await setSource(page, '@imports: [{ path: "./Checkout Flow.sgl", as: ex }]\nme\n');
+  await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT + 2); // me, the container ex, and the example under it
+  await page.locator('.share-open').click();
+  await expect(page.locator('.share-link')).toHaveValue(/#s=[^&]+&e=[^&]+&t=[^&]+&i=/);
 
   expect(await page.evaluate(() => (window as unknown as { __cspViolations: string[] }).__cspViolations)).toEqual([]);
   expect(consoleCsp).toEqual([]);

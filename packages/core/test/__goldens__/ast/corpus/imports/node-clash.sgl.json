@@ -1,0 +1,126 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "imports"
+    ],
+    "value": {
+     "kind": "Array",
+     "items": [
+      {
+       "kind": "Object",
+       "props": [
+        {
+         "kind": "Property",
+         "key": "path",
+         "isConfig": false,
+         "keySpan": {
+          "from": 166,
+          "to": 170
+         },
+         "value": {
+          "kind": "String",
+          "value": "./aws-icons.sgl",
+          "span": {
+           "from": 172,
+           "to": 189
+          }
+         },
+         "span": {
+          "from": 166,
+          "to": 189
+         }
+        },
+        {
+         "kind": "Property",
+         "key": "as",
+         "isConfig": false,
+         "keySpan": {
+          "from": 191,
+          "to": 193
+         },
+         "value": {
+          "kind": "Word",
+          "value": "aws",
+          "span": {
+           "from": 195,
+           "to": 198
+          }
+         },
+         "span": {
+          "from": 191,
+          "to": 198
+         }
+        }
+       ],
+       "span": {
+        "from": 164,
+        "to": 200
+       }
+      }
+     ],
+     "span": {
+      "from": 163,
+      "to": 201
+     }
+    },
+    "keySpan": {
+     "from": 153,
+     "to": 161
+    },
+    "span": {
+     "from": 153,
+     "to": 201
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "aws",
+    "keySpan": {
+     "from": 202,
+     "to": 205
+    },
+    "value": {
+     "kind": "String",
+     "value": "Mine",
+     "span": {
+      "from": 207,
+      "to": 213
+     }
+    },
+    "span": {
+     "from": 202,
+     "to": 213
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "fn",
+    "keySpan": {
+     "from": 214,
+     "to": 216
+    },
+    "value": {
+     "kind": "Word",
+     "value": "aws.Lambda",
+     "span": {
+      "from": 218,
+      "to": 228
+     }
+    },
+    "span": {
+     "from": 214,
+     "to": 228
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 229
+  }
+ },
+ "diagnostics": []
+}

@@ -1,0 +1,1011 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "vars"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "v0",
+       "isConfig": false,
+       "keySpan": {
+        "from": 249,
+        "to": 251
+       },
+       "value": {
+        "kind": "Number",
+        "value": 1,
+        "span": {
+         "from": 253,
+         "to": 254
+        }
+       },
+       "span": {
+        "from": 249,
+        "to": 254
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v1",
+       "isConfig": false,
+       "keySpan": {
+        "from": 256,
+        "to": 258
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v0",
+          "span": {
+           "from": 261,
+           "to": 264
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v0",
+          "span": {
+           "from": 266,
+           "to": 269
+          }
+         }
+        ],
+        "span": {
+         "from": 260,
+         "to": 270
+        }
+       },
+       "span": {
+        "from": 256,
+        "to": 270
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v2",
+       "isConfig": false,
+       "keySpan": {
+        "from": 272,
+        "to": 274
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v1",
+          "span": {
+           "from": 277,
+           "to": 280
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v1",
+          "span": {
+           "from": 282,
+           "to": 285
+          }
+         }
+        ],
+        "span": {
+         "from": 276,
+         "to": 286
+        }
+       },
+       "span": {
+        "from": 272,
+        "to": 286
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v3",
+       "isConfig": false,
+       "keySpan": {
+        "from": 288,
+        "to": 290
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v2",
+          "span": {
+           "from": 293,
+           "to": 296
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v2",
+          "span": {
+           "from": 298,
+           "to": 301
+          }
+         }
+        ],
+        "span": {
+         "from": 292,
+         "to": 302
+        }
+       },
+       "span": {
+        "from": 288,
+        "to": 302
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v4",
+       "isConfig": false,
+       "keySpan": {
+        "from": 304,
+        "to": 306
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v3",
+          "span": {
+           "from": 309,
+           "to": 312
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v3",
+          "span": {
+           "from": 314,
+           "to": 317
+          }
+         }
+        ],
+        "span": {
+         "from": 308,
+         "to": 318
+        }
+       },
+       "span": {
+        "from": 304,
+        "to": 318
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v5",
+       "isConfig": false,
+       "keySpan": {
+        "from": 320,
+        "to": 322
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v4",
+          "span": {
+           "from": 325,
+           "to": 328
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v4",
+          "span": {
+           "from": 330,
+           "to": 333
+          }
+         }
+        ],
+        "span": {
+         "from": 324,
+         "to": 334
+        }
+       },
+       "span": {
+        "from": 320,
+        "to": 334
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v6",
+       "isConfig": false,
+       "keySpan": {
+        "from": 336,
+        "to": 338
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v5",
+          "span": {
+           "from": 341,
+           "to": 344
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v5",
+          "span": {
+           "from": 346,
+           "to": 349
+          }
+         }
+        ],
+        "span": {
+         "from": 340,
+         "to": 350
+        }
+       },
+       "span": {
+        "from": 336,
+        "to": 350
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v7",
+       "isConfig": false,
+       "keySpan": {
+        "from": 352,
+        "to": 354
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v6",
+          "span": {
+           "from": 357,
+           "to": 360
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v6",
+          "span": {
+           "from": 362,
+           "to": 365
+          }
+         }
+        ],
+        "span": {
+         "from": 356,
+         "to": 366
+        }
+       },
+       "span": {
+        "from": 352,
+        "to": 366
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v8",
+       "isConfig": false,
+       "keySpan": {
+        "from": 368,
+        "to": 370
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v7",
+          "span": {
+           "from": 373,
+           "to": 376
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v7",
+          "span": {
+           "from": 378,
+           "to": 381
+          }
+         }
+        ],
+        "span": {
+         "from": 372,
+         "to": 382
+        }
+       },
+       "span": {
+        "from": 368,
+        "to": 382
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v9",
+       "isConfig": false,
+       "keySpan": {
+        "from": 384,
+        "to": 386
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v8",
+          "span": {
+           "from": 389,
+           "to": 392
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v8",
+          "span": {
+           "from": 394,
+           "to": 397
+          }
+         }
+        ],
+        "span": {
+         "from": 388,
+         "to": 398
+        }
+       },
+       "span": {
+        "from": 384,
+        "to": 398
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v10",
+       "isConfig": false,
+       "keySpan": {
+        "from": 400,
+        "to": 403
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v9",
+          "span": {
+           "from": 406,
+           "to": 409
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v9",
+          "span": {
+           "from": 411,
+           "to": 414
+          }
+         }
+        ],
+        "span": {
+         "from": 405,
+         "to": 415
+        }
+       },
+       "span": {
+        "from": 400,
+        "to": 415
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v11",
+       "isConfig": false,
+       "keySpan": {
+        "from": 417,
+        "to": 420
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v10",
+          "span": {
+           "from": 423,
+           "to": 427
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v10",
+          "span": {
+           "from": 429,
+           "to": 433
+          }
+         }
+        ],
+        "span": {
+         "from": 422,
+         "to": 434
+        }
+       },
+       "span": {
+        "from": 417,
+        "to": 434
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v12",
+       "isConfig": false,
+       "keySpan": {
+        "from": 436,
+        "to": 439
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v11",
+          "span": {
+           "from": 442,
+           "to": 446
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v11",
+          "span": {
+           "from": 448,
+           "to": 452
+          }
+         }
+        ],
+        "span": {
+         "from": 441,
+         "to": 453
+        }
+       },
+       "span": {
+        "from": 436,
+        "to": 453
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v13",
+       "isConfig": false,
+       "keySpan": {
+        "from": 455,
+        "to": 458
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v12",
+          "span": {
+           "from": 461,
+           "to": 465
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v12",
+          "span": {
+           "from": 467,
+           "to": 471
+          }
+         }
+        ],
+        "span": {
+         "from": 460,
+         "to": 472
+        }
+       },
+       "span": {
+        "from": 455,
+        "to": 472
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v14",
+       "isConfig": false,
+       "keySpan": {
+        "from": 474,
+        "to": 477
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v13",
+          "span": {
+           "from": 480,
+           "to": 484
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v13",
+          "span": {
+           "from": 486,
+           "to": 490
+          }
+         }
+        ],
+        "span": {
+         "from": 479,
+         "to": 491
+        }
+       },
+       "span": {
+        "from": 474,
+        "to": 491
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v15",
+       "isConfig": false,
+       "keySpan": {
+        "from": 493,
+        "to": 496
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v14",
+          "span": {
+           "from": 499,
+           "to": 503
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v14",
+          "span": {
+           "from": 505,
+           "to": 509
+          }
+         }
+        ],
+        "span": {
+         "from": 498,
+         "to": 510
+        }
+       },
+       "span": {
+        "from": 493,
+        "to": 510
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v16",
+       "isConfig": false,
+       "keySpan": {
+        "from": 512,
+        "to": 515
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v15",
+          "span": {
+           "from": 518,
+           "to": 522
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v15",
+          "span": {
+           "from": 524,
+           "to": 528
+          }
+         }
+        ],
+        "span": {
+         "from": 517,
+         "to": 529
+        }
+       },
+       "span": {
+        "from": 512,
+        "to": 529
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v17",
+       "isConfig": false,
+       "keySpan": {
+        "from": 531,
+        "to": 534
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v16",
+          "span": {
+           "from": 537,
+           "to": 541
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v16",
+          "span": {
+           "from": 543,
+           "to": 547
+          }
+         }
+        ],
+        "span": {
+         "from": 536,
+         "to": 548
+        }
+       },
+       "span": {
+        "from": 531,
+        "to": 548
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v18",
+       "isConfig": false,
+       "keySpan": {
+        "from": 550,
+        "to": 553
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v17",
+          "span": {
+           "from": 556,
+           "to": 560
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v17",
+          "span": {
+           "from": 562,
+           "to": 566
+          }
+         }
+        ],
+        "span": {
+         "from": 555,
+         "to": 567
+        }
+       },
+       "span": {
+        "from": 550,
+        "to": 567
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v19",
+       "isConfig": false,
+       "keySpan": {
+        "from": 569,
+        "to": 572
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v18",
+          "span": {
+           "from": 575,
+           "to": 579
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v18",
+          "span": {
+           "from": 581,
+           "to": 585
+          }
+         }
+        ],
+        "span": {
+         "from": 574,
+         "to": 586
+        }
+       },
+       "span": {
+        "from": 569,
+        "to": 586
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v20",
+       "isConfig": false,
+       "keySpan": {
+        "from": 588,
+        "to": 591
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v19",
+          "span": {
+           "from": 594,
+           "to": 598
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v19",
+          "span": {
+           "from": 600,
+           "to": 604
+          }
+         }
+        ],
+        "span": {
+         "from": 593,
+         "to": 605
+        }
+       },
+       "span": {
+        "from": 588,
+        "to": 605
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v21",
+       "isConfig": false,
+       "keySpan": {
+        "from": 607,
+        "to": 610
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v20",
+          "span": {
+           "from": 613,
+           "to": 617
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v20",
+          "span": {
+           "from": 619,
+           "to": 623
+          }
+         }
+        ],
+        "span": {
+         "from": 612,
+         "to": 624
+        }
+       },
+       "span": {
+        "from": 607,
+        "to": 624
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v22",
+       "isConfig": false,
+       "keySpan": {
+        "from": 626,
+        "to": 629
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v21",
+          "span": {
+           "from": 632,
+           "to": 636
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v21",
+          "span": {
+           "from": 638,
+           "to": 642
+          }
+         }
+        ],
+        "span": {
+         "from": 631,
+         "to": 643
+        }
+       },
+       "span": {
+        "from": 626,
+        "to": 643
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v23",
+       "isConfig": false,
+       "keySpan": {
+        "from": 645,
+        "to": 648
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v22",
+          "span": {
+           "from": 651,
+           "to": 655
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v22",
+          "span": {
+           "from": 657,
+           "to": 661
+          }
+         }
+        ],
+        "span": {
+         "from": 650,
+         "to": 662
+        }
+       },
+       "span": {
+        "from": 645,
+        "to": 662
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "v24",
+       "isConfig": false,
+       "keySpan": {
+        "from": 664,
+        "to": 667
+       },
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "Variable",
+          "name": "v23",
+          "span": {
+           "from": 670,
+           "to": 674
+          }
+         },
+         {
+          "kind": "Variable",
+          "name": "v23",
+          "span": {
+           "from": 676,
+           "to": 680
+          }
+         }
+        ],
+        "span": {
+         "from": 669,
+         "to": 681
+        }
+       },
+       "span": {
+        "from": 664,
+        "to": 681
+       }
+      }
+     ],
+     "span": {
+      "from": 247,
+      "to": 683
+     }
+    },
+    "keySpan": {
+     "from": 240,
+     "to": 245
+    },
+    "span": {
+     "from": 240,
+     "to": 683
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 684,
+     "to": 685
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "meta"
+       ],
+       "value": {
+        "kind": "Variable",
+        "name": "v24",
+        "span": {
+         "from": 696,
+         "to": 700
+        }
+       },
+       "keySpan": {
+        "from": 689,
+        "to": 694
+       },
+       "span": {
+        "from": 689,
+        "to": 700
+       }
+      }
+     ],
+     "span": {
+      "from": 687,
+      "to": 702
+     }
+    },
+    "span": {
+     "from": 684,
+     "to": 702
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 703
+  }
+ },
+ "diagnostics": []
+}

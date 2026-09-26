@@ -1,0 +1,23 @@
+Document 0-267
+  LineComment 0-19
+  LineComment 20-96
+  LineComment 97-173
+  LineComment 174-233
+  Entry 234-260
+    ConfigEntry 234-260
+      ConfigKey 234-242
+      : 242-243
+      Value 244-260
+        Array 244-260
+          [ 244-245
+          Value 245-259
+            String 245-259
+          ] 259-260
+  Entry 261-266
+    NodeDecl 261-266
+      NodeKey 261-262
+        Identifier 261-262
+      : 262-263
+      NodeValue 264-266
+        ClassRef 264-266
+          Identifier 264-266

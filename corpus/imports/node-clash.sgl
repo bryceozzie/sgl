@@ -1,0 +1,6 @@
+// expects: SGL2031
+// An `as` that is one of this document's own root nodes (A9, I14): the
+// import's nodes are not grafted, its classes still arrive.
+@imports: [{ path: "./aws-icons.sgl", as: aws }]
+aws: "Mine"
+fn: aws.Lambda

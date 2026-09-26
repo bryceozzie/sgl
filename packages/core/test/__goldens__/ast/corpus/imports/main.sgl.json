@@ -1,0 +1,408 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "title"
+    ],
+    "value": {
+     "kind": "String",
+     "value": "Imports",
+     "span": {
+      "from": 324,
+      "to": 333
+     }
+    },
+    "keySpan": {
+     "from": 316,
+     "to": 322
+    },
+    "span": {
+     "from": 316,
+     "to": 333
+    }
+   },
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "imports"
+    ],
+    "value": {
+     "kind": "Array",
+     "items": [
+      {
+       "kind": "String",
+       "value": "./shared-classes.sgl",
+       "span": {
+        "from": 348,
+        "to": 370
+       }
+      },
+      {
+       "kind": "Object",
+       "props": [
+        {
+         "kind": "Property",
+         "key": "path",
+         "isConfig": false,
+         "keySpan": {
+          "from": 375,
+          "to": 379
+         },
+         "value": {
+          "kind": "String",
+          "value": "./aws-icons.sgl",
+          "span": {
+           "from": 381,
+           "to": 398
+          }
+         },
+         "span": {
+          "from": 375,
+          "to": 398
+         }
+        },
+        {
+         "kind": "Property",
+         "key": "as",
+         "isConfig": false,
+         "keySpan": {
+          "from": 400,
+          "to": 402
+         },
+         "value": {
+          "kind": "Word",
+          "value": "aws",
+          "span": {
+           "from": 404,
+           "to": 407
+          }
+         },
+         "span": {
+          "from": 400,
+          "to": 407
+         }
+        }
+       ],
+       "span": {
+        "from": 373,
+        "to": 409
+       }
+      }
+     ],
+     "span": {
+      "from": 344,
+      "to": 411
+     }
+    },
+    "keySpan": {
+     "from": 334,
+     "to": 342
+    },
+    "span": {
+     "from": 334,
+     "to": 411
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "api",
+    "keySpan": {
+     "from": 412,
+     "to": 415
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "type"
+       ],
+       "value": {
+        "kind": "Word",
+        "value": "Critical",
+        "span": {
+         "from": 426,
+         "to": 434
+        }
+       },
+       "keySpan": {
+        "from": 419,
+        "to": 424
+       },
+       "span": {
+        "from": 419,
+        "to": 434
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "API (${tier})",
+        "span": {
+         "from": 444,
+         "to": 459
+        }
+       },
+       "keySpan": {
+        "from": 436,
+        "to": 442
+       },
+       "span": {
+        "from": 436,
+        "to": 459
+       }
+      }
+     ],
+     "span": {
+      "from": 417,
+      "to": 461
+     }
+    },
+    "span": {
+     "from": 412,
+     "to": 461
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "worker",
+    "keySpan": {
+     "from": 462,
+     "to": 468
+    },
+    "value": {
+     "kind": "Word",
+     "value": "aws.Lambda",
+     "span": {
+      "from": 470,
+      "to": 480
+     }
+    },
+    "span": {
+     "from": 462,
+     "to": 480
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "db",
+    "keySpan": {
+     "from": 481,
+     "to": 483
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "style",
+        "stroke"
+       ],
+       "value": {
+        "kind": "Variable",
+        "name": "aws.orange",
+        "span": {
+         "from": 502,
+         "to": 513
+        }
+       },
+       "keySpan": {
+        "from": 487,
+        "to": 500
+       },
+       "span": {
+        "from": 487,
+        "to": 513
+       }
+      }
+     ],
+     "span": {
+      "from": 485,
+      "to": 515
+     }
+    },
+    "span": {
+     "from": 481,
+     "to": 515
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "api",
+         "span": {
+          "from": 516,
+          "to": 519
+         }
+        }
+       ],
+       "span": {
+        "from": 516,
+        "to": 519
+       }
+      },
+      "span": {
+       "from": 516,
+       "to": 519
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "worker",
+         "span": {
+          "from": 523,
+          "to": 529
+         }
+        }
+       ],
+       "span": {
+        "from": 523,
+        "to": 529
+       }
+      },
+      "span": {
+       "from": 523,
+       "to": 529
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "aws",
+         "span": {
+          "from": 533,
+          "to": 536
+         }
+        },
+        {
+         "kind": "Name",
+         "value": "queue",
+         "span": {
+          "from": 537,
+          "to": 542
+         }
+        }
+       ],
+       "span": {
+        "from": 533,
+        "to": 542
+       }
+      },
+      "span": {
+       "from": 533,
+       "to": 542
+      }
+     }
+    ],
+    "ops": [
+     "->",
+     "->"
+    ],
+    "span": {
+     "from": 516,
+     "to": 542
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "api",
+         "span": {
+          "from": 543,
+          "to": 546
+         }
+        }
+       ],
+       "span": {
+        "from": 543,
+        "to": 546
+       }
+      },
+      "span": {
+       "from": 543,
+       "to": 546
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "db",
+         "span": {
+          "from": 550,
+          "to": 552
+         }
+        }
+       ],
+       "span": {
+        "from": 550,
+        "to": 552
+       }
+      },
+      "span": {
+       "from": 550,
+       "to": 552
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 543,
+     "to": 552
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 553
+  }
+ },
+ "diagnostics": []
+}

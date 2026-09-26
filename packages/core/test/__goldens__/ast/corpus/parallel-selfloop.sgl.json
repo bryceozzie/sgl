@@ -1,0 +1,500 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 62,
+     "to": 63
+    },
+    "span": {
+     "from": 62,
+     "to": 63
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "b",
+    "keySpan": {
+     "from": 64,
+     "to": 65
+    },
+    "span": {
+     "from": 64,
+     "to": 65
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "a",
+         "span": {
+          "from": 67,
+          "to": 68
+         }
+        }
+       ],
+       "span": {
+        "from": 67,
+        "to": 68
+       }
+      },
+      "span": {
+       "from": 67,
+       "to": 68
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "a",
+         "span": {
+          "from": 72,
+          "to": 73
+         }
+        }
+       ],
+       "span": {
+        "from": 72,
+        "to": 73
+       }
+      },
+      "span": {
+       "from": 72,
+       "to": 73
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 67,
+     "to": 73
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "a",
+         "span": {
+          "from": 74,
+          "to": 75
+         }
+        }
+       ],
+       "span": {
+        "from": 74,
+        "to": 75
+       }
+      },
+      "span": {
+       "from": 74,
+       "to": 75
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "a",
+         "span": {
+          "from": 79,
+          "to": 80
+         }
+        }
+       ],
+       "span": {
+        "from": 79,
+        "to": 80
+       }
+      },
+      "span": {
+       "from": 79,
+       "to": 80
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "value": {
+     "kind": "String",
+     "value": "twice",
+     "span": {
+      "from": 82,
+      "to": 89
+     }
+    },
+    "span": {
+     "from": 74,
+     "to": 89
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "a",
+         "span": {
+          "from": 90,
+          "to": 91
+         }
+        }
+       ],
+       "span": {
+        "from": 90,
+        "to": 91
+       }
+      },
+      "span": {
+       "from": 90,
+       "to": 91
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "b",
+         "span": {
+          "from": 95,
+          "to": 96
+         }
+        }
+       ],
+       "span": {
+        "from": 95,
+        "to": 96
+       }
+      },
+      "span": {
+       "from": 95,
+       "to": 96
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 90,
+     "to": 96
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "a",
+         "span": {
+          "from": 97,
+          "to": 98
+         }
+        }
+       ],
+       "span": {
+        "from": 97,
+        "to": 98
+       }
+      },
+      "span": {
+       "from": 97,
+       "to": 98
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "b",
+         "span": {
+          "from": 102,
+          "to": 103
+         }
+        }
+       ],
+       "span": {
+        "from": 102,
+        "to": 103
+       }
+      },
+      "span": {
+       "from": 102,
+       "to": 103
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 97,
+     "to": 103
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "a",
+         "span": {
+          "from": 104,
+          "to": 105
+         }
+        }
+       ],
+       "span": {
+        "from": 104,
+        "to": 105
+       }
+      },
+      "span": {
+       "from": 104,
+       "to": 105
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "b",
+         "span": {
+          "from": 109,
+          "to": 110
+         }
+        }
+       ],
+       "span": {
+        "from": 109,
+        "to": 110
+       }
+      },
+      "span": {
+       "from": 109,
+       "to": 110
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "value": {
+     "kind": "String",
+     "value": "third",
+     "span": {
+      "from": 112,
+      "to": 119
+     }
+    },
+    "span": {
+     "from": 104,
+     "to": 119
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "a",
+         "span": {
+          "from": 120,
+          "to": 121
+         }
+        }
+       ],
+       "span": {
+        "from": 120,
+        "to": 121
+       }
+      },
+      "span": {
+       "from": 120,
+       "to": 121
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "b",
+         "span": {
+          "from": 126,
+          "to": 127
+         }
+        }
+       ],
+       "span": {
+        "from": 126,
+        "to": 127
+       }
+      },
+      "span": {
+       "from": 126,
+       "to": 127
+      }
+     }
+    ],
+    "ops": [
+     "<->"
+    ],
+    "span": {
+     "from": 120,
+     "to": 127
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "b",
+         "span": {
+          "from": 128,
+          "to": 129
+         }
+        }
+       ],
+       "span": {
+        "from": 128,
+        "to": 129
+       }
+      },
+      "span": {
+       "from": 128,
+       "to": 129
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "b",
+         "span": {
+          "from": 133,
+          "to": 134
+         }
+        }
+       ],
+       "span": {
+        "from": 133,
+        "to": 134
+       }
+      },
+      "span": {
+       "from": 133,
+       "to": 134
+      }
+     }
+    ],
+    "ops": [
+     "--"
+    ],
+    "span": {
+     "from": 128,
+     "to": 134
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 135
+  }
+ },
+ "diagnostics": []
+}

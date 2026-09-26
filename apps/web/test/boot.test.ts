@@ -205,3 +205,70 @@ describe('boot never rejects (fix round 1, item 8)', () => {
     expect(result).toMatchObject({ created: true, clearHash: false, notices: ['boot-failed'] });
   });
 });
+
+describe('boot with a share link that carries imported documents (A9, DD-08 §15.3: I29)', () => {
+  const DOCS = [
+    { n: 'classes', t: 'Shared classes', s: '@classes: { Svc: {} }\n' },
+    { n: 'aws', t: 'AWS', s: 'lambda\n' },
+  ];
+
+  it('stores each as a new document in a new group with the main one, before the main one is remembered', async () => {
+    const store = createMemoryStore({ documents: [stored('mine', 'mine\n')], settings: { lastOpenDocId: 'mine' } });
+    const order: string[] = [];
+    const tracking: DocumentStore = {
+      ...store,
+      putDocument: async (r) => {
+        order.push(`doc:${r.id}`);
+        await store.putDocument(r);
+      },
+      putSetting: async (k, v) => {
+        order.push(`${k}:${String(v)}`);
+        await store.putSetting(k, v);
+      },
+    };
+    const hash = `#${await fragmentFor({ source: '@imports: ["./classes.sgl"]\napi: Svc\n', engineId: 'sgl.grid', imports: DOCS })}`;
+    const result = await bootDocument(deps(tracking, { hash }));
+
+    expect(result.record).toMatchObject({ id: 'new-4', source: '@imports: ["./classes.sgl"]\napi: Svc\n', group: 'new-1', engineId: 'sgl.grid' });
+    expect(await store.getDocument('new-2')).toEqual({
+      id: 'new-2',
+      title: 'Shared classes',
+      source: DOCS[0]!.s,
+      fileName: 'classes.sgl',
+      group: 'new-1',
+      engineId: 'sgl.grid',
+      engineOptions: {},
+      themeId: 'neutral-light',
+      createdAt: 1000,
+      updatedAt: 1000,
+    });
+    expect(await store.getDocument('new-3')).toMatchObject({ title: 'AWS', fileName: 'aws.sgl', group: 'new-1' });
+    expect(order).toEqual(['doc:new-2', 'doc:new-3', 'doc:new-4', 'lastOpenDocId:new-4']);
+    expect(await store.getDocument('mine')).toEqual(stored('mine', 'mine\n'));
+    expect(result.notices).toEqual([]);
+    expect(result.toasts).toEqual([{ message: 'Opened the shared diagram and its 2 imported documents as new documents.', kind: 'info' }]);
+  });
+
+  it('opening the same link twice makes a second, separate group', async () => {
+    const store = createMemoryStore();
+    const hash = `#${await fragmentFor({ source: 'a\n', imports: DOCS })}`;
+    let n = 0;
+    const first = await bootDocument(deps(store, { hash, newId: () => `a-${(n += 1)}` }));
+    const second = await bootDocument(deps(store, { hash, newId: () => `b-${(n += 1)}` }));
+    expect(first.record.group).toBeDefined();
+    expect(second.record.group).toBeDefined();
+    expect(first.record.group).not.toBe(second.record.group);
+    expect((await store.listDocuments()).length).toBe(6);
+  });
+
+  it('a bad bundle does not stop the main document opening; a toast says the imports could not be read', async () => {
+    const store = createMemoryStore();
+    const good = await fragmentFor({ source: 'a\n' });
+    const result = await bootDocument(deps(store, { hash: `#${good}&i=not-a-deflate-stream` }));
+    expect(result.record).toMatchObject({ source: 'a\n' });
+    expect(result.record.group).toBeUndefined();
+    expect(result.notices).toEqual(['share-opened']);
+    expect(result.toasts).toEqual([{ message: 'Opened the shared diagram, but its imported documents could not be read.', kind: 'error' }]);
+    expect(await store.listDocuments()).toHaveLength(1);
+  });
+});

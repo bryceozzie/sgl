@@ -1,0 +1,32 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 20,
+     "to": 21
+    },
+    "value": {
+     "kind": "Word",
+     "value": "NotDeclared",
+     "span": {
+      "from": 23,
+      "to": 34
+     }
+    },
+    "span": {
+     "from": 20,
+     "to": 34
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 35
+  }
+ },
+ "diagnostics": []
+}

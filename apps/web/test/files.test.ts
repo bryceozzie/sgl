@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { diagnostic, NO_SPAN, parse, resolve, type DocumentModel } from '@sgl/core';
+import { createImportLinker, resolveImports } from '@sgl/core/imports';
 import { toJson } from '@sgl/core/json';
 import { documentTitle, openableExtension, sanitizeFileStem, saveFileName } from '../src/state/filename.js';
 import { MAX_OPEN_BYTES, readOpenedFile, saveContent, type SaveInputs } from '../src/state/files.js';
@@ -26,6 +27,15 @@ describe('title: @title, then the first node key, then "diagram"', () => {
     expect(documentTitle(modelOf(''))).toBe('diagram');
     expect(documentTitle(modelOf('@title: ""\n'))).toBe('diagram');
     expect(documentTitle(modelOf('// only a comment\n'))).toBe('diagram');
+  });
+
+  it('skips a container grafted from an import: a document is not named after its first import (A9, DD-02 I12)', () => {
+    const host = { lookup: () => ({ key: 'aws', source: '@title: "AWS"\nlambda\n', candidates: 1 }) };
+    const imported = (source: string): DocumentModel => resolveImports(parse(source).ast, createImportLinker(host, { self: 'me' })).model;
+    const model = imported('@imports: [{ path: "./aws.sgl", as: aws }]\nweb: "Web"\n');
+    expect(model.root.children.map((c) => c.key)).toEqual(['aws', 'web']);
+    expect(documentTitle(model)).toBe('web');
+    expect(documentTitle(imported('@imports: [{ path: "./aws.sgl", as: aws }]\n'))).toBe('diagram');
   });
 });
 

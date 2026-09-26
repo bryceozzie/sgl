@@ -3,6 +3,8 @@ import type { Tree } from '@lezer/common';
 import {
   buildAst,
   compile,
+  diagnostic,
+  hasImports,
   parse,
   resolve,
   type CompileResult,
@@ -22,7 +24,7 @@ import { optionsForEngine } from './engine-options.js';
 import { distinctTextStyles } from './measure-styles.js';
 import { documentEngineOverride, documentThemeOverride } from './overrides.js';
 import { makePipelineError, type PipelineError } from './pipeline-error.js';
-import type { Cancel, GuardedStageName, LabelSizes, LastGood, PipelineDeps, Schedule } from './types.js';
+import type { Cancel, GuardedStageName, ImportsRuntime, LabelSizes, LastGood, PipelineDeps, Schedule } from './types.js';
 
 const DEFAULT_DEBOUNCE_MS = 120;
 /** DD-08 §11: the chip shows "laying out…" only after this long in flight, so
@@ -33,6 +35,14 @@ function defaultSchedule(fn: () => void, ms: number): Cancel {
   const id = setTimeout(fn, ms);
   return () => clearTimeout(id);
 }
+
+/** Thrown by a stage that holds, without an error (A9, I25): it blocks the
+ *  stages below it like a throw, and nothing is reported. */
+const HOLD = Symbol('hold');
+
+/** Models resolved without their imports because the `imports` chunk could
+ *  not load (A9 fix round 1, item 4): their compile drops `SGL2001` too. */
+const DEGRADED = new WeakSet<object>();
 
 function isAbortError(err: unknown): boolean {
   return err instanceof Error && err.name === 'AbortError';
@@ -158,6 +168,11 @@ export interface Pipeline {
   readonly theme: ReadonlySignal<StageResult<ResolvedTheme>>;
   readonly styled: ReadonlySignal<StageResult<StyledGraph>>;
   readonly diags: ReadonlySignal<readonly Diagnostic[]>;
+  /** A9 (DD-08 §15, I25): the document has `@imports` and the lazy chunk is
+   *  still loading, so `model` and everything below it hold. */
+  readonly held: ReadonlySignal<boolean>;
+  /** The lazy `imports` runtime, once a document with `@imports` loaded it. */
+  readonly imports: ReadonlySignal<ImportsRuntime | null>;
 
   // ---- document overrides (DD-08 §10) ----------------------------------------
   // `@theme` / `@layout.engine` in the document win over the pickers; `undefined`
@@ -251,16 +266,49 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   );
   const parsed = computed<StageResult<SglDocument>>(() => parsedOutcome.value.value);
 
+  // A9 (DD-08 §15, I25): a document with `@imports` is resolved by the lazy
+  // `imports` chunk, and until it has loaded the model stage holds — the
+  // canvas keeps the stored picture, and no render missing the imported
+  // classes can become `lastGood`. If loading fails (fix round 1, item 4),
+  // it resolves without them: one `SGL2027` warning, and the names that may
+  // come from them are not errors (I17); the load is tried again on the next
+  // change of the document, not in a loop.
+  const imports = signal<ImportsRuntime | null>(null);
+  const importsFailed = signal(false);
+  let importsLoad: Promise<void> | undefined;
+  let failedFor: SglDocument | undefined;
   const modelOutcome = guardedStage(
     [parsedOutcome],
     () => {
       const ast = parsed.value.value;
       inject('resolve');
+      if (hasImports(ast) && deps.loadImports) {
+        const runtime = imports.value;
+        if (runtime) return runtime.resolve(ast, docId.value);
+        const failed = importsFailed.value;
+        if (importsLoad === undefined && ast !== failedFor) {
+          importsLoad = deps.loadImports().then(
+            (loaded) => void (imports.value = loaded),
+            (err: unknown) => {
+              console.warn('[SGL] the imports could not be loaded.', err);
+              importsLoad = undefined;
+              failedFor = ast;
+              importsFailed.value = true;
+            },
+          );
+        }
+        if (!failed) throw HOLD;
+        const r = resolve(ast);
+        DEGRADED.add(r.model);
+        const entry = ast.entries.find((e) => e.kind === 'ConfigEntry' && e.key[0] === 'imports') ?? ast;
+        return { ...r, diagnostics: [diagnostic('SGL2027', entry.span), ...r.diagnostics.filter((d) => d.code !== 'SGL2002' && d.code !== 'SGL2013')] };
+      }
       return resolve(ast);
     },
     () => emptyStages().model,
   );
   const model = computed<ResolveResult>(() => modelOutcome.value.value);
+  const held = computed(() => modelOutcome.value.error === HOLD);
 
   // DD-08 §10: "@layout.engine / @theme in the document override the pickers."
   const documentThemeId = computed<string | undefined>(() => documentThemeOverride(model.value.model));
@@ -273,7 +321,9 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     () => {
       const documentModel = model.value.model;
       inject('compile');
-      return compile(documentModel);
+      const runtime = documentModel.imports && imports.value;
+      const g = runtime ? runtime.compile(documentModel) : compile(documentModel);
+      return DEGRADED.has(documentModel) ? { ...g, diagnostics: g.diagnostics.filter((d) => d.code !== 'SGL2001') } : g;
     },
     () => emptyStages().graph,
   );
@@ -394,7 +444,7 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   let lastReported: unknown = undefined;
   const disposeStageErrorEffect = effect(() => {
     const outcomes = [parsedOutcome.value, modelOutcome.value, graphOutcome.value, themeOutcome.value, styledOutcome.value, svgOutcome.value];
-    const failed = outcomes.find((o) => o.error !== undefined);
+    const failed = outcomes.find((o) => o.error !== undefined && o.error !== HOLD);
     if (failed === undefined) {
       lastReported = undefined;
       return;
@@ -711,6 +761,8 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     theme,
     styled,
     diags,
+    held,
+    imports,
     documentThemeId,
     documentEngineId,
     effectiveThemeId,

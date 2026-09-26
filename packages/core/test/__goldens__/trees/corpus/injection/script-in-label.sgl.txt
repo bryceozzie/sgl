@@ -1,0 +1,17 @@
+Document 0-133
+  LineComment 0-82
+  Entry 83-132
+    NodeDecl 83-132
+      NodeKey 83-84
+        Identifier 83-84
+      : 84-85
+      NodeValue 86-132
+        Block 86-132
+          { 86-87
+          Entry 88-130
+            ConfigEntry 88-130
+              ConfigKey 88-94
+              : 94-95
+              Value 96-130
+                String 96-130
+          } 131-132

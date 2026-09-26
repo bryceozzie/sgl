@@ -1,0 +1,353 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "sgl"
+    ],
+    "value": {
+     "kind": "String",
+     "value": "1.0",
+     "span": {
+      "from": 12,
+      "to": 17
+     }
+    },
+    "keySpan": {
+     "from": 4,
+     "to": 10
+    },
+    "span": {
+     "from": 4,
+     "to": 17
+    }
+   },
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "title"
+    ],
+    "value": {
+     "kind": "String",
+     "value": "JSON subset",
+     "span": {
+      "from": 31,
+      "to": 44
+     }
+    },
+    "keySpan": {
+     "from": 21,
+     "to": 29
+    },
+    "span": {
+     "from": 21,
+     "to": 44
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "gateway",
+    "keySpan": {
+     "from": 48,
+     "to": 57
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "API Gateway",
+        "span": {
+         "from": 71,
+         "to": 84
+        }
+       },
+       "keySpan": {
+        "from": 61,
+        "to": 69
+       },
+       "span": {
+        "from": 61,
+        "to": 84
+       }
+      }
+     ],
+     "span": {
+      "from": 59,
+      "to": 86
+     }
+    },
+    "span": {
+     "from": 48,
+     "to": 86
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "cache",
+    "keySpan": {
+     "from": 90,
+     "to": 97
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "type"
+       ],
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "String",
+          "value": "Datastore",
+          "span": {
+           "from": 111,
+           "to": 122
+          }
+         }
+        ],
+        "span": {
+         "from": 110,
+         "to": 123
+        }
+       },
+       "keySpan": {
+        "from": 101,
+        "to": 108
+       },
+       "span": {
+        "from": 101,
+        "to": 123
+       }
+      }
+     ],
+     "span": {
+      "from": 99,
+      "to": 125
+     }
+    },
+    "span": {
+     "from": 90,
+     "to": 125
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "notes",
+    "keySpan": {
+     "from": 129,
+     "to": 136
+    },
+    "value": {
+     "kind": "String",
+     "value": "A string under a non-@ key is always a label, never a class.",
+     "span": {
+      "from": 138,
+      "to": 200
+     }
+    },
+    "span": {
+     "from": 129,
+     "to": 200
+    }
+   },
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "classes"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "Datastore",
+       "isConfig": false,
+       "keySpan": {
+        "from": 222,
+        "to": 233
+       },
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "shape",
+          "isConfig": true,
+          "keySpan": {
+           "from": 237,
+           "to": 245
+          },
+          "value": {
+           "kind": "String",
+           "value": "cylinder",
+           "span": {
+            "from": 247,
+            "to": 257
+           }
+          },
+          "span": {
+           "from": 237,
+           "to": 257
+          }
+         }
+        ],
+        "span": {
+         "from": 235,
+         "to": 259
+        }
+       },
+       "span": {
+        "from": 222,
+        "to": 259
+       }
+      }
+     ],
+     "span": {
+      "from": 216,
+      "to": 263
+     }
+    },
+    "keySpan": {
+     "from": 204,
+     "to": 214
+    },
+    "span": {
+     "from": 204,
+     "to": 263
+    }
+   },
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "edges"
+    ],
+    "value": {
+     "kind": "Array",
+     "items": [
+      {
+       "kind": "Object",
+       "props": [
+        {
+         "kind": "Property",
+         "key": "from",
+         "isConfig": false,
+         "keySpan": {
+          "from": 285,
+          "to": 291
+         },
+         "value": {
+          "kind": "String",
+          "value": "gateway",
+          "span": {
+           "from": 293,
+           "to": 302
+          }
+         },
+         "span": {
+          "from": 285,
+          "to": 302
+         }
+        },
+        {
+         "kind": "Property",
+         "key": "to",
+         "isConfig": false,
+         "keySpan": {
+          "from": 304,
+          "to": 308
+         },
+         "value": {
+          "kind": "String",
+          "value": "cache",
+          "span": {
+           "from": 310,
+           "to": 317
+          }
+         },
+         "span": {
+          "from": 304,
+          "to": 317
+         }
+        },
+        {
+         "kind": "Property",
+         "key": "directed",
+         "isConfig": false,
+         "keySpan": {
+          "from": 319,
+          "to": 329
+         },
+         "value": {
+          "kind": "String",
+          "value": "forward",
+          "span": {
+           "from": 331,
+           "to": 340
+          }
+         },
+         "span": {
+          "from": 319,
+          "to": 340
+         }
+        },
+        {
+         "kind": "Property",
+         "key": "label",
+         "isConfig": true,
+         "keySpan": {
+          "from": 342,
+          "to": 350
+         },
+         "value": {
+          "kind": "String",
+          "value": "reads",
+          "span": {
+           "from": 352,
+           "to": 359
+          }
+         },
+         "span": {
+          "from": 342,
+          "to": 359
+         }
+        }
+       ],
+       "span": {
+        "from": 283,
+        "to": 361
+       }
+      }
+     ],
+     "span": {
+      "from": 277,
+      "to": 365
+     }
+    },
+    "keySpan": {
+     "from": 267,
+     "to": 275
+    },
+    "span": {
+     "from": 267,
+     "to": 365
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 368
+  }
+ },
+ "diagnostics": []
+}

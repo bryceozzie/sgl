@@ -1,0 +1,119 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "classes"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "Service",
+       "isConfig": false,
+       "keySpan": {
+        "from": 34,
+        "to": 41
+       },
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "shape",
+          "isConfig": true,
+          "keySpan": {
+           "from": 45,
+           "to": 51
+          },
+          "value": {
+           "kind": "Word",
+           "value": "round",
+           "span": {
+            "from": 53,
+            "to": 58
+           }
+          },
+          "span": {
+           "from": 45,
+           "to": 58
+          }
+         },
+         {
+          "kind": "Property",
+          "key": "extra",
+          "isConfig": false,
+          "keySpan": {
+           "from": 60,
+           "to": 65
+          },
+          "value": {
+           "kind": "Number",
+           "value": 1,
+           "span": {
+            "from": 67,
+            "to": 68
+           }
+          },
+          "span": {
+           "from": 60,
+           "to": 68
+          }
+         }
+        ],
+        "span": {
+         "from": 43,
+         "to": 70
+        }
+       },
+       "span": {
+        "from": 34,
+        "to": 70
+       }
+      }
+     ],
+     "span": {
+      "from": 30,
+      "to": 72
+     }
+    },
+    "keySpan": {
+     "from": 20,
+     "to": 28
+    },
+    "span": {
+     "from": 20,
+     "to": 72
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 73,
+     "to": 74
+    },
+    "value": {
+     "kind": "Word",
+     "value": "Service",
+     "span": {
+      "from": 76,
+      "to": 83
+     }
+    },
+    "span": {
+     "from": 73,
+     "to": 83
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 84
+  }
+ },
+ "diagnostics": []
+}

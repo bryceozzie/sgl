@@ -1,0 +1,87 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "imports"
+    ],
+    "value": {
+     "kind": "Array",
+     "items": [
+      {
+       "kind": "String",
+       "value": "./deep-6.sgl",
+       "span": {
+        "from": 52,
+        "to": 66
+       }
+      }
+     ],
+     "span": {
+      "from": 51,
+      "to": 67
+     }
+    },
+    "keySpan": {
+     "from": 41,
+     "to": 49
+    },
+    "span": {
+     "from": 41,
+     "to": 67
+    }
+   },
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "classes"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "D5",
+       "isConfig": false,
+       "keySpan": {
+        "from": 80,
+        "to": 82
+       },
+       "value": {
+        "kind": "Object",
+        "props": [],
+        "span": {
+         "from": 84,
+         "to": 86
+        }
+       },
+       "span": {
+        "from": 80,
+        "to": 86
+       }
+      }
+     ],
+     "span": {
+      "from": 78,
+      "to": 88
+     }
+    },
+    "keySpan": {
+     "from": 68,
+     "to": 76
+    },
+    "span": {
+     "from": 68,
+     "to": 88
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 89
+  }
+ },
+ "diagnostics": []
+}

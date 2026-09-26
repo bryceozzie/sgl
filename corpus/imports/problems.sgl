@@ -1,0 +1,5 @@
+// expects: SGL2021
+// An import's own problems are one warning here, with the count and the
+// first (A9, I17): broken-lib.sgl's unknown class is an error there, not here.
+@imports: ["./broken-lib.sgl"]
+x: S

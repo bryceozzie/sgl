@@ -1,0 +1,65 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 20,
+     "to": 21
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "back\\qslash",
+        "span": {
+         "from": 33,
+         "to": 46
+        }
+       },
+       "keySpan": {
+        "from": 25,
+        "to": 31
+       },
+       "span": {
+        "from": 25,
+        "to": 46
+       }
+      }
+     ],
+     "span": {
+      "from": 23,
+      "to": 48
+     }
+    },
+    "span": {
+     "from": 20,
+     "to": 48
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 49
+  }
+ },
+ "diagnostics": [
+  {
+   "code": "SGL1004",
+   "severity": "warning",
+   "message": "Unknown escape `\\q` in string; kept as written.",
+   "span": {
+    "from": 38,
+    "to": 40
+   }
+  }
+ ]
+}

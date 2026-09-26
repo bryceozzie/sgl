@@ -1,0 +1,7 @@
+// expects: SGL2022
+// Two imports with the same `as` (A9, I14): the second is skipped.
+@imports: [
+  { path: "./shared-classes.sgl", as: lib }
+  { path: "./aws-icons.sgl", as: lib }
+]
+x: lib.Service

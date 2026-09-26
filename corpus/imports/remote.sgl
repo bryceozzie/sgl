@@ -1,0 +1,4 @@
+// expects: SGL2025
+// Only relative paths (A9, I19): a URL is refused, and nothing is fetched.
+@imports: ["https://example.com/classes.sgl"]
+x

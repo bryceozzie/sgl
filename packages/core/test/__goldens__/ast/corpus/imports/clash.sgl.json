@@ -1,0 +1,157 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "imports"
+    ],
+    "value": {
+     "kind": "Array",
+     "items": [
+      {
+       "kind": "Object",
+       "props": [
+        {
+         "kind": "Property",
+         "key": "path",
+         "isConfig": false,
+         "keySpan": {
+          "from": 104,
+          "to": 108
+         },
+         "value": {
+          "kind": "String",
+          "value": "./shared-classes.sgl",
+          "span": {
+           "from": 110,
+           "to": 132
+          }
+         },
+         "span": {
+          "from": 104,
+          "to": 132
+         }
+        },
+        {
+         "kind": "Property",
+         "key": "as",
+         "isConfig": false,
+         "keySpan": {
+          "from": 134,
+          "to": 136
+         },
+         "value": {
+          "kind": "Word",
+          "value": "lib",
+          "span": {
+           "from": 138,
+           "to": 141
+          }
+         },
+         "span": {
+          "from": 134,
+          "to": 141
+         }
+        }
+       ],
+       "span": {
+        "from": 102,
+        "to": 143
+       }
+      },
+      {
+       "kind": "Object",
+       "props": [
+        {
+         "kind": "Property",
+         "key": "path",
+         "isConfig": false,
+         "keySpan": {
+          "from": 148,
+          "to": 152
+         },
+         "value": {
+          "kind": "String",
+          "value": "./aws-icons.sgl",
+          "span": {
+           "from": 154,
+           "to": 171
+          }
+         },
+         "span": {
+          "from": 148,
+          "to": 171
+         }
+        },
+        {
+         "kind": "Property",
+         "key": "as",
+         "isConfig": false,
+         "keySpan": {
+          "from": 173,
+          "to": 175
+         },
+         "value": {
+          "kind": "Word",
+          "value": "lib",
+          "span": {
+           "from": 177,
+           "to": 180
+          }
+         },
+         "span": {
+          "from": 173,
+          "to": 180
+         }
+        }
+       ],
+       "span": {
+        "from": 146,
+        "to": 182
+       }
+      }
+     ],
+     "span": {
+      "from": 98,
+      "to": 184
+     }
+    },
+    "keySpan": {
+     "from": 88,
+     "to": 96
+    },
+    "span": {
+     "from": 88,
+     "to": 184
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "x",
+    "keySpan": {
+     "from": 185,
+     "to": 186
+    },
+    "value": {
+     "kind": "Word",
+     "value": "lib.Service",
+     "span": {
+      "from": 188,
+      "to": 199
+     }
+    },
+    "span": {
+     "from": 185,
+     "to": 199
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 200
+  }
+ },
+ "diagnostics": []
+}

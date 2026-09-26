@@ -1,0 +1,6 @@
+// expects: SGL2018
+// `./dup.sgl` matches two documents, dup.sgl and dup.sgl.json: the
+// directory and the extension select nothing (A9, I1, I2). One is picked,
+// the same one every time, with a warning.
+@imports: ["./dup.sgl"]
+x: Dup

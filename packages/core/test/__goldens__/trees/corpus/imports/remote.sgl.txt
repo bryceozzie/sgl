@@ -1,0 +1,17 @@
+Document 0-144
+  LineComment 0-19
+  LineComment 20-95
+  Entry 96-141
+    ConfigEntry 96-141
+      ConfigKey 96-104
+      : 104-105
+      Value 106-141
+        Array 106-141
+          [ 106-107
+          Value 107-140
+            String 107-140
+          ] 140-141
+  Entry 142-143
+    NodeDecl 142-143
+      NodeKey 142-143
+        Identifier 142-143

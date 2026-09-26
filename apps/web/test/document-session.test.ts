@@ -157,6 +157,40 @@ describe('document session', () => {
     for (const r of a) expect(r.lastGoodSvg).toBe('<svg id="A-dark"/>');
   });
 
+  it('carries the record\'s file name and group through unchanged (A9, DD-08 §15.1)', () => {
+    const autosave = fakeAutosave();
+    const pipeline = fakePipeline(initial().source);
+    const session = createDocumentSession(pipeline as unknown as SessionPipeline, initial({ fileName: 'flow.sgl', group: 'g-1' }), autosave, () => 1);
+    expect(session.record.value).toMatchObject({ fileName: 'flow.sgl', group: 'g-1' });
+    pipeline.source.value = '@title: "Flow"\na: "A"\nb\n';
+    expect(autosave.requests.at(-1)).toMatchObject({ fileName: 'flow.sgl', group: 'g-1' });
+    const plain = initial({ id: 'doc-9' });
+    session.switchTo(plain, () => undefined);
+    expect('fileName' in session.record.value).toBe(false);
+    expect('group' in session.record.value).toBe(false);
+    session.switchTo(initial({ id: 'doc-8', fileName: 'x.txt', group: 'g-2' }), () => undefined);
+    expect(session.record.value).toMatchObject({ id: 'doc-8', fileName: 'x.txt', group: 'g-2' });
+  });
+
+  it('while the pipeline holds a document for its imports, typing is still saved, under the stored title (A9, I25; fix round 1, item 6)', () => {
+    const autosave = fakeAutosave();
+    const fresh = initial({ title: 'Stored title' });
+    const pipeline = { ...fakePipeline(fresh.source), held: signal(true) };
+    createDocumentSession(pipeline as unknown as SessionPipeline, fresh, autosave, () => 100);
+    // Nothing changed yet: nothing to save.
+    expect(autosave.requests).toEqual([]);
+    // Typed while the imports load: saved, so a stalled load and a closed tab
+    // lose nothing. The model a held pipeline shows is not this document's,
+    // so the title is the stored one, not one taken from it.
+    pipeline.source.value = '@title: "Somebody else"\n';
+    expect(autosave.requests).toHaveLength(1);
+    expect(autosave.requests[0]).toMatchObject({ id: 'doc-1', source: '@title: "Somebody else"\n', title: 'Stored title' });
+    // Released: the title follows the document's own model again.
+    pipeline.source.value = '@title: "Flow"\na: "A"\n';
+    pipeline.held.value = false;
+    expect(autosave.requests.at(-1)).toMatchObject({ id: 'doc-1', source: '@title: "Flow"\na: "A"\n', title: 'Flow' });
+  });
+
   it('remembers the extension a file was opened from (DD-08 §7)', () => {
     const autosave = fakeAutosave();
     const session = createDocumentSession(fakePipeline(initial().source) as unknown as SessionPipeline, initial(), autosave, () => 1);

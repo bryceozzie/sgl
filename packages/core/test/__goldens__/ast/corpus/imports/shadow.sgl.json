@@ -1,0 +1,129 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "imports"
+    ],
+    "value": {
+     "kind": "Array",
+     "items": [
+      {
+       "kind": "String",
+       "value": "./shared-classes.sgl",
+       "span": {
+        "from": 182,
+        "to": 204
+       }
+      }
+     ],
+     "span": {
+      "from": 181,
+      "to": 205
+     }
+    },
+    "keySpan": {
+     "from": 171,
+     "to": 179
+    },
+    "span": {
+     "from": 171,
+     "to": 205
+    }
+   },
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "classes"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "Service",
+       "isConfig": false,
+       "keySpan": {
+        "from": 218,
+        "to": 225
+       },
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "shape",
+          "isConfig": true,
+          "keySpan": {
+           "from": 229,
+           "to": 235
+          },
+          "value": {
+           "kind": "Word",
+           "value": "diamond",
+           "span": {
+            "from": 237,
+            "to": 244
+           }
+          },
+          "span": {
+           "from": 229,
+           "to": 244
+          }
+         }
+        ],
+        "span": {
+         "from": 227,
+         "to": 246
+        }
+       },
+       "span": {
+        "from": 218,
+        "to": 246
+       }
+      }
+     ],
+     "span": {
+      "from": 216,
+      "to": 248
+     }
+    },
+    "keySpan": {
+     "from": 206,
+     "to": 214
+    },
+    "span": {
+     "from": 206,
+     "to": 248
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "api",
+    "keySpan": {
+     "from": 249,
+     "to": 252
+    },
+    "value": {
+     "kind": "Word",
+     "value": "Critical",
+     "span": {
+      "from": 254,
+      "to": 262
+     }
+    },
+    "span": {
+     "from": 249,
+     "to": 262
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 263
+  }
+ },
+ "diagnostics": []
+}

@@ -3,7 +3,10 @@ import { defineConfig } from 'tsdown';
 export default defineConfig({
   // `src/json.ts` (A8 fix round 2): canonical JSON as `@sgl/core/json`, so an
   // app bundle that never saves `.sgl.json` at boot keeps `toJson` out of it.
-  entry: ['src/index.ts', 'src/editor.ts', 'src/json.ts'],
+  // `src/imports.ts` (A9, DD-02 §10.9): the import linker as
+  // `@sgl/core/imports`, loaded lazily by the app for a document with
+  // `@imports`; the boot path keeps only `resolve()`'s hook.
+  entry: ['src/index.ts', 'src/editor.ts', 'src/json.ts', 'src/imports.ts'],
   format: 'esm',
   dts: true,
   clean: true,

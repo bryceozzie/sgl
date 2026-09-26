@@ -205,7 +205,7 @@ function buildNodeValue(ctx: Ctx, node: SyntaxNode): Block | StringLit | Word | 
     case 'ConfigString':
       return { kind: 'String', value: decodeString(ctx, inner), span: at(inner) };
     case 'ClassRef':
-      return { kind: 'Word', value: textOf(ctx, inner), span: at(inner) };
+      return { kind: 'Word', value: qualifiedName(ctx, inner), span: at(inner) };
     default:
       return undefined;
   }
@@ -355,7 +355,7 @@ function buildValue(ctx: Ctx, node: SyntaxNode): Value | undefined {
     case 'Null':
       return { kind: 'Null', span: sp };
     case 'Word':
-      return { kind: 'Word', value: textOf(ctx, inner), span: sp };
+      return { kind: 'Word', value: qualifiedName(ctx, inner), span: sp };
     case 'Variable':
       return buildVariable(ctx, inner);
     case 'Array':
@@ -367,7 +367,18 @@ function buildValue(ctx: Ctx, node: SyntaxNode): Value | undefined {
   }
 }
 
-/** `$name` — the `$` is dropped, matching how `@` is dropped off a config key. */
+/** A `Word` or `ClassRef`: `Identifier ("." Identifier)*` (A9, I16), its
+ *  parts joined by `.` — the grammar skips space and comments between them,
+ *  and the name must not keep them. One part is just its text. */
+function qualifiedName(ctx: Ctx, node: SyntaxNode): string {
+  return node
+    .getChildren('Identifier')
+    .map((c) => textOf(ctx, c))
+    .join('.');
+}
+
+/** `$name` or `$ns.name` — the `$` is dropped, matching how `@` is dropped off
+ *  a config key. One token, so there is nothing between its parts. */
 function buildVariable(ctx: Ctx, node: SyntaxNode): Variable {
   return { kind: 'Variable', name: textOf(ctx, node).slice(1), span: at(node) };
 }

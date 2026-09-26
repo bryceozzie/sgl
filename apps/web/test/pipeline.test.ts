@@ -1,10 +1,14 @@
+import { effect } from '@preact/signals';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { asNodeId, diagnostic, NO_SPAN, parse, type Diagnostic, type LabelId } from '@sgl/core';
 import type { LayoutHost, LayoutInput, LayoutResult, ResolvedThemeMetricsView } from '@sgl/layout-api';
 import type { StageResult } from '@sgl/core';
 import { labelRunKey, StaticMetricsMeasurer } from '@sgl/measure';
+import { createImportsRuntime } from '../src/state/imports.js';
 import { createPipeline } from '../src/state/pipeline.js';
-import type { AppMeasurer, Cancel, Schedule } from '../src/state/types.js';
+import { createMemoryStore, type DocumentRecord, type DocumentStore } from '../src/state/storage.js';
+import type { AppMeasurer, Cancel, ImportsRuntime, Schedule } from '../src/state/types.js';
+import { createHarness, type Harness } from './harness.js';
 
 /**
  * DD-08 §3's signal graph and pipeline orchestration, driven with fakes for the
@@ -856,5 +860,147 @@ describe('the "Fit" offer (DD-08 §6)', () => {
     expect(env.pipeline.chip.value.offerFit).toBe(true);
     env.pipeline.fitDone();
     expect(env.pipeline.chip.value.offerFit).toBe(false);
+  });
+});
+
+describe('imports (A9, DD-08 §15: I24, I25)', () => {
+  const LIB = '@title: "lib"\n@classes: { Svc: { @shape: diamond } }\n';
+  const MAIN = '@imports: ["./lib.sgl"]\napi: Svc\n';
+  const record = (id: string, source: string, updatedAt = 1): DocumentRecord => ({
+    id,
+    title: id,
+    source,
+    engineId: 'sgl.grid',
+    engineOptions: {},
+    themeId: 'neutral-light',
+    createdAt: 1,
+    updatedAt,
+  });
+
+  /** The real runtime over a memory store, its resolves counted, loaded
+   *  when the test says so. */
+  function lazyRuntime(store: DocumentStore) {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const counts = { loads: 0, resolves: 0 };
+    const loadImports = vi.fn(async (): Promise<ImportsRuntime> => {
+      counts.loads += 1;
+      await gate;
+      const runtime = await createImportsRuntime(store, undefined);
+      return {
+        ...runtime,
+        resolve(ast, self) {
+          counts.resolves += 1;
+          return runtime.resolve(ast, self);
+        },
+      };
+    });
+    return { loadImports, counts, release };
+  }
+
+  const shapeOf = (h: Harness, id: string): string | undefined => h.pipeline.lastGood.value?.styled.graph.nodes[asNodeId(id)]?.shape;
+
+  it('a document with @imports holds its first resolve until the imports are loaded, and never adopts a render without them (I25)', async () => {
+    const store = createMemoryStore({ documents: [record('lib', LIB), record('main', MAIN)] });
+    const lazy = lazyRuntime(store);
+    const h = await createHarness(MAIN, { loadImports: lazy.loadImports }, { firstRender: false });
+    // Every render the canvas is ever given.
+    const adopted: (string | undefined)[] = [];
+    const stop = effect(() => {
+      const good = h.pipeline.lastGood.value;
+      if (good !== null) adopted.push(good.styled.graph.nodes[asNodeId('api')]?.shape);
+    });
+    h.pipeline.docId.value = 'main';
+    await h.settle();
+    expect(lazy.counts.loads).toBe(1);
+    expect(h.pipeline.lastGood.value).toBeNull();
+    expect(h.pipeline.diags.value).toEqual([]);
+    expect(h.pipeline.held.value).toBe(true);
+    expect(h.pipeline.pipelineError.value).toBeNull();
+
+    lazy.release();
+    await h.settle();
+    expect(h.pipeline.held.value).toBe(false);
+    expect(h.pipeline.diags.value).toEqual([]);
+    expect(shapeOf(h, 'api')).toBe('diamond');
+    expect(adopted.length).toBeGreaterThan(0);
+    expect(adopted.every((shape) => shape === 'diamond')).toBe(true);
+    stop();
+    h.dispose();
+  });
+
+  it('a document without @imports never loads them', async () => {
+    const lazy = lazyRuntime(createMemoryStore());
+    const h = await createHarness('a\nb\na -> b\n', { loadImports: lazy.loadImports });
+    h.setSource('a\nb\nc\na -> b -> c\n');
+    await h.settle();
+    expect(lazy.loadImports).not.toHaveBeenCalled();
+    h.dispose();
+  });
+
+  it('writing an imported document re-resolves the importer; its own autosave does not (I24)', async () => {
+    const store = createMemoryStore({ documents: [record('lib', LIB), record('main', MAIN)] });
+    const lazy = lazyRuntime(store);
+    lazy.release();
+    const h = await createHarness(MAIN, { loadImports: lazy.loadImports }, { firstRender: false });
+    h.pipeline.docId.value = 'main';
+    await h.settle();
+    expect(shapeOf(h, 'api')).toBe('diamond');
+
+    const before = lazy.counts.resolves;
+    await store.putDocument(record('main', MAIN, 2));
+    await store.putDocument(record('main', MAIN, 3));
+    expect(lazy.counts.resolves).toBe(before);
+
+    await store.putDocument(record('lib', LIB.replace('diamond', 'hexagon'), 2));
+    expect(lazy.counts.resolves).toBe(before + 1);
+    await h.settle();
+    expect(shapeOf(h, 'api')).toBe('hexagon');
+    h.dispose();
+  });
+
+  it('an unresolved import is a warning, and the rest renders (I17)', async () => {
+    const store = createMemoryStore({ documents: [record('main', MAIN)] });
+    const lazy = lazyRuntime(store);
+    lazy.release();
+    const h = await createHarness('@imports: ["./nope.sgl"]\napi\n', { loadImports: lazy.loadImports }, { firstRender: false });
+    h.pipeline.docId.value = 'main';
+    await h.settle();
+    expect(h.pipeline.diags.value.map((d) => `${d.code} ${d.severity}`)).toEqual(['SGL2017 warning']);
+    expect(h.pipeline.lastGood.value).not.toBeNull();
+    h.dispose();
+  });
+
+  it('if the imports cannot be loaded: one SGL2027 warning, no errors, the picture adopted; retried on the next change, not in a loop (I17; fix round 1, item 4)', async () => {
+    const KIT = '@vars: { tier: "prod" }\n@classes: { K: {} }\nx\n';
+    const store = createMemoryStore({ documents: [record('lib', LIB), record('kit', KIT), record('main', MAIN)] });
+    let attempts = 0;
+    const loadImports = vi.fn(async (): Promise<ImportsRuntime> => {
+      attempts += 1;
+      if (attempts === 1) throw new Error('offline, and not cached');
+      return createImportsRuntime(store, undefined);
+    });
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    // An imported class, an imported variable and an edge into a namespace:
+    // without the chunk, none of them may be an error.
+    const source = '@imports: ["./lib.sgl", { path: "./kit.sgl", as: kit }]\napi: Svc\nl: kit.K\ndb: { @label: $kit.tier }\napi -> kit.x\n';
+    const h = await createHarness(source, { loadImports }, { firstRender: false });
+    h.pipeline.docId.value = 'main';
+    await h.settle();
+    expect(h.pipeline.held.value).toBe(false);
+    expect(h.pipeline.diags.value.map((d) => `${d.code} ${d.severity}`)).toEqual(['SGL2027 warning']);
+    expect(h.pipeline.lastGood.value).not.toBeNull();
+    await h.settle();
+    expect(attempts).toBe(1); // no retry without a change
+
+    h.setSource(`${source}more\n`);
+    await h.settle();
+    expect(attempts).toBe(2);
+    await h.settle();
+    expect(h.pipeline.diags.value).toEqual([]);
+    expect(shapeOf(h, 'api')).toBe('diamond');
+    h.dispose();
   });
 });

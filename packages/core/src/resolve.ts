@@ -105,12 +105,16 @@ interface NameRef {
 // ---------------------------------------------------------------------------
 
 /** The grammar's `Identifier` token (`sgl.grammar`): what may follow `$`. */
-const IDENT = '[A-Za-z_](?:[A-Za-z0-9_]|-[A-Za-z0-9_])*';
-const IDENTIFIER = new RegExp(`^${IDENT}$`);
-/** A string that is exactly `$name` — the canonical-JSON spelling of a
- *  `Variable` (language spec §9: `"stroke": "$hot"`). */
-const WHOLE_REF = new RegExp(`^\\$(${IDENT})$`);
-const INTERPOLATION = new RegExp(`\\$\\{(${IDENT})\\}`, 'g');
+export const IDENT = '[A-Za-z_](?:[A-Za-z0-9_]|-[A-Za-z0-9_])*';
+export const IDENTIFIER = new RegExp(`^${IDENT}$`);
+/**
+ * `whole`: a string that is exactly `$name` — the canonical-JSON spelling of a
+ * `Variable` (language spec §9: `"stroke": "$hot"`); `interp`: `${name}` in a
+ * string. `@sgl/core/imports` swaps in patterns that also take `ns.name` for
+ * the length of one resolve of a document with import namespaces (A9, DD-02
+ * I16): anywhere else `"$user.name"` stays the literal text it always was.
+ */
+export const REF_PATTERNS = { whole: new RegExp(`^\\$(${IDENT})$`), interp: new RegExp(`\\$\\{(${IDENT})\\}`, 'g') };
 
 type RefPart = string | { readonly name: string };
 
@@ -142,12 +146,12 @@ class Ref {
 /** A string value: a `Ref` if it is exactly `$name` or holds a `${name}`,
  *  otherwise itself. A `$` anywhere else is literal text. */
 function stringValue(text: string, span: SourceSpan): string | Ref {
-  const whole = WHOLE_REF.exec(text);
+  const whole = REF_PATTERNS.whole.exec(text);
   if (whole !== null) return new Ref(text, [{ name: whole[1] as string }], true, span);
   if (!text.includes('${')) return text;
   const parts: RefPart[] = [];
   let last = 0;
-  for (const m of text.matchAll(INTERPOLATION)) {
+  for (const m of text.matchAll(REF_PATTERNS.interp)) {
     if (m.index > last) parts.push(text.slice(last, m.index));
     parts.push({ name: m[1] as string });
     last = m.index + m[0].length;
@@ -506,11 +510,14 @@ function buildEntries(entries: readonly Entry[], acc: Acc, classNames: ReadonlyS
  * needs more, and `v1: [$v0, $v0]`, `v2: [$v1, $v1]`, … stops within it
  * instead of doubling for as long as the chain is.
  */
-const MAX_VARIABLE_EXPANSION = 2 * 1024 * 1024;
+export const MAX_VARIABLE_EXPANSION = 2 * 1024 * 1024;
 
-interface Budget {
+/** Units spent, and how many substitutions were refused (only a
+ *  document's first is reported). One per root resolve: an import closure shares it (A9, DD-02
+ *  I21). */
+export interface Budget {
   used: number;
-  reported: boolean;
+  refused: number;
 }
 
 /** One declared variable. Its value is computed the first time it is used
@@ -518,19 +525,22 @@ interface Budget {
  *  its value mentions, which variable that is — resolved once, at the
  *  declaration, in the declaring scope — or `DROP` for a name already
  *  reported there (unknown, or not declared before it). */
-interface VarEntry {
+export interface VarEntry {
   readonly raw: unknown;
   readonly refs: Map<string, VarEntry | typeof DROP>;
   readonly budget: Budget;
   /** 0 not yet computed · 1 computing (its dependencies first) · 2 done. */
   state: 0 | 1 | 2;
   value: unknown;
+  /** An imported variable's (A9): where the problems of computing it go, to
+   *  be counted in its import's `SGL2021` (DD-02 I17). */
+  readonly sink?: Diagnostic[];
 }
 
 /** A container's own `@vars` and a pointer to its parent's: a lookup walks
  *  the chain, so a scope costs its own entries, not a copy of every
  *  enclosing one. */
-interface VarScope {
+export interface VarScope {
   readonly parent: VarScope | undefined;
   readonly entries: ReadonlyMap<string, VarEntry>;
   readonly budget: Budget;
@@ -538,11 +548,11 @@ interface VarScope {
 
 const FAILED = Symbol('failed');
 /** A substitution that dropped its value: the key is treated as absent. */
-const DROP = Symbol('drop');
+export const DROP = Symbol('drop');
 
 type Lookup = (name: string, ref: Ref) => unknown;
 
-const newScope = (): VarScope => ({ parent: undefined, entries: new Map(), budget: { used: 0, reported: false } });
+const newScope = (): VarScope => ({ parent: undefined, entries: new Map(), budget: { used: 0, refused: 0 } });
 
 function findVar(scope: VarScope | undefined, name: string): VarEntry | undefined {
   for (let s = scope; s !== undefined; s = s.parent) {
@@ -574,6 +584,10 @@ function sizeOf(v: unknown): number {
   return n;
 }
 
+/** The diagnostics lists that already have their `SGL2016`: one per
+ *  document, whoever spent the budget it shares (A9 fix round 1, I21). */
+const REFUSED = new WeakSet<Diagnostic[]>();
+
 /** Spend `cost` units, or report the one `SGL2016` a document gets and
  *  refuse. */
 function charge(budget: Budget, cost: number, ref: Ref, diags: Diagnostic[]): boolean {
@@ -581,8 +595,9 @@ function charge(budget: Budget, cost: number, ref: Ref, diags: Diagnostic[]): bo
     budget.used += cost;
     return true;
   }
-  if (!budget.reported) {
-    budget.reported = true;
+  budget.refused += 1;
+  if (!REFUSED.has(diags)) {
+    REFUSED.add(diags);
     diags.push(diagnostic('SGL2016', ref.span, { text: ref.text, limit: MAX_VARIABLE_EXPANSION }));
   }
   return false;
@@ -681,7 +696,7 @@ function materialise(entry: VarEntry, diags: Diagnostic[]): void {
           const d = e.refs.get(name);
           return d === undefined || d === DROP || d.value === FAILED ? DROP : d.value;
         },
-        diags,
+        e.sink ?? diags,
         e.budget,
       );
       e.value = v === DROP ? FAILED : v;
@@ -817,6 +832,7 @@ function resolveClassRefs(
 function collectClasses(
   classesEntries: readonly ConfigEntry[],
   diags: Diagnostic[],
+  imported: readonly string[] = [],
 ): { raw: Map<string, { props: Property[]; span: SourceSpan }>; classNames: ReadonlySet<string> } {
   const raw = new Map<string, { props: Property[]; span: SourceSpan }>();
   for (const entry of classesEntries) {
@@ -831,7 +847,7 @@ function collectClasses(
       else raw.set(prop.key, { props: [...bodyProps], span: prop.span });
     }
   }
-  return { raw, classNames: new Set(raw.keys()) };
+  return { raw, classNames: new Set([...imported, ...raw.keys()]) };
 }
 
 function buildClasses(
@@ -867,7 +883,7 @@ function buildClasses(
   }
 
   const classes: Record<string, ClassModel> = {};
-  for (const name of classNames) {
+  for (const name of raw.keys()) {
     const list = rawExtends.get(name) as NameRef[];
     const { config, authored } = configs.get(name) as { config: ConfigBag; authored?: ConfigBag };
     const written = writtenExtends.get(name) as (NameRef | Ref)[];
@@ -1049,13 +1065,33 @@ function finalizeContainer(
 const isKey = (entry: Entry, key: string): entry is ConfigEntry =>
   entry.kind === 'ConfigEntry' && entry.key[0] === key;
 
+/** Does the root have an `@imports` entry? A document that does is resolved
+ *  by `@sgl/core/imports` (A9, DD-02 §10.2; the app loads it only then,
+ *  DD-08 §15 I25). */
+export const hasImports = (ast: Document): boolean => ast.entries.some((e) => isKey(e, 'imports'));
+
+/**
+ * The seam `@sgl/core/imports` resolves a document with `@imports` through
+ * (A9, DD-02 §10.2, I7), and nothing else: everything import-specific is
+ * there, off the boot path (§10.9).
+ */
+export interface ImportSeam {
+  /** The imported variables around the root's own, with the closure's
+   *  shared budget (I13, I21). */
+  readonly scope: VarScope;
+  /** The imported class names, so references to them are known (I13). */
+  readonly classes: readonly string[];
+  /** Set by `resolve()`: the root scope, what the document exports (I15). */
+  vars?: VarScope;
+}
+
 /**
  * Fold the AST into the canonical document model: merge redeclarations, expand
  * shorthands, normalise dotted `@`-keys, substitute variables, collect classes.
  *
  * Design: DD-02.
  */
-export function resolve(ast: Document): ResolveResult {
+export function resolve(ast: Document, seam?: ImportSeam): ResolveResult {
   const diags: Diagnostic[] = [];
 
   // `@sgl` is discarded — `DocumentModel.sgl` is the fixed literal `'1.0'`,
@@ -1080,11 +1116,12 @@ export function resolve(ast: Document): ResolveResult {
   }
 
   const declared = rootVarsBag.config.vars;
-  const docScope = newScope();
+  const docScope = seam?.scope ?? newScope();
   const scoped = declared === undefined ? undefined : declareVars(declared, rootVarsBag.configSpans.get('vars') as SourceSpan, docScope, diags);
   const rootVars: VarScope = scoped ?? docScope;
+  if (seam) seam.vars = rootVars;
 
-  const { raw: rawClasses, classNames } = collectClasses(classesEntries, diags);
+  const { raw: rawClasses, classNames } = collectClasses(classesEntries, diags, seam?.classes);
   const { classes, classSpans } = buildClasses(rawClasses, classNames, rootVars, diags);
 
   const rootAcc: Acc = { config: {}, configSpans: new Map(), children: new Map(), edges: [] };

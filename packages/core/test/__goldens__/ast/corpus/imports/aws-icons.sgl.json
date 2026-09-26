@@ -1,0 +1,337 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "title"
+    ],
+    "value": {
+     "kind": "String",
+     "value": "AWS",
+     "span": {
+      "from": 256,
+      "to": 261
+     }
+    },
+    "keySpan": {
+     "from": 248,
+     "to": 254
+    },
+    "span": {
+     "from": 248,
+     "to": 261
+    }
+   },
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "vars"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "orange",
+       "isConfig": false,
+       "keySpan": {
+        "from": 271,
+        "to": 277
+       },
+       "value": {
+        "kind": "String",
+        "value": "#FF9900",
+        "span": {
+         "from": 279,
+         "to": 288
+        }
+       },
+       "span": {
+        "from": 271,
+        "to": 288
+       }
+      }
+     ],
+     "span": {
+      "from": 269,
+      "to": 290
+     }
+    },
+    "keySpan": {
+     "from": 262,
+     "to": 267
+    },
+    "span": {
+     "from": 262,
+     "to": 290
+    }
+   },
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "classes"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "Lambda",
+       "isConfig": false,
+       "keySpan": {
+        "from": 303,
+        "to": 309
+       },
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "shape",
+          "isConfig": true,
+          "keySpan": {
+           "from": 313,
+           "to": 319
+          },
+          "value": {
+           "kind": "Word",
+           "value": "hexagon",
+           "span": {
+            "from": 321,
+            "to": 328
+           }
+          },
+          "span": {
+           "from": 313,
+           "to": 328
+          }
+         },
+         {
+          "kind": "Property",
+          "key": "style.fill",
+          "isConfig": true,
+          "keySpan": {
+           "from": 330,
+           "to": 341
+          },
+          "value": {
+           "kind": "Variable",
+           "name": "orange",
+           "span": {
+            "from": 343,
+            "to": 350
+           }
+          },
+          "span": {
+           "from": 330,
+           "to": 350
+          }
+         }
+        ],
+        "span": {
+         "from": 311,
+         "to": 352
+        }
+       },
+       "span": {
+        "from": 303,
+        "to": 352
+       }
+      }
+     ],
+     "span": {
+      "from": 301,
+      "to": 354
+     }
+    },
+    "keySpan": {
+     "from": 291,
+     "to": 299
+    },
+    "span": {
+     "from": 291,
+     "to": 354
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "lambda",
+    "keySpan": {
+     "from": 355,
+     "to": 361
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "type"
+       ],
+       "value": {
+        "kind": "Word",
+        "value": "Lambda",
+        "span": {
+         "from": 372,
+         "to": 378
+        }
+       },
+       "keySpan": {
+        "from": 365,
+        "to": 370
+       },
+       "span": {
+        "from": 365,
+        "to": 378
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Lambda",
+        "span": {
+         "from": 388,
+         "to": 396
+        }
+       },
+       "keySpan": {
+        "from": 380,
+        "to": 386
+       },
+       "span": {
+        "from": 380,
+        "to": 396
+       }
+      }
+     ],
+     "span": {
+      "from": 363,
+      "to": 398
+     }
+    },
+    "span": {
+     "from": 355,
+     "to": 398
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "queue",
+    "keySpan": {
+     "from": 399,
+     "to": 404
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "SQS",
+        "span": {
+         "from": 416,
+         "to": 421
+        }
+       },
+       "keySpan": {
+        "from": 408,
+        "to": 414
+       },
+       "span": {
+        "from": 408,
+        "to": 421
+       }
+      }
+     ],
+     "span": {
+      "from": 406,
+      "to": 423
+     }
+    },
+    "span": {
+     "from": 399,
+     "to": 423
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "lambda",
+         "span": {
+          "from": 424,
+          "to": 430
+         }
+        }
+       ],
+       "span": {
+        "from": 424,
+        "to": 430
+       }
+      },
+      "span": {
+       "from": 424,
+       "to": 430
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "queue",
+         "span": {
+          "from": 434,
+          "to": 439
+         }
+        }
+       ],
+       "span": {
+        "from": 434,
+        "to": 439
+       }
+      },
+      "span": {
+       "from": 434,
+       "to": 439
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 424,
+     "to": 439
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 440
+  }
+ },
+ "diagnostics": []
+}

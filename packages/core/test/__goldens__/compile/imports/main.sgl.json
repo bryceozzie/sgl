@@ -1,0 +1,330 @@
+{
+  "nodes": {
+    "aws": {
+      "id": "aws",
+      "path": [
+        "aws"
+      ],
+      "parent": null,
+      "children": [
+        "aws.lambda",
+        "aws.queue"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:aws",
+      "ports": [],
+      "config": {
+        "label": "AWS"
+      },
+      "hidden": false,
+      "span": {
+        "from": 373,
+        "to": 409
+      }
+    },
+    "aws.lambda": {
+      "id": "aws.lambda",
+      "path": [
+        "aws",
+        "lambda"
+      ],
+      "parent": "aws",
+      "children": [],
+      "depth": 1,
+      "shape": "hexagon",
+      "classes": [
+        "aws.Lambda"
+      ],
+      "labelId": "l:aws.lambda",
+      "ports": [],
+      "config": {
+        "type": [
+          "aws.Lambda"
+        ],
+        "label": "Lambda"
+      },
+      "hidden": false,
+      "span": {
+        "from": 373,
+        "to": 409
+      }
+    },
+    "aws.queue": {
+      "id": "aws.queue",
+      "path": [
+        "aws",
+        "queue"
+      ],
+      "parent": "aws",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:aws.queue",
+      "ports": [],
+      "config": {
+        "label": "SQS"
+      },
+      "hidden": false,
+      "span": {
+        "from": 373,
+        "to": 409
+      }
+    },
+    "api": {
+      "id": "api",
+      "path": [
+        "api"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "round",
+      "classes": [
+        "Service",
+        "Critical"
+      ],
+      "labelId": "l:api",
+      "ports": [],
+      "config": {
+        "type": [
+          "Critical"
+        ],
+        "label": "API (prod)"
+      },
+      "hidden": false,
+      "span": {
+        "from": 412,
+        "to": 461
+      }
+    },
+    "worker": {
+      "id": "worker",
+      "path": [
+        "worker"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "hexagon",
+      "classes": [
+        "aws.Lambda"
+      ],
+      "labelId": "l:worker",
+      "ports": [],
+      "config": {
+        "type": [
+          "aws.Lambda"
+        ]
+      },
+      "hidden": false,
+      "span": {
+        "from": 462,
+        "to": 480
+      }
+    },
+    "db": {
+      "id": "db",
+      "path": [
+        "db"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:db",
+      "ports": [],
+      "config": {
+        "style": {
+          "stroke": "#FF9900"
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 481,
+        "to": 515
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-c8d370596b700ec1",
+      "from": {
+        "node": "api"
+      },
+      "to": {
+        "node": "worker"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 516,
+        "to": 542
+      }
+    },
+    {
+      "id": "e-8d0f822cd129fe3d",
+      "from": {
+        "node": "worker"
+      },
+      "to": {
+        "node": "aws.queue"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 516,
+        "to": 542
+      }
+    },
+    {
+      "id": "e-0bd9070ec90e32b5",
+      "from": {
+        "node": "api"
+      },
+      "to": {
+        "node": "db"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 543,
+        "to": 552
+      }
+    },
+    {
+      "id": "e-a1d0c7e66c368101",
+      "from": {
+        "node": "aws.lambda"
+      },
+      "to": {
+        "node": "aws.queue"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": "aws",
+      "hidden": false,
+      "span": {
+        "from": 373,
+        "to": 409
+      }
+    }
+  ],
+  "rootChildren": [
+    "aws",
+    "api",
+    "worker",
+    "db"
+  ],
+  "order": [
+    "aws",
+    "aws.lambda",
+    "aws.queue",
+    "api",
+    "worker",
+    "db"
+  ],
+  "labels": {
+    "l:aws": {
+      "id": "l:aws",
+      "owner": {
+        "kind": "node",
+        "id": "aws"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "AWS"
+        }
+      ]
+    },
+    "l:aws.lambda": {
+      "id": "l:aws.lambda",
+      "owner": {
+        "kind": "node",
+        "id": "aws.lambda"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Lambda"
+        }
+      ]
+    },
+    "l:aws.queue": {
+      "id": "l:aws.queue",
+      "owner": {
+        "kind": "node",
+        "id": "aws.queue"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "SQS"
+        }
+      ]
+    },
+    "l:api": {
+      "id": "l:api",
+      "owner": {
+        "kind": "node",
+        "id": "api"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "API (prod)"
+        }
+      ]
+    },
+    "l:worker": {
+      "id": "l:worker",
+      "owner": {
+        "kind": "node",
+        "id": "worker"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "worker"
+        }
+      ]
+    },
+    "l:db": {
+      "id": "l:db",
+      "owner": {
+        "kind": "node",
+        "id": "db"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "db"
+        }
+      ]
+    }
+  },
+  "title": "Imports",
+  "meta": {
+    "nodeCount": 6,
+    "edgeCount": 4,
+    "containerCount": 1
+  }
+}

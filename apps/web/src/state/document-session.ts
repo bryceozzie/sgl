@@ -6,7 +6,7 @@ import type { DocumentRecord } from './storage.js';
 import type { LastGood } from './types.js';
 
 /** The slice of the pipeline a document record is built from. */
-export type SessionPipeline = Pick<Pipeline, 'source' | 'model' | 'engineId' | 'engineOptions' | 'themeId' | 'lastGood'>;
+export type SessionPipeline = Pick<Pipeline, 'source' | 'model' | 'engineId' | 'engineOptions' | 'themeId' | 'lastGood'> & Partial<Pick<Pipeline, 'held'>>;
 
 export interface DocumentSession {
   /** The open document as it stands now — DD-08 §9's whole record. */
@@ -58,7 +58,10 @@ export function createDocumentSession(pipeline: SessionPipeline, initial: Docume
     const ext = fileExtension.value;
     const out: { -readonly [K in keyof DocumentRecord]: DocumentRecord[K] } = {
       id: from.id,
-      title: documentTitle(pipeline.model.value.model),
+      // A9 (I25): held for its imports, the model is not this document's yet,
+      // so the title stays the stored one; the source is still saved (fix
+      // round 1, item 6).
+      title: pipeline.held?.value ? from.title : documentTitle(pipeline.model.value.model),
       source: pipeline.source.value,
       engineId: pipeline.engineId.value,
       engineOptions: pipeline.engineOptions.value,
@@ -71,6 +74,9 @@ export function createDocumentSession(pipeline: SessionPipeline, initial: Docume
       pictures.set(out, good);
     } else if (from.lastGoodSvg !== undefined) out.lastGoodSvg = from.lastGoodSvg;
     if (ext !== undefined) out.fileExtension = ext;
+    // A9 (DD-08 §15.1): carried unchanged from the stored record.
+    if (from.fileName !== undefined) out.fileName = from.fileName;
+    if (from.group !== undefined) out.group = from.group;
     return out;
   });
 
@@ -138,6 +144,8 @@ function sameContent(a: DocumentRecord, b: DocumentRecord): boolean {
     a.themeId === b.themeId &&
     a.createdAt === b.createdAt &&
     a.fileExtension === b.fileExtension &&
+    a.fileName === b.fileName &&
+    a.group === b.group &&
     samePicture(a, b)
   );
 }

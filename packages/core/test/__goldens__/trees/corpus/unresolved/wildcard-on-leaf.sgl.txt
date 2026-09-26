@@ -1,0 +1,26 @@
+Document 0-49
+  LineComment 0-19
+  Entry 20-26
+    NodeDecl 20-26
+      NodeKey 20-26
+        Identifier 20-26
+  Entry 27-31
+    NodeDecl 27-31
+      NodeKey 27-31
+        Identifier 27-31
+  Entry 32-48
+    EdgeStmt 32-48
+      Endpoint 32-38
+        Path 32-38
+          PathStep 32-36
+            PathSegment 32-36
+              Identifier 32-36
+          . 36-37
+          PathStep 37-38
+            Wildcard 37-38
+      EdgeOp 39-41
+      Endpoint 42-48
+        Path 42-48
+          PathStep 42-48
+            PathSegment 42-48
+              Identifier 42-48

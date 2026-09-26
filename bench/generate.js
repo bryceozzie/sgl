@@ -17,7 +17,7 @@
 // `pnpm test` would ENOENT on it). It is committed as a plain corpus fixture
 // instead, like every other `unresolved/*.sgl` document.
 
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { scaleDocument } from './scale-document.js';
 
@@ -31,4 +31,22 @@ write('n50.sgl', scaleDocument(50));
 write('n500.sgl', scaleDocument(500));
 write('n2000.sgl', scaleDocument(2000));
 
-console.log('bench/generate.js: wrote n50.sgl, n500.sgl, n2000.sgl');
+// A9's keystroke bench (DD-02 §10.8, `packages/core/test/imports-keystroke.test.ts`):
+// a 50-node document importing a 500-node library, both in `bench/imports/`
+// rather than `corpus/`, so no corpus sweep links them. The library brings
+// classes and a variable; imported without `as`, its nodes stay where they
+// are (an SGL2026 info), so the importer is still a 50-node document whose
+// every keystroke resolves one large import.
+const importsDir = fileURLToPath(new URL('./imports/', import.meta.url));
+mkdirSync(importsDir, { recursive: true });
+const library = scaleDocument(500).replace(
+  '@title: "Scale 500"\n',
+  '@title: "Scale 500"\n@vars: { brand: "#4F46E5" }\n@classes: {\n  Service: { @shape: round, @style.stroke: $brand }\n  Critical: { @extends: Service, @style.strokeWidth: 3 }\n}\n',
+);
+const importer = scaleDocument(50)
+  .replace('@title: "Scale 50"\n', '@title: "Scale 50, importing"\n@imports: ["./lib500.sgl"]\n')
+  .replace('n0: { @label: "Node number 0" }', 'n0: { @type: Critical, @label: "Node number 0" }');
+writeFileSync(`${importsDir}lib500.sgl`, library, 'utf8');
+writeFileSync(`${importsDir}importer50.sgl`, importer, 'utf8');
+
+console.log('bench/generate.js: wrote n50.sgl, n500.sgl, n2000.sgl, imports/lib500.sgl, imports/importer50.sgl');

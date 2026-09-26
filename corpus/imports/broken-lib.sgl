@@ -1,0 +1,3 @@
+// expects: SGL2002
+// A library with a problem of its own: problems.sgl imports it.
+@classes: { S: { @extends: Missing } }

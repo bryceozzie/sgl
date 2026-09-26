@@ -562,3 +562,200 @@ rest of the keystrokes land — use `page.keyboard.insertText()` (one atomic inp
 whenever the test's point is the document's *final* state, not the act of typing it. And test 2's
 "delete a closing brace" needs two `Backspace` presses after `Control+End`, not one — the example
 document ends with a trailing newline, so the cursor lands on an empty final line first.
+
+---
+
+## 15. Imports (A9): the app side, design
+
+**Status: implemented (A9 phase 2, branch `feat/imports`, 2026-09-26).** Deviations are listed in
+§15.6. The language and core side, with decisions I1–I22 and I31–I32, is DD-02 §10. This section continues the numbering. **⚑**
+marks a decision that changes a product promise, for the human.
+
+### 15.1 Records
+
+- **Two optional, additive fields on `DocumentRecord` (§9).**
+  - `fileName`: the name Open read the file under, or the name a share bundle gave the document.
+    DD-02 I3 uses it.
+  - `group`: an id shared by the documents one share link created. DD-02 I4 uses it.
+
+  `DocumentSession` carries both unchanged from the base record, as it does `fileExtension`, and
+  `isDocumentRecord` accepts a record with or without them. *They are additive, like
+  `fileExtension`. An older record simply has neither.*
+
+### 15.2 The stored-document index and freshness
+
+- **I23. The index is an in-memory snapshot of the stored documents.** For each document it
+  holds `{ id, title, fileName?, group?, source, updatedAt }`. `lastGoodSvg` is left out, because
+  it is large and imports do not need it.
+  - **Loading.** It is loaded together with the lazy `imports` chunk, by one `listDocuments()`.
+  - **Keeping it current.** The app's own writes keep it current: `DocumentStore.putDocument` is
+    wrapped, so every write updates the document's entry synchronously **when the write is
+    issued**. That covers autosave, its flush on a switch or on leaving the page, Open, New
+    document and a share link. The wrapper is installed before the list is read, and an entry
+    written after that wins over the listed one.
+  - **Other tabs.** The index is read again when the tab becomes visible (`visibilitychange`).
+
+  *The pipeline is synchronous and storage is not. A snapshot that the app's own writes keep
+  current lets `lookup` answer synchronously, and it is never staler than the last write this tab
+  issued.*
+- **I24. Only a document you import can re-run your pipeline.** Each entry is its own signal,
+  and a `names` signal maps normalised names to ids and changes only when a title, a `fileName`,
+  a group or the set of documents changes. The host's `lookup` reads `names` and the signals of
+  the entries it matched, so the `model` computed depends on exactly the documents it imports, at
+  any depth, and on naming.
+  - **When.** It re-resolves synchronously on the write: when the imported document's autosave
+    is issued (500 ms after an edit), and at the latest in the flush a switch performs before the
+    importer is loaded (§9). So switching to B, editing it and switching back to A shows B's edit.
+  - **What does not trigger it.** The importer's own autosave. A title change anywhere does,
+    which is rare.
+
+  *@preact/signals tracks dependencies at this grain for free. One signal over the whole index
+  would re-resolve on every autosave of the open document.*
+- **I25. A document with `@imports` waits for its imports before its first resolve.** When
+  core's `hasImports(ast)` is true and the chunk or index is not loaded yet, the pipeline starts
+  loading them and the `model` stage holds. The canvas meanwhile shows the stored `lastGoodSvg`
+  (§5, J6), and no diagnostic is shown. A document without `@imports` never loads the chunk.
+  Offline, the chunk comes from the precache (§12), like `share`. The session still saves what is
+  typed meanwhile, under the stored title (fix round 1). If the chunk or its index cannot load, see
+  §15.6. *Without this, the first render
+  would briefly show every import as unresolved, and a render missing the imported classes could
+  become `lastGood`.*
+- **The host** (DD-02 I1–I6) lives in that chunk. `lookup(path, fromId)` runs DD-02 I19's check,
+  then I4a (an empty name finds nothing), then the tiers of I4 over the index (only the
+  importer's own group, or only the ungrouped documents: H2), then I5. It returns `{ key: id, source, candidates }`, with
+  the pick's name available for `SGL2018`. The pipeline creates one linker per open document,
+  with `self` set to the open document's id and one `ImportCache` that lives as long as the
+  pipeline. Switching documents is the ordinary `switchTo` (§7). The host also records which
+  documents the last resolve used (the import closure), for Share.
+
+### 15.3 Share bundling
+
+- **I26. The format is backwards compatible in both directions.**
+  `#s={…}&e={…}&t={…}&i={base64url(deflate-raw(utf8(JSON)))}`, where the JSON is
+  `{"v":1,"d":[{"n":"classes","t":"Shared classes","s":"…"}, …]}`: `n` is the normalised name
+  (DD-02 I2) the document was matched by, `t` its title, and `s` its source. `s=`, `e=` and `t=`
+  are unchanged.
+  - A link without `i=` opens exactly as today.
+  - An older app ignores `i=` (it reads only `s`, `e` and `t`), opens the main document, and shows
+    `SGL2017` warnings: a degraded result, not a broken one.
+  - A `v` other than 1 is ignored with a toast.
+
+  *A second stream loses a little compression compared with one shared stream, but it keeps every
+  existing link and every older build working.*
+- **I27. What goes in the bundle.** The import closure of the importer's last resolve, in the
+  order a breadth-first walk first reached it, and only documents that actually resolved; a
+  document reached under two names (its file name and its save name, say) is carried under each,
+  so every import of it resolves for the recipient (fix round 1).
+  - **The size guard.** The 8 000-character guard (§8) measures the **whole** link, `i=`
+    included. When it warns, the dialog also says that "Save as a file instead" saves this
+    document without its imports (bundling them is F5).
+  - ~~**A name for two documents.**~~ Removed in fix round 1: since H2 every lookup in a closure
+    stays inside one group, or among the ungrouped documents, so one name cannot lead to two
+    documents; the dialog's paragraph and `ShareBundle.differ` were dead code.
+- **I28. Caps on the receiving side.**
+  - `i=` is inflated under its own 2 MB cap, with the same sliced reader as `s=`. The two caps
+    together bound a link at 4 MB inflated.
+  - At most 64 entries, matching DD-02 I21.
+  - Every entry must have string `n`, `t` and `s`, and its `s` must be valid UTF-8.
+  - **A bad bundle does not invalidate the link.** The main document still opens, and a toast
+    says its imported documents could not be read.
+- **I29. ⚑ The bundled documents are stored as new documents, in a new group with the main
+  document.**
+  - Each is a record with `fileName: n + '.sgl'` and `title: t`, created before the main
+    document becomes `lastOpenDocId`.
+  - The toast becomes "Opened the shared diagram and its N imported documents as new documents."
+  - Opening the same link twice makes a second, separate group.
+  - A link pasted into an open tab takes the same route through the reload (§8, F13).
+
+  *Imports must keep resolving after a reload or a switch, and the recipient can open and edit
+  what they received. A copy held only in memory would vanish, and a per-record copy of the
+  imports would be F5's `.sglpack` inside the store.* This changes §8's promise that opening a
+  share link creates *a* new local document: one link can now add several documents to Documents ▾.
+- **I30. The recipient's own documents never collide with a bundle.** Each bundled document is
+  found first through its group (DD-02 I4), and it is invisible to every other document. A
+  recipient's own `classes` neither makes the bundle ambiguous nor changes; the recipient's other
+  documents keep resolving to their own `classes`. **Imports the bundle does not satisfy are not
+  found** (`SGL2017`): a received document never imports the recipient's own documents (human
+  decision H2, 2026-09-26; the design first let them fall through).
+
+### 15.4 Documents ▾
+
+- **Documents ▾ is otherwise unchanged:** grouped documents are listed like any other. Its lazy
+  loading is the prerequisite in DD-02 §10.9, and the only difference it makes is that the list
+  loads a chunk the first time it is opened (precached, so offline too). Delete and rename stay
+  E17. When they are built, renaming or deleting a document changes what its importers resolve
+  to, through I24.
+
+### 15.5 Test plan (app; the core's is DD-02 §10.8)
+
+- **Unit tests (Node).**
+  - `import-host.test.ts`: every rule of I1–I5 and I19, the tiers and the group isolation of
+    I30, and the ambiguity pick.
+  - `import-index.test.ts`, against the memory store: the put wrapper, the ordering between the
+    list and the wrapper, and refresh on visibility.
+  - `pipeline.test.ts`:
+    - Editing an imported document re-resolves the importer.
+    - The importer's own autosave does not (I24), counted by resolve calls.
+    - The I25 gate holds the model and never adopts a render that lacks the imports.
+  - `share.test.ts`: encoding and decoding `i=`, with and without `i=` and with an unknown `v`; an
+    `i=` decompression bomb against its cap; malformed entries; the length guard counting `i=`.
+  - `boot.test.ts`: the bundle is stored as a group; a bad bundle still opens the main document.
+  - `documents.test.ts`: `fileName` and `group` round-trip through `DocumentSession`.
+- **End to end (`e2e/imports.spec.ts`, Chromium).**
+  - Open two files; A imports B; A renders B's classes.
+  - Switch to B, edit a class, switch back: A shows the change.
+  - An unresolved import is a warning and A still renders.
+  - A cycle and an ambiguity each show their warning.
+  - Share A, open the link in a fresh context: A and B are both in Documents ▾ and A renders the
+    same.
+  - The same link opened by a recipient who has their own `classes`: that recipient's other
+    document does not change.
+  - Offline: reload a document with imports and it renders from the precache (extending
+    `offline.spec.ts`).
+  - `csp.spec.ts` shows no violation.
+- **Size.** `pnpm size` passes after the Documents ▾ prerequisite, with the `imports` chunk
+  excluded by name; `check-core-chunks.mjs` fails if the chunk reaches the entry.
+
+**As built**, each item above maps to:
+
+| Item | Test |
+|---|---|
+| `import-host.test.ts`: I1–I5, I19, tiers, I30 groups, the ambiguity pick | `apps/web/test/import-host.test.ts`, with H2 (no fall-through), I4a (empty names) and the tier order inside a group |
+| `import-index.test.ts`: the put wrapper, list/wrapper ordering, refresh | `apps/web/test/import-index.test.ts` (refresh drops a deleted document); the `visibilitychange` wiring itself in `imports-runtime.test.ts` |
+| Share's closure (I27): breadth first, only resolved, every name a document was reached by; H2 | `apps/web/test/imports-runtime.test.ts` |
+| `pipeline.test.ts`: I24 re-resolve on an imported write and not on the importer's own; I25 gate; the chunk failing to load | `apps/web/test/pipeline.test.ts`, "imports (A9, DD-08 §15: I24, I25)" |
+| `share.test.ts`: `i=` codec, no `i=`, other `v`, bomb, malformed, 64 entries, length guard | `apps/web/test/share.test.ts` |
+| `boot.test.ts`: group stored before `lastOpenDocId`, twice is two groups, bad bundle | `apps/web/test/boot.test.ts` |
+| `documents.test.ts`: `fileName`/`group` through `DocumentSession` | `apps/web/test/document-session.test.ts` (where `DocumentSession`'s tests live), with "typing is still saved while the pipeline holds" |
+| e2e: A imports B and renders its classes; B edited, A follows | `e2e/imports.spec.ts` (the first case, and `as: aws` with a grafted subtree) |
+| e2e: unresolved is a warning, A still renders | `e2e/imports.spec.ts` |
+| e2e: a cycle and an ambiguity each warn | `e2e/imports.spec.ts` (two cases) |
+| e2e: Share to a fresh context, both in Documents ▾, same rendering; the recipient's own `classes` unchanged | `e2e/imports.spec.ts`, with H2 (a received document importing the recipient's `notes`: `SGL2017`), the dialog's note and a long link counting `i=` |
+| e2e: offline reload of a document with imports | `e2e/offline.spec.ts`, "the lazy imports chunk comes from the precache" |
+| e2e: `csp.spec.ts` shows no violation | `e2e/csp.spec.ts` loads the imports chunk and makes an `i=` link under the policy |
+| Size | `pnpm size`; `check-core-chunks.mjs` (entry reachability, and no import catalogue row at boot) |
+
+### 15.6 As built: deviations
+
+- **The `filename` chunk.** `state/filename.ts` is shared by `file-actions` and `imports`, so the
+  bundler gives it a chunk of its own; `size-limit` excludes it by name too, and the offline case
+  checks it comes from the service worker.
+- **If the chunk or its index cannot load** (not precached, say), the pipeline does not hold for
+  ever: it resolves and compiles with core's `resolve()`/`compile()`, which keep `@imports` with
+  no effect (DD-02 I9's step A), adds one `SGL2027` warning at `@imports` (a row in the **boot**
+  catalogue, since `IMPORT_CATALOGUE` is in the chunk that failed), and drops `SGL2002`, `SGL2013`
+  and `SGL2001`, so under I17 the picture is still adopted (fix round 1; they were errors). The
+  load is tried again on the next change of the document, not in a loop. Offline the chunk is
+  precached, so this is a broken install, not a normal path.
+- **While the pipeline holds** (I25), the session saves what is typed, under the stored title:
+  the model a title would come from is not this document's yet (fix round 1: it saved nothing, so a
+  stalled load and a closed tab lost the typing).
+- **The index's put wrapper** does not call `isDocumentRecord`, which reads `lastGoodSvg`, a getter
+  that renders on read in autosave's records; it checks `id` and `source` only.
+- **A link pasted into an open tab** (I29's last bullet) takes the same route as a link opened in a
+  new tab, as designed: `watchShareLinks` flushes autosave and reloads, and boot stores the link's
+  documents as a group (`openShared`, in the lazy `share` chunk since fix round 1). F13 is about
+  that reload itself (undo history, the memory-store fallback), not about imports.
+- **H2 (human decision 2026-09-26).** A document in a share group resolves only within its group
+  (I30 above, DD-02 I4); the dialog's "a name for two documents" paragraph (I27) was removed as
+  unreachable.

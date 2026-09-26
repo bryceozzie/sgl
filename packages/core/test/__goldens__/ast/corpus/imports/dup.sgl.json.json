@@ -1,0 +1,78 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "classes"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "Dup",
+       "isConfig": false,
+       "keySpan": {
+        "from": 16,
+        "to": 21
+       },
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "shape",
+          "isConfig": true,
+          "keySpan": {
+           "from": 25,
+           "to": 33
+          },
+          "value": {
+           "kind": "String",
+           "value": "diamond",
+           "span": {
+            "from": 35,
+            "to": 44
+           }
+          },
+          "span": {
+           "from": 25,
+           "to": 44
+          }
+         }
+        ],
+        "span": {
+         "from": 23,
+         "to": 46
+        }
+       },
+       "span": {
+        "from": 16,
+        "to": 46
+       }
+      }
+     ],
+     "span": {
+      "from": 14,
+      "to": 48
+     }
+    },
+    "keySpan": {
+     "from": 2,
+     "to": 12
+    },
+    "span": {
+     "from": 2,
+     "to": 48
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 51
+  }
+ },
+ "diagnostics": []
+}

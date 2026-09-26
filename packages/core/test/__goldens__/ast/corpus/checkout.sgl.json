@@ -1,0 +1,1325 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "sgl"
+    ],
+    "value": {
+     "kind": "String",
+     "value": "1.0",
+     "span": {
+      "from": 79,
+      "to": 84
+     }
+    },
+    "keySpan": {
+     "from": 73,
+     "to": 77
+    },
+    "span": {
+     "from": 73,
+     "to": 84
+    }
+   },
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "title"
+    ],
+    "value": {
+     "kind": "String",
+     "value": "Checkout Flow",
+     "span": {
+      "from": 93,
+      "to": 108
+     }
+    },
+    "keySpan": {
+     "from": 85,
+     "to": 91
+    },
+    "span": {
+     "from": 85,
+     "to": 108
+    }
+   },
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "theme"
+    ],
+    "value": {
+     "kind": "String",
+     "value": "neutral-light",
+     "span": {
+      "from": 117,
+      "to": 132
+     }
+    },
+    "keySpan": {
+     "from": 109,
+     "to": 115
+    },
+    "span": {
+     "from": 109,
+     "to": 132
+    }
+   },
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "layout"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "engine",
+       "isConfig": false,
+       "keySpan": {
+        "from": 144,
+        "to": 150
+       },
+       "value": {
+        "kind": "String",
+        "value": "layered",
+        "span": {
+         "from": 152,
+         "to": 161
+        }
+       },
+       "span": {
+        "from": 144,
+        "to": 161
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "direction",
+       "isConfig": false,
+       "keySpan": {
+        "from": 163,
+        "to": 172
+       },
+       "value": {
+        "kind": "Word",
+        "value": "right",
+        "span": {
+         "from": 174,
+         "to": 179
+        }
+       },
+       "span": {
+        "from": 163,
+        "to": 179
+       }
+      }
+     ],
+     "span": {
+      "from": 142,
+      "to": 181
+     }
+    },
+    "keySpan": {
+     "from": 133,
+     "to": 140
+    },
+    "span": {
+     "from": 133,
+     "to": 181
+    }
+   },
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "vars"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "hot",
+       "isConfig": false,
+       "keySpan": {
+        "from": 192,
+        "to": 195
+       },
+       "value": {
+        "kind": "String",
+        "value": "#DC2626",
+        "span": {
+         "from": 197,
+         "to": 206
+        }
+       },
+       "span": {
+        "from": 192,
+        "to": 206
+       }
+      }
+     ],
+     "span": {
+      "from": 190,
+      "to": 208
+     }
+    },
+    "keySpan": {
+     "from": 183,
+     "to": 188
+    },
+    "span": {
+     "from": 183,
+     "to": 208
+    }
+   },
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "classes"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "Service",
+       "isConfig": false,
+       "keySpan": {
+        "from": 224,
+        "to": 231
+       },
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "shape",
+          "isConfig": true,
+          "keySpan": {
+           "from": 237,
+           "to": 243
+          },
+          "value": {
+           "kind": "Word",
+           "value": "round",
+           "span": {
+            "from": 245,
+            "to": 250
+           }
+          },
+          "span": {
+           "from": 237,
+           "to": 250
+          }
+         }
+        ],
+        "span": {
+         "from": 235,
+         "to": 252
+        }
+       },
+       "span": {
+        "from": 224,
+        "to": 252
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "Store",
+       "isConfig": false,
+       "keySpan": {
+        "from": 255,
+        "to": 260
+       },
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "shape",
+          "isConfig": true,
+          "keySpan": {
+           "from": 268,
+           "to": 274
+          },
+          "value": {
+           "kind": "Word",
+           "value": "cylinder",
+           "span": {
+            "from": 276,
+            "to": 284
+           }
+          },
+          "span": {
+           "from": 268,
+           "to": 284
+          }
+         }
+        ],
+        "span": {
+         "from": 266,
+         "to": 286
+        }
+       },
+       "span": {
+        "from": 255,
+        "to": 286
+       }
+      },
+      {
+       "kind": "Property",
+       "key": "External",
+       "isConfig": false,
+       "keySpan": {
+        "from": 289,
+        "to": 297
+       },
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "shape",
+          "isConfig": true,
+          "keySpan": {
+           "from": 302,
+           "to": 308
+          },
+          "value": {
+           "kind": "Word",
+           "value": "cloud",
+           "span": {
+            "from": 310,
+            "to": 315
+           }
+          },
+          "span": {
+           "from": 302,
+           "to": 315
+          }
+         },
+         {
+          "kind": "Property",
+          "key": "style.strokeDash",
+          "isConfig": true,
+          "keySpan": {
+           "from": 317,
+           "to": 334
+          },
+          "value": {
+           "kind": "String",
+           "value": "3 3",
+           "span": {
+            "from": 336,
+            "to": 341
+           }
+          },
+          "span": {
+           "from": 317,
+           "to": 341
+          }
+         }
+        ],
+        "span": {
+         "from": 300,
+         "to": 343
+        }
+       },
+       "span": {
+        "from": 289,
+        "to": 343
+       }
+      }
+     ],
+     "span": {
+      "from": 220,
+      "to": 345
+     }
+    },
+    "keySpan": {
+     "from": 210,
+     "to": 218
+    },
+    "span": {
+     "from": 210,
+     "to": 345
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "edge",
+    "keySpan": {
+     "from": 347,
+     "to": 351
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "CDN",
+        "span": {
+         "from": 363,
+         "to": 368
+        }
+       },
+       "keySpan": {
+        "from": 355,
+        "to": 361
+       },
+       "span": {
+        "from": 355,
+        "to": 368
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "type"
+       ],
+       "value": {
+        "kind": "Word",
+        "value": "External",
+        "span": {
+         "from": 377,
+         "to": 385
+        }
+       },
+       "keySpan": {
+        "from": 370,
+        "to": 375
+       },
+       "span": {
+        "from": 370,
+        "to": 385
+       }
+      }
+     ],
+     "span": {
+      "from": 353,
+      "to": 387
+     }
+    },
+    "span": {
+     "from": 347,
+     "to": 387
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "storefront",
+    "keySpan": {
+     "from": 389,
+     "to": 399
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Storefront",
+        "span": {
+         "from": 413,
+         "to": 425
+        }
+       },
+       "keySpan": {
+        "from": 405,
+        "to": 411
+       },
+       "span": {
+        "from": 405,
+        "to": 425
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "web",
+       "keySpan": {
+        "from": 429,
+        "to": 432
+       },
+       "value": {
+        "kind": "Word",
+        "value": "Service",
+        "span": {
+         "from": 435,
+         "to": 442
+        }
+       },
+       "span": {
+        "from": 429,
+        "to": 442
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "bff",
+       "keySpan": {
+        "from": 445,
+        "to": 448
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [
+         {
+          "kind": "ConfigEntry",
+          "key": [
+           "type"
+          ],
+          "value": {
+           "kind": "Word",
+           "value": "Service",
+           "span": {
+            "from": 460,
+            "to": 467
+           }
+          },
+          "keySpan": {
+           "from": 453,
+           "to": 458
+          },
+          "span": {
+           "from": 453,
+           "to": 467
+          }
+         },
+         {
+          "kind": "ConfigEntry",
+          "key": [
+           "label"
+          ],
+          "value": {
+           "kind": "String",
+           "value": "BFF",
+           "span": {
+            "from": 477,
+            "to": 482
+           }
+          },
+          "keySpan": {
+           "from": 469,
+           "to": 475
+          },
+          "span": {
+           "from": 469,
+           "to": 482
+          }
+         }
+        ],
+        "span": {
+         "from": 451,
+         "to": 484
+        }
+       },
+       "span": {
+        "from": 445,
+        "to": 484
+       }
+      },
+      {
+       "kind": "EdgeStmt",
+       "endpoints": [
+        {
+         "kind": "Endpoint",
+         "path": {
+          "kind": "PathExpr",
+          "root": false,
+          "parents": 0,
+          "segments": [
+           {
+            "kind": "Name",
+            "value": "web",
+            "span": {
+             "from": 488,
+             "to": 491
+            }
+           }
+          ],
+          "span": {
+           "from": 488,
+           "to": 491
+          }
+         },
+         "span": {
+          "from": 488,
+          "to": 491
+         }
+        },
+        {
+         "kind": "Endpoint",
+         "path": {
+          "kind": "PathExpr",
+          "root": false,
+          "parents": 0,
+          "segments": [
+           {
+            "kind": "Name",
+            "value": "bff",
+            "span": {
+             "from": 495,
+             "to": 498
+            }
+           }
+          ],
+          "span": {
+           "from": 495,
+           "to": 498
+          }
+         },
+         "span": {
+          "from": 495,
+          "to": 498
+         }
+        }
+       ],
+       "ops": [
+        "->"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "GraphQL",
+        "span": {
+         "from": 500,
+         "to": 509
+        }
+       },
+       "span": {
+        "from": 488,
+        "to": 509
+       }
+      }
+     ],
+     "span": {
+      "from": 401,
+      "to": 511
+     }
+    },
+    "span": {
+     "from": 389,
+     "to": 511
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "payments",
+    "keySpan": {
+     "from": 513,
+     "to": 521
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Payments",
+        "span": {
+         "from": 535,
+         "to": 545
+        }
+       },
+       "keySpan": {
+        "from": 527,
+        "to": 533
+       },
+       "span": {
+        "from": 527,
+        "to": 545
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "layout"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "engine",
+          "isConfig": false,
+          "keySpan": {
+           "from": 559,
+           "to": 565
+          },
+          "value": {
+           "kind": "Word",
+           "value": "grid",
+           "span": {
+            "from": 567,
+            "to": 571
+           }
+          },
+          "span": {
+           "from": 559,
+           "to": 571
+          }
+         },
+         {
+          "kind": "Property",
+          "key": "columns",
+          "isConfig": false,
+          "keySpan": {
+           "from": 573,
+           "to": 580
+          },
+          "value": {
+           "kind": "Number",
+           "value": 2,
+           "span": {
+            "from": 582,
+            "to": 583
+           }
+          },
+          "span": {
+           "from": 573,
+           "to": 583
+          }
+         }
+        ],
+        "span": {
+         "from": 557,
+         "to": 585
+        }
+       },
+       "keySpan": {
+        "from": 548,
+        "to": 555
+       },
+       "span": {
+        "from": 548,
+        "to": 585
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "api",
+       "keySpan": {
+        "from": 589,
+        "to": 592
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [
+         {
+          "kind": "ConfigEntry",
+          "key": [
+           "type"
+          ],
+          "value": {
+           "kind": "Word",
+           "value": "Service",
+           "span": {
+            "from": 607,
+            "to": 614
+           }
+          },
+          "keySpan": {
+           "from": 600,
+           "to": 605
+          },
+          "span": {
+           "from": 600,
+           "to": 614
+          }
+         },
+         {
+          "kind": "ConfigEntry",
+          "key": [
+           "style",
+           "stroke"
+          ],
+          "value": {
+           "kind": "Variable",
+           "name": "hot",
+           "span": {
+            "from": 631,
+            "to": 635
+           }
+          },
+          "keySpan": {
+           "from": 616,
+           "to": 629
+          },
+          "span": {
+           "from": 616,
+           "to": 635
+          }
+         }
+        ],
+        "span": {
+         "from": 598,
+         "to": 637
+        }
+       },
+       "span": {
+        "from": 589,
+        "to": 637
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "ledger",
+       "keySpan": {
+        "from": 640,
+        "to": 646
+       },
+       "value": {
+        "kind": "Word",
+        "value": "Store",
+        "span": {
+         "from": 649,
+         "to": 654
+        }
+       },
+       "span": {
+        "from": 640,
+        "to": 654
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "outbox",
+       "keySpan": {
+        "from": 657,
+        "to": 663
+       },
+       "value": {
+        "kind": "Word",
+        "value": "Store",
+        "span": {
+         "from": 666,
+         "to": 671
+        }
+       },
+       "span": {
+        "from": 657,
+        "to": 671
+       }
+      },
+      {
+       "kind": "EdgeStmt",
+       "endpoints": [
+        {
+         "kind": "Endpoint",
+         "path": {
+          "kind": "PathExpr",
+          "root": false,
+          "parents": 0,
+          "segments": [
+           {
+            "kind": "Name",
+            "value": "api",
+            "span": {
+             "from": 675,
+             "to": 678
+            }
+           }
+          ],
+          "span": {
+           "from": 675,
+           "to": 678
+          }
+         },
+         "span": {
+          "from": 675,
+          "to": 678
+         }
+        },
+        {
+         "kind": "Endpoint",
+         "path": {
+          "kind": "PathExpr",
+          "root": false,
+          "parents": 0,
+          "segments": [
+           {
+            "kind": "Name",
+            "value": "ledger",
+            "span": {
+             "from": 682,
+             "to": 688
+            }
+           }
+          ],
+          "span": {
+           "from": 682,
+           "to": 688
+          }
+         },
+         "span": {
+          "from": 682,
+          "to": 688
+         }
+        }
+       ],
+       "ops": [
+        "->"
+       ],
+       "span": {
+        "from": 675,
+        "to": 688
+       }
+      },
+      {
+       "kind": "EdgeStmt",
+       "endpoints": [
+        {
+         "kind": "Endpoint",
+         "path": {
+          "kind": "PathExpr",
+          "root": false,
+          "parents": 0,
+          "segments": [
+           {
+            "kind": "Name",
+            "value": "api",
+            "span": {
+             "from": 691,
+             "to": 694
+            }
+           }
+          ],
+          "span": {
+           "from": 691,
+           "to": 694
+          }
+         },
+         "span": {
+          "from": 691,
+          "to": 694
+         }
+        },
+        {
+         "kind": "Endpoint",
+         "path": {
+          "kind": "PathExpr",
+          "root": false,
+          "parents": 0,
+          "segments": [
+           {
+            "kind": "Name",
+            "value": "outbox",
+            "span": {
+             "from": 698,
+             "to": 704
+            }
+           }
+          ],
+          "span": {
+           "from": 698,
+           "to": 704
+          }
+         },
+         "span": {
+          "from": 698,
+          "to": 704
+         }
+        }
+       ],
+       "ops": [
+        "->"
+       ],
+       "value": {
+        "kind": "Block",
+        "entries": [
+         {
+          "kind": "ConfigEntry",
+          "key": [
+           "label"
+          ],
+          "value": {
+           "kind": "String",
+           "value": "async",
+           "span": {
+            "from": 716,
+            "to": 723
+           }
+          },
+          "keySpan": {
+           "from": 708,
+           "to": 714
+          },
+          "span": {
+           "from": 708,
+           "to": 723
+          }
+         },
+         {
+          "kind": "ConfigEntry",
+          "key": [
+           "style"
+          ],
+          "value": {
+           "kind": "Word",
+           "value": "dashed",
+           "span": {
+            "from": 733,
+            "to": 739
+           }
+          },
+          "keySpan": {
+           "from": 725,
+           "to": 731
+          },
+          "span": {
+           "from": 725,
+           "to": 739
+          }
+         }
+        ],
+        "span": {
+         "from": 706,
+         "to": 741
+        }
+       },
+       "span": {
+        "from": 691,
+        "to": 741
+       }
+      }
+     ],
+     "span": {
+      "from": 523,
+      "to": 743
+     }
+    },
+    "span": {
+     "from": 513,
+     "to": 743
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "psp",
+    "keySpan": {
+     "from": 745,
+     "to": 748
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Stripe",
+        "span": {
+         "from": 760,
+         "to": 768
+        }
+       },
+       "keySpan": {
+        "from": 752,
+        "to": 758
+       },
+       "span": {
+        "from": 752,
+        "to": 768
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "type"
+       ],
+       "value": {
+        "kind": "Word",
+        "value": "External",
+        "span": {
+         "from": 777,
+         "to": 785
+        }
+       },
+       "keySpan": {
+        "from": 770,
+        "to": 775
+       },
+       "span": {
+        "from": 770,
+        "to": 785
+       }
+      }
+     ],
+     "span": {
+      "from": 750,
+      "to": 787
+     }
+    },
+    "span": {
+     "from": 745,
+     "to": 787
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "edge",
+         "span": {
+          "from": 789,
+          "to": 793
+         }
+        }
+       ],
+       "span": {
+        "from": 789,
+        "to": 793
+       }
+      },
+      "span": {
+       "from": 789,
+       "to": 793
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "storefront",
+         "span": {
+          "from": 797,
+          "to": 807
+         }
+        },
+        {
+         "kind": "Name",
+         "value": "web",
+         "span": {
+          "from": 808,
+          "to": 811
+         }
+        }
+       ],
+       "span": {
+        "from": 797,
+        "to": 811
+       }
+      },
+      "span": {
+       "from": 797,
+       "to": 811
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 789,
+     "to": 811
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "storefront",
+         "span": {
+          "from": 812,
+          "to": 822
+         }
+        },
+        {
+         "kind": "Name",
+         "value": "bff",
+         "span": {
+          "from": 823,
+          "to": 826
+         }
+        }
+       ],
+       "span": {
+        "from": 812,
+        "to": 826
+       }
+      },
+      "span": {
+       "from": 812,
+       "to": 826
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "payments",
+         "span": {
+          "from": 830,
+          "to": 838
+         }
+        },
+        {
+         "kind": "Name",
+         "value": "api",
+         "span": {
+          "from": 839,
+          "to": 842
+         }
+        }
+       ],
+       "span": {
+        "from": 830,
+        "to": 842
+       }
+      },
+      "span": {
+       "from": 830,
+       "to": 842
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "value": {
+     "kind": "String",
+     "value": "POST /charge",
+     "span": {
+      "from": 844,
+      "to": 858
+     }
+    },
+    "span": {
+     "from": 812,
+     "to": 858
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "payments",
+         "span": {
+          "from": 859,
+          "to": 867
+         }
+        },
+        {
+         "kind": "Name",
+         "value": "api",
+         "span": {
+          "from": 868,
+          "to": 871
+         }
+        }
+       ],
+       "span": {
+        "from": 859,
+        "to": 871
+       }
+      },
+      "span": {
+       "from": 859,
+       "to": 871
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "psp",
+         "span": {
+          "from": 875,
+          "to": 878
+         }
+        }
+       ],
+       "span": {
+        "from": 875,
+        "to": 878
+       }
+      },
+      "span": {
+       "from": 875,
+       "to": 878
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "value": {
+     "kind": "String",
+     "value": "authorise",
+     "span": {
+      "from": 880,
+      "to": 891
+     }
+    },
+    "span": {
+     "from": 859,
+     "to": 891
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 892
+  }
+ },
+ "diagnostics": []
+}

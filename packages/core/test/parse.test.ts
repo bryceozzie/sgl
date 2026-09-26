@@ -141,3 +141,26 @@ function walk(node: Ast, out: SourceSpan[]): void {
       return;
   }
 }
+
+describe('qualified names in the AST (A9, I16)', () => {
+  it('a qualified class shorthand is one Word, dots and all', () => {
+    const { ast, diagnostics } = parse('lambda: aws.Lambda');
+    expect(diagnostics).toEqual([]);
+    const decl = ast.entries[0];
+    expect(decl?.kind === 'NodeDecl' && decl.value).toMatchObject({ kind: 'Word', value: 'aws.Lambda', span: { from: 8, to: 18 } });
+  });
+
+  it('a qualified Word ignores whitespace and comments between its parts', () => {
+    const { ast, diagnostics } = parse('@type: aws /* c */ . Lambda');
+    expect(diagnostics).toEqual([]);
+    const entry = ast.entries[0];
+    expect(entry?.kind === 'ConfigEntry' && entry.value).toMatchObject({ kind: 'Word', value: 'aws.Lambda' });
+  });
+
+  it('a qualified variable keeps its whole name, the `$` dropped', () => {
+    const { ast, diagnostics } = parse('@x: $aws.brand');
+    expect(diagnostics).toEqual([]);
+    const entry = ast.entries[0];
+    expect(entry?.kind === 'ConfigEntry' && entry.value).toMatchObject({ kind: 'Variable', name: 'aws.brand' });
+  });
+});

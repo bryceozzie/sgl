@@ -1,0 +1,77 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 20,
+     "to": 21
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "classes"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "X",
+          "isConfig": false,
+          "keySpan": {
+           "from": 37,
+           "to": 38
+          },
+          "value": {
+           "kind": "Object",
+           "props": [],
+           "span": {
+            "from": 40,
+            "to": 42
+           }
+          },
+          "span": {
+           "from": 37,
+           "to": 42
+          }
+         }
+        ],
+        "span": {
+         "from": 35,
+         "to": 44
+        }
+       },
+       "keySpan": {
+        "from": 25,
+        "to": 33
+       },
+       "span": {
+        "from": 25,
+        "to": 44
+       }
+      }
+     ],
+     "span": {
+      "from": 23,
+      "to": 46
+     }
+    },
+    "span": {
+     "from": 20,
+     "to": 46
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 47
+  }
+ },
+ "diagnostics": []
+}

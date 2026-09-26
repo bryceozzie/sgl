@@ -1,0 +1,440 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "sgl"
+    ],
+    "value": {
+     "kind": "String",
+     "value": "1.0",
+     "span": {
+      "from": 12,
+      "to": 17
+     }
+    },
+    "keySpan": {
+     "from": 4,
+     "to": 10
+    },
+    "span": {
+     "from": 4,
+     "to": 17
+    }
+   },
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "title"
+    ],
+    "value": {
+     "kind": "String",
+     "value": "JSON subset",
+     "span": {
+      "from": 31,
+      "to": 44
+     }
+    },
+    "keySpan": {
+     "from": 21,
+     "to": 29
+    },
+    "span": {
+     "from": 21,
+     "to": 44
+    }
+   },
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "classes"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "Datastore",
+       "isConfig": false,
+       "keySpan": {
+        "from": 66,
+        "to": 77
+       },
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "shape",
+          "isConfig": true,
+          "keySpan": {
+           "from": 87,
+           "to": 95
+          },
+          "value": {
+           "kind": "String",
+           "value": "cylinder",
+           "span": {
+            "from": 97,
+            "to": 107
+           }
+          },
+          "span": {
+           "from": 87,
+           "to": 107
+          }
+         }
+        ],
+        "span": {
+         "from": 79,
+         "to": 113
+        }
+       },
+       "span": {
+        "from": 66,
+        "to": 113
+       }
+      }
+     ],
+     "span": {
+      "from": 60,
+      "to": 117
+     }
+    },
+    "keySpan": {
+     "from": 48,
+     "to": 58
+    },
+    "span": {
+     "from": 48,
+     "to": 117
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "gateway",
+    "keySpan": {
+     "from": 121,
+     "to": 130
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "API Gateway",
+        "span": {
+         "from": 148,
+         "to": 161
+        }
+       },
+       "keySpan": {
+        "from": 138,
+        "to": 146
+       },
+       "span": {
+        "from": 138,
+        "to": 161
+       }
+      }
+     ],
+     "span": {
+      "from": 132,
+      "to": 165
+     }
+    },
+    "span": {
+     "from": 121,
+     "to": 165
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "queue",
+    "keySpan": {
+     "from": 169,
+     "to": 176
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Queue",
+        "span": {
+         "from": 194,
+         "to": 201
+        }
+       },
+       "keySpan": {
+        "from": 184,
+        "to": 192
+       },
+       "span": {
+        "from": 184,
+        "to": 201
+       }
+      }
+     ],
+     "span": {
+      "from": 178,
+      "to": 205
+     }
+    },
+    "span": {
+     "from": 169,
+     "to": 205
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "cache",
+    "keySpan": {
+     "from": 209,
+     "to": 216
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "type"
+       ],
+       "value": {
+        "kind": "Array",
+        "items": [
+         {
+          "kind": "String",
+          "value": "Datastore",
+          "span": {
+           "from": 241,
+           "to": 252
+          }
+         }
+        ],
+        "span": {
+         "from": 233,
+         "to": 258
+        }
+       },
+       "keySpan": {
+        "from": 224,
+        "to": 231
+       },
+       "span": {
+        "from": 224,
+        "to": 258
+       }
+      }
+     ],
+     "span": {
+      "from": 218,
+      "to": 262
+     }
+    },
+    "span": {
+     "from": 209,
+     "to": 262
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "notes",
+    "keySpan": {
+     "from": 266,
+     "to": 273
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "A string under a non-@ key is always a label, never a class.",
+        "span": {
+         "from": 291,
+         "to": 353
+        }
+       },
+       "keySpan": {
+        "from": 281,
+        "to": 289
+       },
+       "span": {
+        "from": 281,
+        "to": 353
+       }
+      }
+     ],
+     "span": {
+      "from": 275,
+      "to": 357
+     }
+    },
+    "span": {
+     "from": 266,
+     "to": 357
+    }
+   },
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "edges"
+    ],
+    "value": {
+     "kind": "Array",
+     "items": [
+      {
+       "kind": "Object",
+       "props": [
+        {
+         "kind": "Property",
+         "key": "from",
+         "isConfig": false,
+         "keySpan": {
+          "from": 385,
+          "to": 391
+         },
+         "value": {
+          "kind": "String",
+          "value": "gateway",
+          "span": {
+           "from": 393,
+           "to": 402
+          }
+         },
+         "span": {
+          "from": 385,
+          "to": 402
+         }
+        },
+        {
+         "kind": "Property",
+         "key": "to",
+         "isConfig": false,
+         "keySpan": {
+          "from": 410,
+          "to": 414
+         },
+         "value": {
+          "kind": "String",
+          "value": "cache",
+          "span": {
+           "from": 416,
+           "to": 423
+          }
+         },
+         "span": {
+          "from": 410,
+          "to": 423
+         }
+        },
+        {
+         "kind": "Property",
+         "key": "directed",
+         "isConfig": false,
+         "keySpan": {
+          "from": 431,
+          "to": 441
+         },
+         "value": {
+          "kind": "String",
+          "value": "forward",
+          "span": {
+           "from": 443,
+           "to": 452
+          }
+         },
+         "span": {
+          "from": 431,
+          "to": 452
+         }
+        },
+        {
+         "kind": "Property",
+         "key": "ordinal",
+         "isConfig": false,
+         "keySpan": {
+          "from": 460,
+          "to": 469
+         },
+         "value": {
+          "kind": "Number",
+          "value": 0,
+          "span": {
+           "from": 471,
+           "to": 472
+          }
+         },
+         "span": {
+          "from": 460,
+          "to": 472
+         }
+        },
+        {
+         "kind": "Property",
+         "key": "label",
+         "isConfig": true,
+         "keySpan": {
+          "from": 480,
+          "to": 488
+         },
+         "value": {
+          "kind": "String",
+          "value": "reads",
+          "span": {
+           "from": 490,
+           "to": 497
+          }
+         },
+         "span": {
+          "from": 480,
+          "to": 497
+         }
+        }
+       ],
+       "span": {
+        "from": 377,
+        "to": 503
+       }
+      }
+     ],
+     "span": {
+      "from": 371,
+      "to": 507
+     }
+    },
+    "keySpan": {
+     "from": 361,
+     "to": 369
+    },
+    "span": {
+     "from": 361,
+     "to": 507
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 510
+  }
+ },
+ "diagnostics": []
+}

@@ -1,0 +1,77 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 20,
+     "to": 21
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "link",
+        "span": {
+         "from": 33,
+         "to": 39
+        }
+       },
+       "keySpan": {
+        "from": 25,
+        "to": 31
+       },
+       "span": {
+        "from": 25,
+        "to": 39
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "link"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "javascript:alert(1)",
+        "span": {
+         "from": 48,
+         "to": 69
+        }
+       },
+       "keySpan": {
+        "from": 41,
+        "to": 46
+       },
+       "span": {
+        "from": 41,
+        "to": 69
+       }
+      }
+     ],
+     "span": {
+      "from": 23,
+      "to": 71
+     }
+    },
+    "span": {
+     "from": 20,
+     "to": 71
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 72
+  }
+ },
+ "diagnostics": []
+}

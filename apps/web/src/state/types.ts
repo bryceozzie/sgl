@@ -1,4 +1,4 @@
-import type { LabelId, Size } from '@sgl/core';
+import type { CompileResult, Document, DocumentModel, LabelId, ResolveResult, Size } from '@sgl/core';
 import type { EngineSchemas, LayoutHost, ResolvedThemeMetricsView } from '@sgl/layout-api';
 import type { Measurer, TextStyle } from '@sgl/measure';
 import type { LayoutResult } from '@sgl/layout-api';
@@ -43,6 +43,10 @@ export interface PipelineDeps {
    *  `@layout` keys against. Absent: only the nested-engine case is checked. */
   readonly engineSchemas?: (engineId: string) => EngineSchemas | undefined;
   readonly debounceMs?: number;
+  /** A9 (DD-08 §15, I25): loads the lazy `imports` chunk for the first
+   *  document with `@imports`. Absent: such a document resolves without its
+   *  imports, as `resolve()` does. */
+  readonly loadImports?: () => Promise<ImportsRuntime>;
   /**
    * Test-only fault injection for DD-08 §13's error boundary: called at the
    * start of every recompute of each guarded synchronous stage, with that
@@ -55,6 +59,14 @@ export interface PipelineDeps {
    * reaching into `@sgl/*` internals. Never set outside a test.
    */
   readonly unsafeInjectStageThrow?: (stage: GuardedStageName) => void;
+}
+
+/** A9's lazy `imports` chunk as the pipeline uses it (`state/imports.ts`):
+ *  `@sgl/core/imports`' resolve and compile over the stored documents. */
+export interface ImportsRuntime {
+  /** `self` is the open document's id. */
+  resolve(ast: Document, self: string): ResolveResult;
+  compile(model: DocumentModel): CompileResult;
 }
 
 /** What the canvas shows (DD-08 §3, §6). Updated only when `svg` exists **and**

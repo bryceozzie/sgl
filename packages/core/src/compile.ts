@@ -304,7 +304,7 @@ function renderStep(step: PathStep): string {
   return step.kind === 'Wildcard' ? (step.depth === 'descendants' ? '**' : `${step.prefix}*${step.suffix}`) : step.value;
 }
 
-function renderPath(path: PathExpr): string {
+export function renderPath(path: PathExpr): string {
   return (path.root ? '/' : '') + '../'.repeat(path.parents) + path.segments.map(renderStep).join('.');
 }
 
@@ -316,7 +316,7 @@ const OP_SYMBOL: Readonly<Record<EdgeModel['directed'], string>> = { forward: '-
 
 /** `base = root ? [] : cp; base = base[0 .. len(base) - parents]` — `undefined`
  *  when `parents` overruns the declaring path (the `SGL2001` case). */
-function resolveBase(path: PathExpr, declaringPath: readonly string[]): readonly string[] | undefined {
+export function resolveBase(path: PathExpr, declaringPath: readonly string[]): readonly string[] | undefined {
   const start = path.root ? [] : declaringPath;
   return path.parents > start.length ? undefined : start.slice(0, start.length - path.parents);
 }

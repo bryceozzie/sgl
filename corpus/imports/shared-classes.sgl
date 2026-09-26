@@ -1,0 +1,8 @@
+// A class library (A9): classes and variables, no nodes. main.sgl and
+// shadow.sgl import it without `as`, so its names arrive unqualified.
+@title: "Shared classes"
+@vars: { brand: "#4F46E5", tier: "prod" }
+@classes: {
+  Service:  { @shape: round, @style.stroke: $brand }
+  Critical: { @extends: Service, @style.strokeWidth: 3 }
+}

@@ -206,3 +206,52 @@ describe('diagnostic catalogue', () => {
     }
   });
 });
+
+describe('qualified names (A9, I16; DD-01 §2)', () => {
+  /** The text of every node named `name`, in document order. */
+  const texts = (source: string, name: string): string[] => {
+    const out: string[] = [];
+    const cursor = parser.parse(source).cursor();
+    do {
+      if (cursor.type.name === name) out.push(source.slice(cursor.from, cursor.to));
+    } while (cursor.next());
+    return out;
+  };
+
+  it.each([
+    ['the class shorthand', 'lambda: aws.Lambda', 'ClassRef', ['aws.Lambda']],
+    ['a composed qualifier', 'lambda: b.c.Lambda', 'ClassRef', ['b.c.Lambda']],
+    ['@type, one name', '@type: aws.Lambda', 'Word', ['aws.Lambda']],
+    ['@type, a list', 'x: { @type: [aws.Lambda, Service, b.c.D] }', 'Word', ['aws.Lambda', 'Service', 'b.c.D']],
+    ['@extends in a class body', '@classes: { S: { @extends: lib.Service } }', 'Word', ['lib.Service']],
+    ['a qualified variable', 'a: { @style.stroke: $aws.brand }', 'Variable', ['$aws.brand']],
+    ['a composed variable', 'a: { @label: $b.c.x }', 'Variable', ['$b.c.x']],
+  ])('parses %s', (_name, source, node, expected) => {
+    expect(errorCount(source)).toBe(0);
+    expect(texts(source, node)).toEqual(expected);
+  });
+
+  it('keeps a following `../` edge a Parent token, not a qualifier (@precedence { Parent, "." })', () => {
+    const source = 'x: {\n  a: Service\n  ../b -> c\n}\n';
+    expect(errorCount(source)).toBe(0);
+    expect(texts(source, 'ClassRef')).toEqual(['Service']);
+    expect(texts(source, 'Parent')).toEqual(['../']);
+  });
+
+  it('keeps a following root-level edge its own statement', () => {
+    const source = 'a: Service\nb.c -> d\n';
+    expect(errorCount(source)).toBe(0);
+    expect(texts(source, 'ClassRef')).toEqual(['Service']);
+    expect(texts(source, 'EdgeStmt')).toEqual(['b.c -> d']);
+  });
+
+  it.each([
+    ['a trailing dot', 'a: B.'],
+    ['a qualifier with no name', 'a: .B'],
+    ['a dotted node key', 'a.b: C'],
+    ['a trailing dot on a variable', '@x: $a.'],
+    ['a variable qualifier in a key', '$a.b: 1'],
+  ])('still rejects %s', (_name, source) => {
+    expect(errorCount(source)).toBeGreaterThan(0);
+  });
+});

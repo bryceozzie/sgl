@@ -1,5 +1,6 @@
 import type { Diagnostic, LabelId, Size } from '@sgl/core';
 import { compile, parse, resolve } from '@sgl/core';
+import { compileImports, createImportLinker, resolveImports } from '@sgl/core/imports';
 import {
   applyHostFallbacks,
   buildLayoutInput,
@@ -16,10 +17,11 @@ import {
 import { gridEngine } from '@sgl/layout-std';
 import { labelRunKey, premeasure, StaticMetricsMeasurer } from '@sgl/measure';
 import { BUILT_IN, neutralLight, resolveTheme, styleGraph, type ResolvedTheme, type StyledGraph, type ThemeDoc } from '@sgl/theme';
-import { corpusSource, listCorpusDocs } from '../../theme/test/corpus.js';
+import { fileSystemHost } from '../../core/test/fs-host.js';
+import { corpusPath, corpusSource, listCorpusDocs } from '../../theme/test/corpus.js';
 import { render, type RenderResult } from '../src/index.js';
 
-export { corpusSource, listCorpusDocs };
+export { corpusPath, corpusSource, listCorpusDocs };
 
 /**
  * `source -> RenderResult`: `parse -> resolve -> compile -> resolveTheme ->
@@ -106,16 +108,21 @@ async function layOut(
 }
 
 /** The whole pipeline, `source -> RenderResult`, under one theme. Calls the
- *  engine directly, in-process — no worker (Stage G). */
+ *  engine directly, in-process — no worker (Stage G). With `path`, the
+ *  document's file, `@imports` are linked by the file-system host against
+ *  its directory (A9, `corpus/imports/`), through the import-aware resolve
+ *  and compile, as the app does for a document with `@imports`. */
 export async function runPipeline(
   source: string,
   themeDoc: ThemeDoc = neutralLight,
   engine: LayoutEngine = gridEngine,
   options: Readonly<Record<string, unknown>> = {},
+  path?: string,
 ): Promise<RenderedDoc> {
   const { ast, diagnostics: d1 } = parse(source);
-  const { model, diagnostics: d2 } = resolve(ast);
-  const { graph, diagnostics: d3 } = compile(model);
+  const linker = path === undefined ? undefined : createImportLinker(fileSystemHost(path), { self: path });
+  const { model, diagnostics: d2 } = linker === undefined ? resolve(ast) : resolveImports(ast, linker);
+  const { graph, diagnostics: d3 } = linker === undefined ? compile(model) : compileImports(model);
   // SGL4010 (Stage K fix round 1, item 23), as the app's pipeline emits it:
   // the document's `@layout` keys against the engine laying it out.
   const d3b = layoutConfigDiagnostics(ast, { id: engine.id, ...(engine.optionsSchema && { optionsSchema: engine.optionsSchema }), ...(engine.hintsSchema && { hintsSchema: engine.hintsSchema }) });
@@ -136,5 +143,5 @@ export async function runPipeline(
 /** The whole pipeline for one corpus document under one theme — `runPipeline`
  *  plus reading the fixture off disk. */
 export async function renderCorpusDoc(name: string, themeDoc: ThemeDoc = neutralLight): Promise<RenderedDoc> {
-  return runPipeline(corpusSource(name), themeDoc);
+  return runPipeline(corpusSource(name), themeDoc, undefined, undefined, corpusPath(name));
 }

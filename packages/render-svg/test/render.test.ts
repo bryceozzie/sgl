@@ -14,7 +14,11 @@ import { listCorpusDocs, renderCorpusDoc } from './pipeline.js';
  *  only make sense against a clean document; the full corpus is still exercised
  *  below by the "never throws" and double-run sweeps, which is the property
  *  that matters for those. */
-const KNOWN_DIRTY = /^(?:malformed|unresolved|injection|layout|theme)\//;
+// `imports/` (A9): documents that import one another need a host, which
+// `CLEAN_DOCS`' suites do not have; `packages/core/test/imports-corpus.test.ts`
+// pins them (and `main.sgl`'s goldens), and `pipeline.test.ts` runs each through
+// the whole pipeline with the file-system host.
+const KNOWN_DIRTY = /^(?:malformed|unresolved|injection|layout|theme|imports)\//;
 const GENERATED_BENCH = /^n(?:50|500|2000)\.sgl$/;
 
 /** Every built-in theme; C5 added `high-contrast` and `print` (new golden directories). */

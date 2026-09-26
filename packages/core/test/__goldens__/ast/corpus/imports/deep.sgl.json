@@ -1,0 +1,63 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "imports"
+    ],
+    "value": {
+     "kind": "Array",
+     "items": [
+      {
+       "kind": "String",
+       "value": "./deep-1.sgl",
+       "span": {
+        "from": 245,
+        "to": 259
+       }
+      }
+     ],
+     "span": {
+      "from": 244,
+      "to": 260
+     }
+    },
+    "keySpan": {
+     "from": 234,
+     "to": 242
+    },
+    "span": {
+     "from": 234,
+     "to": 260
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "x",
+    "keySpan": {
+     "from": 261,
+     "to": 262
+    },
+    "value": {
+     "kind": "Word",
+     "value": "D1",
+     "span": {
+      "from": 264,
+      "to": 266
+     }
+    },
+    "span": {
+     "from": 261,
+     "to": 266
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 267
+  }
+ },
+ "diagnostics": []
+}

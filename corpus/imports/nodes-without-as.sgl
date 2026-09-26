@@ -1,0 +1,5 @@
+// expects: SGL2026
+// An import without `as` brings classes and variables but not nodes or
+// edges (A9, I10), and says so (info).
+@imports: ["./aws-icons.sgl"]
+fn: Lambda

@@ -1,0 +1,16 @@
+Document 0-87
+  Entry 0-86
+    NodeDecl 0-86
+      NodeKey 0-1
+        Identifier 0-1
+      : 1-2
+      NodeValue 3-86
+        Block 3-86
+          { 3-4
+          Entry 5-84
+            ConfigEntry 5-84
+              ConfigKey 5-11
+              : 11-12
+              Value 13-84
+                String 13-84
+          } 85-86

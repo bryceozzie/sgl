@@ -1,0 +1,4 @@
+// The last link of deep.sgl's chain (A9, I21): from deep.sgl its import is
+// one level too deep; on its own it is clean.
+@imports: ["./nothing.sgl"]
+@classes: { D8: {} }

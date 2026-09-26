@@ -209,6 +209,10 @@ export interface StoredDocument {
   readonly themeId: string;
   readonly lastGoodSvg?: string;
   readonly fileExtension?: string;
+  /** A9 (DD-08 §15.1): the name Open read it under, or a share bundle gave it. */
+  readonly fileName?: string;
+  /** A9: the documents one share link created share one. */
+  readonly group?: string;
 }
 
 /** Every record in IndexedDB `sgl` and the `lastOpenDocId` setting, read

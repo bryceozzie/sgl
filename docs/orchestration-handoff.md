@@ -39,7 +39,9 @@ It **does not replace** [07 — Execution plan](07-execution-plan.md) §2 and §
 
 ## 2. In flight (pushed; nothing is only local)
 
-### A9 `@imports`: branch `feat/imports` at `0ef0f65` (not merged)
+### A9 `@imports`: branch `feat/imports` (not merged)
+
+**Status: fix round 1 complete, awaiting orchestrator verification** (2026-09-26). The branch head is the commit that carries this line, or a later one on `feat/imports`. Fix round 1 answered the three reviews (16 items) with human decisions H1 (I14 for documents with `@imports` only), H2 (a share group resolves only within itself) and H3 (core limit 182 kB, its own commit); core bundle **179.63 kB** of 182 kB. 07 §2 has the round's paragraph; §2.1 F23 is new (a keystroke in a document importing 12 000 nodes costs what 12 000 nodes cost).
 
 - **Design:** DD-02 §10 (I1–I22, I31, I32) and DD-08 §15 (I23–I30) on that branch.
 - **Human decisions (2026-09-25):**
@@ -62,13 +64,10 @@ It **does not replace** [07 — Execution plan](07-execution-plan.md) §2 and §
   - `3a8e074`: records carry `fileName` and group; the title skips imported containers.
   - `e3072ec`: the lazy imports chunk, index, host and pipeline gate.
   - `0ef0f65`: Share bundling `i=` and group storage.
-- **Stopped by the human mid-work** (2026-09-25), just before writing `apps/web/e2e/imports.spec.ts`.
+- **Stopped by the human mid-work** (2026-09-25), just before writing `apps/web/e2e/imports.spec.ts`; resumed 2026-09-26.
+- **Finished on resumption** (each commit pushed): `main` merged in (`c306cdb`); `e2e/imports.spec.ts` (8 cases), an offline case and a CSP case; the test-plan audit's gaps (Share's closure, the visibility refresh, exact cap edges, a warm-cache double run over `corpus/imports/`, a capped cache entry not reused elsewhere); the keystroke bench (`bench/imports/`, 1.8–2.0 ms per keystroke, lookups only); docs (spec §2/§5/§8/§11, DD-02, DD-03, DD-08, DD-09 §1.1 and §2, 07 §2, Stage L and F20 rows; DD-01's audit was already complete). Core bundle **179.47 kB**. DD-02 §10.8 and DD-08 §15.5 map every test-plan item to a test.
 - **Still to do:**
-  - `e2e/imports.spec.ts` plus an offline case;
-  - any remaining tests from DD-02 §10.8 and DD-08 §15.5;
-  - docs: spec §2/§5/§8, DD-01 token-precedence audit, DD-09 §1.1 threat rows, 07 §2 paragraph, F20 row;
-  - two full clean runs;
-  - **then the orchestrator's verification**: a clean check, a size check, and a proof that no golden changed;
+  - **the orchestrator's verification**: a clean check, a size check, and a proof that no golden changed;
   - **review**: three Opus reviewers covering design conformance, mutation testing, and rules/security;
   - triage, at most two fix rounds, then merge `--no-ff`.
 - **Before resuming, check** whether the human wants it resumed. They interrupted it.

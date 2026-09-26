@@ -20,6 +20,36 @@ test`/`pnpm check` run it automatically first.
 **Stage G** (07-execution-plan.md §5) wired the pipeline end to end and added
 this generator, so the fixtures these budgets need now exist.
 
+It also writes `bench/imports/importer50.sgl` and `bench/imports/lib500.sgl`
+(gitignored, outside `corpus/` so no corpus sweep links them): a 50-node
+document importing a 500-node library, for A9's keystroke bench below.
+
+## A9: a keystroke with unchanged imports, measured
+
+`packages/core/test/imports-keystroke.test.ts` (part of the `unit` project)
+types 40 keystrokes into `importer50.sgl` through one linker and one
+`ImportCache`, as the app does (DD-08 §15.2), and **asserts** that each costs
+lookups only: the cache's parse and resolve counts do not move, and the host is
+asked once. It prints `[A9-BENCH]` with the medians of `parse -> resolveImports
+-> compileImports`, and holds them only to DD-09 §2's keystroke budget (60 ms
+at 50 nodes; layout is debounced and off the keystroke path).
+
+Node 22, 2026-09-26, load ≈ 0.4:
+
+| | Median per keystroke |
+|---|---|
+| `importer50.sgl`, imports unchanged (cached) | 1.8–2.1 ms |
+| the same document without its `@imports` line | 1.2–1.4 ms |
+| its first resolve, cold (parses and resolves the 500-node import; includes JIT warm-up) | ~56–63 ms, once |
+| the same with `as: lib`: the 500 nodes grafted on every keystroke (fix round 1) | ~9.5–10 ms |
+| eight 1 500-node libraries `as:`, 12 000 nodes grafted (fix round 1; 6 keystrokes) | ~250 ms |
+
+The last row is a **known cost**, not an import overhead (execution plan §2.1 F23): split, a
+keystroke there is parse 1.7 ms, `resolveImports` 39 ms and `compileImports` 221 ms, while the same
+12 000 nodes written in the document cost resolve 53 ms and compile 214 ms. The document is 12 000
+nodes on every keystroke; an incremental compile is a later item. Every simulated keystroke is
+asserted to change the document (fix round 1).
+
 ## F9: `render()` alone, measured
 
 **Stage H** added the browser project (`vitest.config.ts`'s `browser` project,

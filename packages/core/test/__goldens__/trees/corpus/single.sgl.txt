@@ -1,0 +1,6 @@
+Document 0-70
+  LineComment 0-66
+  Entry 67-69
+    NodeDecl 67-69
+      NodeKey 67-69
+        Identifier 67-69

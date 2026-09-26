@@ -1,0 +1,63 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "outer",
+    "keySpan": {
+     "from": 20,
+     "to": 25
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "NodeDecl",
+       "key": "inner",
+       "keySpan": {
+        "from": 31,
+        "to": 36
+       },
+       "value": {
+        "kind": "Block",
+        "entries": [],
+        "span": {
+         "from": 38,
+         "to": 40
+        }
+       },
+       "span": {
+        "from": 31,
+        "to": 40
+       }
+      }
+     ],
+     "span": {
+      "from": 27,
+      "to": 41
+     }
+    },
+    "span": {
+     "from": 20,
+     "to": 41
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 41
+  }
+ },
+ "diagnostics": [
+  {
+   "code": "SGL1001",
+   "severity": "error",
+   "message": "Expected `}` here.",
+   "span": {
+    "from": 41,
+    "to": 41
+   }
+  }
+ ]
+}

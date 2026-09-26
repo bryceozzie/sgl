@@ -1,0 +1,19 @@
+Document 0-213
+  LineComment 0-19
+  LineComment 20-98
+  LineComment 99-175
+  Entry 176-212
+    NodeDecl 176-212
+      NodeKey 176-177
+        Identifier 176-177
+      : 177-178
+      NodeValue 179-212
+        Block 179-212
+          { 179-180
+          Entry 181-210
+            ConfigEntry 181-210
+              ConfigKey 181-194
+              : 194-195
+              Value 196-210
+                String 196-210
+          } 211-212

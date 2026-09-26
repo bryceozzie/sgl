@@ -1,0 +1,158 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "router",
+    "keySpan": {
+     "from": 20,
+     "to": 26
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "ports"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "in",
+          "isConfig": false,
+          "keySpan": {
+           "from": 40,
+           "to": 42
+          },
+          "value": {
+           "kind": "Word",
+           "value": "west",
+           "span": {
+            "from": 44,
+            "to": 48
+           }
+          },
+          "span": {
+           "from": 40,
+           "to": 48
+          }
+         }
+        ],
+        "span": {
+         "from": 38,
+         "to": 50
+        }
+       },
+       "keySpan": {
+        "from": 30,
+        "to": 36
+       },
+       "span": {
+        "from": 30,
+        "to": 50
+       }
+      }
+     ],
+     "span": {
+      "from": 28,
+      "to": 52
+     }
+    },
+    "span": {
+     "from": 20,
+     "to": 52
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "client",
+    "keySpan": {
+     "from": 53,
+     "to": 59
+    },
+    "span": {
+     "from": 53,
+     "to": 59
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "client",
+         "span": {
+          "from": 60,
+          "to": 66
+         }
+        }
+       ],
+       "span": {
+        "from": 60,
+        "to": 66
+       }
+      },
+      "span": {
+       "from": 60,
+       "to": 66
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "router",
+         "span": {
+          "from": 70,
+          "to": 76
+         }
+        }
+       ],
+       "span": {
+        "from": 70,
+        "to": 76
+       }
+      },
+      "port": "missing",
+      "portSpan": {
+       "from": 77,
+       "to": 84
+      },
+      "span": {
+       "from": 70,
+       "to": 85
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 60,
+     "to": 85
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 86
+  }
+ },
+ "diagnostics": []
+}

@@ -1,0 +1,78 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "classes"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "S",
+       "isConfig": false,
+       "keySpan": {
+        "from": 97,
+        "to": 98
+       },
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "extends",
+          "isConfig": true,
+          "keySpan": {
+           "from": 102,
+           "to": 110
+          },
+          "value": {
+           "kind": "Word",
+           "value": "Missing",
+           "span": {
+            "from": 112,
+            "to": 119
+           }
+          },
+          "span": {
+           "from": 102,
+           "to": 119
+          }
+         }
+        ],
+        "span": {
+         "from": 100,
+         "to": 121
+        }
+       },
+       "span": {
+        "from": 97,
+        "to": 121
+       }
+      }
+     ],
+     "span": {
+      "from": 95,
+      "to": 123
+     }
+    },
+    "keySpan": {
+     "from": 85,
+     "to": 93
+    },
+    "span": {
+     "from": 85,
+     "to": 123
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 124
+  }
+ },
+ "diagnostics": []
+}

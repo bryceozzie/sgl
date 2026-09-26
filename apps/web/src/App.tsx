@@ -62,6 +62,9 @@ export function App({ boot }: { readonly boot: AppBoot }) {
         defaultEngineId: boot.record.engineId,
         defaultThemeId: boot.record.themeId,
         engineSchemas: (id) => REGISTERED_ENGINES.find((e) => e.id === id),
+        // A9 (DD-08 §15): the lazy `imports` chunk, for the first document
+        // with `@imports`; it wraps this store's writes (I23).
+        loadImports: () => import('./state/imports.js').then((m) => m.createImportsRuntime(boot.store)),
       },
       boot.record.source,
     );
@@ -83,6 +86,7 @@ export function App({ boot }: { readonly boot: AppBoot }) {
     // render: at boot (J6), and again after every switch (fix round 2).
     const storedSvg = signal<string | undefined>(boot.record.lastGoodSvg);
     for (const notice of boot.notices) toasts.push(NOTICE_TOASTS[notice].message, NOTICE_TOASTS[notice].kind);
+    for (const t of boot.toasts ?? []) toasts.push(t.message, t.kind);
     return { pipeline, toasts, autosave, session, storedSvg };
   }, []);
   const { pipeline, toasts, autosave, session, storedSvg } = app;
@@ -121,14 +125,15 @@ export function App({ boot }: { readonly boot: AppBoot }) {
     return ok;
   }
 
-  /** A new record from the pickers as they stand (Open, New document). */
-  function newRecord(source: string, fileExtension?: string): DocumentRecord {
+  /** A new record from the pickers as they stand (Open, New document). Open
+   *  keeps the file's extension (§7) and name (A9, DD-02 I3). */
+  function newRecord(source: string, file?: { readonly name: string; readonly extension: string }): DocumentRecord {
     const at = Date.now();
     const record = {
       ...blankRecord(newDocumentId(globalThis.crypto as IdSource | undefined, () => at), source, pipeline.engineId.peek(), pipeline.themeId.peek(), at),
       engineOptions: pipeline.engineOptions.peek(),
     };
-    return fileExtension !== undefined ? { ...record, fileExtension } : record;
+    return file ? { ...record, fileExtension: file.extension, fileName: file.name } : record;
   }
 
   /** DD-08 §7's one Open path: toolbar, Ctrl/⌘+O, the launch queue (§12).
@@ -142,7 +147,7 @@ export function App({ boot }: { readonly boot: AppBoot }) {
       view === null
         ? null
         : (opened) => {
-            void openRecord(view, newRecord(opened.text, opened.extension), true).then(() =>
+            void openRecord(view, newRecord(opened.text, opened), true).then(() =>
               toasts.push(`Opened ${opened.name} as a new document. Your previous document is in Documents.`),
             );
           },

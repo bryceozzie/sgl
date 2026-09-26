@@ -1,0 +1,63 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "imports"
+    ],
+    "value": {
+     "kind": "Array",
+     "items": [
+      {
+       "kind": "String",
+       "value": "./broken-lib.sgl",
+       "span": {
+        "from": 184,
+        "to": 202
+       }
+      }
+     ],
+     "span": {
+      "from": 183,
+      "to": 203
+     }
+    },
+    "keySpan": {
+     "from": 173,
+     "to": 181
+    },
+    "span": {
+     "from": 173,
+     "to": 203
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "x",
+    "keySpan": {
+     "from": 204,
+     "to": 205
+    },
+    "value": {
+     "kind": "Word",
+     "value": "S",
+     "span": {
+      "from": 207,
+      "to": 208
+     }
+    },
+    "span": {
+     "from": 204,
+     "to": 208
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 209
+  }
+ },
+ "diagnostics": []
+}

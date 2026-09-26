@@ -1,0 +1,5 @@
+// expects: SGL2019
+// cycle-a.sgl imports cycle-b.sgl, which imports cycle-a.sgl (A9, I20): the
+// import that closes the cycle is skipped, with a warning naming the chain.
+@imports: ["./cycle-b.sgl"]
+@classes: { A: {} }
