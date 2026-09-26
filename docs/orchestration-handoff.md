@@ -41,7 +41,7 @@ It **does not replace** [07 — Execution plan](07-execution-plan.md) §2 and §
 
 ### A9 `@imports`: branch `feat/imports` (not merged)
 
-**Status: fix round 1 complete, awaiting orchestrator verification** (2026-09-26). The branch head is the commit that carries this line, or a later one on `feat/imports`. Fix round 1 answered the three reviews (16 items) with human decisions H1 (I14 for documents with `@imports` only), H2 (a share group resolves only within itself) and H3 (core limit 182 kB, its own commit); core bundle **179.63 kB** of 182 kB. 07 §2 has the round's paragraph; §2.1 F23 is new (a keystroke in a document importing 12 000 nodes costs what 12 000 nodes cost).
+**Status: MERGED to `main` at `c2a5c3e`** (2026-09-26), after orchestrator verification from clean (4875 Vitest, 95/95 e2e, core 179.63 of 182 kB). Next: A18, starting with `feat/a18-grammar` from `main`. The earlier status follows for the record: fix round 1 was complete and awaiting verification. The branch head is the commit that carries this line, or a later one on `feat/imports`. Fix round 1 answered the three reviews (16 items) with human decisions H1 (I14 for documents with `@imports` only), H2 (a share group resolves only within itself) and H3 (core limit 182 kB, its own commit); core bundle **179.63 kB** of 182 kB. 07 §2 has the round's paragraph; §2.1 F23 is new (a keystroke in a document importing 12 000 nodes costs what 12 000 nodes cost).
 
 - **Design:** DD-02 §10 (I1–I22, I31, I32) and DD-08 §15 (I23–I30) on that branch.
 - **Human decisions (2026-09-25):**
