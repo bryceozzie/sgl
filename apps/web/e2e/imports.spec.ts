@@ -219,7 +219,48 @@ test('Share carries the imports (`i=`): a fresh browser gets them as a group in 
     await switchTo(other, 'Mine');
     await waitForExactNodeCount(other, 1);
     await expect.poll(() => shapeOf(other, 'mine')).toBe('ellipse');
+
+    // I27: the received document now also imports "Mine" (first, so the
+    // bundled `classes` after it still wins, I13), and Mine finds the
+    // recipient's own `classes`. One name, two documents: Share carries the
+    // first it reached and says so.
+    await switchTo(other, 'Importer');
+    await setSource(other, IMPORTER.replace('["./shared/classes.sgl"]', '["./Mine.sgl", "./shared/classes.sgl"]'));
+    // Mine's node is not imported (SGL2026); the later import's Service replaces Mine's (SGL2023).
+    await expect.poll(async () => (await diagnosticCodes(other)).sort()).toEqual(['SGL2023', 'SGL2026']);
+    await expect.poll(() => shapeOf(other, 'api')).toBe('hexagon');
+    await other.locator('.share-open').click();
+    await expect(other.locator('.share-note')).toContainText('with the 2 documents it imports');
+    await expect(other.locator('.share-differ')).toHaveText(
+      'The import “classes” led to more than one of your documents. The link carries the first, so the recipient’s copy of it will differ.',
+    );
+    const resent = JSON.parse(inflateRawSync(Buffer.from(new URLSearchParams(new URL(await other.locator('.share-link').inputValue()).hash.slice(1)).get('i')!, 'base64url')).toString('utf8')) as {
+      d: { n: string; s: string }[];
+    };
+    expect(resent.d.map((d) => [d.n, d.s])).toEqual([
+      ['mine', '@title: "Mine"\n@imports: ["./classes.sgl"]\nmine: Service\n'],
+      ['classes', CLASSES],
+    ]);
   } finally {
     await fresh.close();
   }
+});
+
+test('the long-link guard counts the imported documents: a short document with a large import warns, and says the file holds this document only', async ({ page }) => {
+  // About 8 KB of text that does not compress: hex from a fixed LCG.
+  let x = 12345;
+  const noise = Array.from({ length: 16_000 }, () => ((x = (x * 1103515245 + 12345) % 2 ** 31), (x >> 16) & 15).toString(16)).join('');
+  const big = `@classes: { Big: { @shape: diamond } }\n// ${noise}\n`;
+  await withStored(page, [['big.sgl', big]]);
+  const importer = '@imports: ["./big.sgl"]\nn: Big\n';
+  await newDocument(page, importer);
+  await waitForExactNodeCount(page, 1);
+  await expect.poll(() => shapeOf(page, 'n')).toBe('diamond');
+
+  await page.locator('.share-open').click();
+  const link = await page.locator('.share-link').inputValue();
+  expect(link.length).toBeGreaterThan(8000);
+  expect(link.slice(0, link.indexOf('&i=')).length).toBeLessThan(200); // the document alone is short
+  await expect(page.locator('.share-warning')).toContainText('cut long links short');
+  await expect(page.locator('.share-warning')).toContainText('The file holds this document only, without the documents it imports.');
 });
