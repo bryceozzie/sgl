@@ -1,4 +1,6 @@
-// DD-09 §2 / DD-10 §4: the core bundle budget, < 180 kB gzipped (NFR 4.1).
+// DD-09 §2 / DD-10 §4: the core bundle budget, < 182 kB gzipped (NFR 4.1).
+// Raised from 180 kB by human decision 2026-09-26 (A9); the 300 kB hard
+// ceiling is unchanged.
 //
 // Stage K, decision K6: "the core chunk" is the JS and CSS the initial page
 // load fetches — the app's entry chunk and every chunk it imports statically
@@ -38,6 +40,6 @@ export default [
     name: 'core (entry + static imports + layout worker), gzip',
     path: ['apps/web/dist/assets/*.js', 'apps/web/dist/assets/*.css', '!apps/web/dist/assets/elk-*.js', '!apps/web/dist/assets/share-*.js', '!apps/web/dist/assets/file-actions-*.js', '!apps/web/dist/assets/engine-options-form-*.js', '!apps/web/dist/assets/documents-menu-*.js', '!apps/web/dist/assets/imports-*.js', '!apps/web/dist/assets/filename-*.js'],
     gzip: true,
-    limit: '180 kB',
+    limit: '182 kB',
   },
 ];
