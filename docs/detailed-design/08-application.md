@@ -615,11 +615,14 @@ marks a decision that changes a product promise, for the human.
   core's `hasImports(ast)` is true and the chunk or index is not loaded yet, the pipeline starts
   loading them and the `model` stage holds. The canvas meanwhile shows the stored `lastGoodSvg`
   (§5, J6), and no diagnostic is shown. A document without `@imports` never loads the chunk.
-  Offline, the chunk comes from the precache (§12), like `share`. *Without this, the first render
+  Offline, the chunk comes from the precache (§12), like `share`. The session still saves what is
+  typed meanwhile, under the stored title (fix round 1). If the chunk or its index cannot load, see
+  §15.6. *Without this, the first render
   would briefly show every import as unresolved, and a render missing the imported classes could
   become `lastGood`.*
 - **The host** (DD-02 I1–I6) lives in that chunk. `lookup(path, fromId)` runs DD-02 I19's check,
-  then the tiers of I4 over the index, then I5. It returns `{ key: id, source, candidates }`, with
+  then I4a (an empty name finds nothing), then the tiers of I4 over the index (only the
+  importer's own group, or only the ungrouped documents: H2), then I5. It returns `{ key: id, source, candidates }`, with
   the pick's name available for `SGL2018`. The pipeline creates one linker per open document,
   with `self` set to the open document's id and one `ImportCache` that lives as long as the
   pipeline. Switching documents is the ordinary `switchTo` (§7). The host also records which
@@ -639,15 +642,16 @@ marks a decision that changes a product promise, for the human.
 
   *A second stream loses a little compression compared with one shared stream, but it keeps every
   existing link and every older build working.*
-- **I27. What goes in the bundle.** The import closure of the importer's last resolve: each
-  document once, in the order a breadth-first walk first reached it, and only documents that
-  actually resolved.
+- **I27. What goes in the bundle.** The import closure of the importer's last resolve, in the
+  order a breadth-first walk first reached it, and only documents that actually resolved; a
+  document reached under two names (its file name and its save name, say) is carried under each,
+  so every import of it resolves for the recipient (fix round 1).
   - **The size guard.** The 8 000-character guard (§8) measures the **whole** link, `i=`
     included. When it warns, the dialog also says that "Save as a file instead" saves this
     document without its imports (bundling them is F5).
-  - **A name for two documents.** If one name led to two different documents in the closure
-    (possible across groups), the first is bundled under that name and the dialog says the
-    recipient's copy of that import will differ. *This is rare, and it is said rather than hidden.*
+  - ~~**A name for two documents.**~~ Removed in fix round 1: since H2 every lookup in a closure
+    stays inside one group, or among the ungrouped documents, so one name cannot lead to two
+    documents; the dialog's paragraph and `ShareBundle.differ` were dead code.
 - **I28. Caps on the receiving side.**
   - `i=` is inflated under its own 2 MB cap, with the same sliced reader as `s=`. The two caps
     together bound a link at 4 MB inflated.
@@ -670,8 +674,9 @@ marks a decision that changes a product promise, for the human.
 - **I30. The recipient's own documents never collide with a bundle.** Each bundled document is
   found first through its group (DD-02 I4), and it is invisible to every other document. A
   recipient's own `classes` neither makes the bundle ambiguous nor changes; the recipient's other
-  documents keep resolving to their own `classes`. Imports the bundle does not satisfy fall
-  through to the recipient's ungrouped documents, as I4 says.
+  documents keep resolving to their own `classes`. **Imports the bundle does not satisfy are not
+  found** (`SGL2017`): a received document never imports the recipient's own documents (human
+  decision H2, 2026-09-26; the design first let them fall through).
 
 ### 15.4 Documents ▾
 
@@ -715,17 +720,17 @@ marks a decision that changes a product promise, for the human.
 
 | Item | Test |
 |---|---|
-| `import-host.test.ts`: I1–I5, I19, tiers, I30 groups, the ambiguity pick | `apps/web/test/import-host.test.ts` |
-| `import-index.test.ts`: the put wrapper, list/wrapper ordering, refresh | `apps/web/test/import-index.test.ts`; the `visibilitychange` wiring itself in `imports-runtime.test.ts` |
-| Share's closure (I27): breadth first, each once, only resolved, a name for two documents | `apps/web/test/imports-runtime.test.ts` |
-| `pipeline.test.ts`: I24 re-resolve on an imported write and not on the importer's own; I25 gate | `apps/web/test/pipeline.test.ts`, "imports (A9, DD-08 §15: I24, I25)" |
+| `import-host.test.ts`: I1–I5, I19, tiers, I30 groups, the ambiguity pick | `apps/web/test/import-host.test.ts`, with H2 (no fall-through), I4a (empty names) and the tier order inside a group |
+| `import-index.test.ts`: the put wrapper, list/wrapper ordering, refresh | `apps/web/test/import-index.test.ts` (refresh drops a deleted document); the `visibilitychange` wiring itself in `imports-runtime.test.ts` |
+| Share's closure (I27): breadth first, only resolved, every name a document was reached by; H2 | `apps/web/test/imports-runtime.test.ts` |
+| `pipeline.test.ts`: I24 re-resolve on an imported write and not on the importer's own; I25 gate; the chunk failing to load | `apps/web/test/pipeline.test.ts`, "imports (A9, DD-08 §15: I24, I25)" |
 | `share.test.ts`: `i=` codec, no `i=`, other `v`, bomb, malformed, 64 entries, length guard | `apps/web/test/share.test.ts` |
 | `boot.test.ts`: group stored before `lastOpenDocId`, twice is two groups, bad bundle | `apps/web/test/boot.test.ts` |
-| `documents.test.ts`: `fileName`/`group` through `DocumentSession` | `apps/web/test/document-session.test.ts` (where `DocumentSession`'s tests live), with "saves nothing while the pipeline holds" |
+| `documents.test.ts`: `fileName`/`group` through `DocumentSession` | `apps/web/test/document-session.test.ts` (where `DocumentSession`'s tests live), with "typing is still saved while the pipeline holds" |
 | e2e: A imports B and renders its classes; B edited, A follows | `e2e/imports.spec.ts` (the first case, and `as: aws` with a grafted subtree) |
 | e2e: unresolved is a warning, A still renders | `e2e/imports.spec.ts` |
 | e2e: a cycle and an ambiguity each warn | `e2e/imports.spec.ts` (two cases) |
-| e2e: Share to a fresh context, both in Documents ▾, same rendering; the recipient's own `classes` unchanged | `e2e/imports.spec.ts`, which also covers the dialog's two I27 messages and a long link counting `i=` |
+| e2e: Share to a fresh context, both in Documents ▾, same rendering; the recipient's own `classes` unchanged | `e2e/imports.spec.ts`, with H2 (a received document importing the recipient's `notes`: `SGL2017`), the dialog's note and a long link counting `i=` |
 | e2e: offline reload of a document with imports | `e2e/offline.spec.ts`, "the lazy imports chunk comes from the precache" |
 | e2e: `csp.spec.ts` shows no violation | `e2e/csp.spec.ts` loads the imports chunk and makes an `i=` link under the policy |
 | Size | `pnpm size`; `check-core-chunks.mjs` (entry reachability, and no import catalogue row at boot) |
@@ -735,14 +740,22 @@ marks a decision that changes a product promise, for the human.
 - **The `filename` chunk.** `state/filename.ts` is shared by `file-actions` and `imports`, so the
   bundler gives it a chunk of its own; `size-limit` excludes it by name too, and the offline case
   checks it comes from the service worker.
-- **If the chunk cannot load** (not precached, say), the pipeline does not hold for ever: it resolves
-  and compiles with core's `resolve()`/`compile()`, which keep `@imports` with no effect (DD-02 I9's
-  step A). Names that would have come from the imports are then core's errors (`SGL2002`,
-  `SGL2013`), not `SGL2017`/`SGL2024`, because `resolveImports` and `IMPORT_CATALOGUE` are in the
-  chunk that failed. Offline the chunk is precached, so this is a broken install, not a normal path.
-- **The session saves nothing while the pipeline holds** (I25): the model a title would come from is
-  not this document's yet.
+- **If the chunk or its index cannot load** (not precached, say), the pipeline does not hold for
+  ever: it resolves and compiles with core's `resolve()`/`compile()`, which keep `@imports` with
+  no effect (DD-02 I9's step A), adds one `SGL2027` warning at `@imports` (a row in the **boot**
+  catalogue, since `IMPORT_CATALOGUE` is in the chunk that failed), and drops `SGL2002`, `SGL2013`
+  and `SGL2001`, so under I17 the picture is still adopted (fix round 1; they were errors). The
+  load is tried again on the next change of the document, not in a loop. Offline the chunk is
+  precached, so this is a broken install, not a normal path.
+- **While the pipeline holds** (I25), the session saves what is typed, under the stored title:
+  the model a title would come from is not this document's yet (fix round 1: it saved nothing, so a
+  stalled load and a closed tab lost the typing).
 - **The index's put wrapper** does not call `isDocumentRecord`, which reads `lastGoodSvg`, a getter
   that renders on read in autosave's records; it checks `id` and `source` only.
-- **A link pasted into an open tab** (I29's last bullet) is F13, still open: nothing in this branch
-  changes that route.
+- **A link pasted into an open tab** (I29's last bullet) takes the same route as a link opened in a
+  new tab, as designed: `watchShareLinks` flushes autosave and reloads, and boot stores the link's
+  documents as a group (`openShared`, in the lazy `share` chunk since fix round 1). F13 is about
+  that reload itself (undo history, the memory-store fallback), not about imports.
+- **H2 (human decision 2026-09-26).** A document in a share group resolves only within its group
+  (I30 above, DD-02 I4); the dialog's "a name for two documents" paragraph (I27) was removed as
+  unreachable.

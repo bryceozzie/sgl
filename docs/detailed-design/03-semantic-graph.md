@@ -253,7 +253,7 @@ compile(model: DocumentModel, view?: ViewSelector): CompileResult
 **Imports (A9, DD-02 §10.3 I17).** `compile()` itself knows nothing of imports. For a model with `imports`, the caller uses `compileImports(model)` from the lazy `@sgl/core/imports` entry: `compile()` and then two rules over its diagnostics, so a failed import produces warnings only and the picture is still adopted (DD-08 §3):
 
 - A diagnostic on a grafted element (every span in a grafted subtree is its `@imports` item's, DD-02 I12) is not reported itself; the import's diagnostics are one `SGL2021` warning per import, with the count and the first message (info not counted).
-- An `SGL2001` whose endpoint reaches into an import that failed (`ImportModel.failed`: `api -> aws.lambda` with `aws` unresolved, refused or skipped) becomes `SGL2024` (warning), and the edge is still skipped.
+- An `SGL2001` whose endpoint reaches into an import that failed, at any depth (`DocumentModel.importFailures`: `api -> aws.lambda` with `aws` unresolved, refused or skipped; `api -> b.c.q` with `b`'s import `c` failed) becomes `SGL2024` (warning), and the edge is still skipped. The edge behind each `SGL2001` is found through an index of the document's edges by span, built once per compile (A9 fix round 1: it was a walk of the model per diagnostic).
 
 A model without `imports` compiles through `compileImports` exactly as through `compile()`.
 

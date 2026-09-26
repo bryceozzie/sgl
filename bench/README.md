@@ -38,9 +38,17 @@ Node 22, 2026-09-26, load ≈ 0.4:
 
 | | Median per keystroke |
 |---|---|
-| `importer50.sgl`, imports unchanged (cached) | 1.8–2.0 ms |
-| the same document without its `@imports` line | 1.2–1.3 ms |
-| its first resolve, cold (parses and resolves the 500-node import; includes JIT warm-up) | ~56 ms, once |
+| `importer50.sgl`, imports unchanged (cached) | 1.8–2.1 ms |
+| the same document without its `@imports` line | 1.2–1.4 ms |
+| its first resolve, cold (parses and resolves the 500-node import; includes JIT warm-up) | ~56–63 ms, once |
+| the same with `as: lib`: the 500 nodes grafted on every keystroke (fix round 1) | ~9.5–10 ms |
+| eight 1 500-node libraries `as:`, 12 000 nodes grafted (fix round 1; 6 keystrokes) | ~250 ms |
+
+The last row is a **known cost**, not an import overhead (execution plan §2.1 F23): split, a
+keystroke there is parse 1.7 ms, `resolveImports` 39 ms and `compileImports` 221 ms, while the same
+12 000 nodes written in the document cost resolve 53 ms and compile 214 ms. The document is 12 000
+nodes on every keystroke; an incremental compile is a later item. Every simulated keystroke is
+asserted to change the document (fix round 1).
 
 ## F9: `render()` alone, measured
 

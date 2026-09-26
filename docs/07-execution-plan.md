@@ -361,6 +361,34 @@ I29 as designed. Design and deviations: DD-02 §10 and DD-08 §15, now marked im
 - **Docs.** Language spec §2, §5, §8, §11; DD-02 §1–§4, §6–§10; DD-03 §9; DD-08 §15; DD-09 §1.1
   (five threat rows) and §2; bench/README.md.
 
+**A9 fix round 1** (same branch; three reviews: design, mutation, rules and security). Human
+decisions of 2026-09-26: **H1** I14's no-`.` class names apply only to documents with `@imports`;
+**H2** a document in a share group resolves imports only within its group, never among the
+recipient's documents; **H3** the core bundle limit is **182 kB** (was 180; the 300 kB hard
+ceiling is unchanged), in a commit of its own. What changed, each with a test shown failing first
+or a mutant it kills:
+- **Core** (`imports.ts`, `imports-catalogue.ts`, `resolve.ts`, `json.ts`, `model.ts`): a failure
+  inside an import is a warning at any depth (`DocumentModel.importFailures`), qualified and
+  unqualified; `compileImports` indexes edges by span once (16 000 dangling edges: 16 s → ~0.15 s);
+  a duplicate `as` counts as failed; each document gets its own `SGL2016`; `"${c.x}"` agrees with
+  `$c.x`; `@imports` is read up to 256 items and nothing is looked up past 64 documents; template
+  values are data only, so new rows `SGL2028`–`SGL2031` (and `SGL2020`, `SGL2022`, `SGL2024`
+  reworded); `SGL2026` counts own nodes only; a malformed `@imports` is kept as written. New corpus
+  fixtures (`deep*.sgl`, `too-wide.sgl`/`wide.sgl`, `too-many-items.sgl`, `node-clash.sgl`) with new
+  CST/AST pins; no existing golden changed.
+- **App**: H2 in the host (the Share dialog's "a name for two documents" paragraph is removed as
+  unreachable); if the `imports` chunk cannot load, one `SGL2027` warning (a boot-catalogue row) and
+  no errors, retried on the next change; typing is saved while the pipeline holds; Share bundles a
+  document under every name it was reached by; an empty name (`./`, `.`, `sub/`) finds nothing;
+  tier order inside a group and `refresh()` dropping deleted documents are tested; a share link's
+  storing moved from `boot.ts` into the lazy `share` chunk; `imports.spec.ts` waits for real state
+  (the panel stable across frames, the lint's marks).
+- **Bench**: each keystroke is checked to change the text; `as: lib` ~9.5–10 ms; eight 1 500-node
+  libraries `as:` ~250 ms, a known cost (§2.1 F23).
+- **Size**: 179.47 → 179.69 kB (the degraded path and `SGL2027`) → **179.63 kB** (the share move), of
+  182 kB.
+- **Docs**: spec §2/§5/§8; DD-02 §2, §3.5, §10; DD-03 §9; DD-08 §15/§15.6; DD-09 §1.1 and §2; DD-10 §4.
+
 **Stage K merged to `main` at `0e9ecfc`** (`--no-ff`, 2026-09-23) after a three-lens review and
 one fix round (23 items). `pnpm check`'s steps from clean are green on `main`, run by the
 orchestrator: 2139 Vitest passed (unit + browser project, Chromium only), e2e 55/55 in Chromium,
@@ -1663,7 +1691,8 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F13** | A share link pasted into an already-open tab (Stage J fix round 1, item 14) imports by flushing autosave and **reloading**, not by switching in place like Open and Documents ▾ (fix round 2). That loses undo history, and when IndexedDB is unavailable (memory-store fallback) the reload loses the tab's documents outright. Also: criterion 5's offline test is falsifiable against the HTTP cache in Chromium and WebKit but not in Firefox, which has neither mechanism the spec uses; and error toasts persist until closed with no cap on how many pile up. | Stage L (E17, alongside the rest of the Documents UI) |
 | **F15** | `elk` misses DD-09 §2's performance budget as measured in Node by Stage K's review: `elkEngine.layout` alone takes 0.5–0.8 s warm / 1.4 s cold at n500 (budget: 400 ms for the whole pipeline) and ~1.9 s warm / 3.8 s cold at n2000 (budget 3 s). Gate 3 is not timed. **Decision (human, 2026-09-23): record it and measure in the browser before Gate 4; the budget is not reopened.** | Stage L, before Gate 4 (the Gate 4 bench) |
 | **F16** | Under `elk`, some edges enter a container through its own title (the endpoint's ancestor, so the K4 hierarchy-crossing check does not count them): `checkout` 2, `containers-edges` 1, `nesting-3` 1, `wildcards` 4, `wildcard-paths` 4 (added 2026-09-24 with the document), pinned by `titleCrossings` in `packages/layout-elk/test/elk.test.ts`. No ELK option tried removes them (`considerModelOrder` crashes ELK on 8 documents; `FIXED_SIDE` moves them). Candidates: a host-side nudge of the final segment, or port placement once ports are real (F6). | Stage L |
-| **F20** | **Bundle headroom.** After A8's fix round 2 the core bundle was 178.63 kB; after C5's two themes (+0.24 kB) it is **178.87 kB** of 180, **178.90 kB** after D6/D7's +27 B on `main`, and **178.91 kB** after D2's +10 B (1.09 kB under): `@sgl/core/json` and the lazy `engine-options-form` chunk are done. On `feat/imports` (A9, §2) the Documents ▾ list is a lazy chunk (−244 B, not the −0.6 kB hoped for) and A9's boot share is +805 B (grammar, seam, records, the pipeline gate, Share), so the bundle is **179.47 kB (179 472 B)**. **The limit is 182 kB since 2026-09-26 (human decision; it was 180 kB; the 300 kB hard ceiling is unchanged)**, so 2.53 kB under. No named candidate is left on the boot path; A18 is estimated at 0.8–1.05 kB at boot, more than remains (orchestration handoff §2). | Stage L, before the next feature on the boot path |
+| **F23** | **A document that imports many nodes `as:` costs what that many nodes cost, on every keystroke** (A9 fix round 1). Eight 1 500-node libraries imported `as:` graft 12 000 nodes, and a keystroke is ~250 ms in Node: `resolveImports` 39 ms (the imports themselves are cached; the graft is cheaper than resolving the same nodes written in the document, 53 ms) and `compileImports` 221 ms (`compile()` of the same nodes, 214 ms). The keystroke budget (DD-09 §2) is for 50 nodes; this is a 12 000-node document. Candidates: an incremental compile, or a graft kept across keystrokes when the imports are unchanged. Measured by `packages/core/test/imports-keystroke.test.ts` (DD-02 §10.8). | Stage L, with the next performance work on large documents |
+| **F20** | **Bundle headroom.** After A8's fix round 2 the core bundle was 178.63 kB; after C5's two themes (+0.24 kB) it is **178.87 kB** of 180, **178.90 kB** after D6/D7's +27 B on `main`, and **178.91 kB** after D2's +10 B (1.09 kB under): `@sgl/core/json` and the lazy `engine-options-form` chunk are done. On `feat/imports` (A9, §2) the Documents ▾ list is a lazy chunk (−244 B, not the −0.6 kB hoped for) and A9's boot share is +805 B (grammar, seam, records, the pipeline gate, Share), so the bundle was **179.47 kB (179 472 B)**, and after A9's fix round 1 (a degraded path for a chunk that cannot load, +218 B; a share link's storing moved to the lazy `share` chunk, −60 B) it is **179.63 kB (179 630 B)**. **The limit is 182 kB since 2026-09-26 (human decision; it was 180 kB; the 300 kB hard ceiling is unchanged)**, so 2.37 kB under. No named candidate is left on the boot path; A18 is estimated at 0.8–1.05 kB at boot, more than remains (orchestration handoff §2). | Stage L, before the next feature on the boot path |
 
 ---
 

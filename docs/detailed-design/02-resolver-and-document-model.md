@@ -31,6 +31,8 @@ interface DocumentModel {
   readonly classes: Readonly<Record<string, ClassModel>>;
   readonly spans: SpanTable;                   // side table; never serialised
   readonly imports?: readonly ImportModel[];   // A9 (§10.5 I31): `@imports` as written; only when present
+  readonly importsWritten?: ConfigValue;       // A9: a malformed `@imports` exactly as written, for toJson (I31)
+  readonly importFailures?: readonly (readonly [string, string])[];  // A9: [qualifier, path] a failed import could have filled, any depth (I17)
 }
 
 interface ImportModel {                        // one `@imports` item (§10.2)
@@ -358,7 +360,7 @@ A9's ten codes, `SGL2017`–`SGL2026`, all warning or info, are `IMPORT_CATALOGU
 
 ## 10. Imports (A9): design
 
-**Status: implemented (A9 phase 2, branch `feat/imports`, 2026-09-26).** Deviations from the design as first written are marked where they apply: step A (§10.2, I9, I14: the import machinery is the lazy `@sgl/core/imports` entry, and core's `resolve()` does not link), the grammar's measured cost (§10.9), the corpus host picking the first of several files in sorted order where the app picks the most recently updated (§10.8), and the cache keeping what the last two root runs used (§10.8, "Cache"). The design as agreed follows. The human decided the
+**Status: implemented (A9 phase 2, branch `feat/imports`, 2026-09-26).** Deviations from the design as first written are marked where they apply: step A (§10.2, I9, I14: the import machinery is the lazy `@sgl/core/imports` entry, and core's `resolve()` does not link), the grammar's measured cost (§10.9), the corpus host picking the first of several files in sorted order where the app picks the most recently updated (§10.8), and the cache keeping what the last two root runs used (§10.8, "Cache"). **Fix round 1 (2026-09-26)** changed, with human decisions H1–H3: I14 is confirmed for documents with `@imports` only (H1); a document in a share group resolves only within its group (H2, I4); a failure *inside* an import is a warning at any depth, and a duplicate `as` counts as failed (I17); `"${ns.x}"` reaches every qualifier the document's imports bring (I16); `@imports` is read up to 256 items and nothing is looked up past 64 documents (I21); each document gets its own `SGL2016` (I21); a malformed `@imports` is kept as written (I31); every template value is data, with a row per limit and per clash (§10.6). The design as agreed follows, with those changes in place. The human decided the
 key question: **a relative import path resolves against the user's stored documents** (Documents ▾,
 DD-08 §9), so imports work offline in every browser; **Share bundles the imported documents into
 the link**; **an unresolved import is a warning** and the rest of the document still renders; F5
@@ -387,12 +389,18 @@ because it defines what an import path *means* in SGL's own product.
   give it. *A repository's `classes.sgl` opened into the app must answer to `./classes.sgl`
   whatever its `@title` says. A document made in the app answers to the name it would be saved
   under, so a saved and re-opened pair keeps resolving.*
-- **I4. Candidates come in four tiers, and the first non-empty tier wins:** (1) the importer's own
-  group by file name, (2) its own group by save name, (3) ungrouped documents by file name,
-  (4) ungrouped documents by save name. A **group** is a new optional record field `group`, set
-  only on the documents one share link created (DD-08 §15, I29). Documents in *another* group are
-  never candidates. *Tiers keep ambiguity rare. Groups mean a share link's documents cannot change
-  how any of your other documents resolve (I22).*
+- **I4. Candidates come in two tiers, and the first non-empty tier wins:** (1) by file name,
+  (2) by save name, both among the importer's own group's documents when it is in a group, and
+  among the ungrouped documents when it is not. A **group** is a new optional record field `group`,
+  set only on the documents one share link created (DD-08 §15, I29). Documents in *another* group
+  are never candidates, and **a grouped document never finds an ungrouped one** (human decision
+  H2, 2026-09-26; the design first let it fall through to the ungrouped documents): what a share
+  link brought resolves only among what came with it, so importing `./notes` from it is `SGL2017`
+  even when the recipient has a `notes`. *Tiers keep ambiguity rare. Groups mean a share link's
+  documents cannot change how any of your other documents resolve, nor reach them (I22).*
+- **I4a. A path whose last segment names nothing finds nothing** (fix round 1): `./`, `.`,
+  `..`, `sub/`: its stem is empty or only dots, and it is `SGL2017`, never the save name
+  `diagram` of an untitled document.
 - **I5. When the winning tier holds more than one document, you get both a warning and a
   pick.** `SGL2018` (warning) names the count, and the most recently updated document is used
   (ties go to the smaller id). *The author learns that the name is ambiguous, and the document
@@ -512,15 +520,17 @@ configuration key: later wins.
   *This is lexical shadowing and "later wins", as everywhere else. Replacing rather than merging
   keeps `toJson` exact (I31): a merged class would need to remember which half was written here.*
 - **I14. Clashes.**
-  - Two imports with the same `as`: the second is skipped (`SGL2022`).
+  - Two imports with the same `as`: the second is skipped (`SGL2022`), and it counts as failed
+    (fix round 1), so a name only it would have brought is `SGL2024`, not an error.
   - An `as` equal to one of your own root node keys, when the import brings a subtree: the
-    subtree is not grafted (`SGL2022`), but its classes and variables still arrive.
+    subtree is not grafted (`SGL2031`; it was `SGL2022`'s second use), but its classes and
+    variables still arrive.
   - A class name you declare that contains `.` is reserved for imports: `SGL2011`, and that class
     is ignored. **⚑** Before this, a quoted `"a.b"` was a legal class name. **Step A deviation
     (size, §10.9): the rule applies to a document with `@imports`** (it is `resolveImports`'s),
     **and a document without them keeps its quoted `"a.b"` class, exactly as before.** A dotted
     name can clash with a qualified one only where there are imports; making it a language rule
-    would put the check on the boot path. For the human to confirm.
+    would put the check on the boot path. **Confirmed by the human (H1, 2026-09-26).**
 
   *An authored tree and an imported tree never merge, so `toJson` prints exactly what was
   written. The container's label comes from the import's `@title`, and its position from import
@@ -539,7 +549,10 @@ configuration key: later wins.
   - The `Variable` token becomes `"$" Identifier ("." Identifier)*`.
   - A *string* that is exactly `"$ns.name"`, or holds `${ns.name}`, is a reference **only when
     `ns` is an import namespace of this document**. Otherwise it is literal text, as it is today,
-    so an existing label such as `"$user.name"` does not become `SGL2013`.
+    so an existing label such as `"$user.name"` does not become `SGL2013`. *As built (fix round
+    1):* a namespace is an `as` of this document's imports, or a qualifier its imported variables
+    or failed imports bring (an unqualified import's own `as: c`), so `"${c.x}"` means what `$c.x`
+    means wherever the token works.
 
   Spec §2 (the class shorthand) and §5 (variable names and interpolation) change to match.
 - **I17. ⚑ A failed import produces warnings, never errors.** The pipeline adopts a new picture
@@ -548,10 +561,18 @@ configuration key: later wins.
   *causes* is an error either. Therefore:
   - A reference whose qualifier names an import that failed is `SGL2024` (warning) instead of
     `SGL2002`, `SGL2013` or `SGL2001`, and is dropped. Failed here means unresolved, skipped for a
-    cycle or a cap, or refused. Such references include `aws.Lambda`, `$aws.x` and `api ->
-    aws.lambda`; the last is checked by `compileImports()` against `DocumentModel.imports`.
+    cycle or a cap, refused, or a duplicate `as`. Such references include `aws.Lambda`, `$aws.x`
+    and `api -> aws.lambda`; the last is checked by `compileImports()`.
   - If any unqualified import failed, an unknown bare class or variable is `SGL2024`, naming that
     import, instead of `SGL2002` or `SGL2013`.
+  - **At any depth** (fix round 1; it was the direct imports only, so `b.c.Lambda` with `b`'s
+    import `c` failed was an error and froze the picture). Each document records every qualifier
+    a failed import could have filled (`DocumentModel.importFailures`), qualified as it passes up
+    through `as` (I15): `b.c` in A when B imports C `as: c` and fails; `''` for an unqualified
+    one. A name matches its longest such qualifier. `compileImports()` reads the same list and
+    finds the edge behind each `SGL2001` through an index of the document's edges by span, built
+    once per compile (it walked the model per diagnostic: 16 000 dangling edges took 16 s, now
+    ~0.15 s).
   - Problems *inside* an import are one `SGL2021` (warning) for each top-level `@imports` item,
     giving the count and the first message. This covers the import's own resolve diagnostics at
     any depth, and `compile()`'s diagnostics on grafted elements, which `compileImports()`
@@ -585,7 +606,12 @@ configuration key: later wins.
   - the **2 Mi-unit variable-expansion budget** (§3.5) is **shared by the whole closure** rather
     than given to each document. **⚑** Spec §5 says "per document".
 
-  The import that would cross a cap is skipped, with one `SGL2020` (warning) per cap. *A diamond
+  The import that would cross a cap is skipped, with one warning per cap: `SGL2020` (depth),
+  `SGL2028` (instances), `SGL2029` (source). Once 64 documents are linked nothing more is looked
+  up, and one `@imports` list is read up to **256 items** (`SGL2030` past it): 100 000 items were
+  ~200 ms of lookups per keystroke (fix round 1). The shared budget still gives **each
+  document** its own `SGL2016` at its first dropped use, even after an import's refusal (fix
+  round 1; it was one per closure). *A diamond
   chain (`D1` imports `D2` twice, `D2` imports `D3` twice, …) is exponential without an instance
   cap. Each import could otherwise bring its own 2 Mi budget.*
 - **I22. A stored document's text is untrusted content, like any document.** It is the user's
@@ -593,8 +619,8 @@ configuration key: later wins.
   resolve, compile and escaping path as the importer's own text (DD-07 §8). An import adds no new
   capability: no network, no script, no new markup. The new threat is a share link that plants
   documents in your store which change how your *other* documents resolve. Groups mitigate it
-  (I4): a bundle's documents are visible only to their own group. Phase 2 adds this as a row in
-  DD-09 §1.1, alongside the caps above.
+  (I4): a bundle's documents are visible only to their own group, and they see only it (H2).
+  DD-09 §1.1 has the rows.
 
 ### 10.5 Canonical JSON
 
@@ -609,6 +635,9 @@ configuration key: later wins.
   - A `.sgl.json` is therefore **not self-contained**: it needs its imports, just as the `.sgl`
     does. Bundling them is F5.
   - A document without `@imports` serialises byte for byte as before, so no golden changes.
+  - A malformed `@imports` (an item or the value refused, `SGL2011`) is printed exactly as written,
+    refused items included (`DocumentModel.importsWritten`; fix round 1), and round-trips with the
+    same diagnostics.
 
 ### 10.6 Diagnostics
 
@@ -622,15 +651,24 @@ is `SGL2004` (I13).
 | `SGL2017` | warning | Cannot find `{path}` to import; nothing was imported from it. | import catalogue (no linker, I9; linker) |
 | `SGL2018` | warning | `{path}` matches {n} documents; importing `{chosen}`, the most recently updated. | import catalogue |
 | `SGL2019` | warning | `{path}` imports itself via `{cycle}`; this import was skipped. | import catalogue |
-| `SGL2020` | warning | Importing `{path}` would go past {limit}; it was skipped. | import catalogue |
+| `SGL2020` | warning | Importing `{path}` would go past {limit} levels of imports; it was skipped. | import catalogue |
 | `SGL2021` | warning | `{path}` has {n} problems of its own; the first: {first} | import catalogue (`resolveImports`, `compileImports`) |
-| `SGL2022` | warning | `{name}` is already {what}; {outcome}. | import catalogue |
+| `SGL2022` | warning | `{name}` is already the name of an earlier import; this import was skipped. | import catalogue |
 | `SGL2023` | info | Class `{name}` here replaces the one imported from `{path}`. | import catalogue |
-| `SGL2024` | warning | `{name}` may come from `{path}`, which could not be imported; {what} was skipped. | import catalogue (`resolveImports`, `compileImports`) |
+| `SGL2024` | warning | `{name}` may come from `{path}`, which could not be imported; it was skipped. | import catalogue (`resolveImports`, `compileImports`) |
 | `SGL2025` | warning | `{path}` is not a relative path; only your own documents can be imported. | import catalogue |
-| `SGL2026` | info | The nodes and edges of `{path}` are not imported; give the import an `as:` name to include them. | import catalogue |
+| `SGL2026` | info | The nodes and edges of `{path}` are not imported; give the import an `as:` name to include them. | import catalogue (its own nodes only: a container grafted from its own imports is not one) |
+| `SGL2027` | warning | The imported documents could not be loaded; names that may come from them were skipped. | **boot** catalogue: the app, when the `imports` chunk cannot load (DD-08 §15.6) |
+| `SGL2028` | warning | Importing `{path}` would go past {limit} imported documents; it was skipped. | import catalogue |
+| `SGL2029` | warning | Importing `{path}` would go past {limit} characters of imported source; it was skipped. | import catalogue |
+| `SGL2030` | warning | `@imports` has more than {limit} items; the rest were skipped. | import catalogue |
+| `SGL2031` | warning | `{name}` is already a node in this document; the nodes and edges of `{path}` were not imported. | import catalogue |
 
-All ten rows are `IMPORT_CATALOGUE`, in `@sgl/core/imports`, built with the same `fromCatalogue`
+**Fix round 1:** template values are data only — paths, names, numbers, a cycle's chain, another
+diagnostic's message — never English phrases (execution plan §1), so the caps and the two clashes
+have a row each (`SGL2028`–`SGL2031`), and `SGL2024` no longer says what was skipped.
+
+All the rows but `SGL2027` are `IMPORT_CATALOGUE`, in `@sgl/core/imports`, built with the same `fromCatalogue`
 that `LAYOUT_CATALOGUE` uses (execution plan §1), so none is on the boot path (step A moved
 `SGL2017`, `SGL2021` and `SGL2024` there too: nothing on the boot path emits them any more;
 `check-core-chunks.mjs` fails if a boot chunk carries one). `resolveImports` turns an `SGL2002` or
@@ -672,7 +710,10 @@ still names every code, through a type-only import, and the coverage gate reads 
   - A diamond chain at n = 30 finishes in milliseconds with one `SGL2020`.
   - A doubling-variable chain spread across imports hits the shared `SGL2016`.
 - **Corpus.** `corpus/imports/`: a directory of documents that import one another, run by a
-  Node file-system host that matches stems within the directory (I1–I2). It has at least one
+  Node file-system host that matches stems within the directory (I1–I2). *Its tie rule differs
+  from the app's, deliberately:* several matches pick the first file name in sorted order,
+  because a file's modification time is not deterministic in a checkout; the app picks the most
+  recently updated record (I5). It has at least one
   clean document with goldens, and one fixture per new code, for the coverage gate. No existing
   golden changes.
 - **Round trip.** `fromJson(toJson(m)) ≡ m` over `corpus/imports/`, with the same host (I31).
@@ -684,9 +725,14 @@ still names every code, through a type-only import, and the coverage gate reads 
 - **Performance.** `bench/generate.js` gains an importer of a 500-node import. The keystroke path
   stays within DD-09 §2 (50 nodes: < 60 ms, with the import cached). *As built:*
   `bench/imports/importer50.sgl` imports `lib500.sgl`; `imports-keystroke.test.ts` asserts a keystroke
-  costs one lookup and no parse or resolve of the import, and measured 1.8–2.0 ms per keystroke
-  (`parse -> resolveImports -> compileImports`, Node), against 1.2–1.3 ms without the import
-  (bench/README.md).
+  costs one lookup and no parse or resolve of the import, and measured 1.8–2.1 ms per keystroke
+  (`parse -> resolveImports -> compileImports`, Node), against 1.2–1.4 ms without the import
+  (bench/README.md). Fix round 1 also measures `as: lib` (the 500 nodes grafted on every
+  keystroke): ~9.5–10 ms. **Known cost** (execution plan §2.1 F23): with eight 1 500-node libraries
+  `as:`, a keystroke is ~250 ms, because the document *is* 12 000 nodes on every keystroke;
+  `resolveImports` is 39 ms of it (less than resolving the same nodes written in the document,
+  53 ms) and `compileImports` 221 ms (`compile()` of those nodes: 214 ms). An incremental
+  compile, or a graft kept across keystrokes, is a later item.
 
 **As built**, each item above maps to:
 
@@ -698,7 +744,8 @@ still names every code, through a type-only import, and the coverage gate reads 
 | `SGL2024` containment, `SGL2021` summaries incl. `compile()`'s (I17) | `imports.test.ts`, "failed imports are warnings" |
 | Qualified-name parsing; `"$user.name"` kept literal (I16) | `parse.test.ts`, `grammar.test.ts`, `grammar-trees.test.ts` (every existing CST/AST pinned, unchanged), `imports.test.ts` |
 | Double run; `hasImports` | `imports.test.ts`; `imports-corpus.test.ts` (cold, and through a warm shared cache) |
-| Every `SGL2025` form; self, mutual, long cycles; depth 8/9; 64/65 instances; 2 Mi source (exact edges); diamond n = 30; shared `SGL2016` | `imports-limits.test.ts` |
+| Every `SGL2025` form; self, mutual, long cycles; depth 8/9; 64/65 instances; 2 Mi source (exact edges); diamond n = 30; shared `SGL2016`, and each document's own (fix round 1); 256 items and no lookups past 64 | `imports-limits.test.ts` |
+| Fix round 1: failures inside imports at depth 2 and 3, qualified and unqualified; 16 000 edges linear; a duplicate `as`; `"${c.x}"`; `"$user.name"` with `as:`; SGL2026 own nodes only; a malformed `@imports` kept | `imports.test.ts`, "A9 fix round 1" |
 | Corpus, one fixture per code, `main.sgl` goldens; round trip (I31) | `corpus/imports/`, `imports-corpus.test.ts`, `diagnostics-coverage.test.ts`; `render-svg`'s `pipeline.test.ts` and `render.test.ts` (whole pipeline, and its SVG double run) |
 | Cache | `imports.test.ts` ("parses nothing and only looks up"), `imports-corpus.test.ts`, `imports-limits.test.ts` (a capped entry not reused elsewhere) |
 | Performance | `imports-keystroke.test.ts` |
@@ -741,7 +788,9 @@ commit `544fe6d` measured each step some 120–160 B higher, but the steps' diff
 | records keep `fileName` and `group`; a title skips grafted containers (DD-08 §15.1) | 179 004 B | +63 |
 | the pipeline's gate (I25) and App's lazy load of the `imports` chunk | 179 329 B | +325 (the gate +200, the dynamic import and its preload list +125) |
 | Share bundling and group storage (I26–I29) | 179 472 B | +143 |
-| **final** (the rest of the branch is tests and docs) | **179 472 B (179.47 kB)** | 528 B of headroom under 180 kB |
+| end of phase 2 (the rest of it was tests and docs) | 179 472 B (179.47 kB) | 528 B under the 180 kB limit then |
+| fix round 1: the degraded path when the chunk cannot load, and `SGL2027` (boot catalogue) | 179 690 B | +218 |
+| fix round 1: a share link's storing moved into the lazy `share` chunk | **179 630 B (179.63 kB)** | −60; the limit is **182 kB** since 2026-09-26 (human decision H3), so 2.37 kB under |
 
 Step A's boot share is `hasImports`, the `ImportSeam` (a scope, a list of class names, the root
 scope handed back), the swappable `REF_PATTERNS`, a `sink` per imported variable, and the budget
