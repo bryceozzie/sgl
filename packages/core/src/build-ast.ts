@@ -534,6 +534,16 @@ function multilineBodyEnd(source: string, from: number): { to: number; closed: b
   return { to: source.length, closed: false };
 }
 
+/** Whether an unclosed `"""` starts anywhere at or after `from`. */
+function unclosedTripleAfter(source: string, from: number): boolean {
+  for (let i = source.indexOf('"""', from); i >= 0; ) {
+    const body = multilineBodyEnd(source, i);
+    if (!body.closed) return true;
+    i = source.indexOf('"""', body.to + 3);
+  }
+  return false;
+}
+
 /**
  * Decode a `MultilineString` token: DD-11 T17, on the raw body.
  *
@@ -654,7 +664,15 @@ function scanLexicalErrors(tree: Tree, source: string): Diagnostic[] {
         }
         i += 1;
       }
-      if (!closed && confirmed(start, source.length)) {
+      if (!closed) {
+        // Not a comment (`x -> /*` is an edge to every root child), or one
+        // whose error nodes a later unterminated `"""` explains instead (A18
+        // fix round 1): scan on from just after the `/*`, so that `"""` gets
+        // its SGL1003. Otherwise it is an unterminated comment, as before.
+        if (!confirmed(start, source.length) || unclosedTripleAfter(source, start + 2)) {
+          i = start + 2;
+          continue;
+        }
         out.push(diagnostic('SGL1005', span(start, source.length)));
         return out;
       }
@@ -664,9 +682,12 @@ function scanLexicalErrors(tree: Tree, source: string): Diagnostic[] {
       // A `"""` body (A18, DD-11 T19): a `"`, `//` or `/*` inside it is text.
       // Unclosed, the token runs to the end of the input, and so does its one
       // SGL1003; nothing after it is reported (see `errorNodeDiagnostics`).
-      // No error-node check is needed: outside a comment, an unclosed `"""` is
+      // No error-node check is needed: an unclosed `"""` the scan reaches is
       // always an error, whether it lexed as a MultilineString to the end of
-      // the input or, where one cannot lex, as broken `"` strings.
+      // the input or, where one cannot lex, as broken `"` strings. The scan
+      // reaches it past a line comment's end, past a closed block comment,
+      // and past an unclosed `/*` that is not a comment (above); inside a
+      // real comment it is never reached.
       const body = multilineBodyEnd(source, i);
       if (!body.closed) {
         out.push(diagnostic('SGL1003', span(i, source.length)));

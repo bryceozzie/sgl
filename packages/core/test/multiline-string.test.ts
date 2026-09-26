@@ -194,6 +194,10 @@ describe('T17: dedent', () => {
     ['the closing `"""` on the last text line', '"""\n  a\n  b"""', 'a\nb'],
     ['tabs never match spaces', '"""\n\ta\n  b\n"""', '\ta\n  b'],
     ['tabs match tabs', '"""\n\t\ta\n\tb\n\t"""', '\ta\nb'],
+    // The closing delimiter offers two spaces, but the tab line agrees with
+    // no space, so the common indent is empty (fix round 1, mutant M4: a
+    // comparison that let a tab match a space would cut one character).
+    ['tabs never match spaces, even with the closing `"""` indented', '"""\n\ta\n  b\n  """', '\ta\n  b'],
     ['a mixed prefix matches only as far as it agrees', '"""\n \ta\n \t b\n  c\n """', '\ta\n\t b\n c'],
     ['trailing spaces and tabs are removed', '"""\n  a   \n  b\t \n  """', 'a\nb'],
     ['blank lines are kept, empty, and do not set the indent', '"""\n    a\n\n  \n    b\n    """', 'a\n\n\nb'],
@@ -276,6 +280,32 @@ describe('T19: an unterminated `"""` is exactly one SGL1003, to the end of the i
   it('keeps the entries before it (FR-E4)', () => {
     const { ast } = parse('a\nb: { @label: """x\n');
     expect(ast.entries.map((e) => (e.kind === 'NodeDecl' ? e.key : e.kind))).toEqual(['a', 'b']);
+  });
+
+  // Fix round 1, item 1: an unclosed `/*` that is not a comment (an edge to
+  // every root child, `x -> /*`) must not hide a later unterminated `"""`.
+  it.each([
+    ['at the top level', 'x -> /*\na: """ hi'],
+    ['inside a block', 'x -> /*\ny: { a: """ hi\n}'],
+  ])('after an edge to `/*`, %s, is still exactly one SGL1003', (_where, source) => {
+    const { diagnostics } = parse(source);
+    const open = source.indexOf('"""');
+    expect(diagnostics.map((d) => [d.code, d.span.from, d.span.to])).toEqual([['SGL1003', open, source.length]]);
+  });
+
+  it('an unterminated block comment with no `"""` after it is still SGL1005', () => {
+    const source = 'a\n/* never ends\nb: "x"\n';
+    expect(parse(source).diagnostics.map((d) => [d.code, d.span.from, d.span.to])).toEqual([['SGL1005', 2, source.length]]);
+  });
+
+  // Fix round 1, item 3 (mutant M13): the body's end honours escapes, so an
+  // escaped quote followed by two more does not close the string.
+  it('`\\"` followed by `""` does not close the string', () => {
+    const source = 'a: """say \\""" ok"""\n';
+    const { ast, diagnostics } = parse(source);
+    expect(diagnostics).toEqual([]);
+    const a = ast.entries[0];
+    expect(a?.kind === 'NodeDecl' && a.value?.kind === 'String' ? a.value.value : undefined).toBe('say """ ok');
   });
 
   it('a closed `"""` hides a `"`, `//` and `/*` from scanLexicalErrors', () => {
