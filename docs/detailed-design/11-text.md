@@ -593,7 +593,7 @@ The decisions:
   edge label breaks only at explicit `\n`. **With no `maxWidth`, nothing wraps**, which is the MVP
   behaviour. *This is the human's decision. With no default width, no existing layout changes. The
   inverse insets are what make `intrinsic.w ≤ maxWidth` hold for every shape.*
-  - *Implemented (branch 2, `feat/a18-text`), as written, with one correction:* `labelBox` in `@sgl/text`, `labelMaxWidth` in core. **Correction:** "so a class's `@size` counts" is wrong: DD-04 §4 step 6 applies only a node's *own* `@size`, so a class's `@size` reaches no geometry and does not wrap (tested). And `@size.maxWidth` did not reach geometry at all: the theme registry had no `maxWidth` row, so the cascade dropped it with `SGL5003`. Branch 2 adds the row (DD-04 §2). Containers do not wrap their titles: `@size` keys apply to nodes only.
+  - *Implemented (branch 2, `feat/a18-text`), as written, with one correction:* `labelBox` in `@sgl/text`, `labelMaxWidth` in core. **Correction, since reversed:** branch 2 found that a class's `@size` reached no geometry (DD-04 §4 step 6 applies only a node's own `@size`), so it did not wrap. Human decision H2 (fix round 1) makes it count, as T35 said: DD-04 §4 merges a class's size keys at step 4, and a class with `maxWidth` wraps its nodes' labels (tested end to end). And `@size.maxWidth` did not reach geometry at all: the theme registry had no `maxWidth` row, so the cascade dropped it with `SGL5003`. Branch 2 adds the row (DD-04 §2). Containers do not wrap their titles: `@size` keys apply to nodes only.
 - **T36. ⚑ A fixed `@size.width` also wraps**, at `labelMaxWidth(shape, width, padding)`. When both
   are set, the smaller wins. *Text that overflows a fixed-width box is never what the author
   wanted. The human's decision names only `maxWidth`, so this is an extension that needs a yes. No
@@ -1093,11 +1093,11 @@ Each change is made in the branch that implements it (§16).
    language spec §4, `SIZE_KEYS` and DD-04 §4 step 6 all list `@size.maxWidth`: the cascade dropped it
    with `SGL5003`, so no node could have a `maxWidth` and T35 had nothing to read. DD-04 §2 and the
    registry now have the row.
-10. *(Found by branch 2, open.)* **DD-02 §7 accepts `@size` on a class, and T35 says a class's
-    `@size` counts, but DD-04 §4 step 6 applies only a node's own `@size`**: a class's `@size`
-    validates and does nothing, with no diagnostic. Branch 2 follows the cascade (a class's
-    `@size` does not wrap) and records it in DD-02 §7. Whether class `@size` should apply is a
-    language question for the human.
+10. *(Found by branch 2; resolved by human decision H2 in fix round 1.)* **DD-02 §7 accepts `@size`
+    on a class, and T35 says a class's `@size` counts, but DD-04 §4 step 6 applied only a node's own
+    `@size`**: a class's `@size` validated and did nothing. H2: it applies, merged at DD-04 §4 step
+    4 in `@type` order, the node's own `@size` overriding per key; DD-02 §7, DD-04 §4 and spec §6
+    say so.
 11. *(Found by branch 2.)* **T13 says markdown covers "`@label` set by a class"**, but a class's
     `@label` never reaches a node's title (DD-03 §6 reads the node's own `config`). Nothing to
     parse; recorded under T13.

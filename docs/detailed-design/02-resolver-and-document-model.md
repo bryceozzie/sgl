@@ -278,7 +278,7 @@ MVP registry (order = row order):
 | `shape` | node, class | enum — DD-07 §4 list |
 | `direction` | root, node (containers) | enum `down up left right` — sugar, folded into `layout.direction` |
 | `style` | node, edge, class | any — properties from DD-04 registry |
-| `size` | node, class | object `width height minWidth minHeight maxWidth aspectRatio`: exactly `SIZE_KEYS` (`config-registry.ts`) and language spec §4. There is no `maxHeight` (A18 corrected this row, DD-11 §19 item 6). A class's `@size` validates but does not size a node: DD-04 §4 step 6 applies only the node's own |
+| `size` | node, class | object `width height minWidth minHeight maxWidth aspectRatio`: exactly `SIZE_KEYS` (`config-registry.ts`) and language spec §4. There is no `maxHeight` (A18 corrected this row, DD-11 §19 item 6). A class's `@size` sizes its nodes: DD-04 §4 merges it at step 4, in `@type` order, and a node's own `@size` overrides it per key (human decision H2, 2026-09-26) |
 | `ports` | node, class | object name → `north south east west` |
 | `order` | node, edge | number |
 | `hidden` | node, edge | boolean |

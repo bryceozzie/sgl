@@ -27,3 +27,34 @@ describe('@size.maxWidth (DD-11 T35)', () => {
     for (const id of value.graph.order) expect(value.styles[id]!.geometry['maxWidth']).toBeUndefined();
   });
 });
+
+describe("a class's @size applies to its nodes (human decision H2)", () => {
+  const geometry = (src: string, id: string) => {
+    const { value } = styled(src);
+    return value.styles[id as keyof typeof value.styles]!.geometry;
+  };
+  const CLASSES = '@classes: { Narrow: { @size: { maxWidth: 64, height: 50 } }, Wide: { @size: { maxWidth: 300 } } }\n';
+
+  it("merges the class's size keys at step 4", () => {
+    expect(geometry(`${CLASSES}a: Narrow\n`, 'a')).toMatchObject({ maxWidth: 64, height: 50 });
+  });
+  it('in @type order, the later class winning per key', () => {
+    expect(geometry(`${CLASSES}a: { @type: [Narrow, Wide] }\n`, 'a')).toMatchObject({ maxWidth: 300, height: 50 });
+    expect(geometry(`${CLASSES}a: { @type: [Wide, Narrow] }\n`, 'a')).toMatchObject({ maxWidth: 64, height: 50 });
+  });
+  it("the node's own @size overrides per key at step 6", () => {
+    expect(geometry(`${CLASSES}a: { @type: Narrow, @size: { maxWidth: 99 } }\n`, 'a')).toMatchObject({ maxWidth: 99, height: 50 });
+  });
+  it('is geometry only: the paint is unchanged, geometryHash covers it, and nodes of one class share a style', () => {
+    const withSize = styled(`${CLASSES}a: Narrow\nb: Narrow\n`).value;
+    const without = styled('@classes: { Narrow: {} }\na: Narrow\nb: Narrow\n').value;
+    expect(withSize.styles['a' as keyof typeof withSize.styles]!.paint).toEqual(without.styles['a' as keyof typeof without.styles]!.paint);
+    expect(withSize.geometryHash).not.toBe(without.geometryHash);
+    expect(withSize.styles['a' as keyof typeof withSize.styles]).toBe(withSize.styles['b' as keyof typeof withSize.styles]);
+  });
+  it("only the @size keys: a class's @size.fill paints nothing", () => {
+    const { value } = styled('@classes: { K: { @size: { fill: "#FF0000", width: 90 } } }\na: K\n');
+    expect(value.styles['a' as keyof typeof value.styles]!.paint['fill']).not.toBe('#FF0000');
+    expect(value.styles['a' as keyof typeof value.styles]!.geometry['width']).toBe(90);
+  });
+});

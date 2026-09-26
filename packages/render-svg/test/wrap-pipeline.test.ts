@@ -91,6 +91,19 @@ describe('wrapped labels lay out at their wrapped size (DD-11 T35, T39, T40)', (
     for (const id of ['l:a', 'l:b']) expect(table[labelRunKey(styled, id as LabelId)]!.lines.length, id).toBeGreaterThan(1);
   });
 
+  it("a class with @size.maxWidth wraps its nodes' labels, end to end, and structureHash sees it (H2)", async () => {
+    for (const engine of ENGINES) {
+      const src = `@classes: { Card: { @size: { maxWidth: 150 } } }\na: { @type: Card, @label: "${LONG}" }\nb: { @type: Card, @label: "${LONG} two" }\n`;
+      const { styled, table, result, rendered } = await runPipeline(src, undefined, engine);
+      for (const id of ['a', 'b']) {
+        expect(table[labelRunKey(styled, `l:${id}` as LabelId)]!.lines.length, id).toBeGreaterThan(1);
+        expect(result.nodes[asNodeId(id)]!.frame.w, `${engine.id} ${id}`).toBeLessThanOrEqual(150 + 1 / 64);
+      }
+      const plain = await runPipeline(src.replace('@size: { maxWidth: 150 }', ''), undefined, engine);
+      expect(plain.rendered.structureHash).not.toBe(rendered.structureHash);
+    }
+  });
+
   it('a container\'s title band grows with its line count, pushing its children down (T40)', async () => {
     for (const engine of ENGINES) {
       const one = await runPipeline('box: { @label: "Title", a }\n', undefined, engine);

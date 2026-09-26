@@ -102,8 +102,8 @@ describe('labelBox (DD-11 T29, T35, T36)', () => {
     expect(box('a: { @size: { width: 104, maxWidth: 124 } }\n')).toEqual({ maxWidth: 80 });
     expect(box('a: { @size: { width: 204, maxWidth: 124 } }\n')).toEqual({ maxWidth: 100 });
   });
-  it('reads what the cascade resolved: DD-04 step 6 applies only a node\'s own @size, so a class\'s does not wrap (a DD-11 T35 correction)', () => {
-    expect(box('@classes: { narrow: { @size: { maxWidth: 64 } } }\na: { @type: narrow }\n')).toBe(UNCONSTRAINED);
+  it("a class's @size counts: DD-04 step 4 merges it (human decision H2)", () => {
+    expect(box('@classes: { narrow: { @size: { maxWidth: 64 } } }\na: { @type: narrow }\n')).toEqual({ maxWidth: 40 });
   });
   it('a zero or negative width is ignored, and padding wider than the node gives 0', () => {
     expect(box('a: { @size: { maxWidth: 0 } }\n')).toBe(UNCONSTRAINED);

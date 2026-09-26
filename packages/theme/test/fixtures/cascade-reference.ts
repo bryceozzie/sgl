@@ -390,6 +390,16 @@ export function styleGraph(
           resolveStyleSet(declaredStyle, theme.tokens, `class \`${c}\``, span, diagnostics),
         );
       }
+      // H2 (2026-09-26): the class's own `@size`, its size keys only, right
+      // after its style, so later classes win per key and the element's own
+      // `@size` (step 6) wins over every class. Geometry only: the cascade
+      // signature, and so the paint class names, are unchanged.
+      if (withSize) {
+        const declaredSize = sizeKeysOnly(styleSetFromConfig(documentClasses[c]?.config?.size));
+        if (sortedKeys(declaredSize).length > 0) {
+          docClassSets.push(resolveStyleSet(declaredSize, theme.tokens, `class \`${c}\``, span, diagnostics));
+        }
+      }
     }
     const inline = resolveStyleSet(
       styleSetFromConfig(config?.style),
