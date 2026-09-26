@@ -105,6 +105,10 @@ describe('@sgl/core/editor', () => {
     expect(fold(closed)).toEqual({ from: closed.indexOf('"""') + 3, to: closed.lastIndexOf('"""') });
     const open = '@label: """\n  a\n  b\n';
     expect(fold(open)).toEqual({ from: open.indexOf('"""') + 3, to: open.length });
+    // Fix round 1, item 5: ends in `"""` but is not closed (`\"` then `""`
+    // at the end of the input), so it folds to the end, not 3 short.
+    const escaped = '@label: """\n  a\n  b\\"""';
+    expect(fold(escaped)).toEqual({ from: escaped.indexOf('"""') + 3, to: escaped.length });
   });
 
   it('parsing the same source twice is deterministic (DD-00 §3)', () => {

@@ -66,10 +66,15 @@ const sglParser = parser.configure({
       Object: foldInside,
       Array: foldInside,
       // A18, DD-11 T19: between the delimiters; an unterminated one to the end.
-      MultilineString: (node, state) => ({
-        from: node.from + 3,
-        to: node.to - (node.to - node.from >= 6 && state.doc.sliceString(node.to - 3, node.to) === '"""' ? 3 : 0),
-      }),
+      // Closed means an unescaped `"""` ends the token, found as the token
+      // finds it: `"""a\"""` at the end of the input ends in `"""` but is not
+      // closed (A18 fix round 1).
+      MultilineString: (node, state) => {
+        const text = state.doc.sliceString(node.from, node.to);
+        let i = 3;
+        while (i < text.length && !text.startsWith('"""', i)) i += text[i] === '\\' ? 2 : 1;
+        return { from: node.from + 3, to: node.from + Math.min(i, text.length) };
+      },
     }),
   ],
 });
