@@ -1,5 +1,6 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { describe, expect, it } from 'vitest';
+import { parseInline } from '@sgl/core/inline';
 import { embedFonts, usedFontFaces, type EmbeddedFont } from '../src/fonts.js';
 import { listCorpusDocs, renderCorpusDoc, runPipeline } from './pipeline.js';
 
@@ -169,5 +170,73 @@ describe('escaping: the output stays well-formed XML with one <style>', () => {
     expect(() => embedFonts(svg, [{ family: 'Inter', weight: 400, style: 'normal', woff2Base64: 'AA)A' }])).toThrow(/base64/);
     expect(() => embedFonts(svg, [{ family: 'Inter', weight: 400, style: 'normal;x', woff2Base64: 'AAAA' }])).toThrow(/style/);
     expect(() => embedFonts(svg, [{ family: 'Inter', weight: 4000, style: 'normal', woff2Base64: 'AAAA' }])).toThrow(/weight/);
+  });
+});
+
+/**
+ * DD-11 T50: with run rules (`.r-em`, `.r-code`, `.r-strong`), faces are chosen
+ * per element — each `<text>`'s own face, and each run tspan's face (its `r-`
+ * rules over what it inherits from its `<text>`) — never as the cross product
+ * of every family, weight and style any rule names. The app ships A18's faces
+ * (T26), so the full set is given here.
+ */
+describe('usedFontFaces per element, with run rules (DD-11 T50)', () => {
+  const ALL: readonly EmbeddedFont[] = [
+    ...[400, 500, 600, 700].map((weight) => ({ family: 'Inter', weight, style: 'normal', woff2Base64: 'AAAA' })),
+    ...[400, 500, 600, 700].map((weight) => ({ family: 'Inter', weight, style: 'italic', woff2Base64: 'BBBB' })),
+    ...[400, 700].map((weight) => ({ family: 'IBM Plex Mono', weight, style: 'normal', woff2Base64: 'CCCC' })),
+  ];
+  const INLINE = { inline: parseInline };
+  const used = async (source: string): Promise<string[]> => {
+    const { rendered } = await runPipeline(source, undefined, undefined, {}, undefined, INLINE);
+    return usedFontFaces(rendered.svg, ALL).map((f) => `${f.family} ${f.style} ${f.weight}`);
+  };
+
+  it('one italic edge label adds Inter italic 400 only, not an italic for every weight', async () => {
+    expect(await used('a: "A"\nb: "B"\na -> b: "*async*"\n')).toEqual(['Inter italic 400', 'Inter normal 500']);
+  });
+
+  it('a label drawn only in marks does not need its plain face', async () => {
+    expect(await used('a: "**A**"\n')).toEqual(['Inter normal 700']);
+    expect(await used('a: "**A** b"\n')).toEqual(['Inter normal 500', 'Inter normal 700']);
+  });
+
+  it('em at each role\'s base weight: node 500, container 600, edge 400; strong and em together is 700 italic', async () => {
+    expect(await used('g: { @label: "*G*", n: { @label: "*N* ***both***" } }\nx\ng.n -> x: "*e*"\n')).toEqual([
+      'Inter italic 400',
+      'Inter italic 500',
+      'Inter italic 600',
+      'Inter italic 700',
+      'Inter normal 500',
+    ]);
+  });
+
+  it('code is IBM Plex Mono 400, strong code is Plex 700, and never italic', async () => {
+    expect(await used('a: "`x`"\n')).toEqual(['IBM Plex Mono normal 400']);
+    expect(await used('a: "**`x`**"\n')).toEqual(['IBM Plex Mono normal 700']);
+    expect(await used('a: "*`x`*"\n')).toEqual(['IBM Plex Mono normal 400']);
+  });
+
+  it('an SVG with no run classes gets exactly the selection it had before (the corpus)', async () => {
+    const legacy = (svg: string): string[] => usedFontFaces(svg, INTER).map((f) => `${f.style} ${f.weight}`);
+    for (const doc of listCorpusDocs()) {
+      const { svg } = (await renderCorpusDoc(doc)).rendered;
+      expect(svg).not.toMatch(/class="r-/);
+      expect(usedFontFaces(svg, ALL).map((f) => `${f.style} ${f.weight}`).filter((f) => f !== 'normal 700'), doc).toEqual(legacy(svg));
+    }
+  });
+
+  it('embeds the chosen faces, sorted, and the file stays well-formed', async () => {
+    const { rendered } = await runPipeline('a: "**Pay** `v2` *it*"\nb\na -> b: "***x***"\n', undefined, undefined, {}, undefined, INLINE);
+    const out = embedFonts(rendered.svg, ALL);
+    expect(XMLValidator.validate(out)).toBe(true);
+    expect(faces(out).map((f) => /font-family:'([^']*)';font-style:(\w+);font-weight:(\d+)/.exec(f)!.slice(1).join(' '))).toEqual([
+      'IBM Plex Mono normal 400',
+      'Inter italic 500',
+      'Inter italic 700',
+      'Inter normal 500',
+      'Inter normal 700',
+    ]);
+    expect(out.replace(/@font-face\{[^}]*\}\n/g, '')).toBe(rendered.svg);
   });
 });

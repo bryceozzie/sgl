@@ -100,6 +100,54 @@ test('the PNG’s text is drawn with the embedded font, not a fallback', async (
   expect(differs).toBeGreaterThan(50);
 });
 
+test('an italic label’s PNG is drawn in Inter Italic, as the face’s own metrics say (DD-11 T60)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'the probe’s tolerance is measured in Chromium');
+  const LABEL = 'Hamburgefontsiv WAVE 0123';
+  await openFile(page, 'italic.sgl', `a: "*${LABEL}*"\n`);
+  await waitForExactNodeCount(page, 1);
+  // The layout of this label has landed (the node is as wide as the label), not the last document's.
+  await expect
+    .poll(() => renderedSvg(page).locator('g[id="n-a"] > path.n-shape').evaluate((p) => (p as SVGGraphicsElement).getBBox().width))
+    .toBeGreaterThan(180);
+  const saved = await savePng(page, 2);
+  const probe = await page.evaluate(
+    async ({ b64, label }) => {
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+      const c = new OffscreenCanvas(bitmap.width, bitmap.height);
+      const ctx = c.getContext('2d')!;
+      ctx.drawImage(bitmap, 0, 0);
+      const data = ctx.getImageData(0, 0, c.width, c.height).data;
+      let left = Infinity;
+      let right = -1;
+      for (let y = 0; y < c.height; y++) {
+        for (let x = 0; x < c.width; x++) {
+          if (data[(y * c.width + x) * 4]! < 128) {
+            left = Math.min(left, x);
+            right = Math.max(right, x);
+          }
+        }
+      }
+      const extent = async (font: string): Promise<number> => {
+        await document.fonts.load(font);
+        const m = new OffscreenCanvas(1, 1).getContext('2d')!;
+        m.font = font;
+        const t = m.measureText(label);
+        return t.actualBoundingBoxLeft + t.actualBoundingBoxRight;
+      };
+      return { ink: (right - left + 1) / 2, italic: await extent('italic 500 13px Inter') };
+    },
+    { b64: saved.bytes.toString('base64'), label: LABEL },
+  );
+  expect(Math.abs(probe.ink - probe.italic), JSON.stringify(probe)).toBeLessThanOrEqual(1);
+  // The face it embeds for the rasterisation is Inter Italic 500 alone (T50): the
+  // same selection Save ▾ SVG makes.
+  const svg = (await saveAs(page, 'svg')).text;
+  expect([...svg.matchAll(/@font-face\{font-family:&apos;([^&]*)&apos;;font-style:(\w+);font-weight:(\d+)/g)].map((m) => m.slice(1).join(' '))).toEqual(['Inter italic 500']);
+});
+
 test.describe('clipboard', () => {
   test.beforeEach(async ({ context }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);

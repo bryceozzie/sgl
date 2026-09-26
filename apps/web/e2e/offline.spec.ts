@@ -429,13 +429,19 @@ test('offline, the lazy rich-text chunk comes from the precache: a document with
     await page.reload();
     await waitForExactNodeCount(page, 2);
     await expect.poll(width).toBeLessThanOrEqual(150);
-    // Parsed offline too: the markers are gone from the drawn text.
+    // Parsed offline too: the markers are gone, the marks drawn in their own faces.
     await expect(renderedSvg(page).locator('g[id="n-a"] text')).not.toContainText('**');
+    await expect(renderedSvg(page).locator('g[id="n-a"] tspan.r-strong')).toHaveText('Payments');
+    await expect(renderedSvg(page).locator('g[id="n-a"] tspan.r-code')).toHaveText('service');
     await expect(page.locator('.diagnostics-panel')).toHaveCount(0);
 
     const chunk = responses.filter((r) => /\/assets\/rich-text-[^/]*\.js$/.test(new URL(r.url()).pathname));
     expect(chunk.length).toBe(1);
     expect(chunk.every((r) => r.fromServiceWorker())).toBe(true);
+    // A18's faces (DD-11 T26), fetched before the first layout (T28), from the precache.
+    const faces = responses.filter((r) => /\/assets\/(inter-latin-700-normal|ibm-plex-mono-latin-400-normal)-[^/]*\.woff2$/.test(new URL(r.url()).pathname));
+    expect(faces.map((r) => new URL(r.url()).pathname.replace(/-[^-/]*\.woff2$/, '').replace('/assets/', '')).sort()).toEqual(['ibm-plex-mono-latin-400-normal', 'inter-latin-700-normal']);
+    expect(faces.every((r) => r.fromServiceWorker())).toBe(true);
     expect(responses.filter((r) => !r.fromServiceWorker()).map((r) => r.url())).toEqual([]);
     expect(failed).toEqual([]);
   } finally {

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
-import { EXAMPLE_NODE_COUNT, openFile, saveAs, storedOpenDocument, toastMessages, waitForExactNodeCount, waitForNodeCount } from './helpers.js';
+import { EXAMPLE_NODE_COUNT, openFile, renderedSvg, saveAs, storedOpenDocument, toastMessages, waitForExactNodeCount, waitForNodeCount } from './helpers.js';
 
 /**
  * D2 (DD-07 §9, DD-08 §7; human decision 2026-09-25): Save ▾ SVG and Copy SVG
@@ -163,6 +163,88 @@ test('loaded as an <img>, the exported SVG draws its text in Inter; without the 
 
   const bare = await inkWidthAsImage(page, withoutFaces(saved));
   expect(Math.abs(bare.ink - bare.inter), JSON.stringify(bare)).toBeGreaterThan(3);
+});
+
+/**
+ * A18 (DD-11 T49, T50): a label drawn in a mark exports with that mark's own
+ * face — Inter Bold, Inter Italic, IBM Plex Mono — chosen per element, and an
+ * `<img>` of the file draws the run in it. The same ink probe as above, on a
+ * one-node diagram whose whole title is one mark, against the face's own
+ * metrics on the page (the same WOFF2 files).
+ */
+const shippedFile = (file: string): Buffer => {
+  const pkg = file.startsWith('ibm-plex-mono') ? 'ibm-plex-mono' : 'inter';
+  return readFileSync(fileURLToPath(new URL(`../node_modules/@fontsource/${pkg}/files/${file}`, import.meta.url)));
+};
+
+async function runInkAsImage(page: Page, svg: string, font: string): Promise<{ readonly ink: number; readonly face: number }> {
+  return page.evaluate(
+    async ({ svg, label, font }) => {
+      const SCALE = 4;
+      const root = new DOMParser().parseFromString(svg, 'image/svg+xml').documentElement;
+      const w = Number(root.getAttribute('width'));
+      const h = Number(root.getAttribute('height'));
+      const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+      const img = new Image(w * SCALE, h * SCALE);
+      img.src = url;
+      await img.decode();
+      URL.revokeObjectURL(url);
+      const canvas = new OffscreenCanvas(w * SCALE, h * SCALE);
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, w * SCALE, h * SCALE);
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      let left = Infinity;
+      let right = -1;
+      for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+          if (data[(y * canvas.width + x) * 4]! < 128) {
+            left = Math.min(left, x);
+            right = Math.max(right, x);
+          }
+        }
+      }
+      await document.fonts.load(font);
+      const m = new OffscreenCanvas(1, 1).getContext('2d')!;
+      m.font = font;
+      const metrics = m.measureText(label);
+      return { ink: (right - left + 1) / SCALE, face: metrics.actualBoundingBoxLeft + metrics.actualBoundingBoxRight };
+    },
+    { svg, label: PROBE_LABEL, font },
+  );
+}
+
+test('rich labels: Save ▾ SVG embeds exactly the faces each run uses, and an <img> of it draws bold, italic and code in their real faces', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'the probe’s tolerance is measured in Chromium');
+  await page.goto('/');
+  await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+  // Node titles are 13px Inter 500 (neutral-light).
+  const cases = [
+    { mark: `**${PROBE_LABEL}**`, run: 'r-strong', font: '700 13px Inter', face: ['Inter', 'normal', 700, 'inter-latin-700-normal.woff2'] },
+    { mark: `*${PROBE_LABEL}*`, run: 'r-em', font: 'italic 500 13px Inter', face: ['Inter', 'italic', 500, 'inter-latin-500-italic.woff2'] },
+    { mark: `\`${PROBE_LABEL}\``, run: 'r-code', font: '400 13px "IBM Plex Mono"', face: ['IBM Plex Mono', 'normal', 400, 'ibm-plex-mono-latin-400-normal.woff2'] },
+  ] as const;
+  for (const c of cases) {
+    await openFile(page, 'rich.sgl', `a: "${c.mark}"\n`);
+    await waitForExactNodeCount(page, 1);
+    // This document's own run, not the last one's.
+    await expect(renderedSvg(page).locator(`g[id="n-a"] tspan[class="${c.run}"]`)).toHaveCount(1);
+    const saved = (await saveAs(page, 'svg')).text;
+    // Only the run's face: the title has no plain text, so not even Inter 500.
+    const embedded = faces(saved);
+    expect(embedded.map((f) => [f.family, f.style, f.weight]), c.mark).toEqual([c.face.slice(0, 3)]);
+    expect(embedded[0]!.bytes.equals(shippedFile(c.face[3])), c.mark).toBe(true);
+
+    const drawn = await runInkAsImage(page, saved, c.font);
+    expect(Math.abs(drawn.ink - drawn.face), `${c.mark} ${JSON.stringify(drawn)}`).toBeLessThanOrEqual(1);
+    const bare = await runInkAsImage(page, withoutFaces(saved), c.font);
+    expect(Math.abs(bare.ink - bare.face), `${c.mark} without faces ${JSON.stringify(bare)}`).toBeGreaterThan(3);
+  }
+
+  // Mixed: exactly the faces used, never a cross product (T50).
+  await openFile(page, 'mixed.sgl', 'a: "plain **bold** `code`"\nb\na -> b: "*async*"\n');
+  await waitForExactNodeCount(page, 2);
+  const mixed = faces((await saveAs(page, 'svg')).text).map((f) => `${f.family} ${f.style} ${f.weight}`);
+  expect(mixed).toEqual(['IBM Plex Mono normal 400', 'Inter italic 400', 'Inter normal 500', 'Inter normal 700']);
 });
 
 test.describe('Copy SVG', () => {
