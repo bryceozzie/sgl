@@ -86,6 +86,27 @@ describe('@sgl/core/editor', () => {
     expect(hasError).toBe(false);
   });
 
+  // A18, DD-11 T19: a `"""` string is highlighted as a string, and folds.
+  it('tags MultilineString as a string', () => {
+    const node = findNode('@label: """\n  a\n  """', 'MultilineString');
+    expect(node).toBeTruthy();
+    expect(getStyleTags(node!)?.tags).toContain(t.string);
+  });
+
+  it('folds a `"""` string between its delimiters, and an unterminated one to the end', () => {
+    const fold = (source: string) => {
+      const node = findNode(source, 'MultilineString');
+      const fn = node?.type.prop(foldNodeProp);
+      expect(fn, 'foldNodeProp on MultilineString').toBeDefined();
+      const state = { doc: { sliceString: (a: number, b: number) => source.slice(a, b) } };
+      return fn!(node!, state as never);
+    };
+    const closed = '@label: """\n  a\n  b\n  """\n';
+    expect(fold(closed)).toEqual({ from: closed.indexOf('"""') + 3, to: closed.lastIndexOf('"""') });
+    const open = '@label: """\n  a\n  b\n';
+    expect(fold(open)).toEqual({ from: open.indexOf('"""') + 3, to: open.length });
+  });
+
   it('parsing the same source twice is deterministic (DD-00 §3)', () => {
     const source = 'a -> b -> c';
     const t1 = sglLanguage.parser.parse(source);

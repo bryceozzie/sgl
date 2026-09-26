@@ -32,7 +32,7 @@ import { parser } from './grammar/sgl.parser.js';
  * wrong), `Bool`/`Null` (literal tags CodeMirror already has themes for), and
  * `Variable` (the `$name` token — DD-01 §6 groups `NodeKey`/`PathSegment` as
  * `variableName` for the same reason: it names something rather than being a
- * literal).
+ * literal). `MultilineString` (`"""`, A18, DD-11 T19) is a string like `String`.
  */
 const sglTags = styleTags({
   ConfigKey: t.propertyName,
@@ -40,7 +40,7 @@ const sglTags = styleTags({
   'NodeKey PathSegment': t.variableName,
   Variable: t.variableName,
   EdgeOp: t.operator,
-  String: t.string,
+  'String MultilineString': t.string,
   Number: t.number,
   Bool: t.bool,
   Null: t.null,
@@ -65,6 +65,11 @@ const sglParser = parser.configure({
       Block: foldInside,
       Object: foldInside,
       Array: foldInside,
+      // A18, DD-11 T19: between the delimiters; an unterminated one to the end.
+      MultilineString: (node, state) => ({
+        from: node.from + 3,
+        to: node.to - (node.to - node.from >= 6 && state.doc.sliceString(node.to - 3, node.to) === '"""' ? 3 : 0),
+      }),
     }),
   ],
 });
@@ -74,7 +79,10 @@ export const sglLanguage: LRLanguage = LRLanguage.define({
   parser: sglParser,
   languageData: {
     commentTokens: { line: '//', block: { open: '/*', close: '*/' } },
-    closeBrackets: { brackets: ['{', '[', '"'] },
+    // `"""` lets closeBrackets finish a triple quote: the third `"` typed after
+    // `""` inserts the closing `"""` too (A18, DD-11 T60), so a `"""` being
+    // typed does not turn the rest of the document into one string.
+    closeBrackets: { brackets: ['{', '[', '"', '"""'] },
   },
 });
 
