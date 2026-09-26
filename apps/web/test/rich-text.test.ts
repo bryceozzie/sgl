@@ -157,22 +157,37 @@ describe('the rich-text chunk (DD-11 T53)', () => {
     h.dispose();
   });
 
-  it('a failed load is not retried in a loop, but on the next change of the document; meanwhile the stages hold', async () => {
+  it('a failed load degrades instead of holding: plain runs, no wrapping, one SGL6002 warning; retried on the next change, not in a loop (fix round 1, item 2)', async () => {
     const lazy = lazyRichText();
     lazy.failOnce();
     lazy.release();
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const h = await createHarness(WRAPPED, { loadRichText: lazy.loadRichText }, { firstRender: false });
+    const src = `${WRAPPED}m: "**Payments** \`v2\`"\n`;
+    const h = await createHarness(src, { loadRichText: lazy.loadRichText }, { firstRender: false });
+    await lazy.loadRichText.mock.results[0]!.value.catch(() => undefined);
     await h.settle();
     await h.settle();
     expect(lazy.loadRichText).toHaveBeenCalledTimes(1);
-    expect(h.pipeline.lastGood.value).toBeNull();
+    // The picture is not frozen: it renders, degraded.
+    const good = h.pipeline.lastGood.value!;
+    expect(good).not.toBeNull();
     expect(h.pipeline.pipelineError.value).toBeNull();
+    expect(h.pipeline.diags.value.map((d) => `${d.code} ${d.severity}`)).toEqual(['SGL6002 warning']);
+    // Plain runs: the markers stay literal text.
+    expect(good.styled.graph.labels['l:m' as LabelId]!.runs).toEqual([{ text: '**Payments** `v2`' }]);
+    // No wrapping: the box is ignored, so the label is one line, keyed as usual.
+    expect(h.pipeline.table.value[labelRunKey(good.styled, 'l:a' as LabelId)]!.lines).toHaveLength(1);
 
-    h.setSource(`${WRAPPED}c\n`);
+    // The next change of the document tries again, and this time it loads.
+    h.setSource(`${src}c\n`);
     await h.settle();
     expect(lazy.loadRichText).toHaveBeenCalledTimes(2);
-    expect(h.pipeline.lastGood.value).not.toBeNull();
+    await lazy.loadRichText.mock.results[1]!.value;
+    await h.settle();
+    const after = h.pipeline.lastGood.value!;
+    expect(h.pipeline.diags.value).toEqual([]);
+    expect(after.styled.graph.labels['l:m' as LabelId]!.runs).toEqual([{ text: 'Payments', strong: true }, { text: ' ' }, { text: 'v2', code: true }]);
+    expect(h.pipeline.table.value[labelRunKey(after.styled, 'l:a' as LabelId)]!.lines.length).toBeGreaterThan(1);
     h.dispose();
   });
 });

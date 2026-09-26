@@ -172,7 +172,8 @@ any two characters; with only a fixed `@size.width`, a word is never split and a
 for the node overflows it, as it always has. The node's
 padding and its shape are allowed for, so an ellipse, a diamond or a tall hexagon wraps narrower
 than a rectangle of the same width. A label with neither key never wraps, and an edge label breaks only where it
-has a line break.
+has a line break. If the app cannot load its markdown support (a broken install), labels are
+drawn as plain text and do not wrap, with one `SGL6002` warning.
 
 ### Scoping and references
 

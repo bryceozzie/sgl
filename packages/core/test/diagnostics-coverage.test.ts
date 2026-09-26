@@ -36,6 +36,10 @@ const NOT_YET_REACHABLE: ReadonlySet<DiagnosticCode> = new Set<DiagnosticCode>([
   // chunk cannot load, which no document can cause (DD-08 §15.6);
   // `apps/web/test/pipeline.test.ts` covers it.
   'SGL2027',
+  // A18 fix round 1, item 2: emitted by the app's pipeline when the lazy
+  // `rich-text` chunk cannot load, which no document can cause (DD-08 §3);
+  // `apps/web/test/rich-text.test.ts` covers it.
+  'SGL6002',
 ]);
 
 function listCorpusFiles(dir: string, rel = ''): string[] {
