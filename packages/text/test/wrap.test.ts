@@ -218,3 +218,26 @@ describe('properties, for random text and widths', () => {
     );
   });
 });
+
+describe('the breaker is linear (fix round 1, item 1)', () => {
+  // Each fit test used to re-measure the whole line so far and memoise every
+  // prefix: 8 000 words took ~10 s at a width that never breaks. A running total
+  // per line makes it linear; the drawn line is still measured whole (T32).
+  const words = Array.from({ length: 8000 }, (_, i) => `w${i % 97}`).join(' ');
+  const glyphs = 'x'.repeat(8000);
+  const rich: StyledRun[] = Array.from({ length: 800 }, (_, i) =>
+    i % 2 === 0 ? plain(`${'word '.repeat(9)}word `) : { text: `${'bold '.repeat(9)}bold `, style: BOLD, marks: { strong: true } },
+  );
+  const timed = (runs: readonly StyledRun[], maxWidth: number): number => {
+    const t = performance.now();
+    layoutWrapped(staticRunMetrics, runs, { maxWidth });
+    return performance.now() - t;
+  };
+  for (const maxWidth of [1e9, 39990, 120]) {
+    it(`8 000 words, 8 000 characters without spaces and 8 000 words in 800 rich runs, each well under 100 ms (maxWidth ${maxWidth})`, () => {
+      expect(timed([plain(words)], maxWidth), 'words').toBeLessThan(100);
+      expect(timed([plain(glyphs)], maxWidth), 'no spaces').toBeLessThan(100);
+      expect(timed(rich, maxWidth), 'rich').toBeLessThan(100);
+    });
+  }
+});

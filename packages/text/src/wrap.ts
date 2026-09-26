@@ -1,4 +1,4 @@
-import { hardLines, layLine, layoutLines, stack, type Fragment } from './line-model.js';
+import { glyphCount, hardLines, layLine, layoutLines, stack, type Fragment } from './line-model.js';
 import type { LineModel, MeasureRun, RunMetrics, TextStyle } from './types.js';
 
 /**
@@ -20,10 +20,11 @@ import type { LineModel, MeasureRun, RunMetrics, TextStyle } from './types.js';
  *   No hyphen, no UAX #14, no `Intl.Segmenter` (its rules follow each engine's ICU,
  *   so they are not deterministic across environments).
  *
- * Line widths and `x`s come from `layLine`, the same arithmetic `layoutLines` uses,
- * so a label that fits on its lines is laid out exactly as it is unwrapped. The
- * measurer is memoised per call, so each fit test measures only the fragment that
- * grew.
+ * Fit tests add each piece's own width to a running total per line, so the
+ * breaker is linear. The lines it keeps are laid out by `layLine`, the same
+ * arithmetic `layoutLines` uses, each fragment measured whole, so a label that
+ * fits on its lines is laid out exactly as it is unwrapped. The two can differ
+ * only by kerning across a piece boundary, which is sub-pixel and deterministic.
  */
 
 const BREAK = /[ \t\u200b]/;
@@ -91,8 +92,28 @@ export const layoutWrapped: LineModel = (measureRun, runs, box) => {
       }
       return out;
     };
-    const width = (pieces: readonly Piece[]): number => layLine(measure, lineOf(pieces)).width;
-    const emit = (pieces: readonly Piece[]): void => void laid.push(layLine(measure, lineOf(pieces)));
+    // Fit tests keep a running total per line (fix round 1, item 1): each piece is
+    // measured once, on its own, in its own face, and added. Re-measuring the
+    // line so far on every test made the breaker quadratic. The line that is
+    // kept is then laid out by `layLine`, each fragment measured whole (T32),
+    // exactly as `layoutLines` measures it.
+    const ls = fragments[0]?.style.letterSpacing ?? 0;
+    interface Span {
+      readonly pieces: Piece[];
+      w: number;
+      g: number;
+    }
+    const spanOf = (pieces: Piece[]): Span => {
+      let w = 0;
+      let g = 0;
+      for (const p of pieces) {
+        w += measure(p.text, (fragments[p.f] as Fragment).style).width;
+        g += glyphCount(p.text);
+      }
+      return { pieces, w, g };
+    };
+    const fits = (w: number, g: number): boolean => w + ls * Math.max(0, g - 1) <= maxWidth;
+    const emit = (line: Span): void => void laid.push(layLine(measure, lineOf(line.pieces)));
 
     if (fragments.length === 1 && fragments[0]!.text === '') {
       laid.push(layLine(measure, fragments));
@@ -125,28 +146,35 @@ export const layoutWrapped: LineModel = (measureRun, runs, box) => {
       if (seps.length === words.length) words[words.length - 1] = [...(words[words.length - 1] as Piece[]), ...(seps.pop() as Piece[])];
     }
 
-    let line: Piece[] = [];
-    words.forEach((word, i) => {
-      if (line.length > 0) {
-        const candidate = [...line, ...(seps[i - 1] as Piece[]), ...word];
-        if (width(candidate) <= maxWidth) {
-          line = candidate;
+    let line: Span = { pieces: [], w: 0, g: 0 };
+    const append = (to: Span, more: Span): void => {
+      for (const p of more.pieces) to.pieces.push(p);
+      to.w += more.w;
+      to.g += more.g;
+    };
+    words.forEach((pieces, i) => {
+      const word = spanOf(pieces);
+      if (line.pieces.length > 0) {
+        const sep = spanOf(seps[i - 1] as Piece[]);
+        if (fits(line.w + sep.w + word.w, line.g + sep.g + word.g)) {
+          append(line, sep);
+          append(line, word);
           return;
         }
         emit(line);
       }
-      if (width(word) <= maxWidth) {
+      if (fits(word.w, word.g)) {
         line = word;
         return;
       }
       // Too wide for a line of its own: split at unit boundaries (T37).
-      line = [];
-      for (const unit of unitsOf(word)) {
-        const candidate = [...line, ...unit];
-        if (line.length > 0 && width(candidate) > maxWidth) {
+      line = { pieces: [], w: 0, g: 0 };
+      for (const unit of unitsOf(pieces)) {
+        const u = spanOf(unit);
+        if (line.pieces.length > 0 && !fits(line.w + u.w, line.g + u.g)) {
           emit(line);
-          line = unit;
-        } else line = candidate;
+          line = u;
+        } else append(line, u);
       }
     });
     emit(line);
