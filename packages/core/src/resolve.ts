@@ -512,8 +512,8 @@ function buildEntries(entries: readonly Entry[], acc: Acc, classNames: ReadonlyS
  */
 export const MAX_VARIABLE_EXPANSION = 2 * 1024 * 1024;
 
-/** Units spent, and how many substitutions were refused (only the first is
- *  reported). One per root resolve: an import closure shares it (A9, DD-02
+/** Units spent, and how many substitutions were refused (only a
+ *  document's first is reported). One per root resolve: an import closure shares it (A9, DD-02
  *  I21). */
 export interface Budget {
   used: number;
@@ -584,6 +584,10 @@ function sizeOf(v: unknown): number {
   return n;
 }
 
+/** The diagnostics lists that already have their `SGL2016`: one per
+ *  document, whoever spent the budget it shares (A9 fix round 1, I21). */
+const REFUSED = new WeakSet<Diagnostic[]>();
+
 /** Spend `cost` units, or report the one `SGL2016` a document gets and
  *  refuse. */
 function charge(budget: Budget, cost: number, ref: Ref, diags: Diagnostic[]): boolean {
@@ -591,7 +595,11 @@ function charge(budget: Budget, cost: number, ref: Ref, diags: Diagnostic[]): bo
     budget.used += cost;
     return true;
   }
-  if (!budget.refused++) diags.push(diagnostic('SGL2016', ref.span, { text: ref.text, limit: MAX_VARIABLE_EXPANSION }));
+  budget.refused += 1;
+  if (!REFUSED.has(diags)) {
+    REFUSED.add(diags);
+    diags.push(diagnostic('SGL2016', ref.span, { text: ref.text, limit: MAX_VARIABLE_EXPANSION }));
+  }
   return false;
 }
 

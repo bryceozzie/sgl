@@ -40,19 +40,32 @@ const EXPECTED: Readonly<Record<string, readonly string[]>> = {
   'clash.sgl': ['SGL2022 warning'],
   'cycle-a.sgl': ['SGL2019 warning'],
   'cycle-b.sgl': ['SGL2019 warning'],
+  'deep.sgl': ['SGL2020 warning'],
+  'deep-1.sgl': [],
+  'deep-2.sgl': [],
+  'deep-3.sgl': [],
+  'deep-4.sgl': [],
+  'deep-5.sgl': [],
+  'deep-6.sgl': [],
+  'deep-7.sgl': [],
+  'deep-8.sgl': [],
   'dup.sgl': [],
   'dup.sgl.json': [],
   'main.sgl': [],
+  'node-clash.sgl': ['SGL2031 warning'],
   'nodes-without-as.sgl': ['SGL2026 info'],
   'nothing.sgl': [],
   'problems.sgl': ['SGL2021 warning'],
   'remote.sgl': ['SGL2025 warning'],
   'shadow.sgl': ['SGL2023 info'],
   'shared-classes.sgl': [],
-  'too-many.sgl': ['SGL2020 warning'],
+  'too-many-items.sgl': ['SGL2028 warning', 'SGL2030 warning'],
+  'too-many.sgl': ['SGL2028 warning'],
+  'too-wide.sgl': ['SGL2029 warning'],
   // The class and the edge through the failed namespace: SGL2024, from
   // the resolve and from the compile (I17). Nothing is an error.
   'unresolved.sgl': ['SGL2017 warning', 'SGL2024 warning', 'SGL2024 warning'],
+  'wide.sgl': [],
 };
 
 describe('corpus/imports (A9, DD-02 §10.8)', () => {

@@ -12,6 +12,14 @@ export interface DocumentModel {
   /** `@imports` as written (A9, DD-02 §10.5 I31), present only when the
    *  document has one. `toJson` prints it back in the same form. */
   readonly imports?: readonly ImportModel[];
+  /** A malformed `@imports` exactly as written (A9 fix round 1), for
+   *  `toJson`: present only when some item, or the value itself, was
+   *  refused (`SGL2011`); the well-formed items are still `imports`. */
+  readonly importsWritten?: ConfigValue;
+  /** Every qualifier a failed import could have filled, at any depth
+   *  (DD-02 I17): `[qualifier, path]`, `''` for an unqualified import.
+   *  Present only when an import failed; `compileImports` reads it. */
+  readonly importFailures?: readonly (readonly [string, string])[];
 }
 
 /** One `@imports` item (DD-02 §10.2): a string path, or `{ path, as }`. */

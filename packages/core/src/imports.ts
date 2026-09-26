@@ -31,7 +31,7 @@ import { CATALOGUE, diagnostic, type Diagnostic } from './diagnostics.js';
 import type { ViewSelector } from './graph.js';
 import { nodeIdFromPath } from './ids.js';
 import { importDiagnostic, type ImportDiagnosticCode } from './imports-catalogue.js';
-import type { ClassModel, ConfigBag, ContainerModel, DocumentModel, EdgeModel, ImportModel, ImportOrigin } from './model.js';
+import type { ClassModel, ConfigBag, ConfigValue, ContainerModel, DocumentModel, EdgeModel, ImportModel, ImportOrigin } from './model.js';
 import { parse, type ParseResult } from './parse.js';
 import {
   IDENT,
@@ -105,6 +105,10 @@ export interface RootImportLinker extends ImportLinker {
 const MAX_DEPTH = 8;
 const MAX_INSTANCES = 64;
 const MAX_SOURCE_UNITS = 2 * 1024 * 1024;
+/** Items read from one `@imports` list (A9 fix round 1): past it, `SGL2030`
+ *  and nothing more is looked up. Four times the instance cap, so a list of
+ *  unresolved or repeated items still has room. */
+const MAX_ITEMS = 256;
 
 // ---------------------------------------------------------------------------
 // Reading `@imports` (DD-02 §10.2)
@@ -112,20 +116,38 @@ const MAX_SOURCE_UNITS = 2 * 1024 * 1024;
 
 const isImports = (entry: Entry): entry is ConfigEntry => entry.kind === 'ConfigEntry' && entry.key[0] === 'imports';
 
+/** An AST value as `toJson` writes it: as written, variables as `$name`. */
+function written(v: Value): ConfigValue {
+  switch (v.kind) {
+    case 'Null':
+      return null;
+    case 'Variable':
+      return `$${v.name}`;
+    case 'Array':
+      return v.items.map(written);
+    case 'Object':
+      return Object.fromEntries(v.props.map((p) => [p.isConfig ? `@${p.key}` : p.key, written(p.value)]));
+    default:
+      return v.value;
+  }
+}
+
 /**
  * An `@imports` value as items: a string path, or `{ path: "…", as: name }`.
  * Anything else is `SGL2011` and ignored — the item, or the whole value when
  * it is not an array (or the key is dotted). A variable is not substituted
  * here (imports are linked before variables exist), so `$x` is `SGL2011` and
- * `"$x"` the literal path `$x`.
+ * `"$x"` the literal path `$x`. When anything was refused, `written` is the
+ * value as written, which `toJson` prints (I31).
  */
-function readImports(entry: ConfigEntry, diags: Diagnostic[]): ImportModel[] {
+function readImports(entry: ConfigEntry, diags: Diagnostic[]): { items: ImportModel[]; written?: ConfigValue } {
   const bad = (span: SourceSpan): void => void diags.push(diagnostic('SGL2011', span, { key: 'imports', type: 'an array of paths and `{ path, as }` objects' }));
   const value: Value = entry.value;
   const items: ImportModel[] = [];
+  const out = (): { items: ImportModel[]; written?: ConfigValue } => (items.length === (value.kind === 'Array' ? value.items.length : -1) ? { items } : { items, written: written(value) });
   if (value.kind !== 'Array' || entry.key.length > 1) {
     bad(value.span);
-    return items;
+    return out();
   }
   for (const v of value.items) {
     if (v.kind === 'String') {
@@ -144,7 +166,7 @@ function readImports(entry: ConfigEntry, diags: Diagnostic[]): ImportModel[] {
     if (ok && path !== undefined) items.push(as === undefined ? { path, form: 'object', span: v.span } : { path, as, form: 'object', span: v.span });
     else bad(v.span);
   }
-  return items;
+  return out();
 }
 
 /**
@@ -198,6 +220,9 @@ interface Totals {
 /** One import's resolve, and everything it did to the run. */
 interface Resolved {
   readonly result: ResolveResult;
+  /** The qualifiers a failed import could have filled in it, at any depth
+   *  (I17), as the import itself names them. */
+  readonly failed: ReadonlyMap<string, string>;
   /** Its exported variables as they stood when it was resolved (`copyVars`
    *  makes each run's own from these). */
   readonly exports: ReadonlyMap<string, VarEntry>;
@@ -408,6 +433,9 @@ interface Linked {
    *  replaced an earlier one's (`SGL2023`). */
   readonly classes: ReadonlyMap<string, ClassModel>;
   readonly taken: readonly Taken[];
+  /** Qualifiers a failed import *inside* a taken one could have filled,
+   *  qualified as this document sees them (I15, I17): `[qualifier, path]`. */
+  readonly failed: ReadonlyMap<string, string>;
 }
 
 /**
@@ -437,24 +465,33 @@ function linkerAt(host: ImportHost, cache: CacheState, chain: readonly Chained[]
       const vars = new Map<string, VarEntry>();
       const classes = new Map<string, ClassModel>();
       const taken: Taken[] = [];
+      const failedWithin = new Map<string, string>();
       const seen = new Set<string>();
 
-      for (const item of items) {
+      for (const [index, item] of items.entries()) {
         if (isRoot) run.top = item;
         const fail = (): void => void ((item as { failed?: true }).failed = true);
-        const cap = (kind: string, limit: string): void => {
+        // A9 fix round 1: past `MAX_ITEMS`, nothing more is read or looked up.
+        if (index >= MAX_ITEMS) {
+          if (index === MAX_ITEMS) diags.push(importDiagnostic('SGL2030', item.span, { limit: MAX_ITEMS }));
+          fail();
+          continue;
+        }
+        const cap = (kind: string, code: ImportDiagnosticCode, limit: number): void => {
           fail();
           run.events += 1;
           if (run.capped.has(kind)) return;
           run.capped.add(kind);
-          note(run, 'SGL2020', { path: item.path, limit });
+          note(run, code, { path: item.path, limit });
         };
         const ns = item.as;
-        // I14: a second import with the same `as` is skipped. It has not
-        // failed: the name belongs to the first.
+        // I14: a second import with the same `as` is skipped. It counts as
+        // failed (fix round 1): a name only it would have brought may come
+        // from it, so it is `SGL2024`, a warning (I17).
         if (ns !== undefined) {
           if (seen.has(ns)) {
-            diags.push(importDiagnostic('SGL2022', item.span, { name: ns, what: 'the name of an earlier import', outcome: 'this import was skipped' }));
+            fail();
+            diags.push(importDiagnostic('SGL2022', item.span, { name: ns }));
             continue;
           }
           seen.add(ns);
@@ -466,7 +503,12 @@ function linkerAt(host: ImportHost, cache: CacheState, chain: readonly Chained[]
           continue;
         }
         if (chain.length > MAX_DEPTH) {
-          cap('depth', `${MAX_DEPTH} levels of imports`);
+          cap('depth', 'SGL2020', MAX_DEPTH);
+          continue;
+        }
+        // Full: nothing more is looked up (fix round 1).
+        if (run.instances >= MAX_INSTANCES) {
+          cap('instances', 'SGL2028', MAX_INSTANCES);
           continue;
         }
         const from = chain[chain.length - 1]?.key;
@@ -486,12 +528,8 @@ function linkerAt(host: ImportHost, cache: CacheState, chain: readonly Chained[]
           note(run, 'SGL2019', { path: item.path, cycle: [...chain.slice(at).map((c) => c.name), item.path].join(' -> ') });
           continue;
         }
-        if (run.instances + 1 > MAX_INSTANCES) {
-          cap('instances', `${MAX_INSTANCES} imported documents`);
-          continue;
-        }
         if (run.units + answer.source.length > MAX_SOURCE_UNITS) {
-          cap('source', `${MAX_SOURCE_UNITS} characters of imported source`);
+          cap('source', 'SGL2029', MAX_SOURCE_UNITS);
           continue;
         }
         run.instances += 1;
@@ -507,6 +545,10 @@ function linkerAt(host: ImportHost, cache: CacheState, chain: readonly Chained[]
         // What it exports, under `ns` when it has one. A later import
         // shadows or replaces an earlier one (I13).
         const q = (name: string): string => (ns === undefined ? name : `${ns}.${name}`);
+        for (const [prefix, path] of resolved.failed) {
+          const name = ns === undefined ? prefix : prefix === '' ? ns : q(prefix);
+          if (!failedWithin.has(name)) failedWithin.set(name, path);
+        }
         for (const [name, e] of copyVars(resolved.exports, run.budget, problems)) vars.set(q(name), e);
         for (const c of Object.values(model.classes)) {
           const name = q(c.name);
@@ -517,13 +559,15 @@ function linkerAt(host: ImportHost, cache: CacheState, chain: readonly Chained[]
           }
           classes.set(name, { name, extends: ns === undefined ? c.extends : c.extends.map(q), config: c.config, origin });
         }
-        // I10: without `as`, the nodes and edges stay behind, and it says so.
-        if (ns === undefined && (model.root.children.length > 0 || model.root.edges.length > 0)) {
+        // I10: without `as`, the nodes and edges stay behind, and it says so
+        // — its own: a container grafted from its own imports is not one
+        // (fix round 1).
+        if (ns === undefined && (model.root.children.some((c) => c.origin === undefined) || model.root.edges.length > 0)) {
           diags.push(importDiagnostic('SGL2026', item.span, { path: item.path }));
         }
       }
       if (isRoot) sweep(cache);
-      return { budget: run.budget, vars, classes, taken };
+      return { budget: run.budget, vars, classes, taken, failed: failedWithin };
     },
   };
 }
@@ -571,6 +615,7 @@ function resolveImport(host: ImportHost, cache: CacheState, chain: readonly Chai
   };
   const entry: Resolved = {
     result: { model, diagnostics: [...parsed.result.diagnostics, ...diagnostics] },
+    failed: new Map(model.importFailures ?? []),
     exports,
     lookups: run.lookups.slice(start.lookups),
     linked: run.linked.slice(start.linked),
@@ -617,14 +662,34 @@ export function createImportLinker(host: ImportHost, options: ImportLinkerOption
 // Resolving a document with imports
 // ---------------------------------------------------------------------------
 
+/** Each code's template as a pattern, built once (fix round 1: a document
+ *  with thousands of unknown names reads each back). */
+const TEMPLATES = new Map<string, { readonly re: RegExp; readonly keys: readonly string[] }>();
+
 /** A diagnostic's values, read back from its message by its catalogue
  *  template (`{name}` of `SGL2002`, `SGL2013`). */
 function valuesOf(d: Diagnostic): Record<string, string> {
-  const keys: string[] = [];
-  const template = (CATALOGUE as Record<string, { template: string }>)[d.code]?.template ?? '';
-  const pattern = template.replace(/\{(\w+)\}|[.*+?^${}()|[\]\\]/g, (m: string, key?: string) => (key === undefined ? `\\${m}` : (keys.push(key), '(.*)')));
-  const m = new RegExp(`^${pattern}$`, 's').exec(d.message);
-  return Object.fromEntries(keys.map((k, i) => [k, m?.[i + 1] ?? '']));
+  let t = TEMPLATES.get(d.code);
+  if (t === undefined) {
+    const keys: string[] = [];
+    const template = (CATALOGUE as Record<string, { template: string }>)[d.code]?.template ?? '';
+    const pattern = template.replace(/\{(\w+)\}|[.*+?^${}()|[\]\\]/g, (m: string, key?: string) => (key === undefined ? `\\${m}` : (keys.push(key), '(.*)')));
+    t = { re: new RegExp(`^${pattern}$`, 's'), keys };
+    TEMPLATES.set(d.code, t);
+  }
+  const m = t.re.exec(d.message);
+  return Object.fromEntries(t.keys.map((k, i) => [k, m?.[i + 1] ?? '']));
+}
+
+/** The failed import a name may come from (I17): the longest qualifier of
+ *  `name` (`b.c` of `b.c.Lambda`), or `''`, that a failed import could have
+ *  filled. */
+function failedFor(name: string, failed: ReadonlyMap<string, string>): string | undefined {
+  for (let at = name.lastIndexOf('.'); at > 0; at = name.lastIndexOf('.', at - 1)) {
+    const path = failed.get(name.slice(0, at));
+    if (path !== undefined) return path;
+  }
+  return failed.get('');
 }
 
 /**
@@ -648,8 +713,12 @@ function resolveWith(ast: Document, linker: ImportLinker | undefined, onVars?: (
     if (isImports(entry)) importsEntry = entry;
     else rest.push(entry);
   }
-  const items = importsEntry === undefined ? [] : readImports(importsEntry, diags);
+  const read = importsEntry === undefined ? { items: [] } : readImports(importsEntry, diags);
+  const items = read.items;
   const linked = linker?.link(items, diags);
+  // Every qualifier a failed import could have filled: this document's own
+  // imports' `as` (`''` without one), and those failed inside the imports it
+  // took, at any depth (I15, I17; fix round 1).
   const failed = new Map<string, string>();
   for (const item of items) {
     // I9: with no linker, every import is unresolved.
@@ -659,6 +728,7 @@ function resolveWith(ast: Document, linker: ImportLinker | undefined, onVars?: (
     }
     if (item.failed && !failed.has(item.as ?? '')) failed.set(item.as ?? '', item.path);
   }
+  for (const [prefix, path] of linked?.failed ?? []) if (!failed.has(prefix)) failed.set(prefix, path);
 
   // Your own classes replace imported ones whole (I13, `SGL2023`).
   const { entries, own } = ownClasses(rest, diags);
@@ -671,7 +741,18 @@ function resolveWith(ast: Document, linker: ImportLinker | undefined, onVars?: (
 
   const budget = linked?.budget ?? { used: 0, refused: 0 };
   const seam: ImportSeam = { scope: { parent: undefined, entries: linked?.vars ?? new Map(), budget }, classes: imported.map((c) => c.name) };
-  const namespaces = items.flatMap((i) => i.as ?? []);
+  // The namespaces a `"$ns.name"` string may reach through (I16): this
+  // document's `as` names, and the qualifiers its imported variables and
+  // failed imports bring (an unqualified import's own `as`, fix round 1),
+  // so `"${c.x}"` means what `$c.x` means.
+  const first = (n: string): string => n.split('.', 1)[0] as string;
+  const namespaces = [
+    ...new Set([
+      ...items.flatMap((i) => i.as ?? []),
+      ...[...(linked?.vars.keys() ?? [])].filter((n) => n.includes('.')).map(first),
+      ...[...failed.keys()].filter((n) => n !== '').map(first),
+    ]),
+  ];
   const saved = REF_PATTERNS.whole;
   const savedInterp = REF_PATTERNS.interp;
   let result: ResolveResult;
@@ -690,10 +771,9 @@ function resolveWith(ast: Document, linker: ImportLinker | undefined, onVars?: (
   for (const d of result.diagnostics) {
     if (failed.size > 0 && (d.code === 'SGL2002' || d.code === 'SGL2013')) {
       const name = valuesOf(d).name as string;
-      const dot = name.indexOf('.');
-      const path = failed.get(dot < 0 ? '' : name.slice(0, dot));
+      const path = failedFor(name, failed);
       if (path !== undefined) {
-        diags.push(importDiagnostic('SGL2024', d.span, { name, path, what: d.code === 'SGL2002' ? 'the class' : 'the value' }));
+        diags.push(importDiagnostic('SGL2024', d.span, { name, path }));
         continue;
       }
     }
@@ -734,7 +814,7 @@ function resolveWith(ast: Document, linker: ImportLinker | undefined, onVars?: (
     const ns = item.as;
     if (ns === undefined || (m.root.children.length === 0 && m.root.edges.length === 0)) continue;
     if (ownKeys.has(ns)) {
-      diags.push(importDiagnostic('SGL2022', item.span, { name: ns, what: 'a node in this document', outcome: `the nodes and edges of \`${item.path}\` were not imported` }));
+      diags.push(importDiagnostic('SGL2031', item.span, { name: ns, path: item.path }));
       continue;
     }
     grafted.push(graftOne(m, origin, ns, spans));
@@ -743,7 +823,15 @@ function resolveWith(ast: Document, linker: ImportLinker | undefined, onVars?: (
 
   const root = grafted.length > 0 ? { ...model.root, children: [...grafted, ...model.root.children] } : model.root;
   return {
-    model: { ...model, root, classes, spans, ...(importsEntry !== undefined ? { imports: items } : {}) },
+    model: {
+      ...model,
+      root,
+      classes,
+      spans,
+      ...(importsEntry !== undefined ? { imports: items } : {}),
+      ...(read.written !== undefined ? { importsWritten: read.written } : {}),
+      ...(failed.size > 0 ? { importFailures: [...failed] } : {}),
+    },
     diagnostics: diags,
   };
 }
@@ -775,54 +863,83 @@ const sameSpan = (a: SourceSpan, b: SourceSpan): boolean => a.from === b.from &&
 export function compileImports(model: DocumentModel, view?: ViewSelector): CompileResult {
   const result = compile(model, view);
   if (model.imports === undefined) return result;
-  const failed = new Map(model.imports.filter((i) => i.failed && i.as !== undefined).map((i) => [i.as as string, i.path]));
+  // Every qualifier a failed import could have filled, at any depth (I17,
+  // fix round 1); `''` (an unqualified import) brings no nodes.
+  const failed = new Map((model.importFailures ?? []).filter(([prefix]) => prefix !== ''));
   const sinks = new Map<ImportOrigin, Diagnostic[]>();
   for (const c of model.root.children) if (c.origin !== undefined) sinks.set(c.origin, []);
 
+  let edges: Map<string, EdgeAt[]> | undefined;
   const diags: Diagnostic[] = [];
   for (const d of result.diagnostics) {
     const origin = [...sinks.keys()].find((o) => sameSpan(o.span, d.span));
-    if (origin !== undefined) (sinks.get(origin) as Diagnostic[]).push(d);
-    else diags.push(d.code === 'SGL2001' && failed.size > 0 ? (edgeIntoFailed(model, d, failed) ?? d) : d);
+    if (origin !== undefined) {
+      (sinks.get(origin) as Diagnostic[]).push(d);
+      continue;
+    }
+    if (d.code === 'SGL2001' && failed.size > 0) {
+      edges ??= edgesBySpan(model);
+      diags.push(edgeIntoFailed(edges, d, failed) ?? d);
+    } else diags.push(d);
   }
   for (const [origin, list] of sinks) summarise(origin, list, diags);
   return { ...result, diagnostics: diags };
 }
 
-/** `SGL2024` for an `SGL2001` whose endpoint reaches into an import that
- *  failed: its declaring edge is found by the statement's span, and the
- *  endpoint by the message `compile()` wrote for it. */
-function edgeIntoFailed(model: DocumentModel, d: Diagnostic, failed: ReadonlyMap<string, string>): Diagnostic | undefined {
-  const visit = (c: ContainerModel): Diagnostic | undefined => {
-    if (c.origin !== undefined) return undefined;
+/** An authored edge and the container that declares it. */
+interface EdgeAt {
+  readonly c: ContainerModel;
+  readonly e: EdgeModel;
+}
+
+const spanKey = (span: SourceSpan): string => `${span.from}:${span.to}`;
+
+/** Every edge the document itself declares, by its statement's span: built
+ *  once per compile, so each `SGL2001` is one lookup (fix round 1; it was a
+ *  walk of the whole model per diagnostic). */
+function edgesBySpan(model: DocumentModel): Map<string, EdgeAt[]> {
+  const out = new Map<string, EdgeAt[]>();
+  const stack: ContainerModel[] = [model.root];
+  for (let c = stack.pop(); c !== undefined; c = stack.pop()) {
+    if (c.origin !== undefined) continue;
     const id = nodeIdFromPath(c.path);
-    const label = c.path.length === 0 ? 'the document root' : c.path.join('.');
     for (const [i, e] of c.edges.entries()) {
       const span = model.spans.get(`e:${id}#${i}`);
-      if (span === undefined || !sameSpan(span, d.span)) continue;
-      for (const [p, text] of [
-        [e.from, e.fromText],
-        [e.to, e.toText],
-      ] as const) {
-        // The root-level name the endpoint reaches through: its base's
-        // first, or its own first segment when that is a name (DD-03 §3.1).
-        const base = text === undefined ? resolveBase(p, c.path) : undefined;
-        if (base === undefined) continue;
-        const step = p.segments[0];
-        const first = base[0] ?? (step?.kind === 'Name' ? step.value : undefined);
-        const path = first === undefined ? undefined : failed.get(first);
-        if (path === undefined) continue;
-        const name = renderPath(p);
-        if (diagnostic('SGL2001', d.span, { path: name, container: label }).message === d.message) {
-          return importDiagnostic('SGL2024', d.span, { name, path, what: 'the edge' });
-        }
+      if (span === undefined) continue;
+      const key = spanKey(span);
+      const list = out.get(key);
+      if (list === undefined) out.set(key, [{ c, e }]);
+      else list.push({ c, e });
+    }
+    stack.push(...c.children);
+  }
+  return out;
+}
+
+/** `SGL2024` for an `SGL2001` whose endpoint reaches into an import that
+ *  failed, at any depth: its declaring edge is found by the statement's
+ *  span, and the endpoint by the message `compile()` wrote for it. */
+function edgeIntoFailed(edges: ReadonlyMap<string, readonly EdgeAt[]>, d: Diagnostic, failed: ReadonlyMap<string, string>): Diagnostic | undefined {
+  for (const { c, e } of edges.get(spanKey(d.span)) ?? []) {
+    const label = c.path.length === 0 ? 'the document root' : c.path.join('.');
+    for (const [p, text] of [
+      [e.from, e.fromText],
+      [e.to, e.toText],
+    ] as const) {
+      // The endpoint's full path from the root: its base (DD-03 §3.1), then
+      // its own name segments.
+      const base = text === undefined ? resolveBase(p, c.path) : undefined;
+      if (base === undefined) continue;
+      const names: string[] = [...base];
+      for (const step of p.segments) {
+        if (step.kind !== 'Name') break;
+        names.push(step.value);
       }
+      const path = names.length > 1 ? failedFor(names.join('.'), failed) : undefined;
+      if (path === undefined) continue;
+      const name = renderPath(p);
+      if (diagnostic('SGL2001', d.span, { path: name, container: label }).message === d.message) return importDiagnostic('SGL2024', d.span, { name, path });
     }
-    for (const child of c.children) {
-      const found = visit(child);
-      if (found !== undefined) return found;
-    }
-    return undefined;
-  };
-  return visit(model.root);
+  }
+  return undefined;
 }

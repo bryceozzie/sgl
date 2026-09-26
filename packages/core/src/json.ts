@@ -105,7 +105,9 @@ export function toJson(model: DocumentModel): string {
   // `@imports` exactly as written (A9, DD-02 I31), just before `@classes`;
   // what it brought in (anything with an `origin`) is left out, so a
   // `.sgl.json` needs its imports just as the `.sgl` does.
-  if (model.imports !== undefined) out['@imports'] = model.imports.map((i) => (i.form === 'string' ? i.path : { path: i.path, ...(i.as !== undefined ? { as: i.as } : {}) }));
+  // A malformed one (A9 fix round 1) exactly as written, refused items too.
+  if (model.importsWritten !== undefined) out['@imports'] = model.importsWritten;
+  else if (model.imports !== undefined) out['@imports'] = model.imports.map((i) => (i.form === 'string' ? i.path : { path: i.path, ...(i.as !== undefined ? { as: i.as } : {}) }));
   const own = writeClasses(model.classes);
   if (Object.keys(own).length > 0) out['@classes'] = own;
   for (const child of model.root.children) if (child.origin === undefined) out[child.key] = writeContainer(child);

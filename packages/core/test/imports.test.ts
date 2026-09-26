@@ -190,9 +190,10 @@ describe('clashes (I14)', () => {
     expect(model.root.children).toEqual([]);
   });
 
-  it('an `as` equal to your own root node key: not grafted (SGL2022), classes and variables still arrive', () => {
+  it('an `as` equal to your own root node key: not grafted (SGL2031), classes and variables still arrive', () => {
     const { model, resolveDiags } = link('@imports: [{ path: "./aws.sgl", as: aws }]\naws: { @label: $aws.orange }\nf: aws.Lambda\n', { aws: AWS });
-    expect(codes(resolveDiags)).toEqual(['SGL2022']);
+    expect(codes(resolveDiags)).toEqual(['SGL2031']);
+    expect(resolveDiags[0]?.message).toBe('`aws` is already a node in this document; the nodes and edges of `./aws.sgl` were not imported.');
     expect(model.root.children.map((c) => c.key)).toEqual(['aws', 'f']);
     expect(model.root.children[0]?.origin).toBeUndefined();
     expect(model.root.children[0]?.config.label).toBe('#FF9900');
@@ -258,13 +259,13 @@ describe('failed imports are warnings, and so is everything they cause (I17)', (
       ['SGL2024', 'warning'],
     ]);
     expect(compileDiags.map((d) => [d.code, d.severity])).toEqual([['SGL2024', 'warning']]);
-    expect(compileDiags[0]?.message).toBe('`aws.lambda` may come from `./nope.sgl`, which could not be imported; the edge was skipped.');
+    expect(compileDiags[0]?.message).toBe('`aws.lambda` may come from `./nope.sgl`, which could not be imported; it was skipped.');
   });
 
   it('a failed unqualified import turns an unknown bare class or variable into SGL2024', () => {
     const { resolveDiags } = link('@imports: ["./nope.sgl"]\nf: Lambda\ng: { @label: $x }\n', {});
     expect(codes(resolveDiags)).toEqual(['SGL2017', 'SGL2024', 'SGL2024']);
-    expect(resolveDiags[1]?.message).toBe('`Lambda` may come from `./nope.sgl`, which could not be imported; the class was skipped.');
+    expect(resolveDiags[1]?.message).toBe('`Lambda` may come from `./nope.sgl`, which could not be imported; it was skipped.');
   });
 
   it('with every import resolved, an unknown name is still an error', () => {
@@ -457,3 +458,115 @@ function stripSpans<T>(value: T): T {
   }
   return value;
 }
+
+// ---------------------------------------------------------------------------
+// A9 fix round 1
+// ---------------------------------------------------------------------------
+
+const errors = (diags: readonly Diagnostic[]): string[] => diags.filter((d) => d.severity === 'error').map((d) => `${d.code} ${d.message}`);
+
+describe('a failed import inside an import is a warning at every depth (fix round 1, item 1; I17)', () => {
+  const lib = (inner: string) => `${inner}\nn: {}\n`;
+
+  it('qualified, depth 2: `b.c.Lambda`, `$b.c.v`, "${b.c.v}" and `x -> b.c.q` are SGL2024', () => {
+    const { resolveDiags, compileDiags } = link('@imports: [{ path: "./b.sgl", as: b }]\nx: b.c.Lambda\ny: { @label: $b.c.v }\nz: "${b.c.v}"\nx -> b.c.q\n', {
+      b: lib('@imports: [{ path: "./nope.sgl", as: c }]'),
+    });
+    expect(errors([...resolveDiags, ...compileDiags])).toEqual([]);
+    expect(codes(resolveDiags).sort()).toEqual(['SGL2021', 'SGL2024', 'SGL2024', 'SGL2024']);
+    expect(codes(compileDiags)).toEqual(['SGL2024']);
+    expect(resolveDiags.find((d) => d.code === 'SGL2024')?.message).toBe('`b.c.Lambda` may come from `./nope.sgl`, which could not be imported; it was skipped.');
+  });
+
+  it('qualified, depth 3: `b.c.d.X` and `x -> b.c.d.q`', () => {
+    const { resolveDiags, compileDiags } = link('@imports: [{ path: "./b.sgl", as: b }]\nx: b.c.d.X\nx -> b.c.d.q\n', {
+      b: lib('@imports: [{ path: "./c.sgl", as: c }]'),
+      c: lib('@imports: [{ path: "./nope.sgl", as: d }]'),
+    });
+    expect(errors([...resolveDiags, ...compileDiags])).toEqual([]);
+    expect(codes(resolveDiags).filter((c) => c === 'SGL2024')).toHaveLength(1);
+    expect(codes(compileDiags)).toEqual(['SGL2024']);
+  });
+
+  it('unqualified, depth 2 and 3: a bare unknown class or variable is SGL2024', () => {
+    for (const docs of [{ b: '@imports: ["./nope.sgl"]\n' }, { b: '@imports: ["./c.sgl"]\n', c: '@imports: ["./nope.sgl"]\n' }]) {
+      const { resolveDiags } = link('@imports: ["./b.sgl"]\nx: Lambda\ny: { @label: $v }\n', docs);
+      expect(errors(resolveDiags)).toEqual([]);
+      expect(codes(resolveDiags).filter((c) => c === 'SGL2024')).toHaveLength(2);
+    }
+  });
+
+  it('an unqualified import whose own qualified import failed: `c.Lambda`, `$c.v`, `x -> c.q`', () => {
+    const { resolveDiags, compileDiags } = link('@imports: ["./b.sgl"]\nx: c.Lambda\ny: { @label: $c.v }\nx -> c.q\n', {
+      b: '@imports: [{ path: "./nope.sgl", as: c }]\n',
+    });
+    expect(errors([...resolveDiags, ...compileDiags])).toEqual([]);
+    expect(codes(resolveDiags).filter((c) => c === 'SGL2024')).toHaveLength(2);
+    expect(codes(compileDiags)).toEqual(['SGL2024']);
+  });
+
+  it('with the inner import resolved, the same unknown names are still errors', () => {
+    const { resolveDiags } = link('@imports: [{ path: "./b.sgl", as: b }]\nx: b.c.Nope\n', { b: lib('@imports: [{ path: "./c.sgl", as: c }]'), c: '' });
+    expect(codes(resolveDiags)).toEqual(['SGL2002']);
+  });
+});
+
+describe('compileImports stays linear with a failed import (fix round 1, item 2)', () => {
+  it('16 000 edges into a failed namespace finish in under 500 ms', () => {
+    const edges = Array.from({ length: 16_000 }, (_, i) => `a -> gone.n${i}`).join('\n');
+    const { ast } = parse(`@imports: [{ path: "./nope.sgl", as: gone }]\na\n${edges}\n`);
+    const { model } = resolveImports(ast, createImportLinker(memoryHost({}), { self: 'main' }));
+    const start = performance.now();
+    const { diagnostics } = compileImports(model);
+    expect(performance.now() - start).toBeLessThan(500);
+    expect(diagnostics).toHaveLength(16_000);
+    expect(diagnostics.every((d) => d.code === 'SGL2024')).toBe(true);
+  });
+});
+
+describe('a duplicate `as` counts as failed (fix round 1, item 3)', () => {
+  it('names only the skipped import would have brought are SGL2024, not errors', () => {
+    const { resolveDiags, compileDiags } = link('@imports: [{ path: "./lib.sgl", as: x }, { path: "./aws.sgl", as: x }]\nf: x.Lambda\nf -> x.lambda\n', { lib: LIB, aws: AWS });
+    expect(errors([...resolveDiags, ...compileDiags])).toEqual([]);
+    expect(codes(resolveDiags)).toEqual(['SGL2022', 'SGL2024']);
+    expect(codes(compileDiags)).toEqual(['SGL2024']);
+  });
+});
+
+describe('"${ns.x}" and $ns.x agree through an unqualified import (fix round 1, item 8; I16)', () => {
+  it("a namespace an unqualified import brings is one of this document's: the string is a reference too", () => {
+    const { model, resolveDiags } = link('@imports: ["./b.sgl"]\na: { @label: $c.x }\nb: "${c.x}!"\nd: "$c.x"\n', {
+      b: '@imports: [{ path: "./c.sgl", as: c }]\n',
+      c: '@vars: { x: "X" }\n',
+    });
+    expect(resolveDiags).toEqual([]);
+    expect(model.root.children.map((c) => c.config.label)).toEqual(['X', 'X!', 'X']);
+  });
+
+  it('"$user.name" stays literal in a document with `as: lib` and its own `user` variable (fix round 1, item 12a)', () => {
+    const { model, resolveDiags } = link('@imports: [{ path: "./lib.sgl", as: lib }]\n@vars: { user: "u" }\na: "$user.name"\nb: { @label: "hi ${user.name}" }\n', { lib: LIB });
+    expect(resolveDiags).toEqual([]);
+    expect(model.root.children.map((c) => c.config.label)).toEqual(['$user.name', 'hi ${user.name}']);
+  });
+});
+
+describe('SGL2026 only for a library with nodes of its own (fix round 1, item 15)', () => {
+  it('a class library whose only root children were grafted from its own imports says nothing', () => {
+    const { resolveDiags } = link('@imports: ["./lib.sgl"]\n', { lib: '@imports: [{ path: "./aws.sgl", as: aws }]\n@classes: { L: {} }\n', aws: AWS });
+    expect(resolveDiags).toEqual([]);
+  });
+});
+
+describe('toJson keeps a malformed @imports as written (fix round 1, item 15; I31)', () => {
+  it.each([
+    ['@imports: ["./a.sgl", 3, { path: "./b.sgl", from: x }, { path: "./a.sgl", as: q }]\n', ['./a.sgl', 3, { path: './b.sgl', from: 'x' }, { path: './a.sgl', as: 'q' }]],
+    ['@imports: "./a.sgl"\n', './a.sgl'],
+  ])('%j', (main, written) => {
+    const first = resolveImports(parse(main).ast, createImportLinker(memoryHost({ a: '' }), { self: 'main' }));
+    const json = toJson(first.model);
+    expect(JSON.parse(json)['@imports']).toEqual(written);
+    const again = resolveImports(parse(json).ast, createImportLinker(memoryHost({ a: '' }), { self: 'main' }));
+    expect(toJson(again.model)).toBe(json);
+    expect(codes(again.diagnostics)).toEqual(codes(first.diagnostics));
+  });
+});

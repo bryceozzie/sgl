@@ -74,6 +74,9 @@ const DOWNSTREAM_EXTRA: Readonly<Record<string, readonly DiagnosticCode[]>> = {
   // A9 (DD-02 I17): the class and the edge through the import that failed,
   // one SGL2024 each, from the resolve and from the compile.
   'imports/unresolved.sgl': ['SGL2024', 'SGL2024'],
+  // Items 65 to 256 are over the 64-document cap before the item cap (A9
+  // fix round 1): one SGL2028.
+  'imports/too-many-items.sgl': ['SGL2028'],
   // The unterminated string swallows the rest of the line looking for its
   // closing quote, which the parser then recovers from as a second, unrelated
   // syntax error one token later.

@@ -1,0 +1,6 @@
+// expects: SGL2020
+// A chain of imports nine documents deep (A9, I21): deep-8.sgl, at depth 8,
+// may not import anything more, so its import is skipped, with one warning.
+// Each deep-N.sgl on its own is shallow enough, and clean.
+@imports: ["./deep-1.sgl"]
+x: D1

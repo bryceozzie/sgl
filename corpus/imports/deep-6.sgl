@@ -1,0 +1,3 @@
+// Link 6 of deep.sgl's chain (A9, I21).
+@imports: ["./deep-7.sgl"]
+@classes: { D6: {} }

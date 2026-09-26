@@ -82,7 +82,7 @@ function chain(n: number): Record<string, string> {
   return docs;
 }
 
-describe('caps (I21): the import that would cross one is skipped, with one SGL2020 per cap', () => {
+describe('caps (I21): the import that would cross one is skipped, with one warning per cap (SGL2020 depth, SGL2028 instances, SGL2029 source)', () => {
   it('depth 8 passes and depth 9 does not', () => {
     expect(run('@imports: ["./c1.sgl"]\nn: C8\n', chain(8))).toEqual([]);
     const diags = run('@imports: ["./c1.sgl"]\nn: C8\n', chain(9));
@@ -94,14 +94,14 @@ describe('caps (I21): the import that would cross one is skipped, with one SGL20
     const items = (n: number): string => `@imports: [${Array.from({ length: n }, () => '"./x.sgl"').join(', ')}]\n`;
     expect(run(items(64), { x: '' })).toEqual([]);
     const diags = run(items(66), { x: '' });
-    expect(codes(diags)).toEqual(['SGL2020']);
+    expect(codes(diags)).toEqual(['SGL2028']);
     expect(diags[0]?.message).toBe('Importing `./x.sgl` would go past 64 imported documents; it was skipped.');
   });
 
   it('exactly at the edge: the 64th instance is linked and the 65th is the one skipped', () => {
     const items = (n: number): string => `@imports: [${Array.from({ length: n }, () => '"./x.sgl"').join(', ')}]\n`;
     const diags = run(items(65), { x: '' });
-    expect(codes(diags)).toEqual(['SGL2020']);
+    expect(codes(diags)).toEqual(['SGL2028']);
     // The 65th item's span: every instance before it was linked.
     const spans = [...items(65).matchAll(/"\.\/x\.sgl"/g)].map((m) => m.index);
     expect(diags[0]?.span.from).toBe(spans[64]);
@@ -113,7 +113,7 @@ describe('caps (I21): the import that would cross one is skipped, with one SGL20
     expect(exact.length).toBe(half);
     expect(run('@imports: ["./a.sgl", "./a.sgl"]\n', { a: exact })).toEqual([]);
     const diags = run('@imports: ["./a.sgl", "./b.sgl"]\n', { a: exact, b: `${exact} ` });
-    expect(codes(diags)).toEqual(['SGL2020']);
+    expect(codes(diags)).toEqual(['SGL2029']);
     expect(diags[0]?.message).toBe('Importing `./b.sgl` would go past 2097152 characters of imported source; it was skipped.');
   });
 
@@ -121,7 +121,7 @@ describe('caps (I21): the import that would cross one is skipped, with one SGL20
     const big = `// ${'x'.repeat(1024 * 1024)}\n`;
     expect(run('@imports: ["./a.sgl"]\n', { a: big })).toEqual([]);
     const diags = run('@imports: ["./a.sgl", "./a.sgl"]\n', { a: big });
-    expect(codes(diags)).toEqual(['SGL2020']);
+    expect(codes(diags)).toEqual(['SGL2029']);
     expect(diags[0]?.message).toBe('Importing `./a.sgl` would go past 2097152 characters of imported source; it was skipped.');
   });
 
@@ -164,5 +164,38 @@ describe('one variable-expansion budget for the whole closure (I21)', () => {
     expect(codes(run('@imports: ["./big.sgl", "./lib.sgl"]\n', docs, cache))).toEqual(['SGL2021']);
     expect(run('@imports: ["./lib.sgl"]\n', docs, cache)).toEqual(run('@imports: ["./lib.sgl"]\n', docs));
     expect(run('@imports: ["./lib.sgl"]\n', docs)).toEqual([]);
+  });
+});
+
+describe('fix round 1', () => {
+  /** v0 is 1 Ki characters, each next one doubles, and a class body uses
+   *  the last (512 Ki): about 1.5 Mi units. */
+  const chain = (prefix: string): string =>
+    `@vars: { ${prefix}0: "${'x'.repeat(1024)}"${Array.from({ length: 9 }, (_, i) => `, ${prefix}${i + 1}: "\${${prefix}${i}}\${${prefix}${i}}"`).join('')} }\n@classes: { ${prefix.toUpperCase()}: { @label: $${prefix}9 } }\n`;
+
+  it("item 5: the document's own value dropped after an import spent the budget is its own SGL2016, even when an import was refused first", () => {
+    const diags = run(`@imports: ["./big.sgl", "./lib.sgl"]\n${chain('u')}`, { big: chain('v'), lib: chain('w') });
+    expect(diags.map((d) => [d.code, d.severity]).sort()).toEqual([
+      ['SGL2016', 'error'],
+      ['SGL2021', 'warning'],
+    ]);
+    expect(diags.find((d) => d.code === 'SGL2016')?.message).toMatch(/^`\$\{u\d\}\$\{u\d\}` would take/); // the importer's own chain
+  });
+
+  it('item 10: at most 256 `@imports` items are read (one SGL2030), and nothing is looked up past the 64-document cap', () => {
+    const host = memoryHost({ x: '' });
+    const items = `@imports: [${Array.from({ length: 100_000 }, () => '"./x.sgl"').join(', ')}]\n`;
+    const diags = resolveImports(parse(items).ast, createImportLinker(host, { self: 'main' })).diagnostics;
+    expect(codes(diags)).toEqual(['SGL2028', 'SGL2030']);
+    expect(diags[1]?.message).toBe('`@imports` has more than 256 items; the rest were skipped.');
+    expect(host.calls).toBe(64);
+  });
+
+  it('item 10: unresolved items are looked up only up to the item cap', () => {
+    const host = memoryHost({});
+    const items = `@imports: [${Array.from({ length: 1000 }, (_, i) => `"./x${i}.sgl"`).join(', ')}]\n`;
+    const diags = resolveImports(parse(items).ast, createImportLinker(host, { self: 'main' })).diagnostics;
+    expect(host.calls).toBe(256);
+    expect(codes(diags).filter((c) => c === 'SGL2030')).toHaveLength(1);
   });
 });
