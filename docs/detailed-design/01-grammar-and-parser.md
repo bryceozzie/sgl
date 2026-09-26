@@ -218,7 +218,7 @@ it); the generated tables differ only in the precedence data. It stays, as DD-11
 say which token wins, so the next token that starts with `"` is audited against all three.
 
 **Cost.** The parse tables grew by 0.12 kB gzipped and `buildAst`'s dedent, escapes and scanner by
-0.49 kB; the editor's tag, fold and `closeBrackets` entry add 0.06 kB: core bundle 179.63 → 180.31 kB (limit 182 kB). DD-11 T54 estimated 0.20–0.25 kB for this
+0.49 kB; the editor's tag, fold and `closeBrackets` entry add 0.06 kB: core bundle 179.63 → 180.38 kB (limit 182 kB). DD-11 T54 estimated 0.20–0.25 kB for this
 row; the dedent with source offsets for `SGL1004` is most of the difference.
 
 **The proof.** Before the grammar changed, the pins from I16 (`grammar-trees.test.ts`, `e65dda4`)

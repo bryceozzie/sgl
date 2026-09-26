@@ -79,6 +79,8 @@ It **does not replace** [07 — Execution plan](07-execution-plan.md) §2 and §
 
 After the fix round: re-verify, then merge `--no-ff`. The `wip` commit `544fe6d` stays as a documented exception; `main`'s first-parent history is still green. Then A18, whose boot-path cost now fits under 182 kB.
 
+**A18 part 1 (`feat/a18-grammar`) merged to `main` at `0ba4339`** (2026-09-26; one review, one fix round; 5050 Vitest, 98/98 e2e, 180.38 of 182 kB). Next: `feat/a18-text` (parser, runs, measurement, wrapping; T58's `unicode.sgl` and `multiline.sgl` compile-golden updates belong there), then `feat/a18-render`.
+
 ### A18 markdown labels: branch `design/a18-text` at `8ca91c9` (design only, not merged)
 
 **Status 2026-09-26: branch 1, `feat/a18-grammar`, is complete and pushed; awaiting orchestrator
@@ -93,8 +95,8 @@ always on for `@label` (T13), a fixed `@size.width` wraps (T36), the full font s
   three valid pre-A18 nodes. No committed document is affected (92 CST/AST pins byte-identical).
 - **No existing golden changed.** T58's `unicode.sgl` change is branch 2's. `multiline.sgl`'s new
   compile golden will change in branch 2 the same way.
-- **Size:** 180.31 kB of 182 (this branch +0.68 kB; T54 estimated 0.20–0.25). Branches 2–3 have
-  1.69 kB. If branch 3 does not fit, that is a human budget decision.
+- **Size:** 180.38 kB of 182 (this branch +0.68 kB; T54 estimated 0.20–0.25). Branches 2–3 have
+  1.62 kB. If branch 3 does not fit, that is a human budget decision.
 - Next: `feat/a18-text` from `main` once this merges.
 
 - **Design:** DD-11 `docs/detailed-design/11-text.md` (T1–T60).

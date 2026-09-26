@@ -414,8 +414,8 @@ deviations. Labels still draw as literal text.
   `e2e/multiline.spec.ts` (3: highlighting, typing `"""`, a pasted unterminated one). New corpus
   documents `multiline.sgl` (in `CLEAN_DOCS`: resolve, compile, grid, elk and four render goldens)
   and `malformed/unterminated-triple-string.sgl`, with CST/AST pins.
-- **Size.** Core bundle 179.63 → **180.31 kB** of 182 kB: parse tables +0.12, `buildAst` +0.49, the editor +0.06.
-  DD-11 T54 estimated 0.20–0.25 kB for this row, so branches 2 and 3 have 1.69 kB where T54
+- **Size.** Core bundle 179.63 → **180.38 kB** of 182 kB: parse tables +0.12, `buildAst` +0.49, the editor +0.06.
+  DD-11 T54 estimated 0.20–0.25 kB for this row, so branches 2 and 3 have 1.62 kB where T54
   planned about 0.6–0.8 kB of the rest.
 - **Docs.** Language spec §3 (Strings) and §4 (`@label`); DD-01 §2 (listing, notes, audit), §3, §4,
   §6, §8; DD-02 §6 rule 7; DD-11 status, T10–T20 notes, T58 note, §19 item 4.
