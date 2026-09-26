@@ -90,6 +90,7 @@ that implements it, not here.
   Pre-A18 labels that use `*` as an operator, a wildcard or a footnote mark keep their meaning (T13).
   The cost is that intraword emphasis, `un*frigging*believable`, is not available.*
   - *Implemented (branch 2, `feat/a18-text`), as written:* whitespace is `\p{White_Space}`, punctuation `[\p{P}\p{S}]`, both on code points (an emoji is a symbol).
+  - *Fix round 1, item 7:* those property escapes use the **JavaScript engine's own Unicode tables**. A symbol or punctuation mark assigned in a newer Unicode version than an older engine knows is, there, neither punctuation nor whitespace, so a `*` beside it flanks differently: `🫨*x*` could be italic in one browser and literal in another. This is the same class of concern as T37's refusal of `Intl.Segmenter`, much narrower (only newly assigned characters directly beside a delimiter run), and accepted; a pinned table would remove it.
 - **T7. Matching, left to right with a stack.** At most one `strong` and one `em` can be open at a
   time.
   - A run that can close does so first. Length 1 closes an open `em`. Length 2 closes an open
