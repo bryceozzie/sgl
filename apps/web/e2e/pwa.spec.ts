@@ -42,6 +42,17 @@ test.describe('PWA (DD-08 §12)', () => {
     expect(has(/^assets\/ibm-plex-mono-latin-700-normal-[\w-]+\.woff2$/)).toBe(true);
     expect(has(/^fonts\/OFL\.txt$/)).toBe(true);
     expect(has(/^fonts\/OFL-IBM-Plex-Mono\.txt$/)).toBe(true);
+    // …and none of them is declared in the boot CSS: the lazy rich-text chunk
+    // registers them (`io/run-faces.ts`), so the core bundle carries no rule.
+    const css = filesUnder(`${DIST}assets/`).filter((f) => f.endsWith('.css'));
+    expect(css.length).toBeGreaterThan(0);
+    for (const f of css) {
+      const text = readFileSync(`${DIST}assets/${f}`, 'utf8');
+      expect(text, f).toMatch(/inter-latin-400-normal/);
+      expect(text, f).not.toMatch(/inter-latin-700-normal|inter-latin-\d+-italic|ibm-plex-mono/);
+    }
+    const richText = filesUnder(`${DIST}assets/`).filter((f) => /^rich-text-[\w-]+\.js$/.test(f));
+    expect(richText).toHaveLength(1);
     expect(has(/^manifest\.webmanifest$/)).toBe(true);
     // No duplicates (Workbox rejects a URL listed twice with two revisions).
     expect(precacheUrls().length).toBe(precached.size);

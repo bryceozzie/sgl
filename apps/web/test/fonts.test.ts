@@ -2,14 +2,16 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { SHIPPED } from '../src/io/fonts.js';
+import { RUN_FACES } from '../src/io/run-faces.js';
 
 /**
- * DD-08 §5 and DD-11 T26/T49: the faces the app ships. `fonts.css` declares
- * each one (so the browser fetches it only when some text uses it, and
- * `measurer.ready()` can load it before the first layout, T28), and export
- * embeds from exactly the same list (`SHIPPED`, D2). The two lists are one
- * set, and it is T26's: Inter 400/500/600/700 roman, Inter 400–700 italic,
- * IBM Plex Mono 400/700, Latin subset only, each with its licence.
+ * DD-08 §5 and DD-11 T26/T49: the faces the app ships, ten in all: Inter
+ * 400/500/600/700 roman, Inter 400–700 italic, IBM Plex Mono 400/700, Latin
+ * subset only, each family with its licence. The boot CSS (`fonts.css`)
+ * declares only the themes' three; A18's seven run faces are registered by
+ * the lazy `rich-text` chunk (`RUN_FACES`), so a document without markup
+ * carries neither their CSS nor their files. Export embeds from the union
+ * (`SHIPPED`, D2).
  */
 
 const APP = new URL('../', import.meta.url);
@@ -47,12 +49,22 @@ const T26: readonly Face[] = [
   ...[400, 500, 600, 700].map((weight) => ({ family: 'Inter', weight, style: 'italic', file: `inter-latin-${weight}-italic.woff2` })),
 ];
 
+/** The boot path's own faces: the themes' weights. */
+const BOOT = T26.filter((f) => f.family === 'Inter' && f.style === 'normal' && f.weight <= 600);
+
 describe('the shipped faces (DD-11 T26, T49; DD-08 §5)', () => {
-  it('fonts.css declares exactly T26\'s eleven faces, Latin subset, font-display: block', () => {
-    expect(cssFaces().map(key).sort()).toEqual(T26.map(key).sort());
+  it('the boot CSS (fonts.css) declares only the three boot faces: no rule for A18\'s seven run faces', () => {
+    expect(cssFaces().map(key).sort()).toEqual(BOOT.map(key).sort());
+    const css = read('src/fonts.css');
+    for (const f of T26.filter((t) => !BOOT.includes(t))) expect(css, f.file).not.toContain(f.file);
   });
 
-  it('export embeds from the same eleven faces (SHIPPED)', () => {
+  it('the lazy rich-text chunk registers exactly the seven run faces (RUN_FACES)', () => {
+    expect(RUN_FACES.map((f) => key({ ...f, file: basename(f.url) })).sort()).toEqual(T26.filter((t) => !BOOT.includes(t)).map(key).sort());
+    expect(read('src/state/rich-text.ts')).toMatch(/registerRunFaces\(\)/);
+  });
+
+  it('export embeds from the boot and the run faces together: T26\'s ten (SHIPPED)', () => {
     expect(SHIPPED.map((f) => key({ ...f, file: basename(f.url) })).sort()).toEqual(T26.map(key).sort());
   });
 

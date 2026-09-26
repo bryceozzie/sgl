@@ -8,7 +8,7 @@ import { EXAMPLE_NODE_COUNT, renderedSvg, setSource, waitForExactNodeCount, wait
  */
 
 const isRichText = (r: Request): boolean => /\/assets\/rich-text-[^/]*\.js$/.test(new URL(r.url()).pathname);
-/** One of A18's eight faces (DD-11 T26): Inter 700, an Inter italic, IBM Plex Mono. */
+/** One of A18's seven run faces (DD-11 T26): Inter 700, an Inter italic, IBM Plex Mono. */
 const isRunFace = (r: Request): boolean => /\/assets\/(inter-latin-700-normal|inter-latin-\d+-italic|ibm-plex-mono-latin-\d+-normal)-[^/]*\.woff2$/.test(new URL(r.url()).pathname);
 
 /** The width of a node's own shape, as drawn. */

@@ -30,7 +30,10 @@
 // excluded chunk is reachable from the entry. `rich-text-*.js` is A18's
 // (DD-11 T53: the inline parser `@sgl/core/inline` and the word breaker
 // `@sgl/text/wrap`), loaded for the first document with markup in a label or a
-// label to wrap; a document with neither never fetches it.
+// label to wrap; a document with neither never fetches it. `run-faces-*.js` is
+// `io/run-faces.ts`, A18's seven run faces (DD-11 T26): registered by `rich-text`
+// and listed for export by `file-actions`, which share it, so the bundler gives
+// it a chunk of its own; the boot CSS declares none of them.
 //
 // size-limit is pinned to 12.1.0 (fix round 1, item 20): 13+ require Node
 // ≥ 22.18 (14 uses `fs/promises` `glob`), and CI runs Node 20.19.0
@@ -41,7 +44,7 @@
 export default [
   {
     name: 'core (entry + static imports + layout worker), gzip',
-    path: ['apps/web/dist/assets/*.js', 'apps/web/dist/assets/*.css', '!apps/web/dist/assets/elk-*.js', '!apps/web/dist/assets/share-*.js', '!apps/web/dist/assets/file-actions-*.js', '!apps/web/dist/assets/engine-options-form-*.js', '!apps/web/dist/assets/documents-menu-*.js', '!apps/web/dist/assets/imports-*.js', '!apps/web/dist/assets/filename-*.js', '!apps/web/dist/assets/rich-text-*.js'],
+    path: ['apps/web/dist/assets/*.js', 'apps/web/dist/assets/*.css', '!apps/web/dist/assets/elk-*.js', '!apps/web/dist/assets/share-*.js', '!apps/web/dist/assets/file-actions-*.js', '!apps/web/dist/assets/engine-options-form-*.js', '!apps/web/dist/assets/documents-menu-*.js', '!apps/web/dist/assets/imports-*.js', '!apps/web/dist/assets/filename-*.js', '!apps/web/dist/assets/rich-text-*.js', '!apps/web/dist/assets/run-faces-*.js'],
     gzip: true,
     limit: '182 kB',
   },

@@ -1,27 +1,24 @@
 /*
- * DD-08 §5: the app's faces, bundled as WOFF2, Latin subset only (the only one
- * the language and MVP examples need), `font-display: block` — block, not
- * swap, so the first measurement (`CanvasMeasurer`) is never against a
- * fallback face. `measurer.ready()` (`apps/web/src/state/pipeline.ts`'s
- * measure effect) is awaited before the first pre-measure, which is what makes
- * "block" the right choice here: a blocked paint is at worst invisible text
- * for a beat, never a wrongly-sized label baked into a layout result.
+ * DD-08 §5: the app's boot faces, Inter 400, 500 and 600 (the themes'
+ * weights), bundled as WOFF2, Latin subset only (the only one the language
+ * and MVP examples need), `font-display: block` — block, not swap, so the
+ * first measurement (`CanvasMeasurer`) is never against a fallback face.
+ * `measurer.ready()` (`apps/web/src/state/pipeline.ts`'s measure effect) is
+ * awaited before the first pre-measure, which is what makes "block" the right
+ * choice here: a blocked paint is at worst invisible text for a beat, never a
+ * wrongly-sized label baked into a layout result.
  *
- * Inter 400, 500 and 600 roman are the themes' own weights. A18 (DD-11 T26,
- * human decision 2026-09-25) adds the faces markdown runs draw with (T25):
- * Inter 700 (`strong`), Inter italic 400–700 (`em` at each role's base weight,
- * and `strong` + `em`), and IBM Plex Mono 400 and 700 (`code`, and `strong`
- * code). A declared face costs nothing until some text uses it: the browser
- * fetches a face only for text drawn in it, and `measurer.ready()` asks
- * `document.fonts.load` for exactly the faces a document's runs use (T28), so
- * a document without markup fetches none of the eight. All eleven are
- * precached (DD-08 §12).
+ * A18's seven run faces (DD-11 T26: Inter 700, Inter italic 400–700, IBM
+ * Plex Mono 400/700) are deliberately **not** here: they are registered with
+ * the CSS Font Loading API by the lazy `rich-text` chunk (`src/io/run-faces.ts`),
+ * so the boot CSS carries none of their bytes and a document without markup
+ * declares and fetches none of them (`test/fonts.test.ts`, `e2e/pwa.spec.ts`).
  *
- * `@fontsource`'s own CSS files ship every Unicode subset at
- * `font-display: swap`, so they are not imported directly — this file
- * declares each face itself, pointing at the WOFF2 files the installed
- * packages ship. `src/io/fonts.ts`'s `SHIPPED` lists the same eleven for
- * export (`test/fonts.test.ts` holds the two lists together).
+ * `@fontsource/inter`'s own `400.css`/`500.css`/`600.css` ship every Unicode
+ * subset at `font-display: swap`, so they are not imported directly — this
+ * file declares the faces itself, pointing at the WOFF2 files the installed
+ * package already ships. `src/io/fonts.ts`'s `SHIPPED` lists these three and
+ * the run faces for export.
  */
 
 @font-face {
@@ -46,60 +43,4 @@
   font-weight: 600;
   font-display: block;
   src: url('../node_modules/@fontsource/inter/files/inter-latin-600-normal.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 700;
-  font-display: block;
-  src: url('../node_modules/@fontsource/inter/files/inter-latin-700-normal.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Inter';
-  font-style: italic;
-  font-weight: 400;
-  font-display: block;
-  src: url('../node_modules/@fontsource/inter/files/inter-latin-400-italic.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Inter';
-  font-style: italic;
-  font-weight: 500;
-  font-display: block;
-  src: url('../node_modules/@fontsource/inter/files/inter-latin-500-italic.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Inter';
-  font-style: italic;
-  font-weight: 600;
-  font-display: block;
-  src: url('../node_modules/@fontsource/inter/files/inter-latin-600-italic.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Inter';
-  font-style: italic;
-  font-weight: 700;
-  font-display: block;
-  src: url('../node_modules/@fontsource/inter/files/inter-latin-700-italic.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'IBM Plex Mono';
-  font-style: normal;
-  font-weight: 400;
-  font-display: block;
-  src: url('../node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'IBM Plex Mono';
-  font-style: normal;
-  font-weight: 700;
-  font-display: block;
-  src: url('../node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-700-normal.woff2') format('woff2');
 }

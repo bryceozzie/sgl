@@ -482,9 +482,11 @@ recorded as **F24** for the human.
 - **App**: the render stage uses the table its landed layout was sized from (`layoutTable`, set
   with `layout`), so a label is never drawn on a newer table's breaks inside older frames, and a
   theme switch stays paint-only.
-- **Fonts** (T26, human decision): `fonts.css` declares Inter 700, Inter italic 400–700 and IBM Plex
-  Mono 400/700, Latin, `font-display: block`, fetched only when used and precached; export's
-  `SHIPPED` lists the same eleven faces. **New dependency: `@fontsource/ibm-plex-mono` 5.3.0
+- **Fonts** (T26, human decision): seven run faces, Inter 700, Inter italic 400–700 and IBM Plex
+  Mono 400/700 (DD-11's "eight" miscounts its own table), Latin, `display: block`, **registered by
+  the lazy `rich-text` chunk** through the Font Loading API (`io/run-faces.ts`), not declared in the
+  boot CSS; fetched only when used and precached; export's `SHIPPED` lists the ten faces. No CSP
+  change (`font-src 'self'`). **New dependency: `@fontsource/ibm-plex-mono` 5.3.0
   (OFL-1.1)**; Inter's new faces come from the existing `@fontsource/inter`. Plex's licence ships as
   `fonts/OFL-IBM-Plex-Mono.txt`, attributed in the README.
 - **Export** (T50): `usedFontFaces` reads an SVG with run tspans element by element, so a bold,
@@ -503,7 +505,8 @@ recorded as **F24** for the human.
   tree), `rich-measure.browser.test.ts` (Chromium: `ready()` loads the faces, every wrapped line's
   `getComputedTextLength()` within 0.5 px of its measured width; F24's numbers); e2e: computed run
   faces and `**x**` → 700, wrapped lines within the node, no run face fetched without markup, the
-  eight faces in the precache, Save ▾ SVG embeds exactly each run's face and an `<img>` of it inks
+  seven faces in the precache and none in the built CSS, each run measured in its real face (fails if
+  measured before the chunk declares it), Save ▾ SVG embeds exactly each run's face and an `<img>` of it inks
   bold, italic and code within 1 px of each face's metrics (and misses by more than 3 px without
   them), a PNG of an italic title drawn in Inter Italic, the DD-08 §14 font gate with italic, bold
   and code labels, and a markdown document's faces from the service worker offline.
@@ -520,7 +523,8 @@ recorded as **F24** for the human.
   50 ms budget on the slower pick (F9's row); the gated points in the same run: 2.2 / 10.9 /
   37.3 ms.
 - **Size.** Core bundle 181.22 → **181.36 kB** (fonts, step 1) → **181.81 kB** (renderer, step 2) →
-  **181.81 kB** (T50, lazy) → **181.82 kB** (the box gate on the lookup) of 182: 0.18 kB left.
+  **181.81 kB** (T50, lazy) → **181.82 kB** (the box gate on the lookup) → **181.71 kB** (the run
+  faces moved from the boot CSS to the lazy chunk) of 182: **0.29 kB left**.
 - **Docs**: DD-11 (status, T26, T28, T42–T50, T54–T58, T60, §19 items 3, 5, 8); DD-07 §5, §6, §9,
   §11; DD-08 §3, §5, §7, §12; DD-09 §2, §3.2; DD-10 §1–§2; architecture §7; README attribution.
 
@@ -1844,7 +1848,7 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F16** | Under `elk`, some edges enter a container through its own title (the endpoint's ancestor, so the K4 hierarchy-crossing check does not count them): `checkout` 2, `containers-edges` 1, `nesting-3` 1, `wildcards` 4, `wildcard-paths` 4 (added 2026-09-24 with the document), pinned by `titleCrossings` in `packages/layout-elk/test/elk.test.ts`. No ELK option tried removes them (`considerModelOrder` crashes ELK on 8 documents; `FIXED_SIDE` moves them). Candidates: a host-side nudge of the final segment, or port placement once ports are real (F6). | Stage L |
 | **F23** | **A document that imports many nodes `as:` costs what that many nodes cost, on every keystroke** (A9 fix round 1). Eight 1 500-node libraries imported `as:` graft 12 000 nodes, and a keystroke is ~250 ms in Node: `resolveImports` 39 ms (the imports themselves are cached; the graft is cheaper than resolving the same nodes written in the document, 53 ms) and `compileImports` 221 ms (`compile()` of the same nodes, 214 ms). The keystroke budget (DD-09 §2) is for 50 nodes; this is a 12 000-node document. Candidates: an incremental compile, or a graft kept across keystrokes when the imports are unchanged. Measured by `packages/core/test/imports-keystroke.test.ts` (DD-02 §10.8). | Stage L, with the next performance work on large documents |
 | **F24** | **The renderer's first baseline is `0.8 × fontSize`; measurement's ascent is the font's own** (DD-11 §19 item 5; found by DD-11's design, measured by `feat/a18-render`). DD-07 §5 once said `y = frame.y + layout.ascent` from the measured `TextLayout`; `render()` was never given one and has always drawn `0.8 × fontSize`, which A18 kept (T42) so no golden moved. `CanvasMeasurer`'s ascent is `fontBoundingBoxAscent`, which Chromium rounds to whole pixels: Inter's 0.969 em comes out as **13 px** for a 13 px node title against the rendered **10.4 px** (label drawn **2.6 px** higher than measurement's baseline), 12 px against 9.6 for a container title (2.4 px). Adopting the measured ascent would move every label by about 2–2.6 px and re-baseline every render golden under every theme; the label boxes and layout are unaffected (heights use `lineHeight`). `apps/web/test/rich-measure.browser.test.ts` pins the numbers. **A human decision:** keep `0.8 em` (DD-07 §5 now says so), or adopt the measured (or a fixed 0.97 em, deterministic across browsers) ascent in one golden re-baseline. | the human; then whoever next touches DD-07 §5 |
-| **F20** | **Bundle headroom.** After A8's fix round 2 the core bundle was 178.63 kB; after C5's two themes (+0.24 kB) it is **178.87 kB** of 180, **178.90 kB** after D6/D7's +27 B on `main`, and **178.91 kB** after D2's +10 B (1.09 kB under): `@sgl/core/json` and the lazy `engine-options-form` chunk are done. On `feat/imports` (A9, §2) the Documents ▾ list is a lazy chunk (−244 B, not the −0.6 kB hoped for) and A9's boot share is +805 B (grammar, seam, records, the pipeline gate, Share), so the bundle was **179.47 kB (179 472 B)**, and after A9's fix round 1 (a degraded path for a chunk that cannot load, +218 B; a share link's storing moved to the lazy `share` chunk, −60 B) it is **179.63 kB (179 630 B)**. **The limit is 182 kB since 2026-09-26 (human decision; it was 180 kB; the 300 kB hard ceiling is unchanged)**, so 2.37 kB under. No named candidate is left on the boot path; A18 is estimated at 0.8–1.05 kB at boot, more than remains (orchestration handoff §2). **A18 measured:** branch 1 +0.68 kB (180.38), branch 2 +0.84 kB (181.22), branch 3 +0.60 kB (**181.82 kB**; the eight `@font-face` rules 0.14, the renderer 0.46), so **0.18 kB** is left; the lazy `rich-text` chunk is 2.01 kB. | Stage L, before the next feature on the boot path |
+| **F20** | **Bundle headroom.** After A8's fix round 2 the core bundle was 178.63 kB; after C5's two themes (+0.24 kB) it is **178.87 kB** of 180, **178.90 kB** after D6/D7's +27 B on `main`, and **178.91 kB** after D2's +10 B (1.09 kB under): `@sgl/core/json` and the lazy `engine-options-form` chunk are done. On `feat/imports` (A9, §2) the Documents ▾ list is a lazy chunk (−244 B, not the −0.6 kB hoped for) and A9's boot share is +805 B (grammar, seam, records, the pipeline gate, Share), so the bundle was **179.47 kB (179 472 B)**, and after A9's fix round 1 (a degraded path for a chunk that cannot load, +218 B; a share link's storing moved to the lazy `share` chunk, −60 B) it is **179.63 kB (179 630 B)**. **The limit is 182 kB since 2026-09-26 (human decision; it was 180 kB; the 300 kB hard ceiling is unchanged)**, so 2.37 kB under. No named candidate is left on the boot path; A18 is estimated at 0.8–1.05 kB at boot, more than remains (orchestration handoff §2). **A18 measured:** branch 1 +0.68 kB (180.38), branch 2 +0.84 kB (181.22), branch 3 +0.49 kB (**181.71 kB**: the renderer 0.46; the run faces are registered by the lazy chunk, not the boot CSS), so **0.29 kB** is left; the lazy `rich-text` chunk is 2.01 kB. | Stage L, before the next feature on the boot path |
 
 ---
 

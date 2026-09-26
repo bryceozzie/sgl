@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { headersFor, parseHeadersFile } from '../build/headers.js';
-import { EXAMPLE_NODE_COUNT, openFile, pngSize, saveAs, savePng, setSource, toastMessages, waitForExactNodeCount, waitForNodeCount, waitForTheme } from './helpers.js';
+import { EXAMPLE_NODE_COUNT, openFile, pngSize, renderedSvg, saveAs, savePng, setSource, toastMessages, waitForExactNodeCount, waitForNodeCount, waitForTheme } from './helpers.js';
 
 /** J4: the build's `_headers` (DD-10 §5, DD-09 §1.2's CSP), served by the
  *  e2e server, and the app working under it. */
@@ -62,6 +62,18 @@ test('the app works under the CSP with no violation', async ({ page, context }) 
   await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT + 2); // me, the container ex, and the example under it
   await page.locator('.share-open').click();
   await expect(page.locator('.share-link')).toHaveValue(/#s=[^&]+&e=[^&]+&t=[^&]+&i=/);
+  await page.keyboard.press('Escape');
+  // A18 (DD-11 T26, T53): markup and a box load the lazy `rich-text` chunk,
+  // which registers the run faces with the Font Loading API (no stylesheet),
+  // and the faces load under `font-src 'self'`; Save ▾ SVG and a PNG embed them.
+  await setSource(page, 'a: { @label: "**Bold** *italic* `code` and a long tail to wrap", @size: { maxWidth: 120 } }\n');
+  await waitForExactNodeCount(page, 1);
+  await expect(renderedSvg(page).locator('tspan.r-code')).toHaveCount(1);
+  await expect
+    .poll(() => page.evaluate(() => [...document.fonts].filter((f) => f.status === 'loaded' && /Plex|Inter/.test(f.family) && (f.weight === '700' || f.style === 'italic' || /Plex/.test(f.family))).length))
+    .toBeGreaterThanOrEqual(3);
+  expect((await saveAs(page, 'svg')).text).toMatch(/font-family:&apos;IBM Plex Mono&apos;/);
+  expect(pngSize((await savePng(page, 1)).bytes).width).toBeGreaterThan(0);
 
   expect(await page.evaluate(() => (window as unknown as { __cspViolations: string[] }).__cspViolations)).toEqual([]);
   expect(consoleCsp).toEqual([]);

@@ -117,7 +117,8 @@ hard lines). Scope as briefed: T42–T50, the fonts (T26, T49), T56–T57, rende
 - **For the human:** execution plan §2.1 **F24** (the rendered ascent 0.8 em vs measured 1 em in
   Chromium: labels 2.4–2.6 px higher than measurement's baseline; fixing it re-baselines every render
   golden). F9: `n2000-rich` theme switch 48/54 ms (reported, not gated; budget 50).
-- **Size:** **181.82 kB** of 182 (+0.60 kB: fonts 0.14, renderer 0.46); 0.18 kB left.
+- **Size:** **181.71 kB** of 182 (+0.49 kB: the renderer 0.46; the seven run faces are registered by
+  the lazy `rich-text` chunk via the Font Loading API, not the boot CSS, and no CSP change); 0.29 kB left.
 
 ### A18 markdown labels: branch `design/a18-text` at `8ca91c9` (design only, not merged)
 
