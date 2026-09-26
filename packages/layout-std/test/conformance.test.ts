@@ -3,6 +3,7 @@ import { compile, parse, resolve } from '@sgl/core';
 import { buildLayoutInput, type LayoutInput, type ResolvedThemeMetricsView, type StyledGraphInput } from '@sgl/layout-api';
 import { runConformance, type ConformanceCase } from '@sgl/layout-api/conformance';
 import { labelRunKey, premeasure, StaticMetricsMeasurer } from '@sgl/measure';
+import { layoutWrapped } from '@sgl/text/wrap';
 import { BUILT_IN, neutralLight, resolveTheme, styleGraph, type StyledGraph } from '@sgl/theme';
 import { expect, it } from 'vitest';
 import { scaleDocument } from '../../../bench/scale-document.js';
@@ -23,7 +24,7 @@ const METRICS: ResolvedThemeMetricsView = {
 };
 
 function inputOf(styled: StyledGraph): LayoutInput {
-  const table = premeasure(styled, new StaticMetricsMeasurer());
+  const table = premeasure(styled, new StaticMetricsMeasurer({ lineModel: layoutWrapped }));
   const labelSizes: Record<LabelId, Size> = {};
   for (const labelId of Object.keys(styled.graph.labels).sort() as LabelId[]) {
     const layout = table[labelRunKey(styled, labelId)];

@@ -80,7 +80,7 @@ export interface ImportsRuntime {
 /** A18's lazy `rich-text` chunk (`state/rich-text.ts`, DD-11 T53). */
 export interface RichText {
   /** `parseInline` from `@sgl/core/inline`. */
-  readonly inline?: (text: string) => readonly TextRun[];
+  readonly inline: (text: string) => readonly TextRun[];
   /** `layoutWrapped` from `@sgl/text/wrap`. */
   readonly lineModel: LineModel;
 }

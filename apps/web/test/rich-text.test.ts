@@ -126,6 +126,37 @@ describe('the rich-text chunk (DD-11 T53)', () => {
     h.dispose();
   });
 
+  it('markup in a label holds compile until the chunk has loaded, then compiles with the parser (the markup gate)', async () => {
+    const lazy = lazyRichText();
+    const h = await createHarness('a: "**Payments** `v2`"\nb: "2 * 3"\na -> b\n', { loadRichText: lazy.loadRichText }, { firstRender: false });
+    await h.settle();
+    expect(lazy.loadRichText).toHaveBeenCalledTimes(1);
+    expect(h.pipeline.lastGood.value).toBeNull();
+    lazy.release();
+    await lazy.loadRichText.mock.results[0]!.value;
+    await h.settle();
+    const good = h.pipeline.lastGood.value!;
+    expect(good.styled.graph.labels['l:a' as LabelId]!.runs).toEqual([{ text: 'Payments', strong: true }, { text: ' ' }, { text: 'v2', code: true }]);
+    expect(good.styled.graph.labels['l:b' as LabelId]!.runs).toEqual([{ text: '2 * 3' }]);
+    // Until the render branch, the runs are drawn as plain text, markers removed.
+    expect(good.svg).toContain('>Payments v2</tspan>');
+    expect(good.svg).not.toContain('**');
+    h.dispose();
+  });
+
+  it('once loaded, a later document is compiled with the parser without holding again', async () => {
+    const lazy = lazyRichText();
+    lazy.release();
+    const h = await createHarness('a: "*x*"\n', { loadRichText: lazy.loadRichText }, { firstRender: false });
+    await lazy.loadRichText.mock.results[0]!.value;
+    await h.settle();
+    h.setSource('a: "**y**"\n');
+    await h.settle();
+    expect(h.pipeline.lastGood.value!.styled.graph.labels['l:a' as LabelId]!.runs).toEqual([{ text: 'y', strong: true }]);
+    expect(lazy.loadRichText).toHaveBeenCalledTimes(1);
+    h.dispose();
+  });
+
   it('a failed load is not retried in a loop, but on the next change of the document; meanwhile the stages hold', async () => {
     const lazy = lazyRichText();
     lazy.failOnce();

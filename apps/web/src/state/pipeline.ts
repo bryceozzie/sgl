@@ -350,8 +350,8 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
       const loaded = rich.value;
       inject('compile');
       const runtime = documentModel.imports && imports.value;
-      const options = loaded?.inline && { inline: loaded.inline };
-      const g = runtime ? runtime.compile(documentModel, options || undefined) : compile(documentModel, undefined, options || undefined);
+      const options = loaded ? { inline: loaded.inline } : undefined;
+      const g = runtime ? runtime.compile(documentModel, options) : compile(documentModel, undefined, options);
       if (!loaded && deps.loadRichText && needsInline(g.graph)) holdForRichText();
       return DEGRADED.has(documentModel) ? { ...g, diagnostics: g.diagnostics.filter((d) => d.code !== 'SGL2001') } : g;
     },

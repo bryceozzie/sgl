@@ -429,6 +429,8 @@ test('offline, the lazy rich-text chunk comes from the precache: a document with
     await page.reload();
     await waitForExactNodeCount(page, 2);
     await expect.poll(width).toBeLessThanOrEqual(150);
+    // Parsed offline too: the markers are gone from the drawn text.
+    await expect(renderedSvg(page).locator('g[id="n-a"] text')).not.toContainText('**');
     await expect(page.locator('.diagnostics-panel')).toHaveCount(0);
 
     const chunk = responses.filter((r) => /\/assets\/rich-text-[^/]*\.js$/.test(new URL(r.url()).pathname));

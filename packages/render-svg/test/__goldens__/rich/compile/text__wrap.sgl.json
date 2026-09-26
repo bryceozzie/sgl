@@ -1,0 +1,812 @@
+{
+  "nodes": {
+    "rect": {
+      "id": "rect",
+      "path": [
+        "rect"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:rect",
+      "ports": [],
+      "config": {
+        "shape": "rect",
+        "label": "Payments ledger reconciliation service",
+        "size": {
+          "maxWidth": 150
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 305,
+        "to": 411
+      }
+    },
+    "round": {
+      "id": "round",
+      "path": [
+        "round"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "round",
+      "classes": [],
+      "labelId": "l:round",
+      "ports": [],
+      "config": {
+        "shape": "round",
+        "label": "Payments ledger reconciliation service",
+        "size": {
+          "maxWidth": 150
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 412,
+        "to": 518
+      }
+    },
+    "ellipse": {
+      "id": "ellipse",
+      "path": [
+        "ellipse"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "ellipse",
+      "classes": [],
+      "labelId": "l:ellipse",
+      "ports": [],
+      "config": {
+        "shape": "ellipse",
+        "label": "Payments ledger reconciliation service",
+        "size": {
+          "maxWidth": 150
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 519,
+        "to": 625
+      }
+    },
+    "diamond": {
+      "id": "diamond",
+      "path": [
+        "diamond"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "diamond",
+      "classes": [],
+      "labelId": "l:diamond",
+      "ports": [],
+      "config": {
+        "shape": "diamond",
+        "label": "Payments ledger reconciliation service",
+        "size": {
+          "maxWidth": 200
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 626,
+        "to": 732
+      }
+    },
+    "hexagon": {
+      "id": "hexagon",
+      "path": [
+        "hexagon"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "hexagon",
+      "classes": [],
+      "labelId": "l:hexagon",
+      "ports": [],
+      "config": {
+        "shape": "hexagon",
+        "label": "Payments ledger reconciliation service",
+        "size": {
+          "maxWidth": 200
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 733,
+        "to": 839
+      }
+    },
+    "cylinder": {
+      "id": "cylinder",
+      "path": [
+        "cylinder"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "cylinder",
+      "classes": [],
+      "labelId": "l:cylinder",
+      "ports": [],
+      "config": {
+        "shape": "cylinder",
+        "label": "Payments ledger reconciliation service",
+        "size": {
+          "maxWidth": 150
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 840,
+        "to": 946
+      }
+    },
+    "fixed": {
+      "id": "fixed",
+      "path": [
+        "fixed"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:fixed",
+      "ports": [],
+      "config": {
+        "label": "A fixed width wraps as well",
+        "size": {
+          "width": 110
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 947,
+        "to": 1021
+      }
+    },
+    "overlong": {
+      "id": "overlong",
+      "path": [
+        "overlong"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:overlong",
+      "ports": [],
+      "config": {
+        "label": "Supercalifragilisticexpialidocious",
+        "size": {
+          "maxWidth": 100
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 1022,
+        "to": 1106
+      }
+    },
+    "cjk": {
+      "id": "cjk",
+      "path": [
+        "cjk"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:cjk",
+      "ports": [],
+      "config": {
+        "label": "東京都港区六本木一丁目",
+        "size": {
+          "maxWidth": 100
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 1107,
+        "to": 1168
+      }
+    },
+    "zwj": {
+      "id": "zwj",
+      "path": [
+        "zwj"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:zwj",
+      "ports": [],
+      "config": {
+        "label": "Team 👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻",
+        "size": {
+          "maxWidth": 100
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 1169,
+        "to": 1264
+      }
+    },
+    "mixed": {
+      "id": "mixed",
+      "path": [
+        "mixed"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:mixed",
+      "ports": [],
+      "config": {
+        "label": "**Payments** *ledger* `svc_v2` reconciliation",
+        "size": {
+          "maxWidth": 130
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 1265,
+        "to": 1360
+      }
+    },
+    "breaks": {
+      "id": "breaks",
+      "path": [
+        "breaks"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:breaks",
+      "ports": [],
+      "config": {
+        "label": "First line\nsecond line wraps here",
+        "size": {
+          "maxWidth": 120
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 1361,
+        "to": 1445
+      }
+    },
+    "unwrapped": {
+      "id": "unwrapped",
+      "path": [
+        "unwrapped"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:unwrapped",
+      "ports": [],
+      "config": {
+        "label": "Payments ledger reconciliation service"
+      },
+      "hidden": false,
+      "span": {
+        "from": 1446,
+        "to": 1497
+      }
+    },
+    "group": {
+      "id": "group",
+      "path": [
+        "group"
+      ],
+      "parent": null,
+      "children": [
+        "group.inner"
+      ],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:group",
+      "ports": [],
+      "config": {
+        "label": "Settlement\nand clearing"
+      },
+      "hidden": false,
+      "span": {
+        "from": 1498,
+        "to": 1619
+      }
+    },
+    "group.inner": {
+      "id": "group.inner",
+      "path": [
+        "group",
+        "inner"
+      ],
+      "parent": "group",
+      "children": [],
+      "depth": 1,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:group.inner",
+      "ports": [],
+      "config": {
+        "label": "Clearing house connector",
+        "size": {
+          "maxWidth": 110
+        }
+      },
+      "hidden": false,
+      "span": {
+        "from": 1546,
+        "to": 1617
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-92f73ae8d0560c61",
+      "from": {
+        "node": "rect"
+      },
+      "to": {
+        "node": "round"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1621,
+        "to": 1645
+      }
+    },
+    {
+      "id": "e-13b59f98bd2ae7ff",
+      "from": {
+        "node": "round"
+      },
+      "to": {
+        "node": "ellipse"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1621,
+        "to": 1645
+      }
+    },
+    {
+      "id": "e-a3497ea75d53fe81",
+      "from": {
+        "node": "diamond"
+      },
+      "to": {
+        "node": "hexagon"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1646,
+        "to": 1676
+      }
+    },
+    {
+      "id": "e-12009d159abd438d",
+      "from": {
+        "node": "hexagon"
+      },
+      "to": {
+        "node": "cylinder"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1646,
+        "to": 1676
+      }
+    },
+    {
+      "id": "e-1f181ace7c0454f1",
+      "from": {
+        "node": "fixed"
+      },
+      "to": {
+        "node": "overlong"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1677,
+        "to": 1708
+      }
+    },
+    {
+      "id": "e-53bb91129371c871",
+      "from": {
+        "node": "overlong"
+      },
+      "to": {
+        "node": "cjk"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1677,
+        "to": 1708
+      }
+    },
+    {
+      "id": "e-97b8a5aeb171b05a",
+      "from": {
+        "node": "cjk"
+      },
+      "to": {
+        "node": "zwj"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1677,
+        "to": 1708
+      }
+    },
+    {
+      "id": "e-88690b148debea02",
+      "from": {
+        "node": "mixed"
+      },
+      "to": {
+        "node": "breaks"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1709,
+        "to": 1737
+      }
+    },
+    {
+      "id": "e-56d8e1d62dd7aa07",
+      "from": {
+        "node": "breaks"
+      },
+      "to": {
+        "node": "unwrapped"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1709,
+        "to": 1737
+      }
+    },
+    {
+      "id": "e-634e20f875b37a9e",
+      "from": {
+        "node": "unwrapped"
+      },
+      "to": {
+        "node": "group.inner"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 1738,
+        "to": 1762
+      }
+    }
+  ],
+  "rootChildren": [
+    "rect",
+    "round",
+    "ellipse",
+    "diamond",
+    "hexagon",
+    "cylinder",
+    "fixed",
+    "overlong",
+    "cjk",
+    "zwj",
+    "mixed",
+    "breaks",
+    "unwrapped",
+    "group"
+  ],
+  "order": [
+    "rect",
+    "round",
+    "ellipse",
+    "diamond",
+    "hexagon",
+    "cylinder",
+    "fixed",
+    "overlong",
+    "cjk",
+    "zwj",
+    "mixed",
+    "breaks",
+    "unwrapped",
+    "group",
+    "group.inner"
+  ],
+  "labels": {
+    "l:rect": {
+      "id": "l:rect",
+      "owner": {
+        "kind": "node",
+        "id": "rect"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Payments ledger reconciliation service"
+        }
+      ]
+    },
+    "l:round": {
+      "id": "l:round",
+      "owner": {
+        "kind": "node",
+        "id": "round"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Payments ledger reconciliation service"
+        }
+      ]
+    },
+    "l:ellipse": {
+      "id": "l:ellipse",
+      "owner": {
+        "kind": "node",
+        "id": "ellipse"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Payments ledger reconciliation service"
+        }
+      ]
+    },
+    "l:diamond": {
+      "id": "l:diamond",
+      "owner": {
+        "kind": "node",
+        "id": "diamond"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Payments ledger reconciliation service"
+        }
+      ]
+    },
+    "l:hexagon": {
+      "id": "l:hexagon",
+      "owner": {
+        "kind": "node",
+        "id": "hexagon"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Payments ledger reconciliation service"
+        }
+      ]
+    },
+    "l:cylinder": {
+      "id": "l:cylinder",
+      "owner": {
+        "kind": "node",
+        "id": "cylinder"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Payments ledger reconciliation service"
+        }
+      ]
+    },
+    "l:fixed": {
+      "id": "l:fixed",
+      "owner": {
+        "kind": "node",
+        "id": "fixed"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "A fixed width wraps as well"
+        }
+      ]
+    },
+    "l:overlong": {
+      "id": "l:overlong",
+      "owner": {
+        "kind": "node",
+        "id": "overlong"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Supercalifragilisticexpialidocious"
+        }
+      ]
+    },
+    "l:cjk": {
+      "id": "l:cjk",
+      "owner": {
+        "kind": "node",
+        "id": "cjk"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "東京都港区六本木一丁目"
+        }
+      ]
+    },
+    "l:zwj": {
+      "id": "l:zwj",
+      "owner": {
+        "kind": "node",
+        "id": "zwj"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Team 👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻"
+        }
+      ]
+    },
+    "l:mixed": {
+      "id": "l:mixed",
+      "owner": {
+        "kind": "node",
+        "id": "mixed"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Payments",
+          "strong": true
+        },
+        {
+          "text": " "
+        },
+        {
+          "text": "ledger",
+          "em": true
+        },
+        {
+          "text": " "
+        },
+        {
+          "text": "svc_v2",
+          "code": true
+        },
+        {
+          "text": " reconciliation"
+        }
+      ]
+    },
+    "l:breaks": {
+      "id": "l:breaks",
+      "owner": {
+        "kind": "node",
+        "id": "breaks"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "First line\nsecond line wraps here"
+        }
+      ]
+    },
+    "l:unwrapped": {
+      "id": "l:unwrapped",
+      "owner": {
+        "kind": "node",
+        "id": "unwrapped"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Payments ledger reconciliation service"
+        }
+      ]
+    },
+    "l:group": {
+      "id": "l:group",
+      "owner": {
+        "kind": "node",
+        "id": "group"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Settlement\nand clearing"
+        }
+      ]
+    },
+    "l:group.inner": {
+      "id": "l:group.inner",
+      "owner": {
+        "kind": "node",
+        "id": "group.inner"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Clearing house connector"
+        }
+      ]
+    }
+  },
+  "meta": {
+    "nodeCount": 15,
+    "edgeCount": 10,
+    "containerCount": 1
+  }
+}

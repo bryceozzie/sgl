@@ -1,0 +1,1116 @@
+{
+  "nodes": {
+    "bold": {
+      "id": "bold",
+      "path": [
+        "bold"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:bold",
+      "ports": [],
+      "config": {
+        "label": "**bold**"
+      },
+      "hidden": false,
+      "span": {
+        "from": 173,
+        "to": 194
+      }
+    },
+    "italic": {
+      "id": "italic",
+      "path": [
+        "italic"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:italic",
+      "ports": [],
+      "config": {
+        "label": "*it*"
+      },
+      "hidden": false,
+      "span": {
+        "from": 195,
+        "to": 212
+      }
+    },
+    "both": {
+      "id": "both",
+      "path": [
+        "both"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:both",
+      "ports": [],
+      "config": {
+        "label": "***both***"
+      },
+      "hidden": false,
+      "span": {
+        "from": 213,
+        "to": 236
+      }
+    },
+    "nestA": {
+      "id": "nestA",
+      "path": [
+        "nestA"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:nestA",
+      "ports": [],
+      "config": {
+        "label": "**bold *and it***"
+      },
+      "hidden": false,
+      "span": {
+        "from": 237,
+        "to": 267
+      }
+    },
+    "nestB": {
+      "id": "nestB",
+      "path": [
+        "nestB"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:nestB",
+      "ports": [],
+      "config": {
+        "label": "*it **and bold***"
+      },
+      "hidden": false,
+      "span": {
+        "from": 268,
+        "to": 298
+      }
+    },
+    "intraword": {
+      "id": "intraword",
+      "path": [
+        "intraword"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:intraword",
+      "ports": [],
+      "config": {
+        "label": "a*b*c and 2*3*4"
+      },
+      "hidden": false,
+      "span": {
+        "from": 299,
+        "to": 327
+      }
+    },
+    "spaced": {
+      "id": "spaced",
+      "path": [
+        "spaced"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:spaced",
+      "ports": [],
+      "config": {
+        "label": "2 * 3 * 4"
+      },
+      "hidden": false,
+      "span": {
+        "from": 328,
+        "to": 350
+      }
+    },
+    "lone": {
+      "id": "lone",
+      "path": [
+        "lone"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lone",
+      "ports": [],
+      "config": {
+        "label": "*"
+      },
+      "hidden": false,
+      "span": {
+        "from": 351,
+        "to": 365
+      }
+    },
+    "touching": {
+      "id": "touching",
+      "path": [
+        "touching"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:touching",
+      "ports": [],
+      "config": {
+        "label": "**a**b"
+      },
+      "hidden": false,
+      "span": {
+        "from": 366,
+        "to": 385
+      }
+    },
+    "punct": {
+      "id": "punct",
+      "path": [
+        "punct"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:punct",
+      "ports": [],
+      "config": {
+        "label": "(**a**)."
+      },
+      "hidden": false,
+      "span": {
+        "from": 386,
+        "to": 407
+      }
+    },
+    "unclosed": {
+      "id": "unclosed",
+      "path": [
+        "unclosed"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:unclosed",
+      "ports": [],
+      "config": {
+        "label": "**unclosed"
+      },
+      "hidden": false,
+      "span": {
+        "from": 408,
+        "to": 431
+      }
+    },
+    "halfA": {
+      "id": "halfA",
+      "path": [
+        "halfA"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:halfA",
+      "ports": [],
+      "config": {
+        "label": "*a**"
+      },
+      "hidden": false,
+      "span": {
+        "from": 432,
+        "to": 449
+      }
+    },
+    "halfB": {
+      "id": "halfB",
+      "path": [
+        "halfB"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:halfB",
+      "ports": [],
+      "config": {
+        "label": "**a*"
+      },
+      "hidden": false,
+      "span": {
+        "from": 450,
+        "to": 467
+      }
+    },
+    "overlapA": {
+      "id": "overlapA",
+      "path": [
+        "overlapA"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:overlapA",
+      "ports": [],
+      "config": {
+        "label": "**a *b** c*"
+      },
+      "hidden": false,
+      "span": {
+        "from": 468,
+        "to": 492
+      }
+    },
+    "overlapB": {
+      "id": "overlapB",
+      "path": [
+        "overlapB"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:overlapB",
+      "ports": [],
+      "config": {
+        "label": "*a *b* c*"
+      },
+      "hidden": false,
+      "span": {
+        "from": 493,
+        "to": 515
+      }
+    },
+    "code": {
+      "id": "code",
+      "path": [
+        "code"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:code",
+      "ports": [],
+      "config": {
+        "label": "`a*b*`"
+      },
+      "hidden": false,
+      "span": {
+        "from": 516,
+        "to": 535
+      }
+    },
+    "codeIn": {
+      "id": "codeIn",
+      "path": [
+        "codeIn"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:codeIn",
+      "ports": [],
+      "config": {
+        "label": "*see `x`*"
+      },
+      "hidden": false,
+      "span": {
+        "from": 536,
+        "to": 558
+      }
+    },
+    "ticks": {
+      "id": "ticks",
+      "path": [
+        "ticks"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:ticks",
+      "ports": [],
+      "config": {
+        "label": "``a`b``"
+      },
+      "hidden": false,
+      "span": {
+        "from": 559,
+        "to": 579
+      }
+    },
+    "spaces": {
+      "id": "spaces",
+      "path": [
+        "spaces"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:spaces",
+      "ports": [],
+      "config": {
+        "label": "` x `"
+      },
+      "hidden": false,
+      "span": {
+        "from": 580,
+        "to": 598
+      }
+    },
+    "open": {
+      "id": "open",
+      "path": [
+        "open"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:open",
+      "ports": [],
+      "config": {
+        "label": "`open"
+      },
+      "hidden": false,
+      "span": {
+        "from": 599,
+        "to": 617
+      }
+    },
+    "escaped": {
+      "id": "escaped",
+      "path": [
+        "escaped"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:escaped",
+      "ports": [],
+      "config": {
+        "label": "\\*not\\*"
+      },
+      "hidden": false,
+      "span": {
+        "from": 618,
+        "to": 638
+      }
+    },
+    "path": {
+      "id": "path",
+      "path": [
+        "path"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:path",
+      "ports": [],
+      "config": {
+        "label": "C:\\temp\\*.log"
+      },
+      "hidden": false,
+      "span": {
+        "from": 639,
+        "to": 666
+      }
+    },
+    "snake": {
+      "id": "snake",
+      "path": [
+        "snake"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:snake",
+      "ports": [],
+      "config": {
+        "label": "snake_case and _x_"
+      },
+      "hidden": false,
+      "span": {
+        "from": 667,
+        "to": 698
+      }
+    },
+    "lines": {
+      "id": "lines",
+      "path": [
+        "lines"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:lines",
+      "ports": [],
+      "config": {
+        "label": "**Line one\nLine two**"
+      },
+      "hidden": false,
+      "span": {
+        "from": 699,
+        "to": 734
+      }
+    },
+    "adjacent": {
+      "id": "adjacent",
+      "path": [
+        "adjacent"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:adjacent",
+      "ports": [],
+      "config": {
+        "label": "**a***b*`c`"
+      },
+      "hidden": false,
+      "span": {
+        "from": 735,
+        "to": 759
+      }
+    },
+    "fromVar": {
+      "id": "fromVar",
+      "path": [
+        "fromVar"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:fromVar",
+      "ports": [],
+      "config": {
+        "label": "*prod* tier"
+      },
+      "hidden": false,
+      "span": {
+        "from": 760,
+        "to": 785
+      }
+    },
+    "block": {
+      "id": "block",
+      "path": [
+        "block"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:block",
+      "ports": [],
+      "config": {
+        "label": "**Payments API**\nhandles `POST /pay`"
+      },
+      "hidden": false,
+      "span": {
+        "from": 786,
+        "to": 863
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-aa69e442397e231c",
+      "from": {
+        "node": "bold"
+      },
+      "to": {
+        "node": "italic"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-aa69e442397e231c",
+      "config": {
+        "label": "*async*"
+      },
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 865,
+        "to": 890
+      }
+    },
+    {
+      "id": "e-f38ff8246ddb1453",
+      "from": {
+        "node": "both"
+      },
+      "to": {
+        "node": "code"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-f38ff8246ddb1453",
+      "config": {
+        "label": "`200 OK`"
+      },
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 891,
+        "to": 915
+      }
+    }
+  ],
+  "rootChildren": [
+    "bold",
+    "italic",
+    "both",
+    "nestA",
+    "nestB",
+    "intraword",
+    "spaced",
+    "lone",
+    "touching",
+    "punct",
+    "unclosed",
+    "halfA",
+    "halfB",
+    "overlapA",
+    "overlapB",
+    "code",
+    "codeIn",
+    "ticks",
+    "spaces",
+    "open",
+    "escaped",
+    "path",
+    "snake",
+    "lines",
+    "adjacent",
+    "fromVar",
+    "block"
+  ],
+  "order": [
+    "bold",
+    "italic",
+    "both",
+    "nestA",
+    "nestB",
+    "intraword",
+    "spaced",
+    "lone",
+    "touching",
+    "punct",
+    "unclosed",
+    "halfA",
+    "halfB",
+    "overlapA",
+    "overlapB",
+    "code",
+    "codeIn",
+    "ticks",
+    "spaces",
+    "open",
+    "escaped",
+    "path",
+    "snake",
+    "lines",
+    "adjacent",
+    "fromVar",
+    "block"
+  ],
+  "labels": {
+    "l:e-aa69e442397e231c": {
+      "id": "l:e-aa69e442397e231c",
+      "owner": {
+        "kind": "edge",
+        "id": "e-aa69e442397e231c"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "async",
+          "em": true
+        }
+      ]
+    },
+    "l:e-f38ff8246ddb1453": {
+      "id": "l:e-f38ff8246ddb1453",
+      "owner": {
+        "kind": "edge",
+        "id": "e-f38ff8246ddb1453"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "200 OK",
+          "code": true
+        }
+      ]
+    },
+    "l:bold": {
+      "id": "l:bold",
+      "owner": {
+        "kind": "node",
+        "id": "bold"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "bold",
+          "strong": true
+        }
+      ]
+    },
+    "l:italic": {
+      "id": "l:italic",
+      "owner": {
+        "kind": "node",
+        "id": "italic"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "it",
+          "em": true
+        }
+      ]
+    },
+    "l:both": {
+      "id": "l:both",
+      "owner": {
+        "kind": "node",
+        "id": "both"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "both",
+          "strong": true,
+          "em": true
+        }
+      ]
+    },
+    "l:nestA": {
+      "id": "l:nestA",
+      "owner": {
+        "kind": "node",
+        "id": "nestA"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "bold ",
+          "strong": true
+        },
+        {
+          "text": "and it",
+          "strong": true,
+          "em": true
+        }
+      ]
+    },
+    "l:nestB": {
+      "id": "l:nestB",
+      "owner": {
+        "kind": "node",
+        "id": "nestB"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "it ",
+          "em": true
+        },
+        {
+          "text": "and bold",
+          "strong": true,
+          "em": true
+        }
+      ]
+    },
+    "l:intraword": {
+      "id": "l:intraword",
+      "owner": {
+        "kind": "node",
+        "id": "intraword"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "a*b*c and 2*3*4"
+        }
+      ]
+    },
+    "l:spaced": {
+      "id": "l:spaced",
+      "owner": {
+        "kind": "node",
+        "id": "spaced"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "2 * 3 * 4"
+        }
+      ]
+    },
+    "l:lone": {
+      "id": "l:lone",
+      "owner": {
+        "kind": "node",
+        "id": "lone"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "*"
+        }
+      ]
+    },
+    "l:touching": {
+      "id": "l:touching",
+      "owner": {
+        "kind": "node",
+        "id": "touching"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "**a**b"
+        }
+      ]
+    },
+    "l:punct": {
+      "id": "l:punct",
+      "owner": {
+        "kind": "node",
+        "id": "punct"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "("
+        },
+        {
+          "text": "a",
+          "strong": true
+        },
+        {
+          "text": ")."
+        }
+      ]
+    },
+    "l:unclosed": {
+      "id": "l:unclosed",
+      "owner": {
+        "kind": "node",
+        "id": "unclosed"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "**unclosed"
+        }
+      ]
+    },
+    "l:halfA": {
+      "id": "l:halfA",
+      "owner": {
+        "kind": "node",
+        "id": "halfA"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "*a**"
+        }
+      ]
+    },
+    "l:halfB": {
+      "id": "l:halfB",
+      "owner": {
+        "kind": "node",
+        "id": "halfB"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "**a*"
+        }
+      ]
+    },
+    "l:overlapA": {
+      "id": "l:overlapA",
+      "owner": {
+        "kind": "node",
+        "id": "overlapA"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "a *b",
+          "strong": true
+        },
+        {
+          "text": " c*"
+        }
+      ]
+    },
+    "l:overlapB": {
+      "id": "l:overlapB",
+      "owner": {
+        "kind": "node",
+        "id": "overlapB"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "a *b",
+          "em": true
+        },
+        {
+          "text": " c*"
+        }
+      ]
+    },
+    "l:code": {
+      "id": "l:code",
+      "owner": {
+        "kind": "node",
+        "id": "code"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "a*b*",
+          "code": true
+        }
+      ]
+    },
+    "l:codeIn": {
+      "id": "l:codeIn",
+      "owner": {
+        "kind": "node",
+        "id": "codeIn"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "see ",
+          "em": true
+        },
+        {
+          "text": "x",
+          "em": true,
+          "code": true
+        }
+      ]
+    },
+    "l:ticks": {
+      "id": "l:ticks",
+      "owner": {
+        "kind": "node",
+        "id": "ticks"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "a`b",
+          "code": true
+        }
+      ]
+    },
+    "l:spaces": {
+      "id": "l:spaces",
+      "owner": {
+        "kind": "node",
+        "id": "spaces"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "x",
+          "code": true
+        }
+      ]
+    },
+    "l:open": {
+      "id": "l:open",
+      "owner": {
+        "kind": "node",
+        "id": "open"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "`open"
+        }
+      ]
+    },
+    "l:escaped": {
+      "id": "l:escaped",
+      "owner": {
+        "kind": "node",
+        "id": "escaped"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "*not*"
+        }
+      ]
+    },
+    "l:path": {
+      "id": "l:path",
+      "owner": {
+        "kind": "node",
+        "id": "path"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "C:\\temp*.log"
+        }
+      ]
+    },
+    "l:snake": {
+      "id": "l:snake",
+      "owner": {
+        "kind": "node",
+        "id": "snake"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "snake_case and _x_"
+        }
+      ]
+    },
+    "l:lines": {
+      "id": "l:lines",
+      "owner": {
+        "kind": "node",
+        "id": "lines"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Line one\nLine two",
+          "strong": true
+        }
+      ]
+    },
+    "l:adjacent": {
+      "id": "l:adjacent",
+      "owner": {
+        "kind": "node",
+        "id": "adjacent"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "**a***b*"
+        },
+        {
+          "text": "c",
+          "code": true
+        }
+      ]
+    },
+    "l:fromVar": {
+      "id": "l:fromVar",
+      "owner": {
+        "kind": "node",
+        "id": "fromVar"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "prod",
+          "em": true
+        },
+        {
+          "text": " tier"
+        }
+      ]
+    },
+    "l:block": {
+      "id": "l:block",
+      "owner": {
+        "kind": "node",
+        "id": "block"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Payments API",
+          "strong": true
+        },
+        {
+          "text": "\nhandles "
+        },
+        {
+          "text": "POST /pay",
+          "code": true
+        }
+      ]
+    }
+  },
+  "meta": {
+    "nodeCount": 27,
+    "edgeCount": 2,
+    "containerCount": 0
+  }
+}

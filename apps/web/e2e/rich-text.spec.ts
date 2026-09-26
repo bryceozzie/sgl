@@ -44,3 +44,19 @@ test('a label to wrap loads the chunk, and its node is laid out within @size.max
   expect(await shapeWidth(page, 'b')).toBeGreaterThan(150);
   expect(fetched).toHaveLength(1);
 });
+
+test('markup in a label loads the chunk; until the render branch the runs are drawn as plain text, markers removed', async ({ page }) => {
+  const fetched: string[] = [];
+  page.on('request', (r) => {
+    if (isRichText(r)) fetched.push(r.url());
+  });
+  await page.goto('/');
+  await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+  await setSource(page, 'api: "**Payments** API `v2`"\ncalc: "2*3*4 and a * b"\napi -> calc: "*async*"\n');
+  await waitForExactNodeCount(page, 2);
+  const text = (id: string) => renderedSvg(page).locator(`g[id="${id}"] text`);
+  await expect(text('n-api')).toHaveText('Payments API v2');
+  await expect(text('n-calc')).toHaveText('2*3*4 and a * b');
+  await expect(renderedSvg(page).locator('g.el text')).toHaveText('async');
+  expect(fetched).toHaveLength(1);
+});

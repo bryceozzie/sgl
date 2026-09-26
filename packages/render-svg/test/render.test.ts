@@ -18,7 +18,10 @@ import { listCorpusDocs, renderCorpusDoc } from './pipeline.js';
 // `CLEAN_DOCS`' suites do not have; `packages/core/test/imports-corpus.test.ts`
 // pins them (and `main.sgl`'s goldens), and `pipeline.test.ts` runs each through
 // the whole pipeline with the file-system host.
-const KNOWN_DIRTY = /^(?:malformed|unresolved|injection|layout|theme|imports)\//;
+// `text/` (A18): markdown and wrapping, which need the inline parser and the
+// wrap line model; `rich-corpus.test.ts` pins them through the rich pipeline,
+// and the render branch adds their render goldens (DD-11 T58).
+const KNOWN_DIRTY = /^(?:malformed|unresolved|injection|layout|theme|imports|text)\//;
 const GENERATED_BENCH = /^n(?:50|500|2000)\.sgl$/;
 
 /** Every built-in theme; C5 added `high-contrast` and `print` (new golden directories). */

@@ -6,7 +6,9 @@ export default defineConfig({
   // `src/imports.ts` (A9, DD-02 §10.9): the import linker as
   // `@sgl/core/imports`, loaded lazily by the app for a document with
   // `@imports`; the boot path keeps only `resolve()`'s hook.
-  entry: ['src/index.ts', 'src/editor.ts', 'src/json.ts', 'src/imports.ts'],
+  // `src/inline.ts` (A18, DD-11 T1, T53): the inline markdown parser as
+  // `@sgl/core/inline`, in the app's lazy `rich-text` chunk.
+  entry: ['src/index.ts', 'src/editor.ts', 'src/json.ts', 'src/imports.ts', 'src/inline.ts'],
   format: 'esm',
   dts: true,
   clean: true,

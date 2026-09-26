@@ -5,7 +5,7 @@ import { corpusStyledGraph, listCorpusDocs } from '../../theme/test/corpus.js';
 import { CanvasMeasurer, canvasIsAvailable } from '../src/canvas-measurer.js';
 import { createDefaultMeasurer } from '../src/default-measurer.js';
 import { glyphCount, layoutLines, type MeasureRun } from '../src/line-model.js';
-import { labelRunKey, labelRuns, premeasure, textStyleOf } from '../src/premeasure.js';
+import { labelBox, labelRunKey, labelRuns, premeasure, textStyleOf } from '../src/premeasure.js';
 import { canonicalRunKey, hashRuns, UNCONSTRAINED } from '../src/run-key.js';
 import {
   fontClassOf,
@@ -14,6 +14,7 @@ import {
   STATIC_METRICS,
 } from '../src/static-measurer.js';
 import { TableMeasurer } from '../src/table-measurer.js';
+import { layoutWrapped } from '@sgl/text/wrap';
 import { MeasureMiss, type StyledRun, type TextStyle } from '../src/types.js';
 
 // ---------------------------------------------------------------------------
@@ -472,12 +473,13 @@ describe('premeasure: over the corpus (DD-00 §6)', () => {
   it('covers 100% of labels in the corpus — zero worker RPC misses', () => {
     for (const doc of listCorpusDocs()) {
       const { styled } = corpusStyledGraph(doc);
-      const table = premeasure(styled, new StaticMetricsMeasurer());
+      const table = premeasure(styled, new StaticMetricsMeasurer({ lineModel: layoutWrapped }));
       const worker = new TableMeasurer(table);
       for (const id of Object.keys(styled.graph.labels)) {
         const labelId = id as LabelId;
         expect(table[labelRunKey(styled, labelId)], `${doc}: ${labelId}`).toBeDefined();
-        expect(worker.has(labelRuns(styled, labelId), UNCONSTRAINED), `${doc}: ${labelId}`).toBe(true);
+        // The worker looks a label up by its runs *and* its box (DD-11 T29).
+        expect(worker.has(labelRuns(styled, labelId), labelBox(styled, labelId)), `${doc}: ${labelId}`).toBe(true);
       }
     }
   });
@@ -489,13 +491,13 @@ describe('premeasure: over the corpus (DD-00 §6)', () => {
     // produced here by two nodes the compiler actually built.
     const { styled } = corpusStyledGraph('wildcards.sgl');
     expect(labelRunKey(styled, 'l:lane2.x' as LabelId)).toBe(labelRunKey(styled, 'l:fan1.x' as LabelId));
-    const table = premeasure(styled, new StaticMetricsMeasurer());
+    const table = premeasure(styled, new StaticMetricsMeasurer({ lineModel: layoutWrapped }));
     expect(Object.keys(table).length).toBeLessThan(Object.keys(styled.graph.labels).length);
   });
 
   it('measures a real multiline, unicode and RTL title (unicode.sgl)', () => {
     const { styled } = corpusStyledGraph('unicode.sgl');
-    const table = premeasure(styled, new StaticMetricsMeasurer());
+    const table = premeasure(styled, new StaticMetricsMeasurer({ lineModel: layoutWrapped }));
 
     const multiline = table[labelRunKey(styled, 'l:multiline' as LabelId)];
     expect(multiline?.lines).toHaveLength(2);
