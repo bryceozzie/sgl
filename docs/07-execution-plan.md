@@ -1675,6 +1675,22 @@ Copy SVG equals Save ▾ SVG; a failed fetch), an offline case in `e2e/offline.s
 `files.spec.ts` and `png-export.spec.ts` updated for the embedded file, `test/png.test.ts` for the
 moved code. Docs: DD-07 §9, DD-08 §7.
 
+**A18 markdown labels and `@sgl/text`, on `design/a18-text`** (branched from `main` at `672948a`; not
+merged). **Phase 1: design only, awaiting review. No code.** [DD-11](detailed-design/11-text.md)
+implements the human decision of 2026-09-25 (bold, italic, code; `\n` and `"""` breaks; wrapping at
+`@size.maxWidth`; nothing else). It records decisions T1–T60 and adds no diagnostic codes. One
+existing golden changes, `unicode.sgl`'s compile golden: a plain label becomes a single run
+containing `\n`. Decisions marked ⚑ go to the human first:
+- T13: markdown is always on for `@label`, with no intraword emphasis, instead of an opt-in.
+- T36: a fixed `@size.width` also wraps.
+- T26: the fonts to add: Inter 700, four Inter italics, and IBM Plex Mono 400/700. About 156 kB,
+  precached, none on the boot path.
+- T55: the boot budget. A18 costs about 0.8–1.05 kB on the boot path, with the parser and breaker in
+  a lazy `rich-text` chunk. It needs F20's lazy `DocumentsMenu` first, and together with A9 it fits
+  only narrowly.
+
+Sequencing: A18's grammar branch starts after A9's grammar change is on `main` (DD-11 §4.3).
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
