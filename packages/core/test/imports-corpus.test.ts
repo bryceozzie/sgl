@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { Diagnostic } from '../src/diagnostics.js';
-import { compileImports, createImportLinker, resolveImports } from '../src/imports.js';
+import { compileImports, createImportCache, createImportLinker, resolveImports, type ImportCache } from '../src/imports.js';
 import { toJson } from '../src/json.js';
 import { parse } from '../src/parse.js';
 import { fileSystemHost } from './fs-host.js';
@@ -20,10 +20,10 @@ const FILES = readdirSync(dir)
   .filter((f) => /\.sgl(\.json)?$/.test(f))
   .sort();
 
-function run(name: string, source = readFileSync(`${dir}${name}`, 'utf8')) {
+function run(name: string, source = readFileSync(`${dir}${name}`, 'utf8'), cache?: ImportCache) {
   const path = `${dir}${name}`;
   const { ast, diagnostics: syntax } = parse(source);
-  const resolved = resolveImports(ast, createImportLinker(fileSystemHost(path), { self: path }));
+  const resolved = resolveImports(ast, createImportLinker(fileSystemHost(path), { self: path, ...(cache !== undefined ? { cache } : {}) }));
   const compiled = compileImports(resolved.model);
   return { model: resolved.model, graph: compiled.graph, diagnostics: [...syntax, ...resolved.diagnostics, ...compiled.diagnostics] };
 }
@@ -92,6 +92,29 @@ describe('corpus/imports (A9, DD-02 §10.8)', () => {
     expect(toJson(again.model)).toBe(json);
     expect(JSON.stringify(again.graph.order)).toBe(JSON.stringify(first.graph.order));
     expect(Object.keys(again.model.classes)).toEqual(Object.keys(first.model.classes));
+  });
+
+  /** Everything a run produces, as one string. */
+  const bytes = (r: ReturnType<typeof run>): string =>
+    JSON.stringify([toJson(r.model), r.graph, [...r.model.spans], r.diagnostics]);
+
+  /** DD-02 I8, I18: the app keeps one `ImportCache` for the pipeline's life,
+   *  across keystrokes and document switches (it keeps what the last two
+   *  root runs used). Every document is run through one shared cache first,
+   *  in both orders, so each run below starts from what other documents'
+   *  runs left in it: after a switch, then on a keystroke. Both are
+   *  byte-identical to a cold run, and the keystroke parses nothing. */
+  const shared = createImportCache();
+  for (const name of [...FILES, ...[...FILES].reverse()]) run(name, undefined, shared);
+
+  it.each(FILES)('%s: a double run through a warm shared cache is byte-identical to a cold one; the second parses nothing', (name) => {
+    const cold = bytes(run(name));
+    const afterSwitch = bytes(run(name, undefined, shared));
+    const parses = shared.stats.parses;
+    const keystroke = bytes(run(name, undefined, shared));
+    expect(afterSwitch).toBe(cold);
+    expect(keystroke).toBe(cold);
+    expect(shared.stats.parses).toBe(parses);
   });
 
   it.each(FILES)('%s: a double run is byte-identical', (name) => {
