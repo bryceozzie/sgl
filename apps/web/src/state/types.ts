@@ -52,8 +52,12 @@ export interface PipelineDeps {
   readonly loadImports?: () => Promise<ImportsRuntime>;
   /** A18 (DD-11 T53): loads the lazy `rich-text` chunk — the inline parser and
    *  the word breaker — for the first document with markup in a label
-   *  (`needsInline`) or a label to wrap (`needsWrap`). Absent: every label is
-   *  one plain run and nothing wraps, as in Node without it. */
+   *  (`needsInline`) or a label to wrap (`needsWrap`). Absent: labels compile
+   *  without the parser (one plain run each), and nothing hands the measurer
+   *  `layoutWrapped`, so a label with a box (`@size.maxWidth` or `@size.width`)
+   *  makes the default `layoutLines` **throw** during pre-measure (DD-11 §7), a
+   *  pipeline error. A caller without it must give its measurer `layoutWrapped`
+   *  itself, as the Node test harnesses do. */
   readonly loadRichText?: () => Promise<RichText>;
   /**
    * Test-only fault injection for DD-08 §13's error boundary: called at the
