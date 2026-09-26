@@ -19,7 +19,7 @@ ConfigEntry { (ConfigKey | ConfigString) ":" Value }
 // ---- nodes ------------------------------------------------------------
 NodeDecl  { NodeKey (":" NodeValue)? }
 NodeKey   { Identifier | String }
-NodeValue { Block | String | ConfigString | ClassRef }
+NodeValue { Block | String | ConfigString | MultilineString | ClassRef }
 // A class name, qualified by the namespaces of `@imports` (A9, I16):
 // `lambda: aws.Lambda`, `b.c.Lambda`. A production, not a token, so no new
 // token overlaps Identifier; "." never starts an entry, so there is no LR
@@ -30,7 +30,7 @@ Block     { "{" Entry* "}" }
 
 // ---- edges ------------------------------------------------------------
 EdgeStmt  { Endpoint (EdgeOp Endpoint)+ (":" EdgeValue)? }
-EdgeValue { String | ConfigString | Block }
+EdgeValue { String | ConfigString | MultilineString | Block }
 Endpoint  { Path Port? }
 Port      { "[" Identifier "]" }
 Path      { Root? Parent* PathStep ("." PathStep)* }
@@ -38,7 +38,9 @@ PathStep  { PathSegment | Wildcard }
 PathSegment { Identifier | String }
 
 // ---- values (configuration context only) ------------------------------
-Value  { String | ConfigString | Number | Bool | Null | Word | Variable | Array | Object }
+// MultilineString (`"""`, A18) is a value only: never a NodeKey, PathSegment
+// or PropKey, so the lexer never offers it where a key starts (DD-11 T15).
+Value  { String | ConfigString | MultilineString | Number | Bool | Null | Word | Variable | Array | Object }
 Word   { qualified }                         // bareword enum: hexagon, down, dashed; or a class, `aws.Lambda` (I16)
 qualified { Identifier ("." Identifier)* }   // no node of its own: one set of states for both
 Array  { "[" Value* "]" }
@@ -71,6 +73,15 @@ Null { @specialize<Identifier, "null"> }
   // (Variable is only a Value, and nothing after a Value starts with ".").
   Variable     { "$" Identifier ("." Identifier)* }
   String       { '"' (![\\"\n] | "\\" _)* '"' }
+  // `"""…"""` (A18, DD-11 T15–T19). The body never holds an unescaped `"""`:
+  // one quote, or two, must be followed by a character that is not a quote,
+  // and `![\\"]` includes newlines. An unterminated one runs to the end of the
+  // input (the `@eof` arm), so the editor shows the rest of the file as a
+  // string and buildAst reports one SGL1003 for it. Dedent and escapes are
+  // buildAst's (T17), not the token's.
+  MultilineString { '"""' mlBody ('"""' | '"'? '"'? @eof) }
+  mlBody { (mlChar | '"' mlChar | '""' mlChar)* }
+  mlChar { ![\\"] | "\\" _ }
   Number     { "-"? @digit+ ("." @digit+)? }
   EdgeOp     { "->" | "<-" | "<->" | "--" }
   // Fan-out over children (*) or descendants (**), optionally narrowed by a name
@@ -104,7 +115,12 @@ Null { @specialize<Identifier, "null"> }
   // this overlap outright. That is why every production that can hold an
   // ordinary string (Value, NodeValue, EdgeValue, PropKey) also accepts
   // ConfigString: buildAst treats one used as a value exactly like a String.
-  @precedence { ConfigString, String }
+  //
+  // Three tokens start with `"` (DD-01 §2, "The `"""` token audit"). No input
+  // is matched in full by two of them, so this line changes nothing today; it
+  // says which one wins so that the next token starting with `"` is audited
+  // against all three.
+  @precedence { MultilineString, ConfigString, String }
 }
 
 @detectDelim

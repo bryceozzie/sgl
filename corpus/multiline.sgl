@@ -1,0 +1,28 @@
+// `"""` multi-line strings (A18, DD-11 §4): the text dedents to the closing
+// delimiter's indent, newlines are hard breaks, `${}` interpolates inside, and
+// `\n` still works beside a real line break.
+@vars: { tier: "production" }
+
+api: {
+  @label: """
+    **Payments API**
+    handles `POST /pay`
+    """
+}
+
+ledger: {
+  @label: """
+      Ledger
+    (${tier})
+    """
+}
+
+outbox: """Outbox\nasync"""
+
+single: { @label: """one line""" }
+
+api -> ledger: """
+  charges
+  refunds
+  """
+ledger -> outbox

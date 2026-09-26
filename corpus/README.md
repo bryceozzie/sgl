@@ -24,9 +24,10 @@ single purpose, so a failure names what broke.
 | `a11y-links.sgl` | `@a11y.label`/`@a11y.description` overrides on a node and an edge, and a valid `https:` `@link` |
 | `forty-three-level.sgl` | MVP criterion 1's shape: 40 nodes over three levels (2 top-level containers, 4 second-level containers, 34 leaves), hand-written; the Playwright criterion-1 test renders it |
 | `variables.sgl` | `@vars` (A8): whole-value `$name` of every type (string, number, object), `${name}` interpolation in labels and an edge label, a nested container's `@vars` shadowing the root's and using an earlier entry of its own block, a class body and an `@type` from a variable. Its resolver golden keeps every reference as written |
+| `multiline.sgl` | `"""` strings (A18, DD-11 §4): a block dedented to its closing delimiter's indent, a first line indented past it, `${}` inside, `\n` beside a real break, a one-line `"""`, and a `"""` edge label. Its labels are still drawn as literal text (the markdown in it is A18's next branch) |
 | `nested-crossing.sgl` | boundary-crossing edges whose endpoints meet below the root, so ELK reports them in a non-root container's coordinates (Stage K fix round 1) |
 | `n50.sgl` `n500.sgl` `n2000.sgl` | **generated** by `bench/generate.js`; perf and scale |
-| `malformed/*.sgl` | one syntax error each, with the expected diagnostic and a partial AST |
+| `malformed/*.sgl` | one syntax error each, with the expected diagnostic and a partial AST. `unterminated-triple-string.sgl` (A18) is a `"""` that never closes: one `SGL1003` from it to the end of the input, and no follow-on diagnostic for the braces it swallowed |
 | `injection/*.sgl` | one hostile string per context |
 | `layout/*.sgl` | one `SGL4010` each (Stage K fix round 1): a container naming its own engine, and a root `@layout` key the engine does not declare |
 | `theme/*.sgl` | one theme-cascade diagnostic each: `bad-colour.sgl` (`SGL5004`, a paint value that is not a colour) |

@@ -1,0 +1,108 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 20,
+     "to": 21
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "fine",
+        "span": {
+         "from": 33,
+         "to": 39
+        }
+       },
+       "keySpan": {
+        "from": 25,
+        "to": 31
+       },
+       "span": {
+        "from": 25,
+        "to": 39
+       }
+      }
+     ],
+     "span": {
+      "from": 23,
+      "to": 41
+     }
+    },
+    "span": {
+     "from": 20,
+     "to": 41
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "b",
+    "keySpan": {
+     "from": 42,
+     "to": 43
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "    never closed\n  }\nc -> a",
+        "span": {
+         "from": 57,
+         "to": 89
+        }
+       },
+       "keySpan": {
+        "from": 49,
+        "to": 55
+       },
+       "span": {
+        "from": 49,
+        "to": 89
+       }
+      }
+     ],
+     "span": {
+      "from": 45,
+      "to": 89
+     }
+    },
+    "span": {
+     "from": 42,
+     "to": 89
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 89
+  }
+ },
+ "diagnostics": [
+  {
+   "code": "SGL1003",
+   "severity": "error",
+   "message": "Unterminated string.",
+   "span": {
+    "from": 57,
+    "to": 89
+   }
+  }
+ ]
+}

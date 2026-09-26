@@ -191,7 +191,7 @@ function buildNodeDecl(ctx: Ctx, node: SyntaxNode): NodeDecl | undefined {
     : { kind: 'NodeDecl', key, keySpan: at(keyNode), value, span: at(node) };
 }
 
-/** `NodeValue { Block | String | ConfigString | ClassRef }`; a `ClassRef` becomes
+/** `NodeValue { Block | String | ConfigString | MultilineString | ClassRef }`; a `ClassRef` becomes
  *  a `Word`, because a bareword under a node key is a class, not a label. */
 function buildNodeValue(ctx: Ctx, node: SyntaxNode): Block | StringLit | Word | undefined {
   const valueNode = childNamed(node, 'NodeValue');
@@ -204,6 +204,8 @@ function buildNodeValue(ctx: Ctx, node: SyntaxNode): Block | StringLit | Word | 
     case 'String':
     case 'ConfigString':
       return { kind: 'String', value: decodeString(ctx, inner), span: at(inner) };
+    case 'MultilineString':
+      return { kind: 'String', value: decodeMultiline(ctx, inner), span: at(inner) };
     case 'ClassRef':
       return { kind: 'Word', value: qualifiedName(ctx, inner), span: at(inner) };
     default:
@@ -263,6 +265,8 @@ function buildEdgeValue(ctx: Ctx, node: SyntaxNode): StringLit | Block | undefin
     case 'String':
     case 'ConfigString':
       return { kind: 'String', value: decodeString(ctx, inner), span: at(inner) };
+    case 'MultilineString':
+      return { kind: 'String', value: decodeMultiline(ctx, inner), span: at(inner) };
     default:
       return undefined;
   }
@@ -348,6 +352,8 @@ function buildValue(ctx: Ctx, node: SyntaxNode): Value | undefined {
     case 'String':
     case 'ConfigString':
       return { kind: 'String', value: decodeString(ctx, inner), span: sp };
+    case 'MultilineString':
+      return { kind: 'String', value: decodeMultiline(ctx, inner), span: sp };
     case 'Number':
       return { kind: 'Number', value: Number(textOf(ctx, inner)), span: sp };
     case 'Bool':
@@ -441,6 +447,12 @@ const SIMPLE_ESCAPES: Readonly<Record<string, string>> = {
   '"': '"',
   '\\': '\\',
   '/': '/',
+  // A18 (DD-11 T10, T11): the two markdown escapes are recognised, so they are
+  // not SGL1004, and decode to themselves, backslash included. The model keeps
+  // the text as written, and the inline parser, not this decoder, consumes the
+  // backslash. `"\\*"` decodes to the same two characters.
+  '*': '\\*',
+  '`': '\\`',
 };
 
 const HEX4 = /^[0-9a-fA-F]{4}$/;
@@ -448,16 +460,27 @@ const HEX4 = /^[0-9a-fA-F]{4}$/;
 /**
  * Decode a `String` or `ConfigString` token, quotes included, into its text.
  *
- * `\n \t \" \\ \/` and `\uXXXX` are the whole escape set (DD-01 §3). Anything else
- * is `SGL1004` and the backslash survives verbatim, so the author sees what they
- * typed rather than a silent repair.
+ * `\n \t \" \\ \/` and `\uXXXX` are the escape set (DD-01 §3), plus `\*` and
+ * `` \` ``, which decode to themselves (A18). Anything else is `SGL1004` and the
+ * backslash survives verbatim, so the author sees what they typed rather than a
+ * silent repair.
  */
 function decodeString(ctx: Ctx, node: SyntaxNode): string {
   const { source } = ctx;
-  const start = node.from + 1;
   // A well-formed token ends in `"`. Recovery can hand us one that does not.
   const end = source[node.to - 1] === '"' && node.to - 1 > node.from ? node.to - 1 : node.to;
+  return decodeEscapes(ctx, node.from + 1, end, false);
+}
 
+/**
+ * Decode the escapes in `source[start, end)`. Every offset is a source offset,
+ * so SGL1004 points at what the author typed (DD-11 T17, step 8). `lineBreak`
+ * says a line break follows `end` in a `"""` body: a backslash just before it
+ * is then SGL1004 and kept (T18), where a backslash that ends the whole string
+ * is simply kept.
+ */
+function decodeEscapes(ctx: Ctx, start: number, end: number, lineBreak: boolean): string {
+  const { source } = ctx;
   let out = '';
   let i = start;
   while (i < end) {
@@ -467,14 +490,15 @@ function decodeString(ctx: Ctx, node: SyntaxNode): string {
       i += 1;
       continue;
     }
+    const c = source[i + 1] as string;
     if (i + 1 >= end) {
       // A lone trailing backslash: nothing to decode, keep it as written.
+      if (lineBreak) ctx.diagnostics.push(diagnostic('SGL1004', span(i, i + 2), { c }));
       out += '\\';
       i += 1;
       continue;
     }
 
-    const c = source[i + 1] as string;
     const simple = SIMPLE_ESCAPES[c];
     if (simple !== undefined) {
       out += simple;
@@ -494,6 +518,103 @@ function decodeString(ctx: Ctx, node: SyntaxNode): string {
     i += 2;
   }
   return out;
+}
+
+/**
+ * Where the body of a `"""` string opening at `from` ends, found exactly as the
+ * `MultilineString` token finds it: a backslash escapes the next character, and
+ * the first unescaped `"""` closes. Unclosed, it runs to the end of the input.
+ * `scanLexicalErrors` and `decodeMultiline` both use this, so they cannot
+ * disagree about where a body ends.
+ */
+function multilineBodyEnd(source: string, from: number): { to: number; closed: boolean } {
+  for (let i = from + 3; i < source.length; i += source[i] === '\\' ? 2 : 1) {
+    if (source.startsWith('"""', i)) return { to: i, closed: true };
+  }
+  return { to: source.length, closed: false };
+}
+
+/** Whether an unclosed `"""` starts anywhere at or after `from`. */
+function unclosedTripleAfter(source: string, from: number): boolean {
+  for (let i = source.indexOf('"""', from); i >= 0; ) {
+    const body = multilineBodyEnd(source, i);
+    if (!body.closed) return true;
+    i = source.indexOf('"""', body.to + 3);
+  }
+  return false;
+}
+
+/**
+ * Decode a `MultilineString` token: DD-11 T17, on the raw body.
+ *
+ * 1. `\r\n`, a lone `\r` and `\n` all end a line (so no `\r` reaches the text).
+ * 2. Split into lines, each a source range: `[start, end of indent, end]`.
+ * 3. A first line (after the opening `"""`) that is empty or only whitespace
+ *    is dropped; otherwise it is kept as written and left out of step 5.
+ * 4. A last line (before the closing `"""`) that is only whitespace is dropped,
+ *    and its whitespace joins step 5, so the closing delimiter can set the indent.
+ * 5. The common indent is the longest run of spaces and tabs that every
+ *    non-blank line after the first, and the step 4 candidate, start with,
+ *    compared character for character: a tab never matches a space.
+ * 6. It is removed from those lines, and whitespace-only lines become empty.
+ * 7. Trailing spaces and tabs are removed from every line.
+ * 8. The lines are joined with `\n`. Escapes are decoded after all this, each
+ *    line in place in the source, so every offset stays a source offset.
+ *
+ * Only spaces and tabs are whitespace here. An unterminated string is decoded
+ * to the end of the input; its SGL1003 comes from `scanLexicalErrors`.
+ */
+function decodeMultiline(ctx: Ctx, node: SyntaxNode): string {
+  const { source } = ctx;
+  const to = multilineBodyEnd(source, node.from).to;
+  const space = (i: number): boolean => source[i] === ' ' || source[i] === '\t';
+
+  // Steps 1 and 2.
+  const lines: [number, number, number][] = [];
+  for (let start = node.from + 3, i = start; i <= to; i += 1) {
+    const c = i < to ? source[i] : '\n';
+    if (c !== '\n' && c !== '\r') continue;
+    let indent = start;
+    while (indent < i && space(indent)) indent += 1;
+    lines.push([start, indent, i]);
+    if (c === '\r' && source[i + 1] === '\n') i += 1;
+    start = i + 1;
+  }
+  const final = lines[lines.length - 1];
+  const blank = (l: readonly number[]): boolean => l[1] === l[2];
+
+  // Steps 3 and 4. `ref` is a line whose first `cut` characters are the
+  // common indent so far.
+  const head = lines.shift() as [number, number, number];
+  const first = blank(head) ? undefined : head;
+  let ref = lines.length > 0 && blank(lines[lines.length - 1] as number[]) ? lines.pop() : undefined;
+  let cut = ref === undefined ? 0 : ref[1] - ref[0];
+
+  // Step 5.
+  for (const l of lines) {
+    if (blank(l)) continue;
+    if (ref === undefined) {
+      ref = l;
+      cut = l[1] - l[0];
+      continue;
+    }
+    let k = 0;
+    while (k < cut && k < l[1] - l[0] && source[ref[0] + k] === source[l[0] + k]) k += 1;
+    cut = k;
+  }
+
+  // Steps 6–8.
+  return (first === undefined ? lines : [first, ...lines])
+    .map((l) => {
+      let [a, , b] = l;
+      if (l !== first) {
+        if (blank(l)) return '';
+        a += cut;
+      }
+      while (b > a && space(b - 1)) b -= 1;
+      return decodeEscapes(ctx, a, b, l !== final);
+    })
+    .join('\n');
 }
 
 // ---------------------------------------------------------------------------
@@ -543,10 +664,36 @@ function scanLexicalErrors(tree: Tree, source: string): Diagnostic[] {
         }
         i += 1;
       }
-      if (!closed && confirmed(start, source.length)) {
+      if (!closed) {
+        // Not a comment (`x -> /*` is an edge to every root child), or one
+        // whose error nodes a later unterminated `"""` explains instead (A18
+        // fix round 1): scan on from just after the `/*`, so that `"""` gets
+        // its SGL1003. Otherwise it is an unterminated comment, as before.
+        if (!confirmed(start, source.length) || unclosedTripleAfter(source, start + 2)) {
+          i = start + 2;
+          continue;
+        }
         out.push(diagnostic('SGL1005', span(start, source.length)));
         return out;
       }
+      continue;
+    }
+    if (source.startsWith('"""', i)) {
+      // A `"""` body (A18, DD-11 T19): a `"`, `//` or `/*` inside it is text.
+      // Unclosed, the token runs to the end of the input, and so does its one
+      // SGL1003; nothing after it is reported (see `errorNodeDiagnostics`).
+      // No error-node check is needed: an unclosed `"""` the scan reaches is
+      // always an error, whether it lexed as a MultilineString to the end of
+      // the input or, where one cannot lex, as broken `"` strings. The scan
+      // reaches it past a line comment's end, past a closed block comment,
+      // and past an unclosed `/*` that is not a comment (above); inside a
+      // real comment it is never reached.
+      const body = multilineBodyEnd(source, i);
+      if (!body.closed) {
+        out.push(diagnostic('SGL1003', span(i, source.length)));
+        return out;
+      }
+      i = body.to + 3;
       continue;
     }
     if (ch === '"') {
@@ -603,7 +750,7 @@ function errorNodeDiagnostics(tree: Tree, source: string, lexical: readonly Diag
     const to = cursor.to;
     if (seen.has(from)) continue;
     if (from < coveredTo) continue;
-    if (lexical.some((d) => from >= d.span.from && from < d.span.to)) continue;
+    if (lexical.some((d) => from >= d.span.from && (from < d.span.to || runsToEof(d, source)))) continue;
 
     seen.add(from);
     if (from === to) {
@@ -616,6 +763,12 @@ function errorNodeDiagnostics(tree: Tree, source: string, lexical: readonly Diag
 
   return out;
 }
+
+/** An unterminated `"""` owns the end of the input too: the zero-length error
+ *  Lezer leaves there (a `}` a block never got) is its debris, not a second
+ *  problem (DD-11 T19). Ordinary strings and comments are left as they were. */
+const runsToEof = (d: Diagnostic, source: string): boolean =>
+  d.code === 'SGL1003' && d.span.to === source.length && source.startsWith('"""', d.span.from);
 
 const excerpt = (text: string): string => {
   const flat = text.replace(/\s+/g, ' ').trim();

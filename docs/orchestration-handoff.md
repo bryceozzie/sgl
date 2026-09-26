@@ -9,7 +9,7 @@
 
 It **does not replace** [07 — Execution plan](07-execution-plan.md) §2 and §2.1. Those remain the authoritative record of the build and of the open findings; read them first. This file adds what 07 doesn't hold: in-flight branches, pending next steps, and working practices.
 
-*Last updated: 2026-09-25 by the orchestrator (cloud session). `main` = `672948a` (plus this note).*
+*Last updated: 2026-09-25 by the orchestrator (cloud session). `main` = `672948a` (plus this note). A18 branch 1 status added 2026-09-26 by its implementer (§2).*
 
 ---
 
@@ -80,6 +80,22 @@ It **does not replace** [07 — Execution plan](07-execution-plan.md) §2 and §
 After the fix round: re-verify, then merge `--no-ff`. The `wip` commit `544fe6d` stays as a documented exception; `main`'s first-parent history is still green. Then A18, whose boot-path cost now fits under 182 kB.
 
 ### A18 markdown labels: branch `design/a18-text` at `8ca91c9` (design only, not merged)
+
+**Status 2026-09-26: branch 1, `feat/a18-grammar`, is complete and pushed; awaiting orchestrator
+verification; not merged.** From `main` `31db16c` with `design/a18-text` merged in (so merging it
+brings DD-11 too). Scope as T60 branch 1: the `"""` token, T17 dedent, the `\*`/`` \` `` escapes,
+one `SGL1003` for an unterminated `"""`, `scanLexicalErrors`, editor tags, folding and triple-quote
+closing, DD-01/spec/DD-11 docs. Human decisions of 2026-09-25/26 applied: the subset, markdown
+always on for `@label` (T13), a fixed `@size.width` wraps (T36), the full font set (T26), a lazy
+`rich-text` chunk (T55), core limit 182 kB. For the reviewer:
+- **Audit corrections to DD-11 T16** (DD-01 §2): `"""` in a key or path is `SGL1002` because of a
+  shared Lezer token group, not because the lexer skips it; and `"""k""": v` at an entry start was
+  three valid pre-A18 nodes. No committed document is affected (92 CST/AST pins byte-identical).
+- **No existing golden changed.** T58's `unicode.sgl` change is branch 2's. `multiline.sgl`'s new
+  compile golden will change in branch 2 the same way.
+- **Size:** 180.31 kB of 182 (this branch +0.68 kB; T54 estimated 0.20–0.25). Branches 2–3 have
+  1.69 kB. If branch 3 does not fit, that is a human budget decision.
+- Next: `feat/a18-text` from `main` once this merges.
 
 - **Design:** DD-11 `docs/detailed-design/11-text.md` (T1–T60).
 - **Human decisions (2026-09-25):**

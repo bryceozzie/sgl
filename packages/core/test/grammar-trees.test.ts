@@ -19,7 +19,10 @@ import { parse } from '../src/parse.js';
  * differently. A grammar change that moves one of them is a language change
  * for documents people already have.
  * `corpus/imports/` (A9's own fixtures) came after the change and is pinned
- * as written.
+ * as written. A18's `"""` token (DD-11 T15, DD-01 §2 "The `"""` token
+ * audit") was held to the same proof: every file here was byte-identical
+ * after it, and only its own two documents (`multiline.sgl`,
+ * `malformed/unterminated-triple-string.sgl`) were added, as written.
  *
  * Node names, not term ids: ids are an artefact of the generated tables and
  * renumber whenever a production is added, while names and ranges are what

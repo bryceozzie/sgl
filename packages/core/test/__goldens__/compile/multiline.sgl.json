@@ -1,0 +1,226 @@
+{
+  "nodes": {
+    "api": {
+      "id": "api",
+      "path": [
+        "api"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:api",
+      "ports": [],
+      "config": {
+        "label": "**Payments API**\nhandles `POST /pay`"
+      },
+      "hidden": false,
+      "span": {
+        "from": 234,
+        "to": 309
+      }
+    },
+    "ledger": {
+      "id": "ledger",
+      "path": [
+        "ledger"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:ledger",
+      "ports": [],
+      "config": {
+        "label": "  Ledger\n(production)"
+      },
+      "hidden": false,
+      "span": {
+        "from": 311,
+        "to": 371
+      }
+    },
+    "outbox": {
+      "id": "outbox",
+      "path": [
+        "outbox"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:outbox",
+      "ports": [],
+      "config": {
+        "label": "Outbox\nasync"
+      },
+      "hidden": false,
+      "span": {
+        "from": 373,
+        "to": 400
+      }
+    },
+    "single": {
+      "id": "single",
+      "path": [
+        "single"
+      ],
+      "parent": null,
+      "children": [],
+      "depth": 0,
+      "shape": "rect",
+      "classes": [],
+      "labelId": "l:single",
+      "ports": [],
+      "config": {
+        "label": "one line"
+      },
+      "hidden": false,
+      "span": {
+        "from": 402,
+        "to": 436
+      }
+    }
+  },
+  "edges": [
+    {
+      "id": "e-2692142e37269974",
+      "from": {
+        "node": "api"
+      },
+      "to": {
+        "node": "ledger"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": "l:e-2692142e37269974",
+      "config": {
+        "label": "charges\nrefunds"
+      },
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 438,
+        "to": 482
+      }
+    },
+    {
+      "id": "e-341623d299d48a21",
+      "from": {
+        "node": "ledger"
+      },
+      "to": {
+        "node": "outbox"
+      },
+      "directed": "forward",
+      "classes": [],
+      "labelId": null,
+      "config": {},
+      "declaredIn": null,
+      "hidden": false,
+      "span": {
+        "from": 483,
+        "to": 499
+      }
+    }
+  ],
+  "rootChildren": [
+    "api",
+    "ledger",
+    "outbox",
+    "single"
+  ],
+  "order": [
+    "api",
+    "ledger",
+    "outbox",
+    "single"
+  ],
+  "labels": {
+    "l:e-2692142e37269974": {
+      "id": "l:e-2692142e37269974",
+      "owner": {
+        "kind": "edge",
+        "id": "e-2692142e37269974"
+      },
+      "role": "edge",
+      "runs": [
+        {
+          "text": "charges"
+        },
+        {
+          "text": "refunds"
+        }
+      ]
+    },
+    "l:api": {
+      "id": "l:api",
+      "owner": {
+        "kind": "node",
+        "id": "api"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "**Payments API**"
+        },
+        {
+          "text": "handles `POST /pay`"
+        }
+      ]
+    },
+    "l:ledger": {
+      "id": "l:ledger",
+      "owner": {
+        "kind": "node",
+        "id": "ledger"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "  Ledger"
+        },
+        {
+          "text": "(production)"
+        }
+      ]
+    },
+    "l:outbox": {
+      "id": "l:outbox",
+      "owner": {
+        "kind": "node",
+        "id": "outbox"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "Outbox"
+        },
+        {
+          "text": "async"
+        }
+      ]
+    },
+    "l:single": {
+      "id": "l:single",
+      "owner": {
+        "kind": "node",
+        "id": "single"
+      },
+      "role": "title",
+      "runs": [
+        {
+          "text": "one line"
+        }
+      ]
+    }
+  },
+  "meta": {
+    "nodeCount": 4,
+    "edgeCount": 2,
+    "containerCount": 0
+  }
+}

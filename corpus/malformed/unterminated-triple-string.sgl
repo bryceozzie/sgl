@@ -1,0 +1,7 @@
+// expects: SGL1003
+a: { @label: "fine" }
+b: {
+  @label: """
+    never closed
+  }
+c -> a
