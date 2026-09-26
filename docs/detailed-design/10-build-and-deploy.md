@@ -14,6 +14,7 @@
 ├── packages/
 │   ├── core/                    # @sgl/core       — grammar, parser, resolver, IR, diagnostics, editor support
 │   ├── theme/                   # @sgl/theme
+│   ├── text/                    # @sgl/text       — runs, faces, the table key, the line models (A18, DD-11)
 │   ├── measure/                 # @sgl/measure
 │   ├── layout-api/              # @sgl/layout-api — contract, host, fallbacks, validation, conformance
 │   ├── layout-elk/              # @sgl/layout-elk
@@ -24,7 +25,7 @@
 └── .github/workflows/ci.yml
 ```
 
-`@sgl/plugin-sdk`, `@sgl/cli`, `@sgl/text` and `apps/worker` are **⟶ later phases**; their directories are not created until they have code.
+`@sgl/plugin-sdk`, `@sgl/cli` and `apps/worker` are **⟶ later phases**; their directories are not created until they have code. (`@sgl/text` was listed here until A18 created it, DD-11 T2.)
 
 ---
 
@@ -41,6 +42,8 @@ Every `packages/*`:
 **Settled by Stage K.** (1) **The `elk` chunk holds elkjs only**, not the "`@sgl/layout-elk` + `elkjs` pair": a manual chunk reached by a static import is loaded eagerly, and `@sgl/layout-elk`'s own code *is* imported statically — its descriptor by the main thread's pickers (`@sgl/layout-elk/descriptor`), its mapping by the worker. Only `elkEngine.layout()`'s dynamic `import('elkjs/lib/elk.bundled.js')` reaches elkjs, so the chunk stays lazy: 1 439.76 kB raw, ≈ 436.5 kB gzipped, imported only by the worker (`e2e/pwa.spec.ts` checks), and precached (J1). (2) **The worker builds as an ES module** (`worker: { format: 'es' }` in `vite.config.ts`, with the same elk-only manual chunk): Vite's default worker format, `iife`, cannot code-split, so elkjs would otherwise be inlined into the worker.
 
 **Lazy chunks other than `elk`** (each a dynamic `import()`, named after its module, excluded from the core chunk by name in `.size-limit.js`, and precached like everything else): **`share-*.js`** (`state/share.ts` + `base64url.ts`, F9 fix round 1) — loaded by Share and by a link with a payload; **`file-actions-*.js`** (`toolbar/file-actions.tsx` + `state/files.ts` + `state/filename.ts` + `io/download.ts`, A8 follow-up, ≈ 4.6 kB raw, ≈ 2.2 kB gzipped) — the work behind Open, Save ▾ and Share. The toolbar's buttons, the hidden file input and the `Ctrl/⌘+O` binding stay in the boot path (`toolbar/FileMenu.tsx`), so the picker opens on the first press inside the user's gesture; Open and `Ctrl/⌘+O` start loading the chunk as the picker opens, the file is read with it once picked, Save ▾ and Share load it when used, and the launch queue loads it through the same Open path. What the boot path needs of file naming (`documentTitle`, `FALLBACK_TITLE`, `OPEN_ACCEPT`) is `state/title.ts`. **`engine-options-form-*.js`** (`toolbar/engine-options-form.tsx` + `state/engine-form.ts`, A8 fix round 2) — the Options ▾ form: fields, labels, edit rules; loaded the first time Options ▾ is opened and kept mounted. What boot needs of it — each engine's defaults and normalisation, `optionsForEngine` for every layout request, `defaultOptionsFor` on an engine switch — stays in `state/engine-options.ts`, and `toolbar/EngineOptions.tsx` is the disclosure shell. `e2e/offline.spec.ts` checks all three chunks come from the precache offline.
+
+**A18's entries and chunk** (DD-11 T3, T53; `feat/a18-text` and `feat/a18-render`). `@sgl/text` has two entries: `.` (types, run faces, the table key, `labelBox`, `layoutLines`; on the boot path, imported by `@sgl/measure` and `@sgl/render-svg`) and **`./wrap`** (`layoutWrapped`, the word breaker). `@sgl/core` gains **`./inline`** (`parseInline`, the markdown parser). The two lazy halves make one chunk, **`rich-text-*.js`** (`state/rich-text.ts`), loaded for the first document with markup in a label or a label to wrap, excluded from the core chunk by name in `.size-limit.js`, checked by `check-core-chunks.mjs` not to be reachable from the entry, and precached. `@sgl/render-svg/fonts` (D2's `embedFonts`, with A18's per-element face selection, T50) stays in the lazy `file-actions` chunk. The eight run faces A18 ships (Inter 700, Inter italic 400–700, IBM Plex Mono 400/700, T26) are WOFF2 assets emitted from `fonts.css`, fetched only when used; only their `@font-face` rules are boot CSS.
 
 **`@sgl/core` entries** (tsdown, bundle mode): `.` (`src/index.ts`), `./editor` (Stage I; the CodeMirror language support) and, since A8 fix round 2, **`./json`** (`src/json.ts`: `toJson`, `fromJson` and the canonical-JSON writers, DD-02 §6). Code the entries share goes into shared chunks (`dist/resolve-*.js`, `dist/sgl.parser-*.js`), so the app bundler can leave `json.js` in the lazy `file-actions` chunk, its only importer; one `dist/index.js` had kept the writers in the boot chunk. Reading `.sgl.json` needs none of it: boot parses stored, opened and shared documents as source.
 

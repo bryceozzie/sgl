@@ -478,7 +478,7 @@ Guarantees:
 
 - **Stable IDs.** `n-<path>` / `e-<hash-of-endpoints-and-index>`. Reordering the source does not churn IDs, so exported SVGs diff cleanly in git.
 - **Layer order is explicit**, not accidental. Containers behind, edges next, nodes, then labels on top.
-- **Self-contained.** Fonts embedded as subsetted base64 WOFF2 (or a declared fallback stack if the user opts out for size). No external URLs.
+- **Self-contained.** An exported file embeds the fonts it draws with as base64 WOFF2 `@font-face` rules, **not subsetted**: the application's Latin files as shipped, only the faces the file uses (D2; since A18 chosen per element, so a bold, italic or code run brings exactly its face, DD-11 T50). DD-07 §9 is normative. The system fallbacks stay in the `font-family` stack for a viewer that ignores `@font-face`. No external URLs. (This line said "subsetted" until A18's render branch corrected it, DD-11 §19 item 3.)
 - **Escaped.** All text goes through XML escaping; `@link` values are scheme-allowlisted; IDs are sanitised.
 - **No `<foreignObject>`** on the default path — it breaks Inkscape, breaks CLI rasterisers, and reintroduces measurement nondeterminism.
 

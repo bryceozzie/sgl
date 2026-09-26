@@ -9,7 +9,7 @@
 
 It **does not replace** [07 — Execution plan](07-execution-plan.md) §2 and §2.1. Those remain the authoritative record of the build and of the open findings; read them first. This file adds what 07 doesn't hold: in-flight branches, pending next steps, and working practices.
 
-*Last updated: 2026-09-25 by the orchestrator (cloud session). `main` = `672948a` (plus this note). A18 branch 1 status added 2026-09-26 by its implementer (§2); A18 branch 2 status added 2026-09-26 by its implementer (§2).*
+*Last updated: 2026-09-25 by the orchestrator (cloud session). `main` = `672948a` (plus this note). A18 branch 1 status added 2026-09-26 by its implementer (§2); A18 branch 2 status added 2026-09-26 by its implementer (§2); A18 branch 3 status added 2026-09-26 by its implementer (§2).*
 
 ---
 
@@ -99,6 +99,25 @@ here from branch 3 by the brief). For the reviewer:
 - DD-11 §19 items 1, 2, 6, 7 fixed; 3, 5, 8 remain (render branch's), 9 found and fixed, 10 and 11
   found (10 open).
 - Next: `feat/a18-render` (T42–T50, fonts, T57), from `main` once this merges.
+
+**A18 part 3 (`feat/a18-render`): complete and pushed; awaiting orchestrator verification; not merged**
+(2026-09-26, from `feat/a18-text` at `24e5638`, so it merges with branch 2; merge `origin/feat/a18-text`
+in when its fix round is done — the fix round's H1/H2, degraded mode and linear breaker need no
+change here: the renderer only reads the lines a table entry holds, and a miss or plain runs draw
+hard lines). Scope as briefed: T42–T50, the fonts (T26, T49), T56–T57, render goldens, §19 items 3,
+5, 8. For the reviewer:
+- **Goldens:** no existing golden changed (the test pipeline passes the table to `render()`). New:
+  rich render goldens for `multiline.sgl` and `text/*.sgl` × 4 themes; `injection/markdown-in-label.sgl`.
+- **New dependency:** `@fontsource/ibm-plex-mono` 5.3.0, OFL-1.1 (licence at
+  `public/fonts/OFL-IBM-Plex-Mono.txt`). Inter 700/italics come from the existing `@fontsource/inter`.
+- **Deviations from DD-11:** only boxed labels are looked up in the table (unboxed ones are their
+  hard lines by construction; no hashing on render); the app renders with the table its landed
+  layout was sized from; `r-code`'s family is `CODE_FONT_FAMILY` verbatim (spaces after commas);
+  `structureHash`'s marks are an extra length-framed field. T60's Firefox half not run (no Firefox here).
+- **For the human:** execution plan §2.1 **F24** (the rendered ascent 0.8 em vs measured 1 em in
+  Chromium: labels 2.4–2.6 px higher than measurement's baseline; fixing it re-baselines every render
+  golden). F9: `n2000-rich` theme switch 48/54 ms (reported, not gated; budget 50).
+- **Size:** **181.82 kB** of 182 (+0.60 kB: fonts 0.14, renderer 0.46); 0.18 kB left.
 
 ### A18 markdown labels: branch `design/a18-text` at `8ca91c9` (design only, not merged)
 
