@@ -252,6 +252,10 @@ interface Measurer {
 }
 ```
 
+*(As built, DD-11 §19 item 2: the method is `layoutRuns(runs, box)` over `StyledRun`s, per
+[DD-05 §2](detailed-design/05-measurement.md#2-interface); `@sgl/text` holds the types, the table
+key and the line models.)*
+
 This has to be decided before the layout engine contract is frozen, because node intrinsic sizes
 come out of it. **Do this in phase 1 even though A20 and I4 ship later.**
 

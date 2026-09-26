@@ -403,6 +403,13 @@ Because markdown labels (A18) are Must and `<foreignObject>` is banned (D9), a l
 string — it is a sequence of **styled runs** that must be broken into lines and positioned by us.
 The measurement interface is therefore run-based, not string-based:
 
+> **Superseded sketch (A18, DD-11 T24; DD-11 §19 item 2).** The block below was the phase-0 sketch.
+> The normative interface is [DD-05 §2](detailed-design/05-measurement.md#2-interface) plus DD-11
+> T21 and T23: `StyledRun { text, style, marks? }` (marks `strong`, `em`, `code`; there are no
+> links), `layoutRuns(runs, box)`, and `TextLayout { width, height, ascent, lines: { y, width,
+> runs: { x, text, style, marks? }[] }[] }`. There is no `kind`, `size`, `baseline` or
+> `PositionedRun`. The types, the table key and the line models live in `@sgl/text`.
+
 ```ts
 export interface TextRun {
   text: string;

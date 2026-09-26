@@ -46,6 +46,7 @@ interface StyleProperty {
 | `strokeWidth` | geometry | length | node, container, edge | changes outer bounds and clip points |
 | `radius` | geometry | length | node, container | moves edge attachment on rounded corners |
 | `minWidth`, `minHeight` | geometry | length | node | |
+| `maxWidth` | geometry | length | node | A18 (DD-11 T35): the row `@size.maxWidth` always needed; without it the cascade dropped the key with `SGL5003`. A node title wraps at it |
 | `width`, `height` | geometry | length | node | fixed size, from `@size` |
 | `aspectRatio` | geometry | number | node | |
 | `arrowSize` | geometry | length | edge | route is shortened by it at the head |

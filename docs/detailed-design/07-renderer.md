@@ -85,15 +85,18 @@ Links: a node or edge with a valid `@link` wraps its `<g>` in `<a href="{url}" t
 
 ## 4. Shapes
 
-Each shape is a pure module exporting three functions over a frame `{x,y,w,h}` and `radius`:
+Each shape is a pure module exporting two functions over a frame `{x,y,w,h}` and `radius`; its content insets are one function over the shape id, shared with node sizing:
 
 ```ts
 interface Shape {
   path(f: Rect, r: number): string;                       // SVG path data, absolute coordinates
-  contentInsets(labelW: number, labelH: number): Insets;  // extra space the shape needs beyond padding
   anchor(f: Rect, from: Point): Point;                    // boundary intersection of ray centre→from
 }
+contentInsets(shape: ShapeId, labelW: number, labelH: number): Insets;   // @sgl/core (A18, DD-11 T4)
+labelMaxWidth(shape: ShapeId, width: number, padding): number;          // its inverse, the wrap width (DD-11 T35)
 ```
+
+*(A18, DD-11 T4: `contentInsets` was a method here and a second copy in `@sgl/layout-api`, held equal by a test. Both copies moved to `@sgl/core`'s `shape-insets.ts`, the only one; `render-svg/test/shapes.test.ts` guards that neither grows back.)*
 
 | id | path | content insets (in terms of the shape's own `w`/`h`, per this column) | anchor |
 |---|---|---|---|
@@ -105,7 +108,7 @@ interface Shape {
 | `cylinder` | body rect + top ellipse (`ry = min(8, h/6)`) + visible bottom arc | top `2·ry`, bottom `ry` | box |
 | `package` | tab (`w·0.35 × 14`) over a rect | top 14 | box |
 
-**The content-insets column above is written in terms of the shape's own `w`/`h`** — the same `w`/`h` its `path` column draws with, and the frame `Shape.path`/`Shape.anchor` receive. `Shape.contentInsets(labelW: number, labelH: number): Insets`, by contrast, is handed the *label's* width and height and must return the inset for a shape *sized to exactly hold that label* — i.e. the solution of the column's equation for the shape whose content box (frame minus insets) equals `labelW × labelH`. The two are equal only at that fixed point, and reading the column's `w`/`h` as the label's, uncorrected, gives the wrong inset for every non-box shape (ellipse, diamond, hexagon, cylinder): a diamond sized by `w/4` in *label* terms comes out roughly half the size it needs to be. `packages/render-svg/src/shapes.ts` documents each shape's solved form inline; `@sgl/layout-api`'s duplicate (`content-insets.ts`, DD-06 §2) must match it, and both are tested against the underlying containment property, not just against each other, so a future change to one has somewhere to be checked against.
+**The content-insets column above is written in terms of the shape's own `w`/`h`** — the same `w`/`h` its `path` column draws with, and the frame `Shape.path`/`Shape.anchor` receive. `Shape.contentInsets(labelW: number, labelH: number): Insets`, by contrast, is handed the *label's* width and height and must return the inset for a shape *sized to exactly hold that label* — i.e. the solution of the column's equation for the shape whose content box (frame minus insets) equals `labelW × labelH`. The two are equal only at that fixed point, and reading the column's `w`/`h` as the label's, uncorrected, gives the wrong inset for every non-box shape (ellipse, diamond, hexagon, cylinder): a diamond sized by `w/4` in *label* terms comes out roughly half the size it needs to be. `packages/core/src/shape-insets.ts` documents each shape's solved form inline (one copy since A18, DD-11 T4), and `core/test/shape-insets.test.ts` and `label-max-width.test.ts` test it against the underlying containment property.
 
 **Anchor functions.** `box`: clip the ray to the rectangle (Liang–Barsky, 4 comparisons). `ellipse`: `t = 1/√((dx/a)² + (dy/b)²)`. `polygon`: test the ray against each edge segment, take the nearest hit. All three return the centre if `from` equals the centre (degenerate self-loop — DD-06 §4.5 handles routing before this is reached). Unlike `contentInsets`, the anchor functions take the frame directly — no label-vs-shape distinction applies to them.
 

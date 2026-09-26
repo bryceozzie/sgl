@@ -36,7 +36,8 @@ Enforced by `eslint.config.js`; CI fails on a violation.
 
 ```
 core  ←  theme, layout-api
-core, theme  ←  measure, render-svg
+core, theme  ←  text                    (A18, DD-11 T2)
+core, theme, text  ←  measure, render-svg
 core, layout-api  ←  layout-elk, layout-std
 everything  ←  apps/web
 ```
@@ -417,6 +418,51 @@ deviations. Labels still draw as literal text.
 - **Size.** Core bundle 179.63 → **180.38 kB** of 182 kB: parse tables +0.12, `buildAst` +0.49, the editor +0.06.
   DD-11 T54 estimated 0.20–0.25 kB for this row, so branches 2 and 3 have 1.62 kB where T54
   planned about 0.6–0.8 kB of the rest.
+
+**A18 branch 2, the text model, the parser and wrapping** (Stage L, `feat/a18-text`, from `main` at
+`33af6e7`; **not merged**). DD-11 T1–T10, T12–T14, T21–T41 (T26 as metrics), T51–T54, T58, T59,
+each marked implemented there with its deviations; §19 items 1, 2, 6 and 7 fixed.
+- **`@sgl/text`** (new; `core, theme ← text ← measure, render-svg`, in the lint rules, DD-00 §2 and
+  §1 above): the run and layout types moved from `@sgl/measure` (re-exported there) with `marks`;
+  `runStyle` and the code and strong constants; `hashRuns` with marks only on a marked run, so every
+  plain key is unchanged; `labelRuns`, `labelBox`, `labelRunKey`, `plainText`, `needsWrap`;
+  `layoutLines` (hard breaks; throws on a box); and the lazy `@sgl/text/wrap` entry's
+  `layoutWrapped`, the greedy breaker (spaces, U+200B; overlong words and CJK split at code-point
+  units that never enter a surrogate pair, a combining mark, a variation selector, an emoji
+  modifier, a ZWJ join or a flag). Measurers take a `lineModel` option.
+- **`@sgl/core`**: `TextRun` flags and the canonical one-run form; `compile(…, { inline })` and
+  `needsInline`; `contentInsets` with its inverse `labelMaxWidth` (one copy: layout-api's and
+  render-svg's per-shape methods are gone); `parseInline` as the `@sgl/core/inline` entry.
+- **Theme**: the registry's missing `maxWidth` row — `@size.maxWidth` was always dropped with
+  `SGL5003`, so nothing could have wrapped. A fixed `@size.width` wraps too (T36); a class's `@size`
+  does not (DD-04 step 6 is inline only; DD-11 T35 corrected, §19 item 10 open).
+- **App**: the lazy `rich-text` chunk (`state/rich-text.ts`: the parser and the breaker) loads for
+  the first document with `*` or a backtick in a label, or a label with a box; the graph or styled
+  stage holds like A9's import gate, the measurer's `lineModel` becomes `layoutWrapped`, and a
+  failed load is retried on the next change. The measure effect no longer measures the boot-time
+  empty fallback while held (it made a held document's first render use an empty layout).
+  **Until branch 3 the renderer draws a parsed label as its runs' plain text (markers removed) and a
+  wrapped label on its hard lines only**, overflowing its narrower node; tested at unit and e2e.
+- **Goldens.** Exactly T58's two: `unicode.sgl`'s and `multiline.sgl`'s compile goldens (one run
+  with `\n`). No layout or render golden changed. New: `corpus/text/markdown.sgl` and `wrap.sgl`,
+  with compile and `grid`/`elk` goldens through the rich pipeline (`rich-corpus.test.ts`, which
+  also pins `multiline.sgl` there); their render goldens are branch 3's. The elk title-crossing pin
+  gains `text/wrap.sgl`: 1.
+- **Tests** (each shown failing first): `core/test/inline.test.ts` (every §2.2 row, T5–T14, five
+  fast-check properties), `label-max-width.test.ts` (containment per shape), `text/test/`
+  (`layoutLines` equals the MVP model on every corpus label under two measurers; faces, keys, boxes;
+  the breaker's cases and properties), `theme/test/size-max-width.test.ts`,
+  `render-svg/test/wrap-pipeline.test.ts` and `apps/web/test/rich-text.test.ts` (the measured box,
+  the engine input, the node and the placement agree end to end, under grid and elk and through the
+  app's pipeline), `markdown-scan.test.ts` (every corpus document, the app example and
+  n50/n500/n2000 compile identically with and without the parser but for the three markdown
+  documents), `e2e/rich-text.spec.ts` (3) and an offline case. Parser mutation testing: 16 mutants
+  over T5–T8, T10 and T21, all killed after one added case.
+- **Size.** Core bundle 180.38 → **181.23 kB** (step 1) → **181.22 kB** of 182; the lazy
+  `rich-text` chunk is 2.01 kB gzipped. The render branch has **0.78 kB**.
+- **Docs**: spec §3 ("Markdown in labels") and §4; DD-00 §2; DD-02 §7; DD-03 §2, §6; DD-04 §2;
+  DD-05 §2–§5, §7; DD-06 §2; DD-07 §4 (the `Shape` interface lost `contentInsets`); DD-08 §3;
+  DD-11; architecture §6 and backlog notes; `corpus/README.md`.
 - **Docs.** Language spec §3 (Strings) and §4 (`@label`); DD-01 §2 (listing, notes, audit), §3, §4,
   §6, §8; DD-02 §6 rule 7; DD-11 status, T10–T20 notes, T58 note, §19 item 4.
 

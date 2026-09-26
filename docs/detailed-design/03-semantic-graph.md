@@ -68,10 +68,27 @@ interface LabelSpec {
   readonly id: LabelId;                              // 'l:payments.api' | 'l:e-3f9a…'
   readonly owner: { kind: 'node'; id: NodeId } | { kind: 'edge'; id: EdgeId };
   readonly role: 'title' | 'edge';                   // 'title' covers node and container titles
-  readonly runs: readonly TextRun[];                 // MVP: one plain run per line  ⟶ v1.0 (A18) rich runs
+  readonly runs: readonly TextRun[];                 // canonical (A18, DD-11 T21): see §6
 }
-interface TextRun { readonly text: string; readonly style?: 'code' | 'strong' | 'em' }   // style unused in MVP
+interface TextRun {                                  // A18 (DD-11 T21): flags, replacing the MVP's unused `style`
+  readonly text: string;                             // non-empty; '\n' is a hard break
+  readonly strong?: true;
+  readonly em?: true;
+  readonly code?: true;                              // a code run never contains '\n'
+}
+
+compile(model: DocumentModel, view?: ViewSelector, options?: CompileOptions): CompileResult
+interface CompileOptions {                           // A18 (DD-11 T1)
+  readonly inline?: (text: string) => readonly TextRun[];   // `parseInline`, from `@sgl/core/inline`
+}
+needsInline(graph: SemanticGraph): boolean           // the app's markup gate (DD-11 T53)
 ```
+
+`LabelSpec` keeps its shape; `TextRun` changed shape in A18 (a single `style` value could not say
+"bold and italic", and the MVP never read it). **Canonical form:** runs are maximal (two
+neighbours never carry the same three flags), none is empty, a flag is `true` or absent, and a
+hard break is a `\n` inside `text`. So a plain label is **one** run, `\n` included: `"Line
+one\nLine two"` is `[{ text: "Line one\nLine two" }]`, where the MVP gave one run per line.
 
 `GraphEdge` was listed Frozen through Stage C's brief without a `hidden` field, even though the language spec (§4) puts `@hidden` at `any` scope and the config registry accepts it at edge scope — so `a -> b: { @hidden: true }` validated cleanly and did nothing. Corrected here, in the same change as the code that reads it (`compile.ts`), because nothing outside `@sgl/core` consumed `GraphEdge` yet: this was the cheapest point in the project to fix a frozen type that was simply wrong.
 
@@ -212,9 +229,21 @@ EdgeId = 'e-' + fnv1a64( from.node + '\x1f' + (from.port ?? '') + '\x1f'
 - Edge label text = `config.label` if present, else no label (`labelId: null`).
 - `@hidden: true` nodes get `hidden: true` and are still in the graph (so edges to them resolve) but are excluded from `order`; engines skip hidden nodes and edges to them (DD-06 §2 — the host filters before calling the engine).
 - A `GraphEdge` is **effectively hidden** — `hidden: true` — when its own `config.hidden` is `true`, or either endpoint's resolved node is hidden, mirroring the node rule above so the two never disagree about an edge whose endpoint is hidden without the edge itself carrying `@hidden`. A hidden edge gets `labelId: null`, same as a hidden node. `SGL3002` stays keyed off hidden **nodes** only: an edge that is self-hidden between two otherwise-visible nodes produces no diagnostic — there is no hidden node for it to be reported against.
-- MVP text handling: split on `\n`; each line is one `TextRun`. Leading/trailing whitespace per line is preserved; the empty label `""` gives `labelId: null`.
+- Text handling (A18, DD-11 T21): without `options.inline`, a label is one plain run holding its
+  whole text, `\n` included. Leading and trailing whitespace is preserved; the empty label `""`
+  gives `labelId: null`.
+- **Which strings are markdown** (A18, DD-11 T13, T14): with `options.inline` (the app passes
+  `parseInline` once its lazy `rich-text` chunk has loaded; Node, the CLI and the rich test
+  pipeline pass it statically), every `@label` value is parsed: node, container and edge labels,
+  and the shorthands `api: "…"` and `a -> b: "…"`. A node's **key** used as its title is never
+  parsed, nor is `@title`, `@tooltip`, `@link`, `@a11y.*` or `@meta.*`. The parser runs on the
+  text after variable substitution, which the resolver has already done. (A class's `@label` is
+  not a node's title at all: the title reads the node's own `config`.)
+- `needsInline(graph)` is true when any label's text contains `*` or `` ` ``; the app compiles
+  without the parser first and loads it only then (DD-11 T53).
 
-**⟶ v1.0 (A18):** `runs` become styled runs from a markdown-subset parser. `LabelSpec` does not change shape, which is why it is an array of runs from day one.
+`LabelSpec` did not change shape, which is why it is an array of runs from day one; `TextRun` did
+(§2).
 
 ---
 

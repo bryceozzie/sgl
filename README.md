@@ -98,6 +98,7 @@ packages/
   core/          @sgl/core          grammar, parser, resolver, IR, diagnostics
                                     Zero DOM. No workspace dependencies.
   theme/         @sgl/theme         property registry, cascade, geometry/paint hashes
+  text/          @sgl/text          text runs, run faces, the measure-table key, line breaking (A18)
   measure/       @sgl/measure       Measurer interface + canvas implementation
   layout-api/    @sgl/layout-api    engine contract, worker host, fallbacks, conformance
   layout-elk/    @sgl/layout-elk    DEFAULT engine: elkjs adapter (ADR-0005)

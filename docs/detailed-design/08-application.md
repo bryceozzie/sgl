@@ -114,6 +114,21 @@ accept. `distinctTextStyles` (DD-05 §4's "fonts first") is not exported by
 `@sgl/measure` either — built in the app from the same `labelRuns` helper
 `premeasure` itself uses, so the two never disagree about what a label's style is.
 
+**A18 addition (DD-11 T53): the `rich-text` gate.** `PipelineDeps.loadRichText` loads the lazy
+`rich-text` chunk (`state/rich-text.ts`: `parseInline` from `@sgl/core/inline` and `layoutWrapped`
+from `@sgl/text/wrap`). The `graph` stage compiles without the parser and, if `needsInline(graph)`
+(a label holding `*` or a backtick), starts the load and holds; the `styled` stage does the same
+when `needsWrap(styled)` (a node title with `@size.maxWidth` or `@size.width`). Holding is A9's
+`HOLD`: the stages below keep their last value, nothing is reported, and the canvas keeps the last
+good or stored picture, so nothing is measured or laid out with literal runs or unwrapped labels.
+Once loaded, `measurer.lineModel` becomes `layoutWrapped` and compile always runs with the parser;
+a failed load is retried on the next change of the document. The measure effect does not measure
+the boot-time fallback (the empty document) while a stage is held, which would otherwise make an
+empty layout the one the document's first render is drawn with. A document without markup in a
+label and without a box never fetches the chunk (`e2e/rich-text.spec.ts`); offline, it comes from
+the precache (`e2e/offline.spec.ts`). Until the render branch, the renderer draws a parsed label's
+runs as plain text and a wrapped label on its hard lines only.
+
 **Stage I part 2 addition: `hasMeasuredOnce`.** The layout effect below reads `table`,
 which starts at `{}` (before this effect has ever produced a real one) — without a guard, the
 layout effect's own dependency on `table` fires it *immediately* on boot with that empty value, so

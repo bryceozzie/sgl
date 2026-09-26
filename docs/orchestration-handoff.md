@@ -9,7 +9,7 @@
 
 It **does not replace** [07 — Execution plan](07-execution-plan.md) §2 and §2.1. Those remain the authoritative record of the build and of the open findings; read them first. This file adds what 07 doesn't hold: in-flight branches, pending next steps, and working practices.
 
-*Last updated: 2026-09-25 by the orchestrator (cloud session). `main` = `672948a` (plus this note). A18 branch 1 status added 2026-09-26 by its implementer (§2).*
+*Last updated: 2026-09-25 by the orchestrator (cloud session). `main` = `672948a` (plus this note). A18 branch 1 status added 2026-09-26 by its implementer (§2); A18 branch 2 status added 2026-09-26 by its implementer (§2).*
 
 ---
 
@@ -80,6 +80,25 @@ It **does not replace** [07 — Execution plan](07-execution-plan.md) §2 and §
 After the fix round: re-verify, then merge `--no-ff`. The `wip` commit `544fe6d` stays as a documented exception; `main`'s first-parent history is still green. Then A18, whose boot-path cost now fits under 182 kB.
 
 **A18 part 1 (`feat/a18-grammar`) merged to `main` at `0ba4339`** (2026-09-26; one review, one fix round; 5050 Vitest, 98/98 e2e, 180.38 of 182 kB). Next: `feat/a18-text` (parser, runs, measurement, wrapping; T58's `unicode.sgl` and `multiline.sgl` compile-golden updates belong there), then `feat/a18-render`.
+
+**A18 part 2 (`feat/a18-text`): complete and pushed; awaiting orchestrator verification; not merged**
+(2026-09-26, from `main` `33af6e7`). Scope as briefed: `@sgl/text` (types, faces, keys, `labelBox`,
+both line models), `@sgl/core/inline` (T5–T14), the `TextRun` flags, `contentInsets`/`labelMaxWidth`
+in core, node sizing, the two boot gates and the lazy `rich-text` chunk (the app half of T53 moved
+here from branch 3 by the brief). For the reviewer:
+- **Goldens:** only T58's two compile goldens changed (`unicode.sgl`, `multiline.sgl`). New
+  documents live in `corpus/text/` with rich-pipeline compile/grid/elk goldens; the `CLEAN_DOCS`
+  suites keep compiling without the parser, and `markdown-scan.test.ts` proves the parser changes
+  no other document (corpus, app example, n50/n500/n2000).
+- **Found and fixed:** the theme registry had no `maxWidth` row, so `@size.maxWidth` never reached
+  geometry (SGL5003). **Found, open (§19 item 10):** a class's `@size` validates but never sizes a
+  node (DD-04 step 6 is inline only), so it does not wrap; a language question for the human.
+- **Interim rendering** (until `feat/a18-render`): a parsed label is drawn as its runs' plain text,
+  markers removed; a wrapped label is laid out wrapped but drawn on its hard lines.
+- **Size:** 181.22 kB of 182 (+0.84 kB); the render branch has 0.78 kB. The lazy chunk is 2.01 kB.
+- DD-11 §19 items 1, 2, 6, 7 fixed; 3, 5, 8 remain (render branch's), 9 found and fixed, 10 and 11
+  found (10 open).
+- Next: `feat/a18-render` (T42–T50, fonts, T57), from `main` once this merges.
 
 ### A18 markdown labels: branch `design/a18-text` at `8ca91c9` (design only, not merged)
 
