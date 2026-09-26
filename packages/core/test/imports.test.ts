@@ -516,9 +516,18 @@ describe('compileImports stays linear with a failed import (fix round 1, item 2)
     const edges = Array.from({ length: 16_000 }, (_, i) => `a -> gone.n${i}`).join('\n');
     const { ast } = parse(`@imports: [{ path: "./nope.sgl", as: gone }]\na\n${edges}\n`);
     const { model } = resolveImports(ast, createImportLinker(memoryHost({}), { self: 'main' }));
-    const start = performance.now();
-    const { diagnostics } = compileImports(model);
-    expect(performance.now() - start).toBeLessThan(500);
+    // A warm-up, then the best of three: the quadratic version took ~16 s,
+    // the linear one ~0.15 s alone, and under the whole suite's parallel
+    // load a single run was once 0.55 s.
+    compileImports(model);
+    const times: number[] = [];
+    let diagnostics: readonly Diagnostic[] = [];
+    for (let i = 0; i < 3; i += 1) {
+      const start = performance.now();
+      diagnostics = compileImports(model).diagnostics;
+      times.push(performance.now() - start);
+    }
+    expect(Math.min(...times)).toBeLessThan(500);
     expect(diagnostics).toHaveLength(16_000);
     expect(diagnostics.every((d) => d.code === 'SGL2024')).toBe(true);
   });
