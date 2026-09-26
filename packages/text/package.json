@@ -13,5 +13,6 @@
   "scripts": {
     "build": "tsdown"
   },
-  "dependencies": { "@sgl/core": "workspace:*", "@sgl/theme": "workspace:*" }
+  "dependencies": { "@sgl/core": "workspace:*", "@sgl/theme": "workspace:*" },
+  "devDependencies": { "fast-check": "^4.3.0" }
 }

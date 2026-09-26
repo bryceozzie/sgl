@@ -1,6 +1,5 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { staticRunMetrics } from '../../measure/src/static-measurer.js';
 import { layoutLines } from '../src/line-model.js';
 import { UNCONSTRAINED } from '../src/run-key.js';
 import type { MeasureRun, StyledRun, TextLayout, TextStyle } from '../src/types.js';
@@ -24,6 +23,11 @@ const stub: MeasureRun = (text, style) => ({
   ascent: 8,
 });
 
+/** Fractional, face-dependent advances, as real metrics have. */
+const fractional: MeasureRun = (text, style) => ({
+  width: [...text].reduce((w, ch) => w + ((ch.codePointAt(0) ?? 0) % 11) * 0.37 + 4.1, 0) * (style.fontWeight >= 700 ? 1.08 : 1),
+  ascent: style.fontSize * 0.72,
+});
 const plain = (text: string, style: TextStyle = BASE): StyledRun => ({ text, style });
 const lines = (layout: TextLayout): string[] => layout.lines.map((l) => l.runs.map((r) => r.text).join(''));
 const wrap = (runs: readonly StyledRun[], maxWidth: number, m: MeasureRun = stub): TextLayout => layoutWrapped(m, runs, { maxWidth });
@@ -248,7 +252,7 @@ describe('properties, for random text and widths', () => {
   it('is deterministic: two runs over the same input give byte-identical JSON (DD-00 §3)', () => {
     fc.assert(
       fc.property(runsArb, fc.integer({ min: 0, max: 120 }), (runs, maxWidth) => {
-        expect(JSON.stringify(layoutWrapped(staticRunMetrics, runs, { maxWidth }))).toBe(JSON.stringify(layoutWrapped(staticRunMetrics, runs, { maxWidth })));
+        expect(JSON.stringify(layoutWrapped(fractional, runs, { maxWidth }))).toBe(JSON.stringify(layoutWrapped(fractional, runs, { maxWidth })));
       }),
     );
   });
@@ -265,7 +269,7 @@ describe('the breaker is linear (fix round 1, item 1)', () => {
   );
   const timed = (runs: readonly StyledRun[], maxWidth: number): number => {
     const t = performance.now();
-    layoutWrapped(staticRunMetrics, runs, { maxWidth });
+    layoutWrapped(fractional, runs, { maxWidth });
     return performance.now() - t;
   };
   for (const maxWidth of [1e9, 39990, 120]) {
