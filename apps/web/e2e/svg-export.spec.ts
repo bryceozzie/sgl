@@ -89,6 +89,8 @@ test('Save ▾ SVG embeds exactly the Inter weights it uses, as the shipped WOFF
   // No text at all: nothing embedded.
   await openFile(page, 'blank.sgl', 'a: { @label: "" }\nb: { @label: "" }\na -> b\n');
   await waitForExactNodeCount(page, 2);
+  // plain.sgl also has two nodes: wait for this document's own picture, not the last one's.
+  await expect(renderedSvg(page).locator('g[id="n-a"]')).not.toContainText('Alpha');
   const blank = await saveAs(page, 'svg');
   expect(blank.text).not.toContain('font-family');
   expect(faces(blank.text)).toEqual([]);
