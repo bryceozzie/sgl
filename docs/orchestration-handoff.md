@@ -9,7 +9,9 @@
 
 It **does not replace** [07 — Execution plan](07-execution-plan.md) §2 and §2.1. Those remain the authoritative record of the build and of the open findings; read them first. This file adds what 07 doesn't hold: in-flight branches, pending next steps, and working practices.
 
-*Last updated: 2026-09-27 by the orchestrator (cloud session): A18 merged to `main` at `1e92015` and verified there from clean (5360 Vitest, 109/109 e2e). In flight: **F20 boot headroom** on `feat/boot-headroom` (goal: reclaim ≥2–3 kB by lazy-loading, no limit change, no golden change), because 30 B of headroom blocks every boot-path feature. Then the rest of Stage L (§3).*
+*Last updated: 2026-09-27 by the orchestrator (cloud session): A18 merged to `main` at `1e92015` and verified there from clean (5360 Vitest, 109/109 e2e). **F20 merged** (`0345d73`): core **175.99 kB of 182** (grid descriptor split, terser minifier as a build-time devDependency). Next: the rest of Stage L (§3).*
+
+**Trap (new):** `pnpm typecheck` (`tsc -b`) writes per-file JS into `packages/*/dist` over the build output; running it *after* `pnpm build` breaks the next app build until you rebuild. The clean-check order (typecheck before build) avoids it.
 
 ---
 
@@ -84,7 +86,7 @@ After the fix round: re-verify, then merge `--no-ff`. The `wip` commit `544fe6d`
 **A18 (markdown labels, wrapping, rich rendering) MERGED to `main`** (2026-09-27): `feat/a18-text` and `feat/a18-render` merged together (`--no-ff` of `feat/a18-render` at `343e8d2`, which contains `feat/a18-text` `94f3491` via the orchestrator's merge `dfb7a59`). Two reviews per branch, one fix round each; verified by the orchestrator from clean at `343e8d2`: 5360 Vitest, 109/109 e2e, core **181.97 kB of 182 (30 B left)**. Only T58's two compile goldens changed on `main` (`unicode.sgl`, `multiline.sgl`); all other A18 goldens are new.
 - Human decisions applied: H1 (a fixed width splits a word only when `maxWidth` is set), H2 (a class's `@size` applies to its nodes); new dependency `@fontsource/ibm-plex-mono` (OFL, T26); new code `SGL6002` (rich-text chunk failed to load; degraded, not frozen).
 - Orchestrator decisions: a boxed label missing from the landed layout's table draws from the latest table (brief vertical overflow rather than a one-line sideways spill); run faces also load when a style (not markup) asks for weight >600 or italic; the `labelRunKey` memo and `textBlock`'s unused width estimate removed to stay under 182 kB.
-- **Open for the human:** **F25** (rendered ascent 0.8 em vs measured; fixing it re-baselines every render golden; cannot overflow a box; recommendation: defer). **F20**: 30 B of boot headroom; the next boot-path feature needs a trim or a budget decision. F24 (canvas cache thrashes past ~7 000 wrapped labels) recorded with a proposed remedy.
+- **Open for the human:** **F25** (rendered ascent 0.8 em vs measured; fixing it re-baselines every render golden; cannot overflow a box; recommendation: defer). **F20** (30 B of headroom after A18) was cleared by `feat/boot-headroom`: 6.01 kB left. F24 (canvas cache thrashes past ~7 000 wrapped labels) recorded with a proposed remedy.
 - T57 on this machine: `n2000-labelled` 31.3 / 32.7 ms, `n2000-rich` 44.9 / 43.7 ms (markup ~12 ms); reported, not gated; F9's quiet-machine measurement before Gate 4 stands.
 
 ### A18 markdown labels: branch `design/a18-text` at `8ca91c9` (design only, not merged)
@@ -131,7 +133,6 @@ Rough order, orchestrator's call:
 - **F13:** hashchange share import via reload.
 - **F16:** edges through titles under elk.
 - **F15:** measure elk against the DD-09 budget in the browser before Gate 4.
-- **F20:** bundle headroom.
 - **F6:** ports are unreachable (unowned).
 - **F10:** per-document seed.
 - **F9:** re-measure before Gate 4.
