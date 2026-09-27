@@ -2096,6 +2096,21 @@ cost is ~3.2 kB of the 6.01 kB left.
   After the merge, `fixed`'s `checkout.sgl` golden was regenerated: `main`'s `@style` rewrite
   shifts its note spans. Size: core **179.19 kB** of 182, +1.16 kB over `main` (178.03).
 
+**B5 branch 3, `fix/root-layout-options`** (from `main` at `7d77b63`; not merged). DD-12 §13's
+branch 3, H6: the root `@layout` options reach the engine. `rootLayoutOptions` (`@sgl/layout-api`)
+takes every root key but `engine` that the effective engine declares in `optionsSchema`, from the
+resolved root bag; the app sends them over the F11 form's bag, key by key, for that document
+(`Pipeline.documentOptions`), and never writes the persisted `engineOptions`. An undeclared key is
+`SGL4010` (at the root, options only now: a hint-only key there was silently ignored); a value the
+engine's form would not keep (`acceptsOption`) is `SGL2011` at its key (the docs were silent). Both
+are ignored. Options ▾ shows an overridden field's value, disabled, labelled "(set by document)".
+**Goldens:** only `checkout.sgl`'s `elk` input and output goldens changed (`direction: right` now
+reaches `elk`; approved in H6); the elk goldens and the render-svg harness now take each document's
+root options, and no other document in them has any. Tests: `layout-config`, apps/web `pipeline`,
+`engine-options` and `engine-options-form.browser`, render-svg `pipeline`, `elk`, and
+`e2e/root-layout-options.spec.ts` (checkout's six edges run left to right under `elk`). Docs: DD-12
+§13, DD-08 §10, DD-06 §2 and §7. Size: core **179.50 kB** of 182, +0.31 kB.
+
 **Help branch 1, `feat/help-reference`** (Stage L, E19, DD-13 §13 branch 1; branched from `main` at
 `ca9956e`; no golden changed). **DD-13 P5's exports**, each now the value the code uses in place of
 its literal: `@sgl/core` exports `CONFIG_REGISTRY` and `LANGUAGE_SHAPES`; `DEFAULT_SHAPE` (`ids.ts`)
