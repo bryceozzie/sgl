@@ -15,43 +15,43 @@
        "key": "engine",
        "isConfig": false,
        "keySpan": {
-        "from": 443,
-        "to": 449
+        "from": 356,
+        "to": 362
        },
        "value": {
         "kind": "Word",
         "value": "fixed",
         "span": {
-         "from": 451,
-         "to": 456
+         "from": 364,
+         "to": 369
         }
        },
        "span": {
-        "from": 443,
-        "to": 456
+        "from": 356,
+        "to": 369
        }
       }
      ],
      "span": {
-      "from": 441,
-      "to": 458
+      "from": 354,
+      "to": 371
      }
     },
     "keySpan": {
-     "from": 432,
-     "to": 439
+     "from": 345,
+     "to": 352
     },
     "span": {
-     "from": 432,
-     "to": 458
+     "from": 345,
+     "to": 371
     }
    },
    {
     "kind": "NodeDecl",
     "key": "box",
     "keySpan": {
-     "from": 459,
-     "to": 462
+     "from": 372,
+     "to": 375
     },
     "value": {
      "kind": "Block",
@@ -65,25 +65,90 @@
         "kind": "String",
         "value": "Box",
         "span": {
-         "from": 476,
-         "to": 481
+         "from": 389,
+         "to": 394
         }
        },
        "keySpan": {
-        "from": 468,
-        "to": 474
+        "from": 381,
+        "to": 387
        },
        "span": {
-        "from": 468,
-        "to": 481
+        "from": 381,
+        "to": 394
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "pin"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "x",
+          "isConfig": false,
+          "keySpan": {
+           "from": 405,
+           "to": 406
+          },
+          "value": {
+           "kind": "Number",
+           "value": 0,
+           "span": {
+            "from": 408,
+            "to": 409
+           }
+          },
+          "span": {
+           "from": 405,
+           "to": 409
+          }
+         },
+         {
+          "kind": "Property",
+          "key": "y",
+          "isConfig": false,
+          "keySpan": {
+           "from": 411,
+           "to": 412
+          },
+          "value": {
+           "kind": "Number",
+           "value": 0,
+           "span": {
+            "from": 414,
+            "to": 415
+           }
+          },
+          "span": {
+           "from": 411,
+           "to": 415
+          }
+         }
+        ],
+        "span": {
+         "from": 403,
+         "to": 417
+        }
+       },
+       "keySpan": {
+        "from": 397,
+        "to": 401
+       },
+       "span": {
+        "from": 397,
+        "to": 417
        }
       },
       {
        "kind": "NodeDecl",
        "key": "a",
        "keySpan": {
-        "from": 484,
-        "to": 485
+        "from": 420,
+        "to": 421
        },
        "value": {
         "kind": "Block",
@@ -97,17 +162,17 @@
            "kind": "String",
            "value": "A",
            "span": {
-            "from": 497,
-            "to": 500
+            "from": 433,
+            "to": 436
            }
           },
           "keySpan": {
-           "from": 489,
-           "to": 495
+           "from": 425,
+           "to": 431
           },
           "span": {
-           "from": 489,
-           "to": 500
+           "from": 425,
+           "to": 436
           }
          },
          {
@@ -123,20 +188,20 @@
              "key": "x",
              "isConfig": false,
              "keySpan": {
-              "from": 510,
-              "to": 511
+              "from": 446,
+              "to": 447
              },
              "value": {
               "kind": "Number",
               "value": -40,
               "span": {
-               "from": 513,
-               "to": 516
+               "from": 449,
+               "to": 452
               }
              },
              "span": {
-              "from": 510,
-              "to": 516
+              "from": 446,
+              "to": 452
              }
             },
             {
@@ -144,54 +209,54 @@
              "key": "y",
              "isConfig": false,
              "keySpan": {
-              "from": 518,
-              "to": 519
+              "from": 454,
+              "to": 455
              },
              "value": {
               "kind": "Number",
               "value": 0,
               "span": {
-               "from": 521,
-               "to": 522
+               "from": 457,
+               "to": 458
               }
              },
              "span": {
-              "from": 518,
-              "to": 522
+              "from": 454,
+              "to": 458
              }
             }
            ],
            "span": {
-            "from": 508,
-            "to": 524
+            "from": 444,
+            "to": 460
            }
           },
           "keySpan": {
-           "from": 502,
-           "to": 506
+           "from": 438,
+           "to": 442
           },
           "span": {
-           "from": 502,
-           "to": 524
+           "from": 438,
+           "to": 460
           }
          }
         ],
         "span": {
-         "from": 487,
-         "to": 526
+         "from": 423,
+         "to": 462
         }
        },
        "span": {
-        "from": 484,
-        "to": 526
+        "from": 420,
+        "to": 462
        }
       },
       {
        "kind": "NodeDecl",
        "key": "b",
        "keySpan": {
-        "from": 529,
-        "to": 530
+        "from": 465,
+        "to": 466
        },
        "value": {
         "kind": "Block",
@@ -205,17 +270,17 @@
            "kind": "String",
            "value": "B",
            "span": {
-            "from": 542,
-            "to": 545
+            "from": 478,
+            "to": 481
            }
           },
           "keySpan": {
-           "from": 534,
-           "to": 540
+           "from": 470,
+           "to": 476
           },
           "span": {
-           "from": 534,
-           "to": 545
+           "from": 470,
+           "to": 481
           }
          },
          {
@@ -231,20 +296,20 @@
              "key": "x",
              "isConfig": false,
              "keySpan": {
-              "from": 555,
-              "to": 556
+              "from": 491,
+              "to": 492
              },
              "value": {
               "kind": "Number",
               "value": 40,
               "span": {
-               "from": 558,
-               "to": 560
+               "from": 494,
+               "to": 496
               }
              },
              "span": {
-              "from": 555,
-              "to": 560
+              "from": 491,
+              "to": 496
              }
             },
             {
@@ -252,63 +317,63 @@
              "key": "y",
              "isConfig": false,
              "keySpan": {
-              "from": 562,
-              "to": 563
+              "from": 498,
+              "to": 499
              },
              "value": {
               "kind": "Number",
               "value": 0,
               "span": {
-               "from": 565,
-               "to": 566
+               "from": 501,
+               "to": 502
               }
              },
              "span": {
-              "from": 562,
-              "to": 566
+              "from": 498,
+              "to": 502
              }
             }
            ],
            "span": {
-            "from": 553,
-            "to": 568
+            "from": 489,
+            "to": 504
            }
           },
           "keySpan": {
-           "from": 547,
-           "to": 551
+           "from": 483,
+           "to": 487
           },
           "span": {
-           "from": 547,
-           "to": 568
+           "from": 483,
+           "to": 504
           }
          }
         ],
         "span": {
-         "from": 532,
-         "to": 570
+         "from": 468,
+         "to": 506
         }
        },
        "span": {
-        "from": 529,
-        "to": 570
+        "from": 465,
+        "to": 506
        }
       }
      ],
      "span": {
-      "from": 464,
-      "to": 572
+      "from": 377,
+      "to": 508
      }
     },
     "span": {
-     "from": 459,
-     "to": 572
+     "from": 372,
+     "to": 508
     }
    }
   ],
   "span": {
    "from": 0,
-   "to": 573
+   "to": 509
   }
  },
  "diagnostics": []

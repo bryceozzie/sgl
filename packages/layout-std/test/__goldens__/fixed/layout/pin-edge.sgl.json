@@ -1,0 +1,102 @@
+{
+  "bounds": {
+    "x": 0,
+    "y": 0,
+    "w": 200,
+    "h": 68
+  },
+  "nodes": {
+    "a": {
+      "frame": {
+        "x": 16,
+        "y": 16,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "b": {
+      "frame": {
+        "x": 112,
+        "y": 16,
+        "w": 72,
+        "h": 36
+      }
+    }
+  },
+  "edges": {
+    "e-43cd40b7c998acd4": {
+      "start": {
+        "x": 88,
+        "y": 34
+      },
+      "end": {
+        "x": 104,
+        "y": 34
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 104,
+            "y": 34
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "clip": "none"
+    }
+  },
+  "labels": [
+    {
+      "labelId": "l:a",
+      "frame": {
+        "x": 47.671875,
+        "y": 25.546875,
+        "w": 8.671875,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:b",
+      "frame": {
+        "x": 143.671875,
+        "y": 25.546875,
+        "w": 8.671875,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    }
+  ],
+  "notes": [
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 176,
+        "to": 182
+      },
+      "params": {
+        "node": "a"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 183,
+        "to": 189
+      },
+      "params": {
+        "node": "b"
+      }
+    }
+  ]
+}

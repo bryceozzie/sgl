@@ -16,7 +16,7 @@ import {
   type ResolvedThemeMetricsView,
   type StyledGraphInput,
 } from '@sgl/layout-api';
-import { gridEngine } from '@sgl/layout-std';
+import { fixedEngine, gridEngine } from '@sgl/layout-std';
 import { labelRunKey, premeasure, StaticMetricsMeasurer, type MeasureTable } from '@sgl/measure';
 import { layoutWrapped } from '@sgl/text/wrap';
 import { BUILT_IN, neutralLight, resolveTheme, styleGraph, type ResolvedTheme, type StyledGraph, type ThemeDoc } from '@sgl/theme';
@@ -124,10 +124,25 @@ async function layOut(
  *  document's file, `@imports` are linked by the file-system host against
  *  its directory (A9, `corpus/imports/`), through the import-aware resolve
  *  and compile, as the app does for a document with `@imports`. */
+/** The engines this harness can run: `grid`, every golden's engine, and
+ *  `fixed` (feat/b5-fixed). */
+const HARNESS_ENGINES: readonly LayoutEngine[] = [gridEngine, fixedEngine];
+
+/** The engine a document names at its root `@layout.engine`, by id or bare
+ *  name (DD-12 N22), when the harness has it; otherwise `grid`. So the pin
+ *  fixtures that say `engine: fixed` run under `fixed`, and a document that
+ *  names `elk` (`checkout.sgl`, `pin-under-elk.sgl`) still runs under `grid`,
+ *  as every render golden was taken. */
+export function harnessEngine(root: Readonly<Record<string, unknown>>): LayoutEngine {
+  const layout = root['layout'];
+  const named = typeof layout === 'object' && layout !== null && !Array.isArray(layout) ? (layout as Record<string, unknown>)['engine'] : undefined;
+  return HARNESS_ENGINES.find((e) => named === e.id || `sgl.${String(named)}` === e.id) ?? gridEngine;
+}
+
 export async function runPipeline(
   source: string,
   themeDoc: ThemeDoc = neutralLight,
-  engine: LayoutEngine = gridEngine,
+  engineArg?: LayoutEngine,
   options: Readonly<Record<string, unknown>> = {},
   path?: string,
   compileOptions?: CompileOptions,
@@ -136,6 +151,7 @@ export async function runPipeline(
   const linker = path === undefined ? undefined : createImportLinker(fileSystemHost(path), { self: path });
   const { model, diagnostics: d2 } = linker === undefined ? resolve(ast) : resolveImports(ast, linker);
   const { graph, diagnostics: d3 } = linker === undefined ? compile(model, undefined, compileOptions) : compileImports(model, undefined, compileOptions);
+  const engine = engineArg ?? harnessEngine(model.root.config);
   // SGL4010 (Stage K fix round 1, item 23) and SGL4021 (DD-12 N6), as the
   // app's pipeline emits them: the document's `@layout` keys and `@pin`s
   // against the engine laying it out.

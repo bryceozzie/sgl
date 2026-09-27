@@ -26,11 +26,11 @@ import { fileSystemHost } from './fs-host.js';
  */
 const NOT_YET_REACHABLE: ReadonlySet<DiagnosticCode> = new Set<DiagnosticCode>([
   // Layout — the engine and worker host (Stage E, Stage H) don't exist below
-  // @sgl/core; SGL4002/SGL4003 additionally need a deliberately corrupt engine
-  // output, which no *document* can produce (see the render-svg gate).
+  // @sgl/core; SGL4002 additionally needs a deliberately corrupt engine
+  // output, which no *document* can produce. (SGL4003 moved to the render-svg
+  // gate in feat/b5-fixed: `layout/pin-negative.sgl` reaches it under `fixed`.)
   'SGL4001',
   'SGL4002',
-  'SGL4003',
   'SGL4011',
   // A9 fix round 1: emitted by the app's pipeline when the lazy `imports`
   // chunk cannot load, which no document can cause (DD-08 §15.6);

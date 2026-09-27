@@ -1,0 +1,143 @@
+{
+  "bounds": {
+    "x": 0,
+    "y": 0,
+    "w": 496.109375,
+    "h": 141.796875
+  },
+  "nodes": {
+    "gateway": {
+      "frame": {
+        "x": 16,
+        "y": 16,
+        "w": 99.875,
+        "h": 36
+      }
+    },
+    "cache": {
+      "frame": {
+        "x": 408.109375,
+        "y": 16,
+        "w": 72,
+        "h": 49.796875
+      }
+    },
+    "notes": {
+      "frame": {
+        "x": 16,
+        "y": 89.796875,
+        "w": 368.109375,
+        "h": 36
+      }
+    }
+  },
+  "edges": {
+    "e-1a68a89c6143642d": {
+      "start": {
+        "x": 115.875,
+        "y": 34.90625
+      },
+      "end": {
+        "x": 400.109375,
+        "y": 40.09375
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 400.109375,
+            "y": 40.09375
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -0.9998335929035709,
+        "y": -0.018242436831090926
+      },
+      "endNormal": {
+        "x": 0.9998335929035709,
+        "y": 0.018242436831090926
+      },
+      "clip": "none"
+    }
+  },
+  "labels": [
+    {
+      "labelId": "l:cache",
+      "frame": {
+        "x": 426.765625,
+        "y": 35.265625,
+        "w": 34.6875,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:e-1a68a89c6143642d",
+      "frame": {
+        "x": 244.03125,
+        "y": 41.5,
+        "w": 27.515625,
+        "h": 14.296875
+      },
+      "align": "middle",
+      "baseline": "middle",
+      "occlusion": "plate"
+    },
+    {
+      "labelId": "l:gateway",
+      "frame": {
+        "x": 28,
+        "y": 25.546875,
+        "w": 75.875,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:notes",
+      "frame": {
+        "x": 28,
+        "y": 99.34375,
+        "w": 344.109375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    }
+  ],
+  "notes": [
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 48,
+        "to": 86
+      },
+      "params": {
+        "node": "gateway"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 90,
+        "to": 125
+      },
+      "params": {
+        "node": "cache"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 129,
+        "to": 200
+      },
+      "params": {
+        "node": "notes"
+      }
+    }
+  ]
+}

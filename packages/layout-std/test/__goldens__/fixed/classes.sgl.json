@@ -1,0 +1,404 @@
+{
+  "bounds": {
+    "x": 0,
+    "y": 0,
+    "w": 336.546875,
+    "h": 188
+  },
+  "nodes": {
+    "plain": {
+      "frame": {
+        "x": 16,
+        "y": 16,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "left": {
+      "frame": {
+        "x": 113.859375,
+        "y": 16,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "right": {
+      "frame": {
+        "x": 248.546875,
+        "y": 16,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "diamond": {
+      "frame": {
+        "x": 16,
+        "y": 76,
+        "w": 73.859375,
+        "h": 36
+      }
+    },
+    "both": {
+      "frame": {
+        "x": 113.859375,
+        "y": 76,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "override": {
+      "frame": {
+        "x": 248.546875,
+        "y": 76,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "routed": {
+      "frame": {
+        "x": 16,
+        "y": 136,
+        "w": 72,
+        "h": 36
+      },
+      "ports": {
+        "out": {
+          "point": {
+            "x": 88,
+            "y": 154
+          },
+          "normal": {
+            "x": 1,
+            "y": 0
+          }
+        },
+        "in": {
+          "point": {
+            "x": 16,
+            "y": 154
+          },
+          "normal": {
+            "x": -1,
+            "y": 0
+          }
+        }
+      }
+    },
+    "routedOverride": {
+      "frame": {
+        "x": 113.859375,
+        "y": 136,
+        "w": 110.703125,
+        "h": 36
+      },
+      "ports": {
+        "in": {
+          "point": {
+            "x": 113.859375,
+            "y": 148
+          },
+          "normal": {
+            "x": -1,
+            "y": 0
+          }
+        },
+        "out": {
+          "point": {
+            "x": 113.859375,
+            "y": 160
+          },
+          "normal": {
+            "x": -1,
+            "y": 0
+          }
+        }
+      }
+    }
+  },
+  "edges": {
+    "e-fe297c3f0d279af4": {
+      "start": {
+        "x": 88,
+        "y": 34
+      },
+      "end": {
+        "x": 105.859375,
+        "y": 34
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 105.859375,
+            "y": 34
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "clip": "none"
+    },
+    "e-2847a08bfb69307a": {
+      "start": {
+        "x": 120.78125,
+        "y": 52
+      },
+      "end": {
+        "x": 88.8125,
+        "y": 71.796875
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 88.8125,
+            "y": 71.796875
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0.8502758961579236,
+        "y": -0.5263372496915263
+      },
+      "endNormal": {
+        "x": -0.8502758961579236,
+        "y": 0.5263372496915263
+      },
+      "clip": "none"
+    },
+    "e-4de4a934f2ea2378": {
+      "start": {
+        "x": 248.546875,
+        "y": 50.03125
+      },
+      "end": {
+        "x": 193.15625,
+        "y": 74.703125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 193.15625,
+            "y": 74.703125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0.9134722860987434,
+        "y": -0.4069009492856158
+      },
+      "endNormal": {
+        "x": -0.9134722860987434,
+        "y": 0.4069009492856158
+      },
+      "clip": "none"
+    },
+    "e-a3ae2354924ebedc": {
+      "start": {
+        "x": 185.859375,
+        "y": 94
+      },
+      "end": {
+        "x": 240.546875,
+        "y": 94
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 240.546875,
+            "y": 94
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "clip": "none"
+    }
+  },
+  "labels": [
+    {
+      "labelId": "l:both",
+      "frame": {
+        "x": 137.203125,
+        "y": 85.546875,
+        "w": 25.296875,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:diamond",
+      "frame": {
+        "x": 28,
+        "y": 85.546875,
+        "w": 49.859375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:left",
+      "frame": {
+        "x": 141.1875,
+        "y": 25.546875,
+        "w": 17.34375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:override",
+      "frame": {
+        "x": 261.078125,
+        "y": 85.546875,
+        "w": 46.953125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:plain",
+      "frame": {
+        "x": 38.265625,
+        "y": 25.546875,
+        "w": 27.453125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:right",
+      "frame": {
+        "x": 271.90625,
+        "y": 25.546875,
+        "w": 25.28125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:routed",
+      "frame": {
+        "x": 33.578125,
+        "y": 145.546875,
+        "w": 36.859375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:routedOverride",
+      "frame": {
+        "x": 125.859375,
+        "y": 145.546875,
+        "w": 86.703125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    }
+  ],
+  "notes": [
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 393,
+        "to": 407
+      },
+      "params": {
+        "node": "plain"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 408,
+        "to": 422
+      },
+      "params": {
+        "node": "left"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 423,
+        "to": 438
+      },
+      "params": {
+        "node": "right"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 439,
+        "to": 456
+      },
+      "params": {
+        "node": "diamond"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 457,
+        "to": 497
+      },
+      "params": {
+        "node": "both"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 498,
+        "to": 553
+      },
+      "params": {
+        "node": "override"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 772,
+        "to": 794
+      },
+      "params": {
+        "node": "routed"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 795,
+        "to": 851
+      },
+      "params": {
+        "node": "routedOverride"
+      }
+    }
+  ]
+}

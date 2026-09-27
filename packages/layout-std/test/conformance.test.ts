@@ -8,6 +8,7 @@ import { BUILT_IN, neutralLight, resolveTheme, styleGraph, type StyledGraph } fr
 import { expect, it } from 'vitest';
 import { scaleDocument } from '../../../bench/scale-document.js';
 import { corpusStyledGraph, listCorpusDocs } from '../../theme/test/corpus.js';
+import { fixedEngine } from '../src/fixed.js';
 import { gridEngine } from '../src/grid.js';
 
 /**
@@ -54,4 +55,26 @@ it('grid passes all five conformance checks over the corpus and the 1 000-node g
   expect(timed.withinTimeout).toBe(true);
   // `bitwise`: both the raw and the quantized results matched across runs.
   expect(report.cases.every((c) => c.deterministic === true)).toBe(true);
+}, 120_000);
+
+/**
+ * `fixed` (DD-12 §12 item 2): the same cases. The corpus now holds pinned
+ * documents (`layout/pin-*.sgl`, `layout/forty-three-pinned.sgl`), so check 3
+ * exercises both halves: two pinned siblings are exempt (F28), and every node
+ * `fixed` packed itself must overlap nothing. Check 1 fails on errors only, so
+ * `pin-negative.sgl`'s SGL4003 warning passes, and is asserted here.
+ */
+it('fixed passes all six conformance checks over the corpus and the 1 000-node graph', async () => {
+  const cases: ConformanceCase[] = [
+    ...listCorpusDocs().map((name) => ({ name, input: inputOf(corpusStyledGraph(name).styled) })),
+    { name: N1000, input: inputForSource(scaleDocument(1000) as string) },
+  ];
+  const report = await runConformance(fixedEngine, cases, { metrics: METRICS, now: () => performance.now(), timedCase: N1000 });
+  const timed = report.cases.find((c) => c.name === N1000)!;
+  console.warn(`[conformance] fixed, 1 000 nodes, Node: ${timed.ms.toFixed(0)} ms`);
+  expect(report.failures).toEqual([]);
+  expect(timed.withinTimeout).toBe(true);
+  expect(report.cases.every((c) => c.deterministic === true)).toBe(true);
+  const warned = report.cases.filter((c) => c.validation.length > 0).map((c) => [c.name, c.validation.map((d) => d.code)]);
+  expect(warned).toEqual([['layout/pin-negative.sgl', ['SGL4003']]]);
 }, 120_000);

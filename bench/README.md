@@ -117,3 +117,13 @@ picker makes it, on the real editor, pipeline and canvas). Since
 nodes; execution plan §1 Verification and §2.1 **F9** have the numbers and
 the gate policy.
 `morphdom` was measured and dropped (slower than the `innerHTML` swap).
+
+## The pinned criterion-1 fixture (B5 `fixed`)
+
+`generate-pinned-fixture.js` (with its pure half, `pinned-fixture.js`) wrote
+`corpus/layout/forty-three-pinned.sgl` once: `forty-three-level.sgl` with a
+`@pin` on every node from its `grid` layout, and `@layout: { engine: fixed }`
+(DD-12 §12 item 5). Unlike the other generated files here, the output is
+committed; `packages/layout-std/test/pinned-fixture.test.ts` fails if it drifts
+from the source document or from `grid`'s layout. Re-run it after `pnpm build`
+if either changes on purpose.

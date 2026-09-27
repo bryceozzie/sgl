@@ -24,6 +24,9 @@ export interface GridDescriptor {
   readonly hintsSchema: JSONSchema7;
 }
 
+/** What every in-house engine's descriptor holds (`grid`, `fixed`). */
+export type EngineDescriptor = GridDescriptor;
+
 export const gridDescriptor: GridDescriptor = {
   id: GRID_ENGINE_ID,
   name: 'Grid',
@@ -59,4 +62,41 @@ export const gridDescriptor: GridDescriptor = {
       span: { type: 'number' }, // ⟶ v1.x
     },
   },
+};
+
+/**
+ * `fixed` (DD-12 §4, B5): every node where its `@pin` says, relative to its
+ * parent's content box; nodes without a pin packed below the pinned ones,
+ * with one `SGL4020` each (H1). Everything but `layout()`, for the same
+ * reason as `gridDescriptor`: the page lists it and checks `@layout` keys
+ * against its schemas, and only the worker runs it (H9: statically).
+ *
+ * N18: `pins: true` (so a `@pin` is not `SGL4021` under it), `ports: true`
+ * (it spreads ports on the frame, N15), and the host's labels and straight
+ * edges (N14, N16). `bitwise` (N17): copies, sums, `max`/`min` and the
+ * division by 2 in packing, nothing else. N19: one option, `gap`, the
+ * loose-node packing gap, grid's field and default.
+ */
+export const FIXED_ENGINE_ID = 'sgl.fixed';
+
+export const fixedDescriptor: EngineDescriptor = {
+  id: FIXED_ENGINE_ID,
+  name: 'Fixed',
+  version: '0.0.0',
+  apiVersion: LAYOUT_API_VERSION,
+  capabilities: {
+    containers: true,
+    edgeRouting: 'straight',
+    ports: true,
+    labelPlacement: false,
+    incremental: false,
+    determinism: 'bitwise',
+    pins: true,
+  },
+  optionsSchema: {
+    type: 'object',
+    additionalProperties: false,
+    properties: { gap: { type: 'number', minimum: 0, default: 24 } },
+  },
+  hintsSchema: { type: 'object', properties: {} },
 };
