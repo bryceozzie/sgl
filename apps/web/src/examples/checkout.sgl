@@ -27,7 +27,7 @@ payments: {
   outbox:  Store
 
   api -> ledger
-  api -> outbox: { @label: "async", @style: dashed }
+  api -> outbox: { @label: "async", @style: { strokeDash: "6 3" } }
 }
 
 psp: { @label: "Stripe", @type: External }

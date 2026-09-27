@@ -159,7 +159,10 @@ test('offline, the lazy share chunk comes from the precache: Share makes a link,
     await page.locator('.share-open').click();
     const link = await page.locator('.share-link').inputValue();
     expect(link).toMatch(/#s=[A-Za-z0-9_-]+&e=/);
-    // Opening it: a navigation with the hash, which boot imports.
+    // Opening it: a fresh load with the hash, which boot imports. (From `/`
+    // itself this is a same-document hash change, which since F13 imports
+    // in place with the chunk already loaded, so leave the page first.)
+    await page.goto('about:blank');
     await page.goto(`/${new URL(link).hash}`);
     await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
     await expect(toastMessages(page)).toContainText(['Opened the shared diagram']);

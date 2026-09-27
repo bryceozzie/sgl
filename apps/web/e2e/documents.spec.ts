@@ -50,7 +50,9 @@ test('a document left behind by a share link is reached through Documents, its t
   await items(page).nth(1).click();
   await expect(menu(page)).toHaveJSProperty('open', false);
   await waitForExactNodeCount(page, visibleNodeCount(SMALL_SOURCE));
-  expect(await editorText(page)).toBe(SMALL_SOURCE);
+  // Both documents render 3 nodes, so wait for the text itself: the switch
+  // now awaits the open document's flush first (F12/F13 round 1, item 8).
+  await expect.poll(() => editorText(page)).toBe(SMALL_SOURCE);
   await expect.poll(async () => (await readStorage(page)).lastOpenDocId).toBe(mine.id);
   const stored = await readStorage(page);
   expect(stored.documents).toHaveLength(2);
@@ -61,7 +63,7 @@ test('a document left behind by a share link is reached through Documents, its t
   await openList(page);
   await items(page).filter({ hasText: 'shared' }).click();
   await waitForExactNodeCount(page, visibleNodeCount(SHARED));
-  expect(await editorText(page)).toBe(SHARED);
+  await expect.poll(() => editorText(page)).toBe(SHARED);
 
   // A reload opens the last one chosen.
   await page.reload();

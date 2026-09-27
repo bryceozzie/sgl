@@ -1,5 +1,6 @@
 import { useRef, useState } from 'preact/hooks';
 import type { DocumentSession } from '../state/document-session.js';
+import { lazyChunk } from '../state/lazy.js';
 import type { DocumentRecord, DocumentStore } from '../state/storage.js';
 import { useDisclosure } from './disclosure.js';
 
@@ -13,14 +14,10 @@ export interface DocumentsMenuProps {
 }
 
 type ListModule = typeof import('./documents-menu.js');
-let listModule: Promise<ListModule> | undefined;
-
 /** The lazy `documents-menu` chunk (the list, `state/documents-list.ts`),
- *  imported once, the first time Documents ▾ is opened. */
-function loadList(): Promise<ListModule> {
-  listModule ??= import('./documents-menu.js');
-  return listModule;
-}
+ *  imported once, the first time Documents ▾ is opened (a failed load is
+ *  reported and retried, `state/lazy.ts`). */
+const loadList: () => Promise<ListModule> = lazyChunk(() => import('./documents-menu.js'));
 
 interface Listed {
   readonly List: ListModule['DocumentsList'];

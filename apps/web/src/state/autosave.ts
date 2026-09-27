@@ -5,6 +5,9 @@ import type { Cancel, Schedule } from './types.js';
  *  `put`, whole record." */
 export const AUTOSAVE_DELAY_MS = 500;
 
+/** How many rounds `flush()` writes what was requested while it ran. */
+const FLUSH_ROUNDS = 3;
+
 export interface AutosaveDeps {
   readonly store: DocumentStore;
   readonly schedule: Schedule;
@@ -23,8 +26,17 @@ export interface Autosave {
   request(record: DocumentRecord): void;
   /** Writes a pending record now (page hide, reload for an update): the
    *  store call is issued before this returns. Resolves once every write
-   *  issued so far has settled. */
-  flush(): Promise<void>;
+   *  issued so far has settled, including records requested meanwhile,
+   *  or once one has failed. Resolves to `saved()` as it stood then: true
+   *  when everything reached the store (F12 round 1; read at that moment,
+   *  so a render landing a microtask later cannot turn a good flush into a
+   *  refused switch or reload — that record is the next write's, and
+   *  leaving the page flushes it). */
+  flush(): Promise<boolean>;
+  /** Nothing is pending or in flight, and the last write reached the store
+   *  (true before any write): whether a reload would lose nothing (F12). A
+   *  failed record stays pending until a later write succeeds. */
+  saved(): boolean;
   dispose(): void;
 }
 
@@ -41,6 +53,11 @@ export function createAutosave(deps: AutosaveDeps): Autosave {
   let taken = 0;
   let issuedSeq = 0;
 
+  /** Records taken from `pending` whose write has not settled yet, issued
+   *  or still queued on the chain (F12 round 1). */
+  let outstanding = 0;
+  const saved = (): boolean => !failing && pending === null && outstanding === 0;
+
   async function put(record: DocumentRecord): Promise<void> {
     try {
       await deps.store.putDocument(record);
@@ -48,6 +65,10 @@ export function createAutosave(deps: AutosaveDeps): Autosave {
     } catch (err) {
       // Editing continues in memory either way: the pipeline never reads
       // back from the store, so a failed write loses nothing on screen.
+      // The record waits to be written again by the next flush or edit
+      // (F12 round 1: until then, `saved()` is false), unless a newer one
+      // has replaced it.
+      pending ??= record;
       if (failing) return;
       failing = true;
       if (isQuotaExceeded(err)) deps.onQuotaExceeded();
@@ -72,11 +93,13 @@ export function createAutosave(deps: AutosaveDeps): Autosave {
     // issued a newer record while it waited on the chain, and issuing it
     // afterwards would overwrite that newer record (fix round 2, R1).
     taken += 1;
+    outstanding += 1;
     const seq = taken;
     const issue = (): Promise<void> => {
-      if (seq < issuedSeq) return Promise.resolve();
+      const done = (): void => void (outstanding -= 1);
+      if (seq < issuedSeq) return Promise.resolve().then(done);
       issuedSeq = seq;
-      return put(record);
+      return put(record).then(done);
     };
     if (now) {
       const issued = issue(); // runs synchronously up to the store call
@@ -96,13 +119,26 @@ export function createAutosave(deps: AutosaveDeps): Autosave {
         void write(false);
       }, delay);
     },
-    flush() {
-      if (timer !== null) {
-        timer();
-        timer = null;
+    // The first write is issued synchronously (the async body runs up to its
+    // first `await`); then anything requested while it ran is written too,
+    // until nothing is pending or queued, or a write has failed (F12 round
+    // 1) — for at most FLUSH_ROUNDS rounds: a write can itself cause a new
+    // record (writing a document in an import cycle re-resolves it, DD-08
+    // §15 I24, and re-renders it), which would otherwise keep the flush
+    // going forever. After the rounds, what is left pending is only such an
+    // echo; it resolves true if nothing failed and nothing is still queued.
+    async flush() {
+      for (let round = 0; round < FLUSH_ROUNDS; round += 1) {
+        if (timer !== null) {
+          timer();
+          timer = null;
+        }
+        await write(true);
+        if ((pending === null && outstanding === 0) || failing) break;
       }
-      return write(true);
+      return !failing && outstanding === 0;
     },
+    saved,
     dispose() {
       if (timer !== null) timer();
       timer = null;

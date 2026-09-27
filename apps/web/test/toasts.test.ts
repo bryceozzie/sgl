@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createToasts, TOAST_TTL_MS } from '../src/state/toasts.js';
+import { createToasts, TOAST_TTL_MS, VISIBLE_TOASTS } from '../src/state/toasts.js';
 import { createFakeClock } from './fake-schedule.js';
 
 describe('toasts (DD-08 §11)', () => {
@@ -39,5 +39,75 @@ describe('toasts (DD-08 §11)', () => {
     toasts.dismiss(id);
     expect(toasts.items.value.map((t) => t.message)).toEqual(['b']);
     expect(clock.pendingCount()).toBe(1);
+  });
+
+  describe('at most three on screen (F13)', () => {
+    it('the newest three show; older ones wait behind them, none dropped', () => {
+      const clock = createFakeClock();
+      const toasts = createToasts(clock.schedule);
+      expect(VISIBLE_TOASTS).toBe(3);
+      for (const n of [1, 2, 3, 4, 5]) toasts.push(`error ${n}`, 'error');
+      expect(toasts.visible.value.map((t) => t.message)).toEqual(['error 3', 'error 4', 'error 5']);
+      expect(toasts.hidden.value).toBe(2);
+      // Error toasts still stay until closed: all five are kept.
+      clock.advance(10 * TOAST_TTL_MS);
+      expect(toasts.items.value).toHaveLength(5);
+    });
+
+    it('closing a shown one brings the next older one back', () => {
+      const clock = createFakeClock();
+      const toasts = createToasts(clock.schedule);
+      const ids = [1, 2, 3, 4].map((n) => toasts.push(`error ${n}`, 'error'));
+      toasts.dismiss(ids[3]!);
+      expect(toasts.visible.value.map((t) => t.message)).toEqual(['error 1', 'error 2', 'error 3']);
+      expect(toasts.hidden.value).toBe(0);
+    });
+
+    it('under the cap nothing is held back', () => {
+      const toasts = createToasts(createFakeClock().schedule);
+      toasts.push('a', 'error');
+      toasts.push('b');
+      expect(toasts.visible.value.map((t) => t.message)).toEqual(['a', 'b']);
+      expect(toasts.hidden.value).toBe(0);
+    });
+
+    it('round 1, item 5: errors take the three places before info toasts, and held errors are counted', () => {
+      const clock = createFakeClock();
+      const toasts = createToasts(clock.schedule);
+      const first = toasts.push('error 1', 'error');
+      for (const n of [2, 3, 4]) toasts.push(`error ${n}`, 'error');
+      toasts.push('info 1');
+      toasts.push('info 2');
+      // Newer info toasts never push an error out of view.
+      expect(toasts.visible.value.map((t) => t.message)).toEqual(['error 2', 'error 3', 'error 4']);
+      expect(toasts.hidden.value).toBe(3);
+      expect(toasts.heldErrors.value).toBe(1);
+      // The first error is reachable: close a shown one and it comes forward.
+      toasts.dismiss(toasts.visible.value[2]!.id);
+      expect(toasts.visible.value.map((t) => t.id)).toContain(first);
+      expect(toasts.heldErrors.value).toBe(0);
+    });
+
+    it('two info toasts and no errors: both show (found by the e2e: only the last showed)', () => {
+      const toasts = createToasts(createFakeClock().schedule);
+      toasts.push('info 1');
+      toasts.push('info 2');
+      expect(toasts.visible.value.map((t) => t.message)).toEqual(['info 1', 'info 2']);
+      expect(toasts.hidden.value).toBe(0);
+    });
+
+    it('dismissAll closes every toast, shown or held, and cancels their timers', () => {
+      const clock = createFakeClock();
+      const toasts = createToasts(clock.schedule);
+      for (const n of [1, 2, 3]) toasts.push(`error ${n}`, 'error');
+      toasts.push('info 1');
+      toasts.push('info 2');
+      expect(clock.pendingCount()).toBe(2);
+      toasts.dismissAll();
+      expect(toasts.items.value).toEqual([]);
+      expect(toasts.visible.value).toEqual([]);
+      expect(toasts.hidden.value).toBe(0);
+      expect(clock.pendingCount()).toBe(0);
+    });
   });
 });

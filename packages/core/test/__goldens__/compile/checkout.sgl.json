@@ -129,7 +129,7 @@
       "hidden": false,
       "span": {
         "from": 509,
-        "to": 739
+        "to": 754
       }
     },
     "payments.api": {
@@ -235,8 +235,8 @@
       },
       "hidden": false,
       "span": {
-        "from": 741,
-        "to": 783
+        "from": 756,
+        "to": 798
       }
     }
   },
@@ -256,8 +256,8 @@
       "declaredIn": null,
       "hidden": false,
       "span": {
-        "from": 785,
-        "to": 807
+        "from": 800,
+        "to": 822
       }
     },
     {
@@ -277,8 +277,8 @@
       "declaredIn": null,
       "hidden": false,
       "span": {
-        "from": 808,
-        "to": 854
+        "from": 823,
+        "to": 869
       }
     },
     {
@@ -298,8 +298,8 @@
       "declaredIn": null,
       "hidden": false,
       "span": {
-        "from": 855,
-        "to": 887
+        "from": 870,
+        "to": 902
       }
     },
     {
@@ -355,13 +355,15 @@
       "labelId": "l:e-7cfa36e0eac91b9c",
       "config": {
         "label": "async",
-        "style": "dashed"
+        "style": {
+          "strokeDash": "6 3"
+        }
       },
       "declaredIn": "payments",
       "hidden": false,
       "span": {
         "from": 687,
-        "to": 737
+        "to": 752
       }
     }
   ],

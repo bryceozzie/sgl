@@ -672,6 +672,23 @@ Reviewable branches, in order. Each is one reviewer's work, and each passes the 
      a `stroke-dasharray`.
    - DD-02 §7: the `style` row's type, and the paragraph that calls `dashed` a bareword
      shorthand.
+
+   **Implemented** on `fix/style-shorthand` (from `main` at `b3171e6`). As planned, with these
+   notes:
+   - The fixture is `corpus/unresolved/style-not-object.sgl`. It declares `a` and `b`, so the
+     whole pipeline gives exactly `SGL2011`.
+   - `resolve.test.ts` covers a bareword, a string, a number, an array, a `$var` and a class body.
+     It also checks that an object plus a dotted key is still clean.
+   - Goldens that moved:
+     - the `checkout` and `chains` render goldens, in all four themes;
+     - their AST, CST (`trees/`), resolve and compile goldens, where the source text and the
+       spans after it changed;
+     - the first-run example's AST and CST pins.
+   - `render-svg`'s fonts pin lists every corpus document, so it gains one entry for the new
+     fixture. No existing entry changed.
+   - The e2e check is `apps/web/e2e/style-shorthand.spec.ts`. It reads the computed
+     `stroke-dasharray` (`6 3`).
+   - Boot +5 B gzipped (176.88 kB of 182).
 1. **`feat/help-reference`.**
    - The P5 exports and constants, each used by the code that held the literal. No behaviour
      changes, and no golden moves.
