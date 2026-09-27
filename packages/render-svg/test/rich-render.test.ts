@@ -96,6 +96,13 @@ describe('T43: one nested tspan per marked fragment', () => {
 });
 
 describe('T44: three constant run rules, emitted only when used, in a fixed order', () => {
+  it('an edge label\'s marks alone emit their rule (no node has marks)', async () => {
+    const { rendered } = await rich('a\nb\na -> b: "*e*"\n');
+    expect(rendered.svg).not.toMatch(/<g id="n-[^"]*"[^>]*>(?:(?!<\/g>).)*r-em/s);
+    expect(rendered.styleBlock.split('\n')).toContain('.r-em{font-style:italic}');
+    expect(rendered.styleBlock).not.toMatch(/\.r-(code|strong)\{/);
+  });
+
   it('a document without marks gets none', async () => {
     const { rendered } = await rich('a: "plain"\nb: "2*3*4"\na -> b\n');
     expect(rendered.styleBlock).not.toContain('.r-');
