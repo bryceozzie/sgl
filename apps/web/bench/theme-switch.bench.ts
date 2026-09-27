@@ -192,8 +192,8 @@ const KNOWN_MISSES: ReadonlySet<string> = new Set<string>([]);
  * judges n50/n500/n2000, which hold no markup. A miss is recorded in F9's row,
  * and the response is DD-09 §2's second column, not a change to T43.
  */
-const REPORTED_ONLY: readonly string[] = ['n2000-rich'];
-const SOURCES: Readonly<Record<string, string>> = { n50, n500, n2000, 'n2000-rich': scaleDocument(2000, { rich: true }) };
+const REPORTED_ONLY: readonly string[] = ['n2000-labelled', 'n2000-rich'];
+const SOURCES: Readonly<Record<string, string>> = { n50, n500, n2000, 'n2000-labelled': scaleDocument(2000, { labelled: true }), 'n2000-rich': scaleDocument(2000, { rich: true }) };
 
 vi.setConfig({ testTimeout: 600_000, hookTimeout: 120_000 });
 
