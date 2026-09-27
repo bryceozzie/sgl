@@ -103,13 +103,66 @@ test('the PNG’s text is drawn with the embedded font, not a fallback', async (
 test('an italic label’s PNG is drawn in Inter Italic, as the face’s own metrics say (DD-11 T60)', async ({ page, browserName }) => {
   test.skip(browserName !== 'chromium', 'the probe’s tolerance is measured in Chromium');
   const LABEL = 'Hamburgefontsiv WAVE 0123';
+  // The rasterisation-only copy itself (fix round 1, item 2): every SVG the
+  // rasteriser hands an <img> passes through URL.createObjectURL.
+  await page.evaluate(() => {
+    const copies: Promise<string>[] = [];
+    (window as unknown as { __svgCopies: Promise<string>[] }).__svgCopies = copies;
+    const create = URL.createObjectURL.bind(URL);
+    URL.createObjectURL = (obj: Blob | MediaSource): string => {
+      if (obj instanceof Blob && obj.type === 'image/svg+xml') copies.push(obj.text());
+      return create(obj);
+    };
+  });
   await openFile(page, 'italic.sgl', `a: "*${LABEL}*"\n`);
   await waitForExactNodeCount(page, 1);
-  // The layout of this label has landed (the node is as wide as the label), not the last document's.
+  // This document's own picture, drawn in the real italic. Measured in the
+  // drawn tree itself (the canvas's zoom changes hinting, so an outside
+  // reference does not compare): the run's advance equals a clone of it set
+  // in Inter Italic 500 loaded independently under a probe name, to 0.05 px,
+  // and differs from a clone set upright, which is what a synthetic oblique of
+  // the upright face would measure. (Canvas measureText rounds to whole px
+  // here, 181 against 180: too coarse to tell the two apart.)
+  const advances = (): Promise<{ drawn: number; italic: number; upright: number } | null> =>
+    page.evaluate(async () => {
+      const run = document.querySelector<SVGTextContentElement>('.canvas-host g.rendered[data-origin="live"] g[id="n-a"] tspan.r-em');
+      const url = performance.getEntriesByType('resource').map((e) => e.name).find((n) => /\/inter-latin-500-italic-[^/]*\.woff2$/.test(n));
+      if (run === null || url === undefined) return null;
+      const w = window as unknown as { __probeFace?: boolean };
+      if (!w.__probeFace) {
+        const face = new FontFace('ProbeItalic', `url(${url})`, { style: 'italic', weight: '500' });
+        document.fonts.add(await face.load());
+        w.__probeFace = true;
+      }
+      const text = run.closest('text')!;
+      const clone = (style: string): number => {
+        const c = text.cloneNode(true) as SVGTextElement;
+        c.querySelector('tspan.r-em')!.setAttribute('style', style);
+        text.parentNode!.append(c);
+        const length = c.querySelector<SVGTextContentElement>('tspan.r-em')!.getComputedTextLength();
+        c.remove();
+        return length;
+      };
+      return { drawn: run.getComputedTextLength(), italic: clone("font-family: 'ProbeItalic'; font-style: italic; font-weight: 500"), upright: clone('font-style: normal') };
+    });
+  await expect
+    .poll(async () => {
+      const a = await advances();
+      return a === null ? Infinity : Math.abs(a.drawn - a.italic);
+    })
+    .toBeLessThanOrEqual(0.05);
+  const measured = (await advances())!;
+  expect(Math.abs(measured.italic - measured.upright), JSON.stringify(measured)).toBeGreaterThan(0.5);
+  // …and this label's own layout has landed, not the last document's frames
+  // (a wait, not a font check): the node holds the whole run.
   await expect
     .poll(() => renderedSvg(page).locator('g[id="n-a"] > path.n-shape').evaluate((p) => (p as SVGGraphicsElement).getBBox().width))
-    .toBeGreaterThan(180);
+    .toBeGreaterThan(measured.drawn);
   const saved = await savePng(page, 2);
+  // The copy the PNG was drawn from embeds exactly Inter Italic 500 (T50), no other face.
+  const copies = await page.evaluate(() => Promise.all((window as unknown as { __svgCopies: Promise<string>[] }).__svgCopies));
+  expect(copies).toHaveLength(1);
+  expect([...copies[0]!.matchAll(/@font-face\{font-family:&apos;([^&]*)&apos;;font-style:(\w+);font-weight:(\d+)/g)].map((m) => m.slice(1).join(' '))).toEqual(['Inter italic 500']);
   const probe = await page.evaluate(
     async ({ b64, label }) => {
       const bin = atob(b64);
