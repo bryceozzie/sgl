@@ -85,7 +85,7 @@ api -> queue -> worker -> db    // chain, expands to 3 edges
 
 ```sgl
 api -> db: "reads"                       // string shorthand => @label
-api -> db: { @label: "reads", @style: dashed, @width: 2 }
+api -> db: { @label: "reads", @style: { strokeDash: "6 3", strokeWidth: 2 } }
 ```
 
 ### Strings
@@ -268,7 +268,7 @@ Matching is case-sensitive, like every other path reference, at every level. A q
 **Expansion.** The wildcard is expanded into ordinary edges before anything else happens to them, in the expansion order above (depth-first, child declaration order at each level). Each expanded edge is a normal edge in every respect — it gets the same identity, the same label, and the same `@`-configuration it would have had if written out by hand:
 
 ```sgl
-lane1.* -> switch: { @label: "joins", @style: dashed }
+lane1.* -> switch: { @label: "joins", @style: { strokeDash: "6 3" } }
 ```
 
 gives every expanded edge that label and that style. There is no way to tell, downstream of compilation, that an edge came from a wildcard — which is the point. Adding a child to `lane1` adds one edge and leaves the identity of the others untouched, so diffs and version history stay meaningful.
@@ -291,22 +291,23 @@ gives every expanded edge that label and that style. There is no way to tell, do
 
 | Key | Applies to | Notes |
 |---|---|---|
-| `@label` | node, edge, container | Text with inline Markdown, always on: `**bold**`, `*italic*`, `` `code` ``, and line breaks (`\n`, `"""…"""`). `\*` and `` \` `` write a literal `*` or `` ` `` (§3, Strings and Markdown in labels; A18) |
+| `@label` | node, container, edge, class | Text with inline Markdown, always on: `**bold**`, `*italic*`, `` `code` ``, and line breaks (`\n`, `"""…"""`). `\*` and `` \` `` write a literal `*` or `` ` `` (§3, Strings and Markdown in labels; A18) |
 | `@type` | node, edge | Class reference; may be a list |
-| `@shape` | node | `rect` `round` `circle` `ellipse` `diamond` `hexagon` `cylinder` `cloud` `document` `actor` `package` `note`, or a theme-defined shape |
-| `@icon` | node | Icon reference (see backlog) |
+| `@shape` | node, container, class | `rect` `round` `circle` `ellipse` `diamond` `hexagon` `cylinder` `cloud` `document` `actor` `package` `note`, or a theme-defined shape |
+| `@icon` | — | **Not in v1.0** (backlog C10). Not a key in this version: `SGL2010`, kept with no effect |
 | `@tooltip`, `@link` | node, edge | `@link` restricted to `https:` and `mailto:`; anything else, including in-document `#path`, is dropped with `SGL6001` (DD-07 §8) |
-| `@style.*` | any | Paint overrides: `fill`, `stroke`, `strokeWidth`, `strokeDash`, `opacity`, `font*`, `radius`, `shadow` |
-| `@layout.*` | any | Engine hints. `@layout.engine`, plus free-form engine-specific keys |
+| `@style.*` | any | Paint overrides: `fill`, `stroke`, `strokeWidth`, `strokeDash`, `opacity`, `font*`, `radius`, `shadow`. `@style` is always an object (or dotted keys, `@style.fill: …`); any other value, such as `@style: dashed`, is `SGL2011` and ignored (human decision 2026-09-27). A dashed line is `@style: { strokeDash: "6 3" }`; `strokeDash` also takes the keywords `solid`, `dashed` (`6 3`) and `dotted` (`1 3`) |
+| `@layout.*` | `@layout`: root, node, container; a dotted `@layout.<key>`: node, container, edge | Engine hints. `@layout.engine`, plus free-form engine-specific keys |
 | `@size.*` | node, class | A node's, not a container's (on a container: `SGL2012`, ignored). `width`, `height`, `minWidth`, `minHeight`, `maxWidth`, `aspectRatio` (any other key: `SGL2010`, and no effect). A class's `@size` applies to its nodes (§6). `maxWidth`, or a fixed `width`, wraps the node's title (§3, Markdown in labels) |
-| `@pin` | node | `{ x, y }` — absolute position auto-layout must respect |
-| `@ports` | node | Named anchors |
+| `@pin` | node | `{ x, y }`, in px: where the top-left of the node's frame goes, relative to the top-left of its parent container's content box (the root's: the diagram's origin). Both numbers are required, each within ±100 000 (otherwise `SGL2011`, and the pin is dropped). The `fixed` engine places the node there; an engine that does not honour pins ignores it with `SGL4021` (DD-12) |
+| `@ports` | node, container, class | Named anchors |
 | `@direction` | container | Sugar for `@layout.direction`: `down` `up` `left` `right` |
 | `@order` | node, edge | Sort hint within a container. **On edges it fixes message order** — required by sequence-style layout engines (I3), where declaration order alone is too fragile |
-| `@hidden` | any | Excluded from render but kept in the model |
-| `@a11y.*` | any | `label`, `description`, `role` for the accessibility tree |
-| `@meta.*` | any | Arbitrary user data; never rendered, always round-tripped |
+| `@hidden` | node, container, edge | Excluded from render but kept in the model |
+| `@a11y.*` | node, container, edge | `label` and `description` for the accessibility tree. `role` is **not in v1.0**: it is kept and has no effect |
+| `@meta.*` | any, and the document root | Arbitrary user data; never rendered, always round-tripped |
 
+"Applies to" follows the key registry (`packages/core/src/config-registry.ts`; human decision 2026-09-27), where a node scope covers containers too.
 "Applies to" names *element* scopes: node, edge, container, class. `any` means
 all four — it does not include the document root. Document-level keys are
 listed separately below; a key is valid at the document root only if it
@@ -322,14 +323,17 @@ applies.
 @title: "Payments Platform"
 @theme: "slate-dark"        // or an inline theme object, or a path
 @layout: {
-  engine: "layered"
+  engine: "elk"
   direction: down
-  spacing: { node: 40, rank: 70 }
+  nodeSpacing: 40
+  rankSpacing: 70
 }
 @classes: { ... }           // §6
 @vars: { ... }              // §5
 @imports: [ ... ]           // §8
 ```
+
+**The root `@layout` block** picks the layout engine and sets its options. `engine` names an engine by its id (`sgl.elk`) or by its bare name (`elk`, `grid`, `fixed`, `tree`, `radial`). Every other key is an option of that engine, and it reaches the engine: for that document it overrides the editor's engine options. A key the engine does not declare is `SGL4010`, and ignored. (Human decision, 2026-09-27; DD-12 N22, N40.)
 
 ---
 
@@ -374,7 +378,7 @@ The rules in full (settled with A8 and its first fix round):
 @classes: {
   Service: {
     @shape: round
-    @style: { fill: "@surface.raised", stroke: "@accent" }
+    @style: { fill: "@surface", stroke: "@accent" }
   }
   Datastore: {
     @shape: cylinder
@@ -401,7 +405,7 @@ Classes may extend other classes (`@extends`). Class application order is the de
 5. Inline `@style` / `@size` on the element itself (its own `@size` overrides its classes' per key)
 6. **Theme force** — a theme may *force* paint properties (fill, stroke, text colour, plate, shadow) over everything above, including inline `@style`. Only the built-in `print` theme uses it (every fill white, every stroke and text black, no shadow). Force never touches geometry: a forced geometry key is ignored with a warning. (Human decision, 2026-09-25; DD-04 §4 step 7.)
 
-`@token` references (`"@accent"`, `"@surface.raised"`) resolve against the active theme, so a class written once works in light, dark, and print.
+`@token` references (`"@accent"`, `"@surface"`) resolve against the active theme, so a class written once works in light, dark, and print.
 
 ---
 
@@ -468,7 +472,7 @@ In a document with `@imports`, a class name containing `.` is reserved for impor
 @sgl: "1.0"
 @title: "Checkout Flow"
 @theme: "neutral-light"
-@layout: { engine: "layered", direction: right }
+@layout: { engine: "elk", direction: right }
 
 @vars: { hot: "#DC2626" }
 
@@ -498,7 +502,7 @@ payments: {
   outbox:  Store
 
   api -> ledger
-  api -> outbox: { @label: "async", @style: dashed }
+  api -> outbox: { @label: "async", @style: { strokeDash: "6 3" } }
 }
 
 psp: { @label: "Stripe", @type: External }
@@ -515,7 +519,7 @@ payments.api -> psp: "authorise"
   "@sgl": "1.0",
   "@title": "Checkout Flow",
   "@theme": "neutral-light",
-  "@layout": { "engine": "layered", "direction": "right" },
+  "@layout": { "engine": "elk", "direction": "right" },
   "@vars": { "hot": "#DC2626" },
   "@classes": {
     "Service": { "@shape": "round" },
@@ -540,7 +544,7 @@ payments.api -> psp: "authorise"
     "@edges": [
       { "from": "api", "to": "ledger", "directed": "forward" },
       { "from": "api", "to": "outbox", "directed": "forward",
-        "@label": "async", "@style": { "strokeDash": "4 3" } }
+        "@label": "async", "@style": { "strokeDash": "6 3" } }
     ]
   },
   "psp": { "@label": "Stripe", "@type": ["External"] },
