@@ -91,6 +91,12 @@ These facts shape the design. Each is also in §17 where it contradicts a docume
     there.
   - *The root is relative already.* The host re-origins every result (§2 item 6), so an "absolute"
     pin at the root means "relative to the other root pins" in any case.
+
+  **Root pins (human decision, 2026-09-27, `feat/b5-fixed` fix round 1, item 2):** root-level pins
+  fix the nodes' positions *relative to each other*; the drawing is framed to fit its content (the
+  host re-origins it, DD-06 §5). A node pinned at a negative offset, or a self-loop's teardrop,
+  moves the canvas, and the pinned nodes keep their exact offsets. Spec §4's `@pin` row says so;
+  `fixed.test.ts` pins it through the host sequence.
 - **N3. Pins survive the host's translation as offsets.** A diagram whose pins all start at `(500,
   500)` renders exactly as one starting at `(0, 0)`. E15 (Could) will need the translation to write a
   dragged position back. `quantize` computes it (`x0`, `y0`) and discards it. E15 should add it to
@@ -117,7 +123,8 @@ These facts shape the design. Each is also in §17 where it contradicts a docume
 **Proposed spec text (for the human; not applied).** Language spec §4, the `@pin` row:
 
 > `@pin` | node | `{ x, y }`, in px: where the top-left of the node's frame goes, relative to the
-> top-left of its parent container's content box (the root's: the diagram's origin). The `fixed`
+> top-left of its parent container's content box (the root's: the diagram's origin; *superseded:
+> root pins are relative to each other, see N2*). The `fixed`
 > engine places the node there; other engines ignore it with a warning (`SGL40xx`). Both numbers
 > are required, each within ±100 000.
 

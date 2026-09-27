@@ -16,7 +16,8 @@ import { placePorts } from './ports.js';
 /**
  * `fixed` (DD-12 §4, B5): the escape hatch. Every node with a `@pin` goes
  * where the pin says: the top-left of its frame, relative to the top-left of
- * its parent's content box, or at the root to the diagram's origin (N1, N2,
+ * its parent's content box; root pins are relative to each other, and the
+ * host frames the drawing to fit its content (N1, N2,
  * H2). A node without one is packed below its pinned siblings, as `grid`
  * packs (`packCells`, N10: ⌈√n⌉ columns, the `gap` option, aligned to the
  * start), starting one `gap` below the lowest and at the leftmost pin, or at

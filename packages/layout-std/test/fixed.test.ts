@@ -88,6 +88,45 @@ describe('fixed: pinned nodes (DD-12 N1, N2, H2)', () => {
   });
 });
 
+describe('fixed: root pins fix positions relative to each other; the host frames the drawing (fix round 1, item 2)', () => {
+  // Human decision 2026-09-27: root-level pins are relative to each other,
+  // and the drawing is framed to fit its content (DD-06 §5: the host
+  // re-origins every result to its extent plus a 16 px margin). So a node
+  // pinned at a negative offset, or a self-loop's teardrop, moves the whole
+  // canvas, while the pinned nodes keep their exact offsets.
+  const origin = (r: LayoutResult, id: string) => ({ x: frame(r, id).x, y: frame(r, id).y });
+  const offset = (r: LayoutResult, from: string, to: string) => ({ x: origin(r, to).x - origin(r, from).x, y: origin(r, to).y - origin(r, from).y });
+
+  it('keeps the pinned offsets exact while a negative sibling and a self-loop move the canvas', async () => {
+    const plain = (await runHostSequence(fixedEngine, layoutInputForSource('a: { @pin: { x: 0, y: 0 } }\nb: { @pin: { x: 200, y: 50 } }\n'), {}, METRICS)).result;
+    // Framed to the content: `a`, the top-left node, sits at the margin.
+    expect(origin(plain, 'a')).toEqual({ x: 16, y: 16 });
+    expect(offset(plain, 'a', 'b')).toEqual({ x: 200, y: 50 });
+
+    const input = layoutInputForSource('a: { @pin: { x: 0, y: 0 } }\nb: { @pin: { x: 200, y: 50 } }\nc: { @pin: { x: -100, y: 10 } }\na -> a\n');
+    const { result } = await runHostSequence(fixedEngine, input, {}, METRICS);
+    // The canvas moved: `c` is now the leftmost node, at the margin, and the
+    // teardrop above `a` pushes everything down.
+    expect(origin(result, 'c').x).toBe(16);
+    expect(origin(result, 'a').x).toBe(116);
+    expect(origin(result, 'a').y).toBeGreaterThan(16);
+    // The pins did not: every offset is exactly the difference of the pins.
+    expect(offset(result, 'a', 'b')).toEqual({ x: 200, y: 50 });
+    expect(offset(result, 'a', 'c')).toEqual({ x: -100, y: 10 });
+    expect(result.bounds.x).toBe(0);
+    expect(result.bounds.y).toBe(0);
+  });
+
+  it('draws a document whose pins all start at (500, 500) exactly as one whose pins start at (0, 0) (N3)', async () => {
+    const at = (x: number, y: number) => `a: { @pin: { x: ${x}, y: ${y} } }\nb: { @pin: { x: ${x + 120}, y: ${y + 40} } }\na -> b\n`;
+    const near = (await runHostSequence(fixedEngine, layoutInputForSource(at(0, 0)), {}, METRICS)).result;
+    const far = (await runHostSequence(fixedEngine, layoutInputForSource(at(500, 500)), {}, METRICS)).result;
+    expect(JSON.stringify(far.nodes)).toBe(JSON.stringify(near.nodes));
+    expect(JSON.stringify(far.edges)).toBe(JSON.stringify(near.edges));
+    expect(far.bounds).toEqual(near.bounds);
+  });
+});
+
 describe('fixed: containers (DD-12 N12, N13)', () => {
   it('derives a container’s size from its children’s far edges plus padding', async () => {
     const input = layoutInputForSource('box: {\n  @label: "B"\n  a: { @pin: { x: 10, y: 0 } }\n  b: { @pin: { x: 0, y: 50 } }\n}\n');
