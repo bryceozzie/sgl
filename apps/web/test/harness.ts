@@ -2,15 +2,17 @@ import { effect } from '@preact/signals';
 import { parse } from '@sgl/core';
 import type { LayoutHost, ResolvedThemeMetricsView } from '@sgl/layout-api';
 import { runHostSequence } from '@sgl/layout-api/conformance';
+import { elkEngine } from '@sgl/layout-elk';
 import { gridEngine } from '@sgl/layout-std';
 import { StaticMetricsMeasurer } from '@sgl/measure';
 import { createPipeline, type Pipeline } from '../src/state/pipeline.js';
 import type { AppMeasurer, Cancel, PipelineDeps, Schedule } from '../src/state/types.js';
 
 /**
- * The real pipeline over real stages and a real `grid` layout, run in
+ * The real pipeline over real stages and real layout engines, run in
  * process: `StaticMetricsMeasurer` (deterministic, no canvas), a layout host
- * that runs `grid` through the worker's own host sequence
+ * that runs the requested engine (`HARNESS_ENGINES`: every engine the worker
+ * registers, DD-13 P18) through the worker's own host sequence
  * (`runHostSequence`: layout → host fallbacks → quantize) and answers on a
  * later macrotask, and a debounce clock `settle()` drives. For tests that need
  * genuine SVG out of the app's pipeline — the theme fast path's byte-equality
@@ -29,6 +31,12 @@ class TestMeasurer extends StaticMetricsMeasurer implements AppMeasurer {
     // No fonts to wait for.
   }
 }
+
+/** The engines `layout.worker.ts` registers, in its order: `elk` and `grid`.
+ *  `help-examples.test.ts` checks the ids against `REGISTERED_ENGINES`, the
+ *  list the pickers and the help reference read, so a new worker engine
+ *  cannot be missing here. */
+export const HARNESS_ENGINES = [elkEngine, gridEngine] as const;
 
 const macrotask = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -61,9 +69,10 @@ export async function createHarness(source: string, deps: Partial<PipelineDeps> 
   const host: LayoutHost = {
     async run(engineId, input, options) {
       requests += 1;
-      if (engineId !== gridEngine.id) throw new Error(`the harness lays out with grid only, not ${engineId}`);
+      const engine = HARNESS_ENGINES.find((e) => e.id === engineId);
+      if (engine === undefined) throw new Error(`the harness has no engine ${engineId}`);
       await macrotask();
-      const { result } = await runHostSequence(gridEngine, input, options, METRICS);
+      const { result } = await runHostSequence(engine, input, options, METRICS);
       return { value: result, diagnostics: [] };
     },
     dispose() {
