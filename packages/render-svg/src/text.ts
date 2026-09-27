@@ -13,9 +13,8 @@ import type { LabelPlacementView, RunView, TextLayoutView } from './layout-view.
 import { escapeXml } from './security.js';
 import { num, nums } from './num.js';
 
-/** The renderer's own metrics: an estimated advance, and the ascent it has
- *  always drawn with (DD-11 §19 item 5: Inter's measured ascent is larger). */
-const FALLBACK_ADVANCE = 0.52;
+/** The ascent the renderer has always drawn with (DD-11 §19 item 5: Inter's
+ *  measured ascent is larger; execution plan §2.1 F25). */
 const FALLBACK_ASCENT = 0.8;
 
 function geometryNumber(style: ComputedStyle, key: string, fallback: number): number {
@@ -33,25 +32,17 @@ function geometryNumber(style: ComputedStyle, key: string, fallback: number): nu
  * and `lineHeight` alone, as they always have been — `0.8 × fontSize` to the
  * first baseline, `fontSize × lineHeight` per line — which keeps every existing
  * render byte-identical (T42; the measured ascent is §19 item 5's decision).
- * The widths are estimates: no emitted attribute reads them.
+ * Widths and run `x`s are 0: no emitted attribute reads them (fix round 1
+ * dropped the old per-glyph width estimate; its bytes paid for item 5).
  */
 export function textBlock(lines: readonly (readonly RunView[])[], style: ComputedStyle): TextLayoutView {
   const fontSize = geometryNumber(style, 'fontSize', 13);
-  const lineHeight = geometryNumber(style, 'lineHeight', 1.3);
-  const letterSpacing = geometryNumber(style, 'letterSpacing', 0);
-  const lineHeightPx = fontSize * lineHeight;
+  const lineHeightPx = fontSize * geometryNumber(style, 'lineHeight', 1.3);
   const ascent = fontSize * FALLBACK_ASCENT;
-
-  const laid = lines.map((runs, i) => {
-    const glyphs = [...runs.map((r) => r.text).join('')].length;
-    const width = glyphs * fontSize * FALLBACK_ADVANCE + Math.max(0, glyphs - 1) * letterSpacing;
-    return { y: ascent + i * lineHeightPx, width, runs: runs.map((r) => ({ ...r, x: 0 })) };
-  });
-
   return {
-    width: laid.reduce((w, l) => Math.max(w, l.width), 0),
+    width: 0,
     height: Math.max(lines.length, 1) * lineHeightPx,
-    lines: laid,
+    lines: lines.map((runs, i) => ({ y: ascent + i * lineHeightPx, width: 0, runs: runs as TextLayoutView['lines'][number]['runs'] })),
     ascent,
   };
 }

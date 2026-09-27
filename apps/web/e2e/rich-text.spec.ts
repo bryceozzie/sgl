@@ -1,5 +1,7 @@
+import { readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { expect, test, type Page, type Request } from '@playwright/test';
-import { EXAMPLE_NODE_COUNT, renderedSvg, setSource, waitForExactNodeCount, waitForNodeCount } from './helpers.js';
+import { EXAMPLE_NODE_COUNT, renderedSvg, saveAs, setSource, waitForExactNodeCount, waitForNodeCount } from './helpers.js';
 
 /**
  * A18 branch 2 (DD-11 T53): the lazy `rich-text` chunk — the inline parser and
@@ -91,6 +93,58 @@ test('code is never italic, as the browser computes it: `b` inside *a `b`* is up
   expect(style.style).toBe('normal');
   expect(style.family).toMatch(/^"IBM Plex Mono"/);
   expect(await renderedSvg(page).locator('g[id="n-a"] tspan.r-em:not(.r-code)').evaluate((el) => getComputedStyle(el).fontStyle)).toBe('italic');
+});
+
+/**
+ * Fix round 1, item 5: a document with no markup whose `@style` asks for weight
+ * 700 (or italic) is drawn on screen in the same face its export embeds: the
+ * real Inter 700, registered with the run faces, not Inter 600 by font
+ * matching (which is what the screen drew while only markup loaded them).
+ * The drawn advance is compared, in the drawn tree, with a clone set in Inter
+ * 700 loaded independently under a probe name.
+ */
+test('a @style asking for weight 700 with no markup is drawn in the face its export embeds', async ({ page }) => {
+  const LABEL = 'Hamburgefontsiv WAVE 0123';
+  await page.goto('/');
+  await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+  await setSource(page, `a: { @label: "${LABEL}", @style: { fontWeight: 700 } }\n`);
+  await waitForExactNodeCount(page, 1);
+  await expect(renderedSvg(page).locator('g[id="n-a"] text')).toHaveText(LABEL);
+  // The shipped files, as the build emitted them.
+  const assets = readdirSync(fileURLToPath(new URL('../dist/assets/', import.meta.url)));
+  const asset = (re: RegExp): string => `/assets/${assets.find((f) => re.test(f))!}`;
+  const urls = { bold: asset(/^inter-latin-700-normal-[\w-]+\.woff2$/), semibold: asset(/^inter-latin-600-normal-[\w-]+\.woff2$/) };
+  const probe = (): Promise<{ drawn: number; bold: number; semibold: number } | null> =>
+    page.evaluate(async (urls) => {
+      const text = document.querySelector<SVGTextElement>('.canvas-host g.rendered[data-origin="live"] g[id="n-a"] text');
+      if (text === null) return null;
+      const w = window as unknown as { __probe?: boolean };
+      if (!w.__probe) {
+        document.fonts.add(await new FontFace('ProbeBold', `url(${urls.bold})`, { weight: '700' }).load());
+        document.fonts.add(await new FontFace('ProbeSemibold', `url(${urls.semibold})`, { weight: '600' }).load());
+        w.__probe = true;
+      }
+      const clone = (style: string): number => {
+        const c = text.cloneNode(true) as SVGTextElement;
+        c.setAttribute('style', style);
+        text.parentNode!.append(c);
+        const length = c.getComputedTextLength();
+        c.remove();
+        return length;
+      };
+      return { drawn: text.getComputedTextLength(), bold: clone("font-family: 'ProbeBold'; font-weight: 700"), semibold: clone("font-family: 'ProbeSemibold'; font-weight: 600") };
+    }, urls);
+  await expect
+    .poll(async () => {
+      const p = await probe();
+      return p === null ? Infinity : Math.abs(p.drawn - p.bold);
+    })
+    .toBeLessThanOrEqual(0.05);
+  const p = (await probe())!;
+  expect(Math.abs(p.bold - p.semibold), JSON.stringify(p)).toBeGreaterThan(0.5);
+  // …and the export embeds exactly that face.
+  const saved = (await saveAs(page, 'svg')).text;
+  expect([...saved.matchAll(/@font-face\{font-family:&apos;([^&]*)&apos;;font-style:(\w+);font-weight:(\d+)/g)].map((m) => m.slice(1).join(' '))).toEqual(['Inter normal 700']);
 });
 
 test('typing **x** gives a tspan with computed font-weight 700 (DD-11 T60)', async ({ page }) => {

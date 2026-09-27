@@ -397,7 +397,10 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
       const failed = richFailed.value;
       inject('styleGraph');
       const s = styleGraph(semanticGraph, resolvedTheme, classes);
-      if (loaded || !deps.loadRichText || !(needsInline(semanticGraph) || needsWrap(s.value))) return s;
+      // Fix round 1, item 5: a label style asking for a run face (weight above
+      // 600, or italic) loads the chunk too, which registers the faces, so the
+      // screen draws the face the export embeds even without markup.
+      if (loaded || !deps.loadRichText || !(needsInline(semanticGraph) || needsWrap(s.value) || Object.values(s.value.labelStyles).some(({ geometry: g }) => g['fontStyle'] === 'italic' || (g['fontWeight'] as number) > 600))) return s;
       if (requestRichText()) throw HOLD;
       // Degraded (fix round 1, item 2): one warning, here, for both gates. It
       // is about the app, not a place in the document, so it has no span.

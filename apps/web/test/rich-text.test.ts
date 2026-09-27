@@ -107,6 +107,17 @@ describe('the rich-text chunk (DD-11 T53)', () => {
     h.dispose();
   });
 
+  it('a label style asking for a run face (weight over 600, or italic) loads the chunk without markup; 600 does not (fix round 1, item 5)', async () => {
+    for (const [style, loads] of [['fontWeight: 700', true], ['fontStyle: italic', true], ['fontWeight: 600', false]] as const) {
+      const lazy = lazyRichText();
+      lazy.release();
+      const h = await createHarness(`a: { @label: "Plain", @style: { ${style} } }\nb\n`, { loadRichText: lazy.loadRichText }, { firstRender: false });
+      await h.settle();
+      expect(lazy.loadRichText.mock.calls.length, style).toBe(loads ? 1 : 0);
+      h.dispose();
+    }
+  });
+
   it('hands the measurer layoutWrapped once loaded, and loads once however many edits follow', async () => {
     const lazy = lazyRichText();
     const measurer = new (class extends StaticMetricsMeasurer {
