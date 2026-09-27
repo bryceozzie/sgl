@@ -9,7 +9,7 @@
 
 It **does not replace** [07 — Execution plan](07-execution-plan.md) §2 and §2.1. Those remain the authoritative record of the build and of the open findings; read them first. This file adds what 07 doesn't hold: in-flight branches, pending next steps, and working practices.
 
-*Last updated: 2026-09-27 by the orchestrator (cloud session): A18 merged to `main` (§2). Next: the rest of Stage L (§3).*
+*Last updated: 2026-09-27 by the orchestrator (cloud session): A18 merged to `main` at `1e92015` and verified there from clean (5360 Vitest, 109/109 e2e). In flight: **F20 boot headroom** on `feat/boot-headroom` (goal: reclaim ≥2–3 kB by lazy-loading, no limit change, no golden change), because 30 B of headroom blocks every boot-path feature. Then the rest of Stage L (§3).*
 
 ---
 
