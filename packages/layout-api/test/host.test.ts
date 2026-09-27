@@ -1,7 +1,7 @@
 import { asNodeId, NO_SPAN, type GraphNode, type SemanticGraph } from '@sgl/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LayoutInput, LayoutResult, ResolvedThemeMetricsView } from '../src/contract.js';
-import { ABORT_ESCALATION_MS, createWorkerHost, DEFAULT_TIMEOUT_MS } from '../src/host.js';
+import { ABORT_ESCALATION_MS, createWorkerHost, DEFAULT_TIMEOUT_MS, engineNotes, MAX_ENGINE_NOTES } from '../src/host.js';
 import type { HostToWorker, WorkerToHost } from '../src/protocol.js';
 
 /**
@@ -248,6 +248,33 @@ describe('createWorkerHost (DD-06 §3, Stage H decision D1)', () => {
       ];
       const { diagnostics } = await outcome({ notes });
       expect(diagnostics.map((d) => d.code)).toEqual(['SGL4021', 'SGL4003']);
+    });
+
+    // Fix round 1, item 1: a sparse or huge array must not freeze the main thread.
+    const elapsedMs = (f: () => unknown): number => {
+      const t0 = process.hrtime.bigint();
+      f();
+      return Number(process.hrtime.bigint() - t0) / 1e6;
+    };
+
+    it('a sparse array of length 1e9 is read in under 50 ms', () => {
+      expect(elapsedMs(() => engineNotes(new Array(1e9)))).toBeLessThan(50);
+      expect(engineNotes(new Array(2 ** 32 - 1))).toEqual([]);
+    });
+
+    it(`1 000 valid notes give at most ${MAX_ENGINE_NOTES} diagnostics (a silent cap: no catalogue row says how many were dropped)`, async () => {
+      expect(MAX_ENGINE_NOTES).toBe(100);
+      const notes = Array.from({ length: 1000 }, (_, i) => ({ code: 'SGL4003', span: { from: i, to: i + 1 }, params: { node: `n${i}` } }));
+      const { diagnostics } = await outcome({ notes });
+      expect(diagnostics).toHaveLength(100);
+      expect(diagnostics[99]!.message).toBe('`n99` extends outside its container after layout.');
+    });
+
+    it('a params object with a million keys costs no more than its placeholders', () => {
+      const params: Record<string, string> = { node: 'a' };
+      for (let i = 0; i < 1e6; i++) params[`k${i}`] = 'x';
+      const notes = Array.from({ length: 100 }, () => ({ code: 'SGL4003', span: SPAN, params }));
+      expect(elapsedMs(() => engineNotes(notes))).toBeLessThan(50);
     });
   });
 

@@ -308,27 +308,37 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
   };
 }
 
+/** At most this many of an engine's notes are read (fix round 1, item 1). The
+ *  rest are dropped silently: no catalogue row says "n more were dropped". */
+export const MAX_ENGINE_NOTES = 100;
+
 /**
  * An engine's `LayoutResult.notes` as diagnostics (DD-12 N20). The worker is
  * untrusted (B17), so each note is checked field by field: a `LAYOUT_CATALOGUE`
  * code whose row is not an error (an engine that fails throws, which is
- * `SGL4011`), a span of two finite numbers (copied), and parameters that are
- * strings or finite numbers. The message is the catalogue's, never the
- * engine's. Anything else is dropped without a word.
+ * `SGL4011`), a span of two finite numbers (copied), and, for each of the
+ * template's own placeholders only, a string or finite-number parameter. The
+ * message is the catalogue's, never the engine's. Anything else is dropped
+ * without a word. Only the first `MAX_ENGINE_NOTES` entries are read, so a
+ * huge or sparse array costs nothing (fix round 1, item 1).
  */
 export function engineNotes(notes: unknown): Diagnostic[] {
   const out: Diagnostic[] = [];
   if (!Array.isArray(notes)) return out;
-  for (const note of notes as readonly ({ code?: unknown; span?: { from?: unknown; to?: unknown }; params?: unknown } | null)[]) {
+  const n = Math.min(notes.length, MAX_ENGINE_NOTES);
+  for (let i = 0; i < n; i++) {
+    const note = notes[i] as { code?: unknown; span?: { from?: unknown; to?: unknown }; params?: Record<string, unknown> } | null | undefined;
     const code = note?.code;
     const from = note?.span?.from;
     const to = note?.span?.to;
     if (typeof code !== 'string' || !Object.hasOwn(LAYOUT_CATALOGUE, code)) continue;
-    if (LAYOUT_CATALOGUE[code as LayoutDiagnosticCode].severity === 'error') continue;
+    const row = LAYOUT_CATALOGUE[code as LayoutDiagnosticCode];
+    if (row.severity === 'error') continue;
     if (!Number.isFinite(from) || !Number.isFinite(to)) continue;
     const params: Record<string, string | number> = {};
-    if (typeof note?.params === 'object' && note.params !== null) {
-      for (const [k, v] of Object.entries(note.params)) if (typeof v === 'string' || Number.isFinite(v)) params[k] = v as string | number;
+    for (const [, k] of row.template.matchAll(/\{(\w+)\}/g)) {
+      const v = typeof note?.params === 'object' && note.params !== null && Object.hasOwn(note.params, k!) ? note.params[k!] : undefined;
+      if (typeof v === 'string' || Number.isFinite(v)) params[k!] = v as string | number;
     }
     out.push(layoutDiagnostic(code as LayoutDiagnosticCode, { from: from as number, to: to as number }, params));
   }
