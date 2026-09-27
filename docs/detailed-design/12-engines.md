@@ -109,6 +109,10 @@ These facts shape the design. Each is also in §17 where it contradicts a docume
   `1e308` would make `SGL4002` reject the whole result) and keeps PNG export's 16 384 px cap
   meaningful. A class-level pin would put every member at the same place, so classes are
   excluded.* Variables work (`@pin: $origin`), because resolution runs first.
+  **The bound is per pin; nested pins add up** (`feat/b5-fixed` fix round 1, item 4, orchestrator
+  decision): three nested containers each pinned at 100 000 put a leaf past 300 000. No warning is
+  added; the numbers stay finite, so the host accepts the result and frames the drawing to fit
+  (`fixed.test.ts`, with a bounds golden, `__goldens__/fixed/nested-pins-past-bound.json`).
 - **N5. A container may be pinned (N12).** The registry's `node` scope already covers containers.
   `@size` on a container stays `SGL2012`, so a container's size is always derived (N12).
 - **N6. ⚑ Under an engine that does not honour pins, a `@pin` is a warning at the key: proposed
