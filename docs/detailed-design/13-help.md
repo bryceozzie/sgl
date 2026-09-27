@@ -735,7 +735,7 @@ Reviewable branches, in order. Each is one reviewer's work, and each passes the 
 
    **Implemented** on `feat/help-content` (from `main` at `b1692bb`). No golden moved; the core
    bundle is unchanged (176.96 kB of 182, the same boot chunks). Content: the quick start and all
-   33 key facts (`@pin` included), in 23 files, with 62 examples and 3 snippets. Files:
+   33 key facts (`@pin` included), in 23 files, with 65 examples and 3 snippets. Files:
    `build/help-content.ts` (`compileHelp`), `build/help-plugin.ts` (the plugin, `readHelpDir`,
    `compileHelpDir`), `src/help/content.ts` (the tree's types), `src/help/join.ts` (`joinHelp`,
    `referenceIds`), `test/help-check.ts` (the checks as pure functions), and the three test files.
@@ -764,8 +764,16 @@ Reviewable branches, in order. Each is one reviewer's work, and each passes the 
      entries; it applies once `diag` is enforced (branch 3), with a provisional list of codes no
      document can cause (`NOT_DOCUMENT_REACHABLE`) for branch 3 to confirm.
    - **`preview=false` must really not render**, not only carry an `expect`.
-   - **The harness** runs `elk` and `grid` in process (`HARNESS_ENGINES`). It does not run the
-     host's `engineNotes`, so an engine note (`fixed`'s `SGL4020`) will need it when B5 lands.
+   - **The harness** runs every worker engine in process (`HARNESS_ENGINES`: `elk`, `grid`,
+     `fixed`), and turns an engine's notes into diagnostics through the host's own `engineNotes`,
+     so `SGL4020` and `SGL4022` appear as in the app.
+   - **After merging `feat/b5-fixed`** (P21: help merged second): `fixed` joined `HARNESS_ENGINES`
+     and `HELP_ENGINES`, whose tests against `REGISTERED_ENGINES` failed until it did.
+     `key/layout.engine`'s values are now the bare names (`elk`, `grid`, `fixed`), as help branch
+     1's note asked. `@pin`'s prose and examples show `fixed` honouring pins (root pins relative to
+     each other, nested pins, `SGL4020` for an unpinned node), and keep one `SGL4021` under `elk`.
+     Root `@layout` options are still described as checked but not yet applied: whichever of this
+     and `fix/root-layout-options` merges second updates that.
    - `build/node-modules.d.ts` declares the three Node functions the plugin uses; this app has no
      `@types/node`.
    - **Found while writing the prose (help follows the build, P2):** a root `@layout` option and

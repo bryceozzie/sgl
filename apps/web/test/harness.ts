@@ -1,9 +1,10 @@
 import { effect } from '@preact/signals';
 import { parse } from '@sgl/core';
 import type { LayoutHost, ResolvedThemeMetricsView } from '@sgl/layout-api';
+import { engineNotes } from '@sgl/layout-api';
 import { runHostSequence } from '@sgl/layout-api/conformance';
 import { elkEngine } from '@sgl/layout-elk';
-import { gridEngine } from '@sgl/layout-std';
+import { fixedEngine, gridEngine } from '@sgl/layout-std';
 import { StaticMetricsMeasurer } from '@sgl/measure';
 import { createPipeline, type Pipeline } from '../src/state/pipeline.js';
 import type { AppMeasurer, Cancel, PipelineDeps, Schedule } from '../src/state/types.js';
@@ -32,11 +33,11 @@ class TestMeasurer extends StaticMetricsMeasurer implements AppMeasurer {
   }
 }
 
-/** The engines `layout.worker.ts` registers, in its order: `elk` and `grid`.
+/** The engines `layout.worker.ts` registers, in its order: `elk`, `grid` and `fixed`.
  *  `help-examples.test.ts` checks the ids against `REGISTERED_ENGINES`, the
  *  list the pickers and the help reference read, so a new worker engine
  *  cannot be missing here. */
-export const HARNESS_ENGINES = [elkEngine, gridEngine] as const;
+export const HARNESS_ENGINES = [elkEngine, gridEngine, fixedEngine] as const;
 
 const macrotask = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -72,8 +73,11 @@ export async function createHarness(source: string, deps: Partial<PipelineDeps> 
       const engine = HARNESS_ENGINES.find((e) => e.id === engineId);
       if (engine === undefined) throw new Error(`the harness has no engine ${engineId}`);
       await macrotask();
-      const { result } = await runHostSequence(engine, input, options, METRICS);
-      return { value: result, diagnostics: [] };
+      const { raw, result } = await runHostSequence(engine, input, options, METRICS);
+      // The host's own notes path (`host.ts`): an engine's notes, such as
+      // `fixed`'s SGL4020, become diagnostics exactly as in the app, capped
+      // with SGL4022. `raw` is what the worker posts before the host quantizes.
+      return { value: result, diagnostics: engineNotes(raw.notes) };
     },
     dispose() {
       // Nothing to release.

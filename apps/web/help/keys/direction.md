@@ -6,7 +6,7 @@ Aliases: flow, orientation, left to right, top to bottom
 
 Diagnostics: SGL4010
 
-It is checked like any `@layout` key. `elk` has a `direction` option, but in this version the direction that reaches it is the one set in the toolbar's Options, so `@direction` in the document does not change the layout yet. `grid` has no direction, so there it is ignored with a warning.
+It is checked like any `@layout` key. `elk` has a `direction` option, but in this version the direction that reaches it is the one set in the toolbar's Options, so `@direction` in the document does not change the layout yet. `grid` and `fixed` have no direction, so under them it is ignored with a warning.
 
 ```sgl snippet
 @direction: right

@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { elkDescriptor } from '@sgl/layout-elk/descriptor';
-import { gridDescriptor } from '@sgl/layout-std/descriptor';
+import { fixedDescriptor, gridDescriptor } from '@sgl/layout-std/descriptor';
 import type { Plugin } from 'vite';
 import { referenceIds } from '../src/help/join.js';
 import type { HelpContent } from '../src/help/content.js';
@@ -30,7 +30,7 @@ export const HELP_DIR = fileURLToPath(new URL('../help/', import.meta.url));
 /** The engines the worker registers (`layout.worker.ts`), by descriptor: the
  *  build cannot import `io/app-boot.ts`'s `REGISTERED_ENGINES` (it imports a
  *  `?raw` example), so `help-examples.test.ts` holds this list to it. */
-export const HELP_ENGINES = [elkDescriptor, gridDescriptor] as const;
+export const HELP_ENGINES = [elkDescriptor, gridDescriptor, fixedDescriptor] as const;
 
 /** Every `.md` file under `dir`, as `compileHelp` takes them: the quick start
  *  first, then by path, so the order is the same on every machine. */

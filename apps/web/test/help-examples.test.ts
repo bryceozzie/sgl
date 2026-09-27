@@ -1,5 +1,6 @@
 import { parse } from '@sgl/core';
 import { parseInline } from '@sgl/core/inline';
+import { MAX_ENGINE_NOTES } from '@sgl/layout-api';
 import { BUILT_IN } from '@sgl/theme';
 import { layoutWrapped } from '@sgl/text/wrap';
 import { describe, expect, it } from 'vitest';
@@ -78,6 +79,17 @@ describe('help examples (DD-13 P18)', () => {
 
   it('the harness lays out with every engine the worker registers', () => {
     expect(HARNESS_ENGINES.map((e) => e.id)).toEqual(REGISTERED_ENGINES.map((e) => e.id));
+  });
+
+  it('the harness reports engine notes through the host\'s path: SGL4020 per node, capped with SGL4022', async () => {
+    const n = MAX_ENGINE_NOTES + 3;
+    const source = Array.from({ length: n }, (_, i) => `n${i}`).join('\n');
+    const h = await createHarness(source, { defaultEngineId: 'sgl.fixed', engineSchemas: (id) => REGISTERED_ENGINES.find((e) => e.id === id) }, { firstRender: false });
+    await h.settle();
+    const codes = h.pipeline.diags.value.map((d) => d.code);
+    expect(codes.filter((c) => c === 'SGL4020')).toHaveLength(MAX_ENGINE_NOTES);
+    expect(h.pipeline.diags.value.filter((d) => d.code === 'SGL4022').map((d) => d.message)).toEqual(['3 more layout warnings not shown.']);
+    h.dispose();
   });
 
   it.each(examples.map((x) => [x.id, x] as const))('%s', async (_id, x) => {

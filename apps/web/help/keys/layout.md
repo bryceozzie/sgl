@@ -37,11 +37,11 @@ See also: [Layout engine](#help/key/layout.engine), [Engine hints](#help/key/lay
 
 ## @layout.engine {#key/layout.engine}
 
-The engine that lays out the document, by its id or its short name: `elk` or `grid`. It overrides the Engine picker.
+The engine that lays out the document, by its short name, `elk`, `grid` or `fixed`, or its full id, such as `sgl.grid`. It overrides the Engine picker.
 
-Aliases: engine, elk, grid
+Aliases: engine, elk, grid, fixed
 
-Write it at the document root, as `@layout: { engine: grid }` or `@layout.engine: grid`. `elk` draws layered diagrams with routed edges; `grid` places nodes in rows and columns.
+Write it at the document root, as `@layout: { engine: grid }` or `@layout.engine: grid`. `elk` draws layered diagrams with routed edges; `grid` places nodes in rows and columns; `fixed` places each node at its `@pin`.
 
 ```sgl example title="The short form" engine=grid
 @layout.engine: grid

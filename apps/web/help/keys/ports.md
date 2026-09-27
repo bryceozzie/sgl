@@ -6,7 +6,7 @@ Aliases: port, anchor, attach, connector
 
 Diagnostics: SGL2003, SGL3007
 
-An edge names a port in brackets after the node: `client -> router[in]`. `elk` attaches the edge at the port's side; `grid` does not place ports and attaches to the node's outline.
+An edge names a port in brackets after the node: `client -> router[in]`. `elk` and `fixed` attach the edge at the port's side; `grid` does not place ports and attaches to the node's outline.
 
 ```sgl example title="An input and an output"
 router: { @ports: { in: west, out: east } }
