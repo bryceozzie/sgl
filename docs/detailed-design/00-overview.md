@@ -22,6 +22,7 @@
 | [DD-10](10-build-and-deploy.md) | Monorepo, package builds, Lezer generation, Cloudflare deploy, CI | cross-cutting |
 | [DD-11](11-text.md) | **⟶ v1.0 (A18)** markdown in labels: the inline subset, `"""` strings, styled runs, run faces, line breaking at `maxWidth`, nested `<tspan>`s. Phase 2: all three branches (grammar, text model, render) implemented, merged 2026-09-27 | `@sgl/text` (new), `@sgl/core`, `@sgl/measure`, `@sgl/render-svg`, `apps/web` |
 | [DD-12](12-engines.md) | **⟶ v1.0 (B5)** the remaining engines: `fixed` and `@pin`, `tree`, `radial`; `force` recommended cut. Design only | `@sgl/layout-std`, `@sgl/layout-api`, `@sgl/core`, `apps/web` |
+| [DD-13](13-help.md) | **⟶ v1.0 (E19)** in-app help: the Help drawer, the help page at `#help/…`, a reference generated from the registries, hand-written prose and tested examples with live previews. Design only | `apps/web`, small exports from `@sgl/core`, `@sgl/theme`, `@sgl/render-svg` |
 
 ---
 
