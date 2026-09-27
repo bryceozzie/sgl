@@ -4,6 +4,7 @@ import { asNodeId, diagnostic, NO_SPAN, parse, type Diagnostic, type LabelId } f
 import type { LayoutHost, LayoutInput, LayoutResult, ResolvedThemeMetricsView } from '@sgl/layout-api';
 import type { StageResult } from '@sgl/core';
 import { labelRunKey, StaticMetricsMeasurer } from '@sgl/measure';
+import { REGISTERED_ENGINES } from '../src/io/app-boot.js';
 import { createImportsRuntime } from '../src/state/imports.js';
 import { createPipeline } from '../src/state/pipeline.js';
 import { createMemoryStore, type DocumentRecord, type DocumentStore } from '../src/state/storage.js';
@@ -511,6 +512,45 @@ describe('document overrides (DD-08 §10)', () => {
   it('@layout: { engine: "..." } (object form) is read the same as the dotted form', () => {
     const env = setup('@layout: { engine: "sgl.grid" }\na: "A"');
     expect(env.pipeline.documentEngineId.value).toBe('sgl.grid');
+  });
+});
+
+describe('@pin under the registered engines (DD-12 N6, H4)', () => {
+  const registered = { engineSchemas: (id: string) => REGISTERED_ENGINES.find((e) => e.id === id) };
+
+  it.each(['sgl.grid', 'sgl.elk'])('neither grid nor elk honours pins: SGL4021 at the key under %s', (id) => {
+    const source = 'a: { @pin: { x: 10, y: 20 } }\nb: "B"\n';
+    const env = setup(source, { ...registered, defaultEngineId: id });
+    const warnings = env.pipeline.diags.value.filter((d) => d.code === 'SGL4021');
+    expect(warnings.map((d) => [source.slice(d.span.from, d.span.to), d.message])).toEqual([['@pin', `\`@pin\` is not honoured by engine \`${id}\`; ignored.`]]);
+    // The resolver accepted it: no SGL2010 ("unknown key") any more.
+    expect(env.pipeline.diags.value.map((d) => d.code)).toEqual(['SGL4021']);
+  });
+
+  it('the pin reaches the layout input unchanged, relative to its parent (H2)', async () => {
+    const env = setup('box: {\n  @pin: { x: 5, y: 6 }\n  a: { @pin: { x: -1, y: 2.5 } }\n}\n', registered);
+    await completeOneLayout(env, 'box');
+    const { graph } = env.pending.at(-1)!.input;
+    expect(graph.nodes[asNodeId('box')]!.config.pin).toEqual({ x: 5, y: 6 });
+    expect(graph.nodes[asNodeId('box.a')]!.config.pin).toEqual({ x: -1, y: 2.5 });
+  });
+
+  it('a malformed pin never reaches the layout input', async () => {
+    const env = setup('a: { @pin: { x: 1 } }\n', registered);
+    await completeOneLayout(env, 'a');
+    expect(env.pending.at(-1)!.input.graph.nodes[asNodeId('a')]!.config.pin).toBeUndefined();
+  });
+
+  it("an engine's warning from the host reaches the document's diagnostics beside a landed layout (DD-12 N20, the app half)", async () => {
+    const env = setup('a: "A"');
+    await flushUntil(() => env.calls.some((c) => !c.cancelled));
+    env.fireLatest();
+    await flush();
+    const note = diagnostic('SGL4021', { from: 0, to: 1 }, { id: 'sgl.grid' });
+    env.pending.at(-1)!.resolve({ value: fakeLayoutResult('a'), diagnostics: [note] });
+    await flush();
+    expect(env.pipeline.layout.value).not.toBeNull();
+    expect(env.pipeline.diags.value).toContainEqual(note);
   });
 });
 

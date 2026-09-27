@@ -1,4 +1,4 @@
-import { layoutDiagnostic, NO_SPAN, type StageResult } from '@sgl/core';
+import { LAYOUT_CATALOGUE, layoutDiagnostic, NO_SPAN, type Diagnostic, type LayoutDiagnosticCode, type StageResult } from '@sgl/core';
 import type { LayoutInput, LayoutResult, ResolvedThemeMetricsView } from './contract.js';
 import type { HostToWorker, WorkerToHost } from './protocol.js';
 import { quantize, validateResult } from './validate.js';
@@ -199,7 +199,11 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
         if (state === null) return;
         const diagnostics = validateResult(message.result, state.input.graph, state.engineId);
         const hasError = diagnostics.some((d) => d.severity === 'error');
-        state.resolve(hasError ? { value: null, diagnostics } : { value: quantize(message.result, 64), diagnostics });
+        state.resolve(
+          hasError
+            ? { value: null, diagnostics }
+            : { value: quantize(message.result, 64), diagnostics: [...diagnostics, ...engineNotes(message.result.notes)] },
+        );
         return;
       }
       case 'error': {
@@ -233,9 +237,10 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
         return;
       }
       case 'log':
-        // Nothing surfaces worker-side `ctx.log` calls yet (out of Stage H's
-        // scope); dropped here rather than thrown so a chatty engine cannot
-        // break the host.
+        // `ctx.log` is a developer channel with no code or span, so it is not
+        // how an engine reports a document problem (DD-12 N21: `notes` is);
+        // dropped here rather than thrown so a chatty engine cannot break the
+        // host.
         return;
     }
   }
@@ -301,6 +306,33 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
       }
     },
   };
+}
+
+/**
+ * An engine's `LayoutResult.notes` as diagnostics (DD-12 N20). The worker is
+ * untrusted (B17), so each note is checked field by field: a `LAYOUT_CATALOGUE`
+ * code whose row is not an error (an engine that fails throws, which is
+ * `SGL4011`), a span of two finite numbers (copied), and parameters that are
+ * strings or finite numbers. The message is the catalogue's, never the
+ * engine's. Anything else is dropped without a word.
+ */
+export function engineNotes(notes: unknown): Diagnostic[] {
+  const out: Diagnostic[] = [];
+  if (!Array.isArray(notes)) return out;
+  for (const note of notes as readonly ({ code?: unknown; span?: { from?: unknown; to?: unknown }; params?: unknown } | null)[]) {
+    const code = note?.code;
+    const from = note?.span?.from;
+    const to = note?.span?.to;
+    if (typeof code !== 'string' || !Object.hasOwn(LAYOUT_CATALOGUE, code)) continue;
+    if (LAYOUT_CATALOGUE[code as LayoutDiagnosticCode].severity === 'error') continue;
+    if (!Number.isFinite(from) || !Number.isFinite(to)) continue;
+    const params: Record<string, string | number> = {};
+    if (typeof note?.params === 'object' && note.params !== null) {
+      for (const [k, v] of Object.entries(note.params)) if (typeof v === 'string' || Number.isFinite(v)) params[k] = v as string | number;
+    }
+    out.push(layoutDiagnostic(code as LayoutDiagnosticCode, { from: from as number, to: to as number }, params));
+  }
+  return out;
 }
 
 /**

@@ -19,6 +19,8 @@ export const REGISTERED_ENGINES = [elkDescriptor, gridDescriptor].map((e) => ({
   // What SGL4010 checks `@layout` keys against (fix round 1, item 23).
   ...(e.optionsSchema !== undefined && { optionsSchema: e.optionsSchema }),
   ...(e.hintsSchema !== undefined && { hintsSchema: e.hintsSchema }),
+  // SGL4021 (DD-12 N6): an engine that does not honour `@pin` warns at it.
+  ...(e.capabilities.pins === true && { pins: true }),
 }));
 
 /** ADR-0005: `elk` is the default engine (Stage K undoes Stage I's interim

@@ -26,12 +26,20 @@ import type { JSONSchema7 } from './contract.js';
  * `@layout` sub-key: the squiggle belongs on the key itself.
  *
  * An engine the caller has no schemas for gets (a) only.
+ *
+ * SGL4021 (DD-12 N6, H4), in the same walk: a node's `@pin` under an engine
+ * that does not declare `pins: true` is warned about once per node, at its
+ * first pin key, and ignored. A pin on the root, a class or an edge is the
+ * resolver's `SGL2012` and is not visited. Nodes grafted by `@imports` have
+ * no AST here and are not checked (they cannot be edited from this document).
  */
 
 export interface EngineSchemas {
   readonly id: string;
   readonly optionsSchema?: JSONSchema7;
   readonly hintsSchema?: JSONSchema7;
+  /** The engine's `capabilities.pins` (DD-12 N6); absent means `false`. */
+  readonly pins?: boolean;
 }
 
 interface LayoutKey {
@@ -44,12 +52,17 @@ export function layoutConfigDiagnostics(ast: Document, engine: EngineSchemas): r
   const out: Diagnostic[] = [];
   const declared = declaredKeys(engine);
   const visit = (entries: readonly Entry[], level: 'root' | 'node'): void => {
+    let pinned = level === 'root' || engine.pins === true;
     for (const entry of entries) {
       if (entry.kind === 'NodeDecl') {
         if (entry.value?.kind === 'Block') visit(entry.value.entries, 'node');
         continue;
       }
       if (entry.kind !== 'ConfigEntry') continue;
+      if (!pinned && entry.key[0] === 'pin') {
+        pinned = true;
+        out.push(layoutDiagnostic('SGL4021', entry.keySpan, { id: engine.id }));
+      }
       for (const k of layoutKeys(entry)) {
         if (k.key === 'engine') {
           if (level === 'node' && !namesEngine(k.value, engine.id)) {

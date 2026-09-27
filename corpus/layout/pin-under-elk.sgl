@@ -1,0 +1,9 @@
+// expects: SGL4021
+// A `@pin` under an engine that does not honour pins (DD-12 N6, H4): `elk`
+// here, and `grid` in the pipeline harness, which lays every document out
+// under grid. Neither declares the `pins` capability, so the pin is warned
+// about at its key and ignored; the node is placed as if it had none.
+@layout: { engine: elk }
+a: { @label: "A", @pin: { x: 40, y: 40 } }
+b: "B"
+a -> b

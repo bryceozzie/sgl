@@ -1,0 +1,13 @@
+// expects: SGL4021
+// A child pinned at a negative offset (DD-12 N12) lies outside its parent's
+// content box: under `fixed` (feat/b5-fixed) that is SGL4003 ("extends
+// outside its container"), from the host's validation. Under an engine that
+// does not honour pins (grid in the pipeline harness; elk) the two pins are
+// one SGL4021 each, the second listed in DOWNSTREAM_EXTRA
+// (`packages/render-svg/test/pipeline.test.ts`).
+@layout: { engine: fixed }
+box: {
+  @label: "Box"
+  a: { @label: "A", @pin: { x: -40, y: 0 } }
+  b: { @label: "B", @pin: { x: 40, y: 0 } }
+}

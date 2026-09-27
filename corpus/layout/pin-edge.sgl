@@ -1,0 +1,6 @@
+// expects: SGL2012
+// A `@pin` on an edge (DD-12 N4): pins place nodes, so on an edge it is out
+// of scope, SGL2012, and dropped. It is not SGL4021: that check visits nodes.
+a: "A"
+b: "B"
+a -> b: { @pin: { x: 10, y: 20 } }

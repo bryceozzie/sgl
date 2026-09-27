@@ -169,6 +169,88 @@ describe('createWorkerHost (DD-06 §3, Stage H decision D1)', () => {
     expect(outcome.diagnostics[0]!.severity).toBe('warning');
   });
 
+  describe('engine notes (DD-12 N20): an engine reports on the document through `notes`, rebuilt from the catalogue', () => {
+    const SPAN = { from: 3, to: 7 };
+    const outcome = async (extra: Record<string, unknown>, result: LayoutResult = GOOD_RESULT) => {
+      const { spawn, workers } = makeSpawn();
+      const host = createWorkerHost(spawn);
+      const promise = run(host);
+      workers[0]!.emit({ t: 'result', id: 0, result: { ...result, ...extra } as LayoutResult, ms: 1 });
+      return promise;
+    };
+
+    it('a valid note reaches run()\'s diagnostics with the catalogue\'s severity and message, not the engine\'s', async () => {
+      const note = { code: 'SGL4003', span: SPAN, params: { node: 'a' }, severity: 'error', message: '<b>pwned</b>' };
+      const { value, diagnostics } = await outcome({ notes: [note] });
+      expect(value).not.toBeNull();
+      expect(diagnostics).toEqual([{ code: 'SGL4003', severity: 'warning', message: '`a` extends outside its container after layout.', span: SPAN }]);
+    });
+
+    it('SGL4021 (a warning row added by this branch) passes too', async () => {
+      const { diagnostics } = await outcome({ notes: [{ code: 'SGL4021', span: SPAN, params: { id: 'x.y' } }] });
+      expect(diagnostics.map((d) => [d.code, d.message])).toEqual([['SGL4021', '`@pin` is not honoured by engine `x.y`; ignored.']]);
+    });
+
+    it.each([
+      ['an unknown code', { code: 'SGL9999', span: SPAN }],
+      ['a code outside the layout catalogue', { code: 'SGL2011', span: SPAN }],
+      ['an inherited property name', { code: 'toString', span: SPAN }],
+      ['a code whose catalogue severity is error (SGL4011)', { code: 'SGL4011', span: SPAN, params: { id: 'x', message: 'm' } }],
+      ['a code whose catalogue severity is error (SGL4002)', { code: 'SGL4002', span: SPAN }],
+      ['no span', { code: 'SGL4003' }],
+      ['a span that is not an object', { code: 'SGL4003', span: 'here' }],
+      ['a NaN span field', { code: 'SGL4003', span: { from: Number.NaN, to: 1 } }],
+      ['an infinite span field', { code: 'SGL4003', span: { from: 0, to: Number.POSITIVE_INFINITY } }],
+      ['a string span field', { code: 'SGL4003', span: { from: '0', to: 1 } }],
+      ['a null note', null],
+      ['a number note', 5],
+    ])('drops %s', async (_, note) => {
+      const { value, diagnostics } = await outcome({ notes: [note, { code: 'SGL4003', span: SPAN, params: { node: 'ok' } }] });
+      expect(value).not.toBeNull();
+      expect(diagnostics.map((d) => d.message)).toEqual(['`ok` extends outside its container after layout.']);
+    });
+
+    it('`notes` that is not an array is ignored without a throw', async () => {
+      for (const notes of [{ 0: { code: 'SGL4003', span: SPAN } }, 'SGL4003', 7, null]) {
+        const { value, diagnostics } = await outcome({ notes });
+        expect(value).not.toBeNull();
+        expect(diagnostics).toEqual([]);
+      }
+    });
+
+    it('a parameter that is not a string or a finite number is dropped, leaving its placeholder', async () => {
+      const params = { node: { toString: () => 'x' }, id: Number.NaN };
+      const { diagnostics } = await outcome({ notes: [{ code: 'SGL4021', span: SPAN, params }, { code: 'SGL4003', span: SPAN, params: { node: 12 } }] });
+      expect(diagnostics.map((d) => d.message)).toEqual(['`@pin` is not honoured by engine `{id}`; ignored.', '`12` extends outside its container after layout.']);
+    });
+
+    it('the span is copied, so nothing else the engine put on it survives', async () => {
+      const { diagnostics } = await outcome({ notes: [{ code: 'SGL4003', span: { from: 1, to: 2, extra: 'x' }, params: { node: 'a' } }] });
+      expect(diagnostics[0]!.span).toEqual({ from: 1, to: 2 });
+    });
+
+    it('`LayoutResult.diagnostics` from an engine is ignored: only notes are trusted', async () => {
+      const forged = { code: 'SGL4003', severity: 'warning', message: 'forged', span: SPAN };
+      const { diagnostics } = await outcome({ diagnostics: [forged] });
+      expect(diagnostics).toEqual([]);
+    });
+
+    it('a refused result (SGL4002) carries no notes: they describe a layout that is not shown', async () => {
+      const { value, diagnostics } = await outcome({ notes: [{ code: 'SGL4003', span: SPAN, params: { node: 'a' } }] }, BAD_RESULT);
+      expect(value).toBeNull();
+      expect(diagnostics.map((d) => d.code)).toEqual(['SGL4002']);
+    });
+
+    it('notes keep the engine\'s order', async () => {
+      const notes = [
+        { code: 'SGL4021', span: { from: 9, to: 10 }, params: { id: 'e' } },
+        { code: 'SGL4003', span: { from: 1, to: 2 }, params: { node: 'n' } },
+      ];
+      const { diagnostics } = await outcome({ notes });
+      expect(diagnostics.map((d) => d.code)).toEqual(['SGL4021', 'SGL4003']);
+    });
+  });
+
   it('resolves { value: null, diagnostics: [SGL4011] } on an "error" message, and stays usable', async () => {
     const { spawn, workers } = makeSpawn();
     const host = createWorkerHost(spawn);

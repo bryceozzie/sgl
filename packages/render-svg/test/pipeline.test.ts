@@ -77,6 +77,15 @@ const DOWNSTREAM_EXTRA: Readonly<Record<string, readonly DiagnosticCode[]>> = {
   // Items 65 to 256 are over the 64-document cap before the item cap (A9
   // fix round 1): one SGL2028.
   'imports/too-many-items.sgl': ['SGL2028'],
+  // DD-12 N6: SGL4021 is one per pinned node under an engine without pins
+  // (grid, here), and it reads the AST, so a pin the resolver dropped
+  // (SGL2011) still gets it. The `fixed` fixtures' own codes arrive with
+  // `fixed` (feat/b5-fixed); until then their pins are all SGL4021.
+  'layout/pin-malformed.sgl': ['SGL4021'],
+  'layout/pin-full.sgl': ['SGL4021', 'SGL4021'],
+  'layout/pin-half.sgl': ['SGL4021'],
+  'layout/pin-nested.sgl': ['SGL4021', 'SGL4021'],
+  'layout/pin-negative.sgl': ['SGL4021'],
   // The unterminated string swallows the rest of the line looking for its
   // closing quote, which the parser then recovers from as a second, unrelated
   // syntax error one token later.

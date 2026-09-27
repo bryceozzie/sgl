@@ -63,3 +63,38 @@ describe('layoutConfigDiagnostics (SGL4010)', () => {
     ]);
   });
 });
+
+describe('layoutConfigDiagnostics (SGL4021, DD-12 N6)', () => {
+  const PINNING: EngineSchemas = { ...GRID, id: 'sgl.fixed', pins: true };
+  const froms = (src: string, engine: EngineSchemas): number[] =>
+    layoutConfigDiagnostics(parse(src).ast, engine).map((d) => d.span.from);
+
+  it('a node @pin under an engine without the pins capability warns once, at the key', () => {
+    const src = 'a: { @pin: { x: 1, y: 2 } }\nb: "B"\n';
+    expect(run(src, ELK)).toEqual([
+      { code: 'SGL4021', severity: 'warning', text: '@pin', message: '`@pin` is not honoured by engine `sgl.elk`; ignored.' },
+    ]);
+    expect(run(src, GRID).map((d) => d.message)).toEqual(['`@pin` is not honoured by engine `sgl.grid`; ignored.']);
+  });
+
+  it('an engine that declares `pins: true` is not warned about; `pins: false` or absent is', () => {
+    const src = 'a: { @pin: { x: 1, y: 2 } }\n';
+    expect(run(src, PINNING)).toEqual([]);
+    expect(run(src, { ...PINNING, pins: false }).map((d) => d.code)).toEqual(['SGL4021']);
+    expect(run(src, { id: 'org.example.x' }).map((d) => d.code)).toEqual(['SGL4021']);
+  });
+
+  it('one warning per node, at its first pin key, however the pin is spelled; containers and their children each count', () => {
+    const src = 'a: {\n  @pin.x: 1\n  @pin.y: 2\n}\nbox: {\n  @pin: $p\n  inner: { @pin: { x: 0, y: 0 } }\n}\n';
+    expect(froms(src, ELK)).toEqual([src.indexOf('@pin.x'), src.indexOf('@pin: $p'), src.indexOf('@pin: { x: 0')]);
+    expect(run(src, ELK).map((d) => d.text)).toEqual(['@pin.x', '@pin', '@pin']);
+  });
+
+  it("a pin on the root, a class or an edge is not SGL4021 (it is the resolver's SGL2012)", () => {
+    expect(run('@pin: { x: 1, y: 2 }\n@classes: { P: { @pin: { x: 1, y: 2 } } }\na: P\nb: "B"\na -> b: { @pin: { x: 1, y: 2 } }\n', ELK)).toEqual([]);
+  });
+
+  it('a document without a pin gets none', () => {
+    expect(run('a: { @size: { width: 10 } }\nb: "B"\na -> b\n', ELK)).toEqual([]);
+  });
+});
