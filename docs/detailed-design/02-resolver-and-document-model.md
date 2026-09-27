@@ -279,6 +279,7 @@ MVP registry (order = row order):
 | `direction` | root, node (containers) | enum `down up left right` — sugar, folded into `layout.direction` |
 | `style` | node, edge, class | any — properties from DD-04 registry |
 | `size` | node, class | object `width height minWidth minHeight maxWidth aspectRatio`: exactly `SIZE_KEYS` (`config-registry.ts`) and language spec §4. There is no `maxHeight` (A18 corrected this row, DD-11 §19 item 6). A class's `@size` sizes its nodes: DD-04 §4 merges it at step 4, in `@type` order, and a node's own `@size` overrides it per key (human decision H2, 2026-09-26). On a container (a node with children from any of its declarations) `@size` is `SGL2012` and dropped (fix round 1, item 10) |
+| `pin` | node (containers too) | object `x y` (DD-12 N4, `feat/b5-pin`): both numbers required, each within ±100 000, else `SGL2011` ("`@pin` expects `{ x, y }` numbers within ±100 000; ignored.") and the whole pin dropped, whatever the value was. Any other sub-key is `SGL2010`, kept (`PIN_KEYS`, as `SIZE_KEYS`). On an edge, a class or the root it is `SGL2012`. The resolver keeps it as written: the top-left of the node's frame, relative to the top-left of its parent's content box (the root's: the diagram's origin; DD-12 H2). It reaches the engine unchanged in `GraphNode.config.pin`. An engine without the `pins` capability ignores it, and `layoutConfigDiagnostics` says so (`SGL4021`, DD-06 §9) |
 | `ports` | node, class | object name → `north south east west` |
 | `order` | node, edge | number |
 | `hidden` | node, edge | boolean |
@@ -319,7 +320,7 @@ validate and then reach no consumer — a decision for whichever stage adds
 class-derived fallback for other keys, not one to make by relaxing a scope
 list ahead of it.
 
-**⟶ v1.0** adds `pin` (`vars` landed with A8, `imports` with A9); **⟶ v1.x** adds `icon`, `rules`.
+`pin` landed with `feat/b5-pin` (DD-12), `vars` with A8, `imports` with A9; **⟶ v1.x** adds `icon`, `rules`.
 
 ---
 

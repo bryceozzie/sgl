@@ -45,6 +45,9 @@ export const CONFIG_REGISTRY: readonly ConfigKeySpec[] = [
   // (`checkout.sgl`, `chains.sgl`), so the resolver never rejects `@style`.
   { key: 'style', scope: ['node', 'edge', 'class'], type: 'any', order: 9 },
   { key: 'size', scope: ['node', 'class'], type: 'object', order: 10 },
+  // `@pin` (DD-12 N4): a node's or container's own position, so not a class's
+  // (every member would land on the same spot), an edge's or the root's.
+  { key: 'pin', scope: ['node'], type: 'object', order: 10 },
   { key: 'ports', scope: ['node', 'class'], type: 'object', order: 11 },
   { key: 'order', scope: ['node', 'edge'], type: 'number', order: 12 },
   { key: 'hidden', scope: ['node', 'edge'], type: 'boolean', order: 13 },
@@ -63,6 +66,15 @@ export const CONFIG_REGISTRY: readonly ConfigKeySpec[] = [
  *  re-baseline — `@size.fill` used to paint, behind the cascade signature's
  *  back, DD-07 §6). */
 export const SIZE_KEYS: ReadonlySet<string> = new Set(['width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'aspectRatio']);
+
+/** `@pin`'s sub-keys (DD-12 N4); any other is `SGL2010`, kept, like `@size`'s. */
+export const PIN_KEYS: ReadonlySet<string> = new Set(['x', 'y']);
+
+/** `@pin` is `{ x, y }`, both numbers within ±100 000 (DD-12 N4): the bound
+ *  keeps a frame finite after padding is added, and PNG export's cap
+ *  meaningful. Anything else drops the whole pin with `SGL2011`. */
+export const isPin = (v: unknown): boolean =>
+  typeof v === 'object' && v !== null && [(v as Record<string, unknown>).x, (v as Record<string, unknown>).y].every((n) => typeof n === 'number' && Math.abs(n) <= 1e5);
 
 /** The language's full twelve-shape vocabulary (language spec §4), derived from
  *  the `shape` row's `enum` so it has exactly one definition in the codebase.
