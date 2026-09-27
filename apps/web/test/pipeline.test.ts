@@ -4,7 +4,7 @@ import { asNodeId, diagnostic, NO_SPAN, parse, type Diagnostic, type LabelId } f
 import type { LayoutHost, LayoutInput, LayoutResult, ResolvedThemeMetricsView } from '@sgl/layout-api';
 import type { StageResult } from '@sgl/core';
 import { labelRunKey, StaticMetricsMeasurer } from '@sgl/measure';
-import { REGISTERED_ENGINES } from '../src/io/app-boot.js';
+import { REGISTERED_ENGINES, registeredEngine } from '../src/io/app-boot.js';
 import { createImportsRuntime } from '../src/state/imports.js';
 import { createPipeline } from '../src/state/pipeline.js';
 import { createMemoryStore, type DocumentRecord, type DocumentStore } from '../src/state/storage.js';
@@ -546,6 +546,21 @@ describe('@pin under the registered engines (DD-12 N6, H4)', () => {
     expect(warnings.map((d) => [source.slice(d.span.from, d.span.to), d.message])).toEqual([['@pin', `\`@pin\` is not honoured by engine \`${id}\`; ignored.`]]);
     // The resolver accepted it: no SGL2010 ("unknown key") any more.
     expect(env.pipeline.diags.value.map((d) => d.code)).toEqual(['SGL4021']);
+  });
+
+  // Fix round 1, item 5 (mutation M9): a `pins: true` engine, listed through
+  // the same mapping REGISTERED_ENGINES uses, silences SGL4021.
+  it('an engine whose capabilities declare pins is not warned about', () => {
+    const capabilities = { containers: true, edgeRouting: 'straight', ports: false, labelPlacement: false, incremental: false, determinism: 'bitwise' } as const;
+    const stub = registeredEngine({ id: 'test.pinning', name: 'Pinning', capabilities: { ...capabilities, pins: true } });
+    expect(stub.pins).toBe(true);
+    const source = 'a: { @pin: { x: 10, y: 20 } }\n';
+    const env = setup(source, { defaultEngineId: 'test.pinning', engineSchemas: (id) => (id === stub.id ? stub : undefined) });
+    expect(env.pipeline.diags.value).toEqual([]);
+    // The control: the same stub without pins warns.
+    const plain = registeredEngine({ id: 'test.pinning', name: 'Pinning', capabilities });
+    const env2 = setup(source, { defaultEngineId: 'test.pinning', engineSchemas: (id) => (id === plain.id ? plain : undefined) });
+    expect(env2.pipeline.diags.value.map((d) => d.code)).toEqual(['SGL4021']);
   });
 
   it('the pin reaches the layout input unchanged, relative to its parent (H2)', async () => {
