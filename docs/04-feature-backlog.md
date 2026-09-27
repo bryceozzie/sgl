@@ -63,7 +63,7 @@ Prior art referenced: **Mm**=Mermaid · **D2**=D2 · **GV**=Graphviz · **PU**=P
 | B18 | Engine conformance test suite in the SDK | — | Without it, third-party engines will be broken | **S** | S |
 | B19 | Self-loops and parallel edges routed sensibly | GV | Looks broken when missing; easy to forget | **M** | M |
 | B20 | Orthogonal edge routing with obstacle avoidance | D2, GV | Expensive to do well; `layered` should ship it | **S** | S |
-| B21 | Edge bundling for dense graphs | GV | Narrow use case | **N** | **S** |
+| B21 | Edge bundling for dense graphs | GV | Narrow use case. Demoted with `force` (B22), which it was scoped to live inside, by human decision 2026-09-27 (F27) | **N** | **C** |
 | B22 | Built-in `force` engine (seeded n-body) | GV neato/fdp | Split out of B5 and cut from v1.0 by human decision, 2026-09-27 (DD-12 N49, H3): the only `best-effort` engine (ADR-0004), it needs a per-document seed (F10) and a snapshot to `@pin` to be useful, and `radial` covers hub-and-spoke. B21 is scoped to live inside it | **M** | **C** |
 
 ## C. Themes and styling
