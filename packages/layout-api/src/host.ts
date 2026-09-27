@@ -316,7 +316,8 @@ export const MAX_ENGINE_NOTES = 100;
  * An engine's `LayoutResult.notes` as diagnostics (DD-12 N20). The worker is
  * untrusted (B17), so each note is checked field by field: a `LAYOUT_CATALOGUE`
  * code whose row is not an error (an engine that fails throws, which is
- * `SGL4011`), a span of two finite numbers (copied), and, for each of the
+ * `SGL4011`), a span of two non-negative integers with `from <= to`
+ * (copied), and, for each of the
  * template's own placeholders only, a string or finite-number parameter. The
  * message is the catalogue's, never the engine's. Anything else is dropped
  * without a word. Only the first `MAX_ENGINE_NOTES` entries are read, so a
@@ -334,7 +335,8 @@ export function engineNotes(notes: unknown): Diagnostic[] {
     if (typeof code !== 'string' || !Object.hasOwn(LAYOUT_CATALOGUE, code)) continue;
     const row = LAYOUT_CATALOGUE[code as LayoutDiagnosticCode];
     if (row.severity === 'error') continue;
-    if (!Number.isFinite(from) || !Number.isFinite(to)) continue;
+    // Non-negative integers, from <= to (fix round 1, item 2).
+    if (!Number.isInteger(from) || !Number.isInteger(to) || (from as number) < 0 || (to as number) < (from as number)) continue;
     const params: Record<string, string | number> = {};
     for (const [, k] of row.template.matchAll(/\{(\w+)\}/g)) {
       const v = typeof note?.params === 'object' && note.params !== null && Object.hasOwn(note.params, k!) ? note.params[k!] : undefined;

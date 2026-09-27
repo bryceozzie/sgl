@@ -202,6 +202,11 @@ describe('createWorkerHost (DD-06 §3, Stage H decision D1)', () => {
       ['a NaN span field', { code: 'SGL4003', span: { from: Number.NaN, to: 1 } }],
       ['an infinite span field', { code: 'SGL4003', span: { from: 0, to: Number.POSITIVE_INFINITY } }],
       ['a string span field', { code: 'SGL4003', span: { from: '0', to: 1 } }],
+      // Fix round 1, item 2: a span must be non-negative integers, from <= to.
+      ['a negative, fractional span', { code: 'SGL4003', span: { from: -1e15, to: 1.5 } }],
+      ['a reversed span', { code: 'SGL4003', span: { from: 5, to: 1 } }],
+      ['a fractional from', { code: 'SGL4003', span: { from: 1.5, to: 2 } }],
+      ['a negative from', { code: 'SGL4003', span: { from: -1, to: 0 } }],
       ['a null note', null],
       ['a number note', 5],
     ])('drops %s', async (_, note) => {
@@ -222,6 +227,11 @@ describe('createWorkerHost (DD-06 §3, Stage H decision D1)', () => {
       const params = { node: { toString: () => 'x' }, id: Number.NaN };
       const { diagnostics } = await outcome({ notes: [{ code: 'SGL4021', span: SPAN, params }, { code: 'SGL4003', span: SPAN, params: { node: 12 } }] });
       expect(diagnostics.map((d) => d.message)).toEqual(['`@pin` is not honoured by engine `{id}`; ignored.', '`12` extends outside its container after layout.']);
+    });
+
+    it('an empty span at 0 is valid', async () => {
+      const { diagnostics } = await outcome({ notes: [{ code: 'SGL4003', span: { from: 0, to: 0 }, params: { node: 'a' } }] });
+      expect(diagnostics.map((d) => d.span)).toEqual([{ from: 0, to: 0 }]);
     });
 
     it('the span is copied, so nothing else the engine put on it survives', async () => {
