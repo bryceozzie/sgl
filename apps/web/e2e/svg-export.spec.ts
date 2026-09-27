@@ -227,9 +227,19 @@ test('rich labels: Save ▾ SVG embeds exactly the faces each run uses, and an <
   ] as const;
   for (const c of cases) {
     await openFile(page, 'rich.sgl', `a: "${c.mark}"\n`);
-    await waitForExactNodeCount(page, 1);
-    // This document's own run, not the last one's.
-    await expect(renderedSvg(page).locator(`g[id="n-a"] tspan[class="${c.run}"]`)).toHaveCount(1);
+    // This iteration's own picture (fix round 1, item 8): one node is already
+    // true from the second iteration on, so wait for this mark's own run, and
+    // for this label's own layout (the node holds the whole run), not the last
+    // document's frames.
+    const run = renderedSvg(page).locator(`g[id="n-a"] tspan[class="${c.run}"]`);
+    await expect(run).toHaveCount(1);
+    await expect
+      .poll(async () => {
+        const shape = await renderedSvg(page).locator('g[id="n-a"] > path.n-shape').evaluate((p) => (p as SVGGraphicsElement).getBBox().width);
+        const length = await run.evaluate((t) => (t as SVGTextContentElement).getComputedTextLength());
+        return shape > length;
+      })
+      .toBe(true);
     const saved = (await saveAs(page, 'svg')).text;
     // Only the run's face: the title has no plain text, so not even Inter 500.
     const embedded = faces(saved);
