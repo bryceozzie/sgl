@@ -12,5 +12,5 @@ d -- e
 
 a -> b -> c -> d
 a -> b: "labelled"
-c <-> d: { @label: "both ways", @style: dashed }
+c <-> d: { @label: "both ways", @style: { strokeDash: "6 3" } }
 a -> c -> e: "chain label"

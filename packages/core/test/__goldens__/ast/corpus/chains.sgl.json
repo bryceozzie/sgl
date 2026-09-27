@@ -598,11 +598,33 @@
         "style"
        ],
        "value": {
-        "kind": "Word",
-        "value": "dashed",
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "strokeDash",
+          "isConfig": false,
+          "keySpan": {
+           "from": 170,
+           "to": 180
+          },
+          "value": {
+           "kind": "String",
+           "value": "6 3",
+           "span": {
+            "from": 182,
+            "to": 187
+           }
+          },
+          "span": {
+           "from": 170,
+           "to": 187
+          }
+         }
+        ],
         "span": {
          "from": 168,
-         "to": 174
+         "to": 189
         }
        },
        "keySpan": {
@@ -611,18 +633,18 @@
        },
        "span": {
         "from": 160,
-        "to": 174
+        "to": 189
        }
       }
      ],
      "span": {
       "from": 137,
-      "to": 176
+      "to": 191
      }
     },
     "span": {
      "from": 128,
-     "to": 176
+     "to": 191
     }
    },
    {
@@ -639,19 +661,19 @@
          "kind": "Name",
          "value": "a",
          "span": {
-          "from": 177,
-          "to": 178
+          "from": 192,
+          "to": 193
          }
         }
        ],
        "span": {
-        "from": 177,
-        "to": 178
+        "from": 192,
+        "to": 193
        }
       },
       "span": {
-       "from": 177,
-       "to": 178
+       "from": 192,
+       "to": 193
       }
      },
      {
@@ -665,19 +687,19 @@
          "kind": "Name",
          "value": "c",
          "span": {
-          "from": 182,
-          "to": 183
+          "from": 197,
+          "to": 198
          }
         }
        ],
        "span": {
-        "from": 182,
-        "to": 183
+        "from": 197,
+        "to": 198
        }
       },
       "span": {
-       "from": 182,
-       "to": 183
+       "from": 197,
+       "to": 198
       }
      },
      {
@@ -691,19 +713,19 @@
          "kind": "Name",
          "value": "e",
          "span": {
-          "from": 187,
-          "to": 188
+          "from": 202,
+          "to": 203
          }
         }
        ],
        "span": {
-        "from": 187,
-        "to": 188
+        "from": 202,
+        "to": 203
        }
       },
       "span": {
-       "from": 187,
-       "to": 188
+       "from": 202,
+       "to": 203
       }
      }
     ],
@@ -715,19 +737,19 @@
      "kind": "String",
      "value": "chain label",
      "span": {
-      "from": 190,
-      "to": 203
+      "from": 205,
+      "to": 218
      }
     },
     "span": {
-     "from": 177,
-     "to": 203
+     "from": 192,
+     "to": 218
     }
    }
   ],
   "span": {
    "from": 0,
-   "to": 204
+   "to": 219
   }
  },
  "diagnostics": []

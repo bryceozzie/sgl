@@ -821,12 +821,12 @@ describe('wildcards in parent path segments (language spec §3, human decision 2
   });
 
   it('expanded edges have the same ids, labels and config as the same edges written by hand', () => {
-    const expanded = compileSrc(`${STORES}store*.api* -> payments.api: { @label: "calls", @style: dashed }\n`).graph;
+    const expanded = compileSrc(`${STORES}store*.api* -> payments.api: { @label: "calls", @style: { strokeDash: dashed } }\n`).graph;
     const byHand = compileSrc(
       `${STORES}` +
-        'store1.api -> payments.api: { @label: "calls", @style: dashed }\n' +
-        'store1.apiV2 -> payments.api: { @label: "calls", @style: dashed }\n' +
-        'store2.api-edge -> payments.api: { @label: "calls", @style: dashed }\n',
+        'store1.api -> payments.api: { @label: "calls", @style: { strokeDash: dashed } }\n' +
+        'store1.apiV2 -> payments.api: { @label: "calls", @style: { strokeDash: dashed } }\n' +
+        'store2.api-edge -> payments.api: { @label: "calls", @style: { strokeDash: dashed } }\n',
     ).graph;
     const strip = (e: GraphEdge) => ({ ...e, span: undefined });
     expect(expanded.edges).toHaveLength(3);

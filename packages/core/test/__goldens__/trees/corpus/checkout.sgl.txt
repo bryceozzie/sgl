@@ -1,4 +1,4 @@
-Document 0-892
+Document 0-907
   LineComment 0-72
   Entry 73-84
     ConfigEntry 73-84
@@ -195,13 +195,13 @@ Document 0-892
               EdgeValue 500-509
                 String 500-509
           } 510-511
-  Entry 513-743
-    NodeDecl 513-743
+  Entry 513-758
+    NodeDecl 513-758
       NodeKey 513-521
         Identifier 513-521
       : 521-522
-      NodeValue 523-743
-        Block 523-743
+      NodeValue 523-758
+        Block 523-758
           { 523-524
           Entry 527-545
             ConfigEntry 527-545
@@ -281,8 +281,8 @@ Document 0-892
                   PathStep 682-688
                     PathSegment 682-688
                       Identifier 682-688
-          Entry 691-741
-            EdgeStmt 691-741
+          Entry 691-756
+            EdgeStmt 691-756
               Endpoint 691-694
                 Path 691-694
                   PathStep 691-694
@@ -295,8 +295,8 @@ Document 0-892
                     PathSegment 698-704
                       Identifier 698-704
               : 704-705
-              EdgeValue 706-741
-                Block 706-741
+              EdgeValue 706-756
+                Block 706-756
                   { 706-707
                   Entry 708-723
                     ConfigEntry 708-723
@@ -304,56 +304,52 @@ Document 0-892
                       : 714-715
                       Value 716-723
                         String 716-723
-                  Entry 725-739
-                    ConfigEntry 725-739
+                  Entry 725-754
+                    ConfigEntry 725-754
                       ConfigKey 725-731
                       : 731-732
-                      Value 733-739
-                        Word 733-739
-                          Identifier 733-739
-                  } 740-741
-          } 742-743
-  Entry 745-787
-    NodeDecl 745-787
-      NodeKey 745-748
-        Identifier 745-748
-      : 748-749
-      NodeValue 750-787
-        Block 750-787
-          { 750-751
-          Entry 752-768
-            ConfigEntry 752-768
-              ConfigKey 752-758
-              : 758-759
-              Value 760-768
-                String 760-768
-          Entry 770-785
-            ConfigEntry 770-785
-              ConfigKey 770-775
-              : 775-776
-              Value 777-785
-                Word 777-785
-                  Identifier 777-785
-          } 786-787
-  Entry 789-811
-    EdgeStmt 789-811
-      Endpoint 789-793
-        Path 789-793
-          PathStep 789-793
-            PathSegment 789-793
-              Identifier 789-793
-      EdgeOp 794-796
-      Endpoint 797-811
-        Path 797-811
-          PathStep 797-807
-            PathSegment 797-807
-              Identifier 797-807
-          . 807-808
-          PathStep 808-811
-            PathSegment 808-811
-              Identifier 808-811
-  Entry 812-858
-    EdgeStmt 812-858
+                      Value 733-754
+                        Object 733-754
+                          { 733-734
+                          Property 735-752
+                            PropKey 735-745
+                              Identifier 735-745
+                            : 745-746
+                            Value 747-752
+                              String 747-752
+                          } 753-754
+                  } 755-756
+          } 757-758
+  Entry 760-802
+    NodeDecl 760-802
+      NodeKey 760-763
+        Identifier 760-763
+      : 763-764
+      NodeValue 765-802
+        Block 765-802
+          { 765-766
+          Entry 767-783
+            ConfigEntry 767-783
+              ConfigKey 767-773
+              : 773-774
+              Value 775-783
+                String 775-783
+          Entry 785-800
+            ConfigEntry 785-800
+              ConfigKey 785-790
+              : 790-791
+              Value 792-800
+                Word 792-800
+                  Identifier 792-800
+          } 801-802
+  Entry 804-826
+    EdgeStmt 804-826
+      Endpoint 804-808
+        Path 804-808
+          PathStep 804-808
+            PathSegment 804-808
+              Identifier 804-808
+      EdgeOp 809-811
       Endpoint 812-826
         Path 812-826
           PathStep 812-822
@@ -363,36 +359,47 @@ Document 0-892
           PathStep 823-826
             PathSegment 823-826
               Identifier 823-826
-      EdgeOp 827-829
-      Endpoint 830-842
-        Path 830-842
-          PathStep 830-838
-            PathSegment 830-838
-              Identifier 830-838
-          . 838-839
-          PathStep 839-842
-            PathSegment 839-842
-              Identifier 839-842
-      : 842-843
-      EdgeValue 844-858
-        String 844-858
-  Entry 859-891
-    EdgeStmt 859-891
-      Endpoint 859-871
-        Path 859-871
-          PathStep 859-867
-            PathSegment 859-867
-              Identifier 859-867
-          . 867-868
-          PathStep 868-871
-            PathSegment 868-871
-              Identifier 868-871
-      EdgeOp 872-874
-      Endpoint 875-878
-        Path 875-878
-          PathStep 875-878
-            PathSegment 875-878
-              Identifier 875-878
-      : 878-879
-      EdgeValue 880-891
-        String 880-891
+  Entry 827-873
+    EdgeStmt 827-873
+      Endpoint 827-841
+        Path 827-841
+          PathStep 827-837
+            PathSegment 827-837
+              Identifier 827-837
+          . 837-838
+          PathStep 838-841
+            PathSegment 838-841
+              Identifier 838-841
+      EdgeOp 842-844
+      Endpoint 845-857
+        Path 845-857
+          PathStep 845-853
+            PathSegment 845-853
+              Identifier 845-853
+          . 853-854
+          PathStep 854-857
+            PathSegment 854-857
+              Identifier 854-857
+      : 857-858
+      EdgeValue 859-873
+        String 859-873
+  Entry 874-906
+    EdgeStmt 874-906
+      Endpoint 874-886
+        Path 874-886
+          PathStep 874-882
+            PathSegment 874-882
+              Identifier 874-882
+          . 882-883
+          PathStep 883-886
+            PathSegment 883-886
+              Identifier 883-886
+      EdgeOp 887-889
+      Endpoint 890-893
+        Path 890-893
+          PathStep 890-893
+            PathSegment 890-893
+              Identifier 890-893
+      : 893-894
+      EdgeValue 895-906
+        String 895-906
