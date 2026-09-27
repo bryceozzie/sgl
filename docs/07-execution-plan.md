@@ -1922,6 +1922,40 @@ unbuilt, and DD-00's DD-11 row was stale. Next is the plan in DD-12 §13: `feat/
 `feat/b5-fixed` → `fix/root-layout-options` → `feat/b5-tree` → `feat/b5-radial`. The estimated boot
 cost is ~3.2 kB of the 6.01 kB left.
 
+**B5 branch 1, `feat/b5-pin`** (from `main` at `caa0189`; not merged). This is DD-12 §13's branch 1.
+- **`@pin` has a registry row** (`config-registry.ts`, N4). Its scope is node, containers
+  included. It must be `{ x, y }`, both numbers within ±100 000; otherwise the whole pin is dropped
+  with `SGL2011` ("expects `{ x, y }` numbers within ±100 000"). Any other sub-key is `SGL2010`
+  and kept. On an edge, a class or the root it is `SGL2012`. The pin reaches `LayoutInput`
+  unchanged in `GraphNode.config.pin`, relative to the parent's content box (H2).
+- **Engine notes reach the document (N20;** DD-12 §17 item 3 is resolved). An engine returns
+  `LayoutResult.notes` (`{ code, span, params }`). `host.ts`'s `engineNotes()` keeps a note only
+  if it is a non-error `LAYOUT_CATALOGUE` row with a finite span, and builds its message with
+  `layoutDiagnostic()`. `LayoutResult.diagnostics` and `ctx.log` stay dropped. Notes are added
+  only to an accepted result.
+- **Pins are a capability.** `EngineCapabilities.pins?` is optional, so `apiVersion` stays 1.
+  **`SGL4021`** is allocated (H5): a warning at a node's first `@pin` key, from
+  `layoutConfigDiagnostics`, when the engine lacks `pins`. Neither `grid` nor `elk` has it.
+  `SGL4020` moves to `feat/b5-fixed`, its emitter.
+- **Bare engine names (N22, the orchestrator's bug fix).** `documentEngineOverride` maps
+  `grid` → `sgl.grid` when only the latter is registered. `corpus/checkout.sgl` says `elk` (H7).
+- **Fixtures:** all seven of DD-12 §12's `corpus/layout/pin-*.sgl`. The four `fixed` ones are
+  `SGL4021` per pin under `grid` until `fixed` lands (`DOWNSTREAM_EXTRA`).
+- **Goldens.** New: the fixtures' CST/AST pins and fonts-golden entries. Changed: only
+  `checkout.sgl`'s core resolve, compile, CST and AST goldens, for its source text (the engine
+  string and shifted spans). Its layout and render goldens are byte-identical.
+- **Found:** an elk conformance failure (check 6, an edge starting 12 px from its node) for
+  `root -> box` when `root` is declared after the titled container `box`. It happens without pins.
+  It is reported, not fixed; `pin-nested.sgl` avoids that edge.
+- **Size:** core **176.38 kB** of 182 (+0.39 kB).
+- **Tests:** `resolve.test.ts` (18 `@pin` cases); `host.test.ts` (notes);
+  `host-runtime.integration.test.ts` (the engine → worker → host → `run()` seam);
+  `layout-config.test.ts` (`SGL4021`); `overrides.test.ts` and apps/web `pipeline.test.ts` (bare
+  names, `SGL4021` under the real registered engines, the pin in `LayoutInput`);
+  `e2e/engine-options.spec.ts` (`engine: grid` lays out, and `SGL4021` is squiggled at `@pin`).
+- **Docs:** DD-02 §7, DD-06 §2, §3 and §9, DD-08 §10, DD-12 §13 (as built, with deviations),
+  and the corpus README.
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —

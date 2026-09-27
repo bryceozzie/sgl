@@ -54,6 +54,25 @@ The interfaces from [Architecture §4](../03-architecture.md#4-layout-engine-plu
 > the effective engine's descriptor, beside `buildLayoutInput`; so does
 > `render-svg/test/pipeline.ts`. Fixtures: `corpus/layout/*.sgl`.
 
+> **Amended by `feat/b5-pin` (DD-12 N6, N20, N22).** Three additions, all optional
+> and so additive: `apiVersion` stays 1.
+> - **`EngineCapabilities.pins?: boolean`.** It says whether the engine places a node
+>   where its `@pin` says. Absent means `false`. `layoutConfigDiagnostics` takes it as
+>   `EngineSchemas.pins`. Under an engine without it, a node's `@pin` is `SGL4021`
+>   (§9): once per node, at its first pin key, and ignored. Neither `grid` nor `elk`
+>   declares it. The pin itself reaches every engine unchanged in
+>   `GraphNode.config.pin`: the frame's top-left, relative to the top-left of the
+>   parent's content box (DD-12 H2; DD-02 §7).
+> - **`LayoutResult.notes?: readonly EngineNote[]`**, where an `EngineNote` is
+>   `{ code, span, params? }`. This is how an engine reports a problem in the
+>   document; the host rebuilds each note as a diagnostic (§3, step 3).
+>   `LayoutResult.diagnostics` stays in the type, and the host ignores it: a
+>   message string from a worker is untrusted text.
+> - **Bare engine names.** The app's `documentEngineOverride` maps a root
+>   `@layout.engine` of `x` to `sgl.x` when `x` itself is not registered and `sgl.x`
+>   is. Any other value passes through, so an unknown name is still `SGL4011`, as an
+>   unknown id is. `layered` is not an alias (DD-12 H7).
+
 **`LayoutInput` construction** (`buildLayoutInput(styled, labelSizes, scope?)`, `sizing.ts`):
 
 Both nodes and edges carry their own `hidden` flag (DD-03 §2, §6) — a node's already excludes it from `graph.order`, and an edge's is already "effectively hidden" (its own `@hidden`, or either endpoint's node, computed once in `compile()`). Filtering either kind of element for `LayoutInput` is therefore a single flag test — `!edge.hidden` for edges alongside the node loop below — not a node filter plus a separate "does this edge touch a hidden node" walk:
@@ -132,6 +151,11 @@ All payloads are plain objects; `LayoutInput` and `MeasureTable` are already `st
 2. posts 'layout'
 3. on 'result'  → clear timer → validate (§5) → quantize → resolve { value, diagnostics }
                   (§5's own warnings — e.g. SGL4003 — pass through on a success, not just [])
+                  (then the engine's own `notes` (DD-12 N20, `feat/b5-pin`), on a success
+                   only, each kept only if its code is a LAYOUT_CATALOGUE row that is not
+                   an error and its span is two finite numbers; its params are kept only
+                   if they are strings or finite numbers; the message is rebuilt with
+                   layoutDiagnostic(), never the engine's. `engineNotes()` in host.ts)
                   (or resolve { value: null, diagnostics } if §5 rejects it — SGL4002)
    on 'error'   → clear timer → resolve { value: null, diagnostics: [diagnostic] }  (SGL4011)
    on timer     → worker.terminate(); respawn; resolve { value: null, diagnostics: [SGL4001] }
@@ -409,6 +433,11 @@ For each corpus graph (empty, one node, one edge, self-loop, parallel edges, 3-d
 | `SGL4003` | warning | `{node}` extends outside its container after layout. |
 | `SGL4010` | warning | `@layout.{key}` is not an option of engine `{id}`; ignored. — **implemented** (Stage K fix round 1, item 23): a container-level `@layout.engine` naming another engine (B8/B9), and any `@layout` key the effective engine does not declare (§2) |
 | `SGL4011` | error | Layout engine `{id}` failed: {message}. |
+| `SGL4021` | warning | `@pin` is not honoured by engine `{id}`; ignored. **Implemented** (`feat/b5-pin`, DD-12 N6, H4, H5): from `layoutConfigDiagnostics`, on the main thread, at the key. It fires once per node whose engine does not declare `capabilities.pins`. Fixture: `corpus/layout/pin-under-elk.sgl` |
+
+An engine may emit a warning or info row of this table through `LayoutResult.notes`
+(§2, §3). The host drops an `error` row, because an engine that fails throws.
+`SGL4020` (DD-12 N9) is allocated and arrives with `fixed` (`feat/b5-fixed`).
 
 ---
 
