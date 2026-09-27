@@ -111,32 +111,25 @@ if (!existsSync(`${DIST}index.html`)) {
   }
   if (process.exitCode !== 1) console.log('check-core-chunks: the grid layout code is in the worker only.');
 
-  // A8 follow-up: the layout worker emits only layout diagnostics (`SGL4xxx`),
-  // built from `@sgl/core`'s `LAYOUT_CATALOGUE` through `layoutDiagnostic()`.
-  // If anything in the worker imports the full `diagnostic()` again, the whole
-  // `CATALOGUE` (~1.1 kB gzipped) comes back into it. A catalogue row is
-  // `SGLnnnn:{severity:…`; the worker and its static imports may carry only
-  // 4xxx rows, and must carry some (else this pattern no longer matches the
-  // minified output and the check would pass vacuously).
+  // A8 follow-up, then feat/b5-pin fix round 1 (item 4): the layout worker
+  // builds no diagnostic at all. It posts an engine's failure as a plain
+  // `reason`, and the host builds SGL4011 from `LAYOUT_CATALOGUE` itself, so
+  // no catalogue row may reach the worker: if anything there imports
+  // `diagnostic()` or `layoutDiagnostic()` again, rows come back with it. A
+  // row is `SGLnnnn:{severity:…`. It cannot pass vacuously: the boot check
+  // above fails if the same pattern stops matching the boot chunks' rows.
   const ROW = /\bSGL(\d{4})\s*:\s*\{\s*severity\b/g;
   const workers = assets.filter((f) => /^layout\.worker-[\w-]+\.js$/.test(f));
   if (workers.length !== 1) fail(`expected one assets/layout.worker-*.js chunk, found ${workers.length}.`);
   const inWorker = new Set();
   const workerQueue = [...workers];
-  const rows = new Set();
   while (workerQueue.length > 0) {
     const file = workerQueue.shift();
     if (inWorker.has(file)) continue;
     inWorker.add(file);
     const code = readFileSync(`${DIST}assets/${file}`, 'utf8');
-    for (const m of code.matchAll(ROW)) {
-      rows.add(m[1]);
-      if (!m[1].startsWith('4')) fail(`${file} (layout worker) contains catalogue row SGL${m[1]}; the worker may bundle only the SGL4xxx rows.`);
-    }
+    for (const m of code.matchAll(ROW)) fail(`${file} (layout worker) contains catalogue row SGL${m[1]}; the worker builds no diagnostics.`);
     for (const m of code.matchAll(STATIC)) if (!inWorker.has(m[1])) workerQueue.push(m[1]);
   }
-  if (rows.size === 0) fail('no SGL4xxx catalogue row found in the layout worker; update ROW for this minifier output.');
-  if (process.exitCode !== 1) {
-    console.log(`check-core-chunks: layout worker carries only catalogue rows ${[...rows].sort().map((r) => `SGL${r}`).join(', ')}.`);
-  }
+  if (process.exitCode !== 1) console.log(`check-core-chunks: the layout worker carries no catalogue row (the boot chunks' ${bootRows} match the same pattern).`);
 }
