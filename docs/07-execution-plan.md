@@ -635,7 +635,7 @@ Verified in Chromium only (Firefox and WebKit are not available here). Each test
   among the three toasts; held errors are counted and named. (6) Pasted links wait for the switch, and the hash is
   cleared before the import. (7) `controllerchange` is handled once per controller. (8) A switch awaits its flush
   and is refused if the open document could not be saved. `e2e/sw-update.spec.ts` now has four tabs: B on a slow
-  disk, C in memory and D whose writes fail; C and D save an `.sgl` offline. The first clean run found three more bugs, fixed in `fe1f1ab`: two info toasts showed as one, the "N more" line was read as the newest toast, and the flush livelocked on an import cycle whose every write re-renders it (bounded to three rounds). Core bundle 176.49 → **177.07 kB**.
+  disk, C in memory and D whose writes fail; C and D save an `.sgl` offline. The first clean run found three more bugs, fixed in `fe1f1ab`: two info toasts showed as one, the "N more" line was read as the newest toast, and the flush livelocked on an import cycle whose every write re-renders it (bounded to three rounds). Core bundle 176.49 → **177.07 kB**; after merging `main` at `2e5cedb` (176.96 kB) it is **178.03 kB**, +1.07 kB over `main`, accepted by the orchestrator (the update path stays on the boot path, DD-08 §12; the 182 kB limit holds).
 - **F13(b)**: criterion 5 cannot be falsified in Firefox. This is recorded as a known limitation (DD-08
   §14, §2.1 F13); there is no code change.
 - **Size**: core bundle 175.99 → 176.12 kB (c) → 176.21 (a) → **176.49 kB** (176 494 B of 182 kB, +500 B;
