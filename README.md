@@ -65,12 +65,14 @@ live without a rebuild.
 | Command | Does |
 |---|---|
 | `pnpm dev` | Vite dev server for `apps/web` — run `pnpm build` first (above) |
+| `pnpm cf:dev` | Build, then serve `apps/web/dist` under `wrangler dev` as it will be deployed (http://localhost:8787) |
+| `pnpm cf:deploy` | Build, then `wrangler deploy` to Cloudflare Workers — run `pnpm dlx wrangler@4.141.0 login` once first ([DD-10 §5](docs/detailed-design/10-build-and-deploy.md#5-deploy)) |
 | `pnpm check` | `lint` + `typecheck` + `build` + `size` + `test` + `test:e2e` — what CI gates on |
 | `pnpm build` | Every package, then the app |
 | `pnpm grammar` | Regenerate the Lezer parser from `sgl.grammar` |
 | `pnpm test` | Vitest (Node) |
 
-Node 20.19+ (`.nvmrc`), pnpm 10.
+Node 20.19+ (`.nvmrc`), pnpm 10. The `cf:*` scripts run wrangler, which needs Node 22+.
 
 ## Current state
 

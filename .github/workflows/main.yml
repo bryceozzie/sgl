@@ -1,0 +1,54 @@
+name: Deploy Worker
+
+# DD-10 §5: `main` → CI green → `wrangler deploy` to production. Runs once the
+# CI workflow finishes on `main`, and only if it passed; or by hand.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The commit CI tested, not whatever `main` is by now.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        # Packages, then the app: apps/web imports the packages from their dist/.
+        run: pnpm build
+
+      - name: Node 22 for wrangler
+        # wrangler 4.x declares Node >=22; the workspace itself is pinned to
+        # 20.19 (.nvmrc), which is why wrangler is run with `pnpm dlx` rather
+        # than installed (DD-10 §5).
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Deploy apps/web/dist
+        # Runs in apps/web, so wrangler reads apps/web/wrangler.toml.
+        run: pnpm --filter @sgl/web cf:deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

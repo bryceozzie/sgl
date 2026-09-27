@@ -9,6 +9,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "cf:dev": "pnpm dlx wrangler@4.141.0 dev",
+    "cf:deploy": "pnpm dlx wrangler@4.141.0 deploy",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
     "test:e2e:all-browsers": "playwright test --project=chromium --project=firefox --project=webkit"
