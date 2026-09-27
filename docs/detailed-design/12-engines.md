@@ -6,8 +6,12 @@
 **Inputs:** `LayoutInput` (DD-06 §2). **Outputs:** `LayoutResult`.
 
 **Status: design only (2026-09-27), from `main` at `755bfd0`. No code is changed by this document.**
+**Human decisions (2026-09-27): every §15 recommendation was accepted, H1–H9.** The documents they
+change (language spec §4 and §9, the backlog, ADR-0004, Architecture §4.5, 01, 06, 07) are updated
+on this branch (§18). The orchestrator also decided that bare engine names are accepted (N22), as a
+bug fix in `feat/b5-pin`.
 The decisions are numbered **N1–N52**. Each has a recommendation and a one-line reason in italics.
-Decisions marked **⚑** go to the human before implementation starts; §15 gives each one's options.
+Decisions marked **⚑** went to the human; §15 gives each one's options and the decision (H1–H9).
 Where this document changes a rule in DD-02, DD-06, DD-08, the language spec or an ADR, the change is
 listed in §14 and made by the branch that implements it, not here. The one exception is §16's list of
 factual fixes, made in this branch.
@@ -451,8 +455,8 @@ same tree with two extra edges, a forest, and a container). The results:
 
 ## 10. `force`
 
-- **N49. ⚑ Cut `force` from v1.0: move it out of B5's Must, to Could, together with B21 (edge
-  bundling, which the backlog scopes to it).** The reasons:
+- **N49. ⚑ Cut `force` from v1.0: move it out of B5's Must, to Could, as its own row (B22).** B21
+  (edge bundling, a Should) is scoped to live inside it; that tension is 07 §2.1 F27, for the human. The reasons:
   - **It is the only engine that is `best-effort`** (ADR-0004), so it cannot join the
     cross-environment golden test. It needs F10's per-document seed, which is undecided.
   - **It needs a snapshot to be useful.** ADR-0004's answer, `@layout.snapshot` baking the result
@@ -564,7 +568,7 @@ For each engine, in its own branch:
 Each branch is from `main`, has its own T1+T2 gate, is reviewed, and merges `--no-ff` before the next
 begins.
 
-1. **`feat/b5-pin`** (small; after ⚑2, ⚑4, ⚑5).
+1. **`feat/b5-pin`** (small; H2, H4, H5).
    - `@pin` gets its registry row and sub-key check (N4).
    - Engine notes reach the document (N20); the capability `pins?` (N6); `SGL4021` in
      `layoutConfigDiagnostics`.
@@ -579,7 +583,7 @@ begins.
    - Goldens, conformance, the browser double run, the criterion-1 case with the pinned fixture, and
      e2e.
    - DD-06 gets a §7a.
-3. **`fix/root-layout-options`** (small; only if ⚑6 is yes). Root `@layout` options reach the
+3. **`fix/root-layout-options`** (small; H6). `checkout.sgl`'s `elk` goldens may be regenerated here. Root `@layout` options reach the
    engine (N40). A pipeline test and an e2e case (`checkout.sgl` goes right under `elk`). Best merged
    before `tree`, whose main option is `direction`.
 4. **`feat/b5-tree`**.
@@ -589,20 +593,23 @@ begins.
    - Options and form, goldens, conformance, units and e2e.
 5. **`feat/b5-radial`**. `trig.ts`, `radial.ts` into the same chunk. Options and form, goldens,
    conformance, the cross-browser `bitwise` test, and e2e.
-6. **`docs/b5-force`** (only if ⚑3 is cut). The backlog row splits: B5 becomes `fixed`, `tree` and
-   `radial`, and a new Could row takes `force` with B21. 07 §2.1 F10's owner changes (N50).
+6. *(Done on this branch, H3: the backlog splits B5, and `force` is B22, Could; 07 §2.1 F10's owner
+   is `force`.)*
 
 ---
 
 ## 14. Changes to other documents (made by the implementing branches)
 
-- **Language spec** (if approved): the §4 `@pin` row (§3); §9 and the §4 root example, `layered` →
-  `elk` (N23).
-- **Architecture §4.5**:
+The items marked *(done)* were made on this branch after H1–H9 (§18).
+
+
+- *(done)* **Language spec**: the §4 `@pin` row (§3); §9 and the §4 root example, `layered` → `elk`
+  (N23); the root `@layout` paragraph (N22, N40).
+- *(done)* **Architecture §4.5**:
   - `fixed`: "Honours `@pin` and `@size` exactly; places unpinned nodes below, with a warning".
   - `radial`: "Concentric rings by depth, wedges by subtree weight".
-  - `force`: marked cut, if ⚑3 is cut.
-- **ADR-0004** (if ⚑8 is approved): `radial` moves to "Yes" in the table and to `bitwise` in the
+  - `force`: marked cut.
+- *(done)* **ADR-0004**: `radial` moves to "Yes" in the table and to `bitwise` in the
   classes, with the reason.
 - **DD-02 §7**: the `pin` row.
 - **DD-06**:
@@ -611,17 +618,17 @@ begins.
   - §7a–§7c: the three engines;
   - §8: the new engines in the suite;
   - §9: `SGL4020`, `SGL4021`.
-- **DD-08 §10**: the new forms; bare engine names; root options, if ⚑6 is yes.
+- **DD-08 §10**: the new forms; bare engine names; root options (H6).
 - **DD-10 §2** and `.size-limit.js`'s comment: the `std-trees` chunk.
-- **04**: the B5 row, if ⚑3 is cut.
+- *(done)* **04**: B5 split; `force` is B22, Could.
 - **07**:
   - §2 and §5 Stage L rows;
   - §2.1 F6 (reachable under `fixed` too);
-  - §2.1 F10 (the owner).
+  - §2.1 F10 (the owner) *(done)*; F6, F26–F28 *(done)*.
 
 ---
 
-## 15. ⚑ Decisions for the human
+## 15. ⚑ Decisions for the human (all accepted, 2026-09-27: H1–H9)
 
 **⚑1 (N9): what `fixed` does with a node that has no `@pin`.**
 
@@ -631,6 +638,8 @@ begins.
 | **(b) Pack loose nodes below the pinned ones, with a warning each (`SGL4020`). Recommended** | Always draws; each loose node is flagged at its line; cheap (reuses `grid`); cannot overlap a pinned node | 40 warnings on an unpinned 40-node document |
 | (c) Delegate loose nodes to another engine | Nicer placement | `sublayout` is not built; `elk` costs a 435 kB chunk and cannot keep pinned nodes still |
 
+> **H1. Human decision 2026-09-27: accepted** — option (b): unpinned nodes are packed below the pinned ones, one `SGL4020` warning each.
+
 **⚑2 (N1, N2): what a pin's coordinates mean.**
 
 | Option | For | Against |
@@ -639,14 +648,20 @@ begins.
 | (b) Top-left, absolute in diagram space (the spec as written) | What the spec says; one number per node, with no sums | Moving a container means rewriting every descendant; a pinned import lands on the importer's nodes; cannot work under B8 |
 | (c) Either, but pin the *centre* | A node stays centred when its label changes | Unlike SVG, Excalidraw and draw.io; E15's write-back needs the size |
 
+> **H2. Human decision 2026-09-27: accepted** — option (a): top-left of the frame, relative to the parent's content box; spec §4 changed on this branch.
+
 **⚑3 (N49): `force`.** (a) **Cut from v1.0: B5 becomes `fixed`, `tree` and `radial`; `force` goes
 to Could with B21. Recommended.** (b) Keep it as a Must, last, lazy, `best-effort`, after F10 is
 decided. This is dropping part of a Must, so it is the human's.
+
+> **H3. Human decision 2026-09-27: accepted** — option (a): `force` is cut from v1.0; the backlog splits it out of B5 as B22, Could, next to B21. B21 itself is a Should, not a Could as the option's wording implied; it is scoped to live inside `force`, and 07 §2.1 F27 records that for the human.
 
 **⚑4 (N6): a `@pin` under an engine that ignores it.** (a) **A warning at the key (`SGL4021`), with
 an optional capability `pins?: boolean` added to the contract (additive, `apiVersion` 1).
 Recommended.** (b) Silently ignored. (c) Honour pins in `elk` and `grid` now: B11, a Should; for
 `elk` it needs interactive layering and is not small. Not in B5.
+
+> **H4. Human decision 2026-09-27: accepted** — option (a): `SGL4021` at the key, through the optional capability `pins?`.
 
 **⚑5: new diagnostic codes.** Two warnings, numbers proposed only:
 - `SGL4020` "`{node}` has no `@pin`; `fixed` placed it below the pinned nodes."
@@ -654,10 +669,14 @@ Recommended.** (b) Silently ignored. (c) Honour pins in `elk` and `grid` now: B1
 
 Recommended: allocate both. **No new dependency** is needed by any option recommended here.
 
+> **H5. Human decision 2026-09-27: accepted** — option both codes are allocated: `SGL4020` and `SGL4021`.
+
 **⚑6 (N40): should the root's `@layout` options reach the engine?** (a) **Yes: a root option the
 engine declares overrides Options ▾ for that request. Recommended; it is what spec §4 and DD-08 §10
 imply.** It changes the live layout of documents that already set one (`checkout.sgl`'s `direction:
 right` starts to apply). (b) No: document it, and warn (a new code) that root options are ignored.
+
+> **H6. Human decision 2026-09-27: accepted** — option (a): root `@layout` options reach the engine; `checkout.sgl`'s elk goldens may be regenerated in `fix/root-layout-options`.
 
 **⚑7 (N23): `engine: "layered"`.** (a) **Change the spec's two examples (§4, §9) and
 `corpus/checkout.sgl` to `elk`, and keep `layered` for the future in-house engine. Recommended.**
@@ -665,14 +684,20 @@ right` starts to apply). (b) No: document it, and warn (a new code) that root op
 in-house `layered` ever ships. Either way, bare names (`grid`, `fixed`) are accepted (N22, a bug
 fix).
 
+> **H7. Human decision 2026-09-27: accepted** — option (a): the spec's examples say `elk`; `corpus/checkout.sgl` changes in a code branch; `layered` is not an alias.
+
 **⚑8 (N44): `radial`'s determinism class.** (a) **`bitwise`, using its own polynomial `sin`/`cos`,
 ~0.2 kB lazy; amends ADR-0004's table. Recommended.** (b) `quantized`, using `Math.sin`/`Math.cos`,
 as ADR-0004 predicts.
+
+> **H8. Human decision 2026-09-27: accepted** — option (a): `radial` is `bitwise` with in-house trigonometry; ADR-0004 amended on this branch.
 
 **⚑9 (N52): the budget.** (a) **`tree` and `radial` in a lazy `std-trees` chunk inside the worker;
 `fixed` static. ~3.2 kB of the 6.01 kB left. Recommended.** (b) All static: ~6.7 kB, which needs
 the limit raised to about 183 kB. (c) `fixed` lazy too: ~0.8 kB less at boot, one more chunk to
 precache and test offline.
+
+> **H9. Human decision 2026-09-27: accepted** — option (a): `tree` and `radial` in a lazy `std-trees` chunk in the worker; `fixed` static.
 
 ---
 
@@ -722,3 +747,30 @@ precache and test offline.
 10. **Architecture §4.5 says `grid` packs "with spans"** and `tree` has "compound support". `span`
     is a v1.x hint `grid` does not read (DD-06 §7). The compound support in §7 here is nested
     trees, not trees that cross container boundaries.
+
+---
+
+## 18. Documents changed on this branch for H1–H9
+
+Normative changes to the language spec (human-approved, 2026-09-27):
+
+| Where | Before | After |
+|---|---|---|
+| §4, `@pin` row | `{ x, y }` — absolute position auto-layout must respect | `{ x, y }`, in px: the frame's top-left, relative to the top-left of the parent container's content box (root: the diagram's origin); both required, each within ±100 000 (else `SGL2011`); `fixed` places the node there; other engines ignore it with `SGL4021` |
+| §4, root `@layout` example | `engine: "layered"`, `spacing: { node: 40, rank: 70 }` | `engine: "elk"`, `nodeSpacing: 40`, `rankSpacing: 70` (the options `elk` declares) |
+| §4, new paragraph after the root keys | — | the root `@layout` names the engine by id or bare name; every other key is an option that reaches the engine and overrides the editor's options; an undeclared key is `SGL4010` |
+| §9, worked example and its canonical form | `engine: "layered"` | `engine: "elk"` |
+
+The other documents:
+- **04**: B5 is now `fixed`, `tree` and `radial`, and `force` is a new row, B22, Could. There is a
+  note under the triage table, and the MVP and phase tables and "first thing to cut" are updated.
+- **ADR-0004**: the table and class list move `radial` to `bitwise`, and the "absorbs" wording is
+  corrected, with an amendment section.
+- **Architecture §4.5**: the `fixed`, `radial` and `force` rows are updated, as are the package map
+  and the phase table.
+- **01**, FR-Y8: a note that `force` is cut. It is not otherwise re-scoped.
+- **06 §3**: the B5 row now says `fixed` is 2–3 days, and that `force` is cut.
+- **07**: a §2 paragraph and the Stage L row; §2.1 F6 and F10 are updated; F26–F28 are new.
+
+§17's items 1, 2, 4 (spec side), 6 and 7 are resolved by these edits. Item 3 is resolved in
+`feat/b5-pin`, item 5 in `fix/root-layout-options`, item 8 by F10's new owner, and item 9 is F28.

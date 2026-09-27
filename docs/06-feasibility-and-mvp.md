@@ -78,7 +78,7 @@ With the reason each one can wait:
 |---|---|
 | **A18 markdown labels** and `@sgl/text` | The single largest non-engine subsystem. MVP labels are plain text with `\n`. The `Measurer` interface is run-based from day one, so this is an addition, not a rewrite |
 | A8 variables, A9 imports | Pure resolver features; add after the resolver is stable |
-| B5 `tree`, `radial`, `force`, `fixed` | `fixed` is ~1 day and should be the first addition; `force` should be last |
+| B5 `tree`, `radial`, `fixed` | `fixed` should be the first addition: 2–3 days once `@pin` validation, engine warnings and its options form are counted (DD-12 §17 item 1; ~1 day was the first estimate). `force` was cut from v1.0 on 2026-09-27 (backlog B22, Could) |
 | **B6 iframe sandbox** | Isolation matters only when third-party code loads (B17, Could). MVP runs trusted engines in a Worker with timeout and abort, which is the part that protects the *user*. See pitfall 5 |
 | C5 four themes | Two proves the system; two more is content |
 | D6/D7 PNG, clipboard | Each under a day once export exists |
