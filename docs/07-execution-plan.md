@@ -1972,7 +1972,7 @@ cost is ~3.2 kB of the 6.01 kB left.
 - **Found:** an elk conformance failure (check 6, an edge starting 12 px from its node) for
   `root -> box` when `root` is declared after the titled container `box`. It happens without pins.
   It is reported, not fixed; `pin-nested.sgl` avoids that edge.
-- **Size:** core **176.38 kB** of 182 (+0.39 kB).
+- **Size:** core **176.38 kB** of 182 (+0.39 kB) before fix round 1.
 - **Tests:** `resolve.test.ts` (18 `@pin` cases); `host.test.ts` (notes);
   `host-runtime.integration.test.ts` (the engine → worker → host → `run()` seam);
   `layout-config.test.ts` (`SGL4021`); `overrides.test.ts` and apps/web `pipeline.test.ts` (bare
@@ -1980,6 +1980,23 @@ cost is ~3.2 kB of the 6.01 kB left.
   `e2e/engine-options.spec.ts` (`engine: grid` lays out, and `SGL4021` is squiggled at `@pin`).
 - **Docs:** DD-02 §7, DD-06 §2, §3 and §9, DD-08 §10, DD-12 §13 (as built, with deviations),
   and the corpus README.
+- **Fix round 1** (after merging `main` at `b3171e6`). Eight items; each test failed first.
+  1. `engineNotes` reads at most 100 notes, by index. The cap is silent, because no catalogue
+     row can say how many were dropped. Params are read only for the template's placeholders.
+  2. A note's span must be non-negative integers with `from <= to`. The app clamps every span to
+     the document (`clampSpan`) before `setDiagnostics` and `scrollToSpan`.
+  3. `workerText()`: string params lose backticks and control characters, and are cut to 120
+     characters.
+  4. The worker's `'error'` message is `{ t, id, reason }`. The host builds `SGL4011` from its own
+     engine id and `workerText(reason)`, so the worker carries no catalogue row;
+     `check-core-chunks.mjs` now requires that.
+  5. `registeredEngine()` is exported, and a `pins: true` stub silences `SGL4021`. This kills
+     mutation M9.
+  6. and 7. `SGL4021` skips a pin the resolver dropped, so it is reported once, as `SGL2011`.
+     It is once per node path, at the first pin key in source order.
+  8. A blank `@layout.engine` is `SGL2011` and dropped, so the editor's engine applies.
+
+  Size: core **176.96 kB**, +0.08 kB over `main` (176.88).
 
 **Help branch 1, `feat/help-reference`** (Stage L, E19, DD-13 §13 branch 1; branched from `main` at
 `ca9956e`; no golden changed). **DD-13 P5's exports**, each now the value the code uses in place of

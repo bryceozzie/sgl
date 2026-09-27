@@ -133,7 +133,7 @@ One long-lived `Worker` (`layout.worker.ts`), respawned on termination. Engines 
 
 // worker → host
 { t: 'result', id, result: LayoutResult, ms: number }
-{ t: 'error',  id, diagnostic: Diagnostic }
+{ t: 'error',  id, reason: string }      // feat/b5-pin fix round 1, item 4: was `diagnostic`
 { t: 'measure', id, req: number, runs: StyledRun[], box: BoxConstraints }   // table miss
 { t: 'log', id, level, message, nodeId? }
 ```
@@ -152,12 +152,17 @@ All payloads are plain objects; `LayoutInput` and `MeasureTable` are already `st
 3. on 'result'  → clear timer → validate (§5) → quantize → resolve { value, diagnostics }
                   (§5's own warnings — e.g. SGL4003 — pass through on a success, not just [])
                   (then the engine's own `notes` (DD-12 N20, `feat/b5-pin`), on a success
-                   only, each kept only if its code is a LAYOUT_CATALOGUE row that is not
-                   an error and its span is two finite numbers; its params are kept only
-                   if they are strings or finite numbers; the message is rebuilt with
-                   layoutDiagnostic(), never the engine's. `engineNotes()` in host.ts)
+                   only. At most the first 100 entries are read. A note is kept only if its
+                   code is a LAYOUT_CATALOGUE row that is not an error, and its span is two
+                   non-negative integers with from <= to. Only the template's placeholders
+                   are read from its params: finite numbers, or strings through workerText()
+                   (backticks and control characters become spaces; cut to 120 characters).
+                   The message is rebuilt with layoutDiagnostic(), never the engine's.
+                   `engineNotes()` in host.ts; fix round 1, items 1-3)
                   (or resolve { value: null, diagnostics } if §5 rejects it — SGL4002)
-   on 'error'   → clear timer → resolve { value: null, diagnostics: [diagnostic] }  (SGL4011)
+   on 'error'   → clear timer → resolve { value: null, diagnostics: [SGL4011] }, built by the host
+                  from the engine id it asked for and workerText(reason); nothing else in the
+                  message is read (feat/b5-pin fix round 1, item 4)
    on timer     → worker.terminate(); respawn; resolve { value: null, diagnostics: [SGL4001] }
 4. abort(): post 'abort'; reject *immediately* with AbortError (the caller stops waiting
    without needing the worker's cooperation); separately, if no 'result'/'error' for that
@@ -441,7 +446,7 @@ For each corpus graph (empty, one node, one edge, self-loop, parallel edges, 3-d
 | `SGL4003` | warning | `{node}` extends outside its container after layout. |
 | `SGL4010` | warning | `@layout.{key}` is not an option of engine `{id}`; ignored. — **implemented** (Stage K fix round 1, item 23): a container-level `@layout.engine` naming another engine (B8/B9), and any `@layout` key the effective engine does not declare (§2) |
 | `SGL4011` | error | Layout engine `{id}` failed: {message}. |
-| `SGL4021` | warning | `@pin` is not honoured by engine `{id}`; ignored. **Implemented** (`feat/b5-pin`, DD-12 N6, H4, H5): from `layoutConfigDiagnostics`, on the main thread, at the key. It fires once per node whose engine does not declare `capabilities.pins`. Fixture: `corpus/layout/pin-under-elk.sgl` |
+| `SGL4021` | warning | `@pin` is not honoured by engine `{id}`; ignored. **Implemented** (`feat/b5-pin`, DD-12 N6, H4, H5): from `layoutConfigDiagnostics`, on the main thread, at the key. It fires once per node (by path), at its first pin key, when the engine does not declare `capabilities.pins`, and not for a pin the resolver dropped with `SGL2011` (fix round 1). Fixture: `corpus/layout/pin-under-elk.sgl` |
 
 An engine may emit a warning or info row of this table through `LayoutResult.notes`
 (§2, §3). The host drops an `error` row, because an engine that fails throws.

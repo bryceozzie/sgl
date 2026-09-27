@@ -593,20 +593,39 @@ begins.
      `root -> box.a` (the node declared after the container), `elk`'s conformance check 6
      fails: the edge starts 12 px from its node. That happens with or without pins, so it is
      reported separately and not fixed here.
-   - **`SGL4021` reads the AST (N6),** so a pin the resolver drops as `SGL2011` still gets
-     `SGL4021` at the same key when the engine has no pins.
+   - **`SGL4021` reads the AST (N6), and is given the resolver's diagnostics.** A node whose pin
+     the resolver dropped (`SGL2011` at one of its pin keys) gets no `SGL4021`: the pin is
+     reported once (fix round 1, item 6). The warning is keyed by the node's path, so a node
+     declared twice warns once, at its first pin key in source order (item 7).
    - **Every malformed pin is one `SGL2011` with N4's message.** That includes a value that is
      not an object at all, which the registry's `type: 'object'` alone would report as "expects
      object".
    - **Engine notes are added only to an accepted result.** A result refused with `SGL4002` shows
-     no layout, so there is nothing for its notes to describe. A note's params must be strings or
-     finite numbers; any other param is dropped and its placeholder stays in the message.
+     no layout, so there is nothing for its notes to describe.
+   - **How a note is checked (fix round 1, items 1–3).** N20's check, tightened:
+     - Only the first 100 entries of `notes` are read (`MAX_ENGINE_NOTES`), by index, so a
+       sparse or huge array costs nothing. The cap is silent: no catalogue row says how many
+       were dropped.
+     - A span must be two non-negative integers with `from <= to`.
+     - Parameters are read only for the template's own placeholders, and must be finite numbers
+       or strings. `workerText()` makes each string safe: backticks, line breaks and other
+       control characters become spaces, and it is cut to 120 characters with an ellipsis.
+     - The app also clamps every diagnostic span to the document before it reaches CodeMirror
+       (`clampSpan`, in `setDiagnostics` and in `scrollToSpan`).
+   - **The failure channel follows the same rule (fix round 1, item 4).** The worker's `'error'`
+     message is now `{ t, id, reason }`. The host builds `SGL4011` itself, from the engine id it
+     asked for and `workerText(reason)`, and reads nothing else. So the worker builds no
+     diagnostic, and no catalogue row is bundled into it (`check-core-chunks.mjs`).
+   - **An empty `@layout.engine` is not an engine (fix round 1, item 8).** The resolver drops a
+     blank `engine` with `SGL2011` ("`@layout.engine` expects an engine name"), so the editor's
+     engine applies.
    - `engineNotes()` is exported from `@sgl/layout-api`, and the render-svg corpus harness uses
      it, so the coverage gate will see `fixed`'s `SGL4020` as the app does.
    - **`corpus/checkout.sgl` says `engine: "elk"` (H7).** Its core resolve, compile, CST and AST
      goldens changed for the text alone: the string, and spans shifted by −4. Its layout and
      render goldens did not change. Root options still do not reach the engine (H6).
-   - Size: core **176.38 kB** (+0.39 kB; estimated ~0.55).
+   - Size: core **176.96 kB**, +0.08 kB over `main` at `b3171e6` (176.88). Before fix round 1 it was
+     +0.38 kB; removing the catalogue rows from the worker more than paid for the round.
 2. **`feat/b5-fixed`**.
    - `pack.ts` (N10), with `grid`'s goldens unchanged, as its own first commit.
    - `fixed.ts`, `ports.ts` and `SGL4020`.
