@@ -16,14 +16,14 @@ import {
   type ResolveResult,
   type StageResult,
 } from '@sgl/core';
-import { buildLayoutInput, layoutConfigDiagnostics, type LayoutInput, type LayoutResult } from '@sgl/layout-api';
+import { buildLayoutInput, layoutConfigDiagnostics, rootLayoutOptions, type LayoutInput, type LayoutResult } from '@sgl/layout-api';
 import { labelRunKey, premeasure, type MeasureTable } from '@sgl/measure';
 import { labelBox, layoutLines, needsWrap, UNCONSTRAINED } from '@sgl/text';
 import { BUILT_IN, DEFAULT_THEME_ID, resolveTheme, styleGraph, type ResolvedTheme, type StyledGraph } from '@sgl/theme';
 import { render, renderPaintOnly, type RenderResult } from '@sgl/render-svg';
 import { boundsChangedSignificantly, type Extent } from '../canvas/viewport.js';
 import { deriveChipState, type ChipState } from './chip.js';
-import { optionsForEngine } from './engine-options.js';
+import { acceptsOption, optionsForEngine } from './engine-options.js';
 import { distinctTextStyles } from './measure-styles.js';
 import { documentEngineOverride, documentThemeOverride } from './overrides.js';
 import { makePipelineError, type PipelineError } from './pipeline-error.js';
@@ -182,6 +182,11 @@ export interface Pipeline {
   // means "no override, the picker's own signal above applies."
   readonly documentThemeId: ReadonlySignal<string | undefined>;
   readonly documentEngineId: ReadonlySignal<string | undefined>;
+  /** DD-12 H6: the effective engine's options the document's root `@layout`
+   *  sets (`rootLayoutOptions`). Each overrides `engineOptions`' value for
+   *  this document, in the request and in the form, which shows it as set by
+   *  the document; `engineOptions` itself is not written. */
+  readonly documentOptions: ReadonlySignal<Readonly<Record<string, unknown>>>;
   /** What the pipeline actually runs under — the override if there is one,
    *  else the picker signal. */
   readonly effectiveThemeId: ReadonlySignal<string>;
@@ -318,6 +323,14 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   const documentEngineId = computed<string | undefined>(() => documentEngineOverride(model.value.model, (id) => deps.engineSchemas?.(id) !== undefined));
   const effectiveThemeId = computed<string>(() => documentThemeId.value ?? themeId.value);
   const effectiveEngineId = computed<string>(() => documentEngineId.value ?? engineId.value);
+  // DD-12 H6: the root `@layout` options, checked against the effective
+  // engine; a value is accepted when that engine's form would keep it.
+  const rootOptions = computed(() => {
+    const id = effectiveEngineId.value;
+    const schemas = deps.engineSchemas?.(id);
+    return rootLayoutOptions(parsed.value.value, model.value.model.root.config, schemas === undefined ? { id } : { ...schemas, accepts: (k, v) => acceptsOption(id, k, v) });
+  });
+  const documentOptions = computed(() => rootOptions.value.options);
 
   // A18 (DD-11 T53): the lazy `rich-text` chunk — the inline parser and the
   // word breaker — loads for the first document whose labels hold `*` or a
@@ -558,6 +571,7 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     ...model.value.diagnostics,
     ...graph.value.diagnostics,
     ...layoutConfigDiags.value,
+    ...rootOptions.value.diagnostics,
     ...theme.value.diagnostics,
     ...styled.value.diagnostics,
     ...layoutDiags.value,
@@ -751,8 +765,9 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     const styledSnapshot = styled.value.value;
     const tableSnapshot = table.value;
     const engine = effectiveEngineId.value;
-    // The engine gets exactly what the options form shows (fix round 1, item 3).
-    const options = optionsForEngine(engine, engineOptions.value);
+    // The engine gets exactly what the options form shows (fix round 1, item 3):
+    // the stored bag, with the document's root options over it (DD-12 H6).
+    const options = { ...optionsForEngine(engine, engineOptions.value), ...documentOptions.value };
 
     // Reads `table.value` above regardless, so this effect is still subscribed
     // to it and re-runs the instant the first real table lands (see
@@ -857,6 +872,7 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     imports,
     documentThemeId,
     documentEngineId,
+    documentOptions,
     effectiveThemeId,
     effectiveEngineId,
     table,

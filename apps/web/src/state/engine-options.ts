@@ -105,3 +105,11 @@ export function optionsForEngine(engineId: string, bag: Readonly<Record<string, 
   const rules = RULES[engineId];
   return rules === undefined ? bag : rules.normalize(bag);
 }
+
+/** DD-12 H6: whether a document's root `@layout.{key}: value` is one the
+ *  engine's form would keep, and so is sent; else it is `SGL2011` and the
+ *  form's value applies. An engine with no form takes any value. */
+export function acceptsOption(engineId: string, key: string, value: unknown): boolean {
+  const rules = RULES[engineId];
+  return rules === undefined || rules.normalize({ [key]: value })[key] === value;
+}

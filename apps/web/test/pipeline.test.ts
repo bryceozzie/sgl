@@ -211,6 +211,51 @@ describe('pipeline (DD-08 §3)', () => {
     expect(env.pending.at(-1)!.options).toEqual({ anything: 1 });
   });
 
+  describe('root @layout options reach the engine (DD-12 H6)', () => {
+    const engineSchemas = (id: string) => REGISTERED_ENGINES.find((e) => e.id === id);
+
+    it("override the form's bag key by key, for this document only; the stored bag is left alone", async () => {
+      const source = '@layout: { engine: elk, direction: right, rankSpacing: 20 }\na: "A"\n';
+      const env = setup(source, { engineSchemas });
+      env.pipeline.engineOptions.value = { direction: 'down', nodeSpacing: 12, rankSpacing: 90 };
+      await completeOneLayout(env, 'a');
+      expect(env.pending.at(-1)!.engineId).toBe('sgl.elk');
+      expect(env.pending.at(-1)!.options).toEqual({ direction: 'right', nodeSpacing: 12, rankSpacing: 20, edgeRouting: 'ORTHOGONAL', nodePlacement: 'BRANDES_KOEPF' });
+      expect(env.pipeline.documentOptions.value).toEqual({ direction: 'right', rankSpacing: 20 });
+      expect(env.pipeline.engineOptions.value).toEqual({ direction: 'down', nodeSpacing: 12, rankSpacing: 90 });
+      expect(env.pipeline.diags.value).toEqual([]);
+
+      // Without them, the form's bag applies again.
+      const plain = '@layout: { engine: elk }\na: "A"\n';
+      env.pipeline.setDocument(parse(plain).tree, plain);
+      await completeOneLayout(env, 'a');
+      expect(env.pending.at(-1)!.options).toEqual({ direction: 'down', nodeSpacing: 12, rankSpacing: 90, edgeRouting: 'ORTHOGONAL', nodePlacement: 'BRANDES_KOEPF' });
+      expect(env.pipeline.documentOptions.value).toEqual({});
+    });
+
+    it('under the editor\'s engine too, and `@direction` sugar counts', async () => {
+      const source = '@direction: left\n@layout.columns: 3\na: "A"\n';
+      const env = setup(source, { engineSchemas, defaultEngineId: 'sgl.grid' });
+      await completeOneLayout(env, 'a');
+      // `direction` is not grid's (SGL4010, ignored); `columns` is.
+      expect(env.pending.at(-1)!.options).toEqual({ columns: 3, gap: 24, align: 'center' });
+      expect(env.pipeline.diags.value.map((d) => [d.code, source.slice(d.span.from, d.span.to)])).toEqual([['SGL4010', '@direction']]);
+    });
+
+    it('an undeclared key is SGL4010 and an invalid value SGL2011, each at its key; neither is sent', async () => {
+      const source = '@layout: { engine: elk, columns: 2, nodeSpacing: 900, direction: sideways }\na: "A"\n';
+      const env = setup(source, { engineSchemas });
+      await completeOneLayout(env, 'a');
+      expect(env.pending.at(-1)!.options).toEqual({ direction: 'down', nodeSpacing: 40, rankSpacing: 70, edgeRouting: 'ORTHOGONAL', nodePlacement: 'BRANDES_KOEPF' });
+      expect(env.pipeline.documentOptions.value).toEqual({});
+      expect(env.pipeline.diags.value.map((d) => [d.code, source.slice(d.span.from, d.span.to)]).sort()).toEqual([
+        ['SGL2011', 'direction'],
+        ['SGL2011', 'nodeSpacing'],
+        ['SGL4010', 'columns'],
+      ]);
+    });
+  });
+
   it('last-good survives a syntax error (FR-E4)', async () => {
     const env = setup('a: "A"');
     await completeOneLayout(env, 'a');
