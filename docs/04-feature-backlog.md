@@ -128,6 +128,7 @@ Prior art referenced: **Mm**=Mermaid · **D2**=D2 · **GV**=Graphviz · **PU**=P
 | E16 | Side-by-side visual diff of two document versions | — | Compelling for the PR-review workflow | **C** | **S** |
 | E17 | Multiple documents / tabs in one session | — | Expected once people have more than one diagram | **S** | **M** |
 | E18 | Presentation mode (fullscreen, step through layers) | D2 | Nice-to-have | **C** | **S** |
+| E19 | In-app help and reference: a Help drawer for quick lookup and a help page for detail | Mm and D2 docs sites | Look up `@` keys, style properties, shapes, engines and their options, tokens and diagnostics; basic topics; examples with rendered previews and "Open as new document"; offline. Facts generated from the registries so they cannot drift; prose and examples hand-written, every example tested. Shares its generated data with E6. Added after triage; [DD-13](detailed-design/13-help.md) | — | **M** (Must, human decision 2026-09-27) |
 
 ## F. Files, sharing and interop
 
@@ -212,6 +213,8 @@ Reviewed 2026-09-14. 136 features, 0 undecided, **32 changed** from the recommen
 Rows where the two differ show the call in bold.
 
 *Amended 2026-09-27 (human decision, DD-12 H3): B5's `force` engine was split out as B22 and cut to Could. The counts above are as reviewed on 2026-09-14, before that split.*
+
+*Amended 2026-09-27 (human decision): E19, in-app help, was added as a Must (DD-13). It is not in the counts above.*
 
 ### Promoted into Must
 
@@ -348,7 +351,7 @@ criteria in [06 — Feasibility and MVP](06-feasibility-and-mvp.md).
 | Layout | B1, B10, B12, B19 via **elkjs** + `grid`; Worker with timeout/abort | B5 other engines (`fixed` first, then `tree` and `radial`; `force` cut to Could as B22, 2026-09-27) · B6 iframe isolation → with B17 |
 | Themes | C1–C4, C6, C12; two themes | C5 four themes |
 | Render | D1–D5, D9; fonts by reference | D6 PNG · D7 clipboard |
-| Editor | E1–E5, E8, E9 | E17 tabs |
+| Editor | E1–E5, E8, E9 | E17 tabs · E19 in-app help |
 | Files | F1, **F4** URL share | F2 drag-drop · F5 `.sglpack` |
 | Platform | G1, G2, G3, H1 | — |
 

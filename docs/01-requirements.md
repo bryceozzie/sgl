@@ -130,6 +130,7 @@ Status: draft for review. Nothing here is locked.
 | FR-E8 | Local-first persistence of open documents (IndexedDB/OPFS) with recovery after a crash | Must |
 | FR-E9 | Engine and theme pickers with live preview | Must |
 | FR-E10 | Keyboard-first navigation of the diagram for screen-reader users | Could |
+| FR-E11 | In-app help: look up every `@` key, style property, shape, layout engine and its options, theme token and diagnostic, plus the basic language topics and a quick start, in a Help drawer and a help page inside the app, offline. Reference facts are generated from the code's own registries so they cannot drift; prose and examples are hand-written; every example is checked by a test (compiles with no unexpected diagnostics, renders) and shown with a rendered preview and an "Open as new document" action. No editor hover or tooltips. See [DD-13](detailed-design/13-help.md) | Must (human decision 2026-09-27) |
 
 ### 3.7 Platform and hosting
 
