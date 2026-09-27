@@ -4,9 +4,14 @@ import type { Toast, Toasts as ToastStore } from '../state/toasts.js';
  *  `state/toasts.ts`. Two live regions, both always in the DOM so a screen
  *  reader is already watching them when a toast arrives: `info` toasts in a
  *  polite `status` region (they time out), `error` toasts in an `alert`
- *  region (announced at once, and they stay until their × is clicked). */
+ *  region (announced at once, and they stay until their × is clicked).
+ *
+ *  At most `VISIBLE_TOASTS` show (F13): the newest. The rest are held, not
+ *  dropped, behind a "N more" line in the polite region — announced once,
+ *  without re-announcing the errors — whose button closes them all. */
 export function Toasts({ toasts }: { readonly toasts: ToastStore }) {
-  const items = toasts.items.value;
+  const items = toasts.visible.value;
+  const hidden = toasts.hidden.value;
   const render = (t: Toast) => (
     <div class={`toast toast-${t.kind}`} key={t.id}>
       <span class="toast-message">{t.message}</span>
@@ -22,6 +27,14 @@ export function Toasts({ toasts }: { readonly toasts: ToastStore }) {
       </div>
       <div class="toast-region toast-region-info" role="status" aria-live="polite">
         {items.filter((t) => t.kind === 'info').map(render)}
+        {hidden > 0 ? (
+          <div class="toast toast-more">
+            <span class="toast-message">{hidden} more</span>
+            <button type="button" class="toast-dismiss-all" onClick={toasts.dismissAll}>
+              Dismiss all
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );
