@@ -1,9 +1,8 @@
 // expects: SGL2011
 // A malformed `@pin` (DD-12 N4): `y` is missing. The whole pin is dropped
-// with SGL2011 ("`@pin` expects `{ x, y }` numbers within ±100 000"). The
-// engine check (SGL4021) reads the AST, not the resolved pin, so under an
-// engine without pins the same key is also SGL4021: see DOWNSTREAM_EXTRA in
-// `packages/render-svg/test/pipeline.test.ts`.
+// with SGL2011 ("`@pin` expects `{ x, y }` numbers within ±100 000"), and
+// that is the only report: the engine check (SGL4021) skips a pin the
+// resolver dropped (feat/b5-pin fix round 1, item 6).
 a: { @label: "A", @pin: { x: 10 } }
 b: "B"
 a -> b

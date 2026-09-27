@@ -1,4 +1,4 @@
-import { parse } from '@sgl/core';
+import { parse, resolve } from '@sgl/core';
 import { describe, expect, it } from 'vitest';
 import { layoutConfigDiagnostics, type EngineSchemas } from '../src/layout-config.js';
 
@@ -92,6 +92,43 @@ describe('layoutConfigDiagnostics (SGL4021, DD-12 N6)', () => {
 
   it("a pin on the root, a class or an edge is not SGL4021 (it is the resolver's SGL2012)", () => {
     expect(run('@pin: { x: 1, y: 2 }\n@classes: { P: { @pin: { x: 1, y: 2 } } }\na: P\nb: "B"\na -> b: { @pin: { x: 1, y: 2 } }\n', ELK)).toEqual([]);
+  });
+
+  // Fix round 1, item 6: a pin the resolver dropped (SGL2011) is reported once, by the resolver.
+  describe('a pin the resolver dropped', () => {
+    const withResolver = (src: string, engine: EngineSchemas) => {
+      const { ast } = parse(src);
+      return layoutConfigDiagnostics(ast, engine, resolve(ast).diagnostics).map((d) => [d.code, src.slice(d.span.from, d.span.to)]);
+    };
+
+    it.each([
+      ['y missing', 'a: { @pin: { x: 10 } }\n'],
+      ['dotted, y missing', 'a: {\n  @pin.x: 10\n}\n'],
+      ['out of range through a variable', '@vars: { far: { x: 1000000, y: 0 } }\na: { @pin: $far }\n'],
+      ['not an object', 'a: { @pin: 5 }\n'],
+    ])('%s: no SGL4021', (_, src) => {
+      expect(withResolver(src, ELK)).toEqual([]);
+    });
+
+    it('only the node whose pin was dropped is skipped', () => {
+      expect(withResolver('a: { @pin: { x: 10 } }\nb: { @pin: { x: 1, y: 2 } }\n', ELK)).toEqual([['SGL4021', '@pin']]);
+      const src = 'a: { @pin: { x: 10 } }\nb: { @pin: { x: 1, y: 2 } }\n';
+      expect(layoutConfigDiagnostics(parse(src).ast, ELK, resolve(parse(src).ast).diagnostics)[0]!.span.from).toBe(src.indexOf('@pin: { x: 1,'));
+    });
+
+    it('without the resolver\'s diagnostics every pin key counts, as before', () => {
+      expect(run('a: { @pin: { x: 10 } }\n', ELK).map((d) => d.code)).toEqual(['SGL4021']);
+    });
+  });
+
+  // Fix round 1, item 7: one SGL4021 per node, not per declaration.
+  it('a node declared twice warns once, at its first pin key in source order', () => {
+    const src = 'a: { @pin: { x: 1, y: 2 } }\nb: "B"\na: { @pin: { x: 3, y: 4 } }\nbox: {\n  c: { @pin.x: 0, @pin.y: 0 }\n}\nbox: {\n  c: { @pin: { x: 5, y: 5 } }\n  @pin: { x: 9, y: 9 }\n}\n';
+    expect(froms(src, ELK)).toEqual([src.indexOf('@pin'), src.indexOf('@pin.x'), src.indexOf('@pin: { x: 9')].sort((p, q) => p - q));
+  });
+
+  it('two nodes with the same key under different parents are different nodes', () => {
+    expect(froms('p: { a: { @pin: { x: 1, y: 2 } } }\nq: { a: { @pin: { x: 1, y: 2 } } }\n', ELK)).toHaveLength(2);
   });
 
   it('a document without a pin gets none', () => {

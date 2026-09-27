@@ -28,9 +28,12 @@ import type { JSONSchema7 } from './contract.js';
  * An engine the caller has no schemas for gets (a) only.
  *
  * SGL4021 (DD-12 N6, H4), in the same walk: a node's `@pin` under an engine
- * that does not declare `pins: true` is warned about once per node, at its
- * first pin key, and ignored. A pin on the root, a class or an edge is the
- * resolver's `SGL2012` and is not visited. Nodes grafted by `@imports` have
+ * that does not declare `pins: true` is warned about once per node (by path,
+ * however many times it is declared), at its first pin key in source order,
+ * and ignored. Given the resolver's diagnostics (`resolved`), a node whose pin
+ * the resolver dropped with `SGL2011` is skipped: that is already reported.
+ * A pin on the root, a class or an edge is the resolver's `SGL2012` and is not
+ * visited. Nodes grafted by `@imports` have
  * no AST here and are not checked (they cannot be edited from this document).
  */
 
@@ -48,24 +51,29 @@ interface LayoutKey {
   readonly value: Value;
 }
 
-export function layoutConfigDiagnostics(ast: Document, engine: EngineSchemas): readonly Diagnostic[] {
+export function layoutConfigDiagnostics(ast: Document, engine: EngineSchemas, resolved: readonly Diagnostic[] = []): readonly Diagnostic[] {
   const out: Diagnostic[] = [];
   const declared = declaredKeys(engine);
-  const visit = (entries: readonly Entry[], level: 'root' | 'node'): void => {
-    let pinned = level === 'root' || engine.pins === true;
+  // SGL4021 (fix round 1, items 6 and 7): each node's first pin key in source
+  // order, by its path, so a node declared twice is warned about once; `null`
+  // once the resolver has dropped one of its pins (SGL2011 at that key), which
+  // is then reported once, by the resolver.
+  const dropped = new Set(resolved.filter((d) => d.code === 'SGL2011').map((d) => d.span.from));
+  const pins = new Map<string, SourceSpan | null>();
+  const visit = (entries: readonly Entry[], path: string | null): void => {
     for (const entry of entries) {
       if (entry.kind === 'NodeDecl') {
-        if (entry.value?.kind === 'Block') visit(entry.value.entries, 'node');
+        if (entry.value?.kind === 'Block') visit(entry.value.entries, path === null ? entry.key : `${path}\u0000${entry.key}`);
         continue;
       }
       if (entry.kind !== 'ConfigEntry') continue;
-      if (!pinned && entry.key[0] === 'pin') {
-        pinned = true;
-        out.push(layoutDiagnostic('SGL4021', entry.keySpan, { id: engine.id }));
+      if (path !== null && engine.pins !== true && entry.key[0] === 'pin') {
+        if (dropped.has(entry.keySpan.from)) pins.set(path, null);
+        else if (!pins.has(path)) pins.set(path, entry.keySpan);
       }
       for (const k of layoutKeys(entry)) {
         if (k.key === 'engine') {
-          if (level === 'node' && !namesEngine(k.value, engine.id)) {
+          if (path !== null && !namesEngine(k.value, engine.id)) {
             out.push(layoutDiagnostic('SGL4010', k.span, { key: 'engine', id: engine.id }));
           }
           continue;
@@ -74,7 +82,8 @@ export function layoutConfigDiagnostics(ast: Document, engine: EngineSchemas): r
       }
     }
   };
-  visit(ast.entries, 'root');
+  visit(ast.entries, null);
+  for (const span of pins.values()) if (span !== null) out.push(layoutDiagnostic('SGL4021', span, { id: engine.id }));
   return out;
 }
 

@@ -144,7 +144,7 @@ export async function runPipeline(
     ...(engine.optionsSchema && { optionsSchema: engine.optionsSchema }),
     ...(engine.hintsSchema && { hintsSchema: engine.hintsSchema }),
     ...(engine.capabilities.pins === true && { pins: true }),
-  });
+  }, d2);
   const { value: theme, diagnostics: d4 } = resolveTheme(themeDoc, (id) => BUILT_IN[id]);
   const { value: styled, diagnostics: d5 } = styleGraph(graph, theme, model.classes);
   const { input, result, table, diagnostics: d6 } = await layOut(styled, engine, options);

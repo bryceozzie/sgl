@@ -550,7 +550,7 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   // and ignored. From the parsed AST, where each key has its own span.
   const layoutConfigDiags = computed<readonly Diagnostic[]>(() => {
     const engineId = effectiveEngineId.value;
-    return layoutConfigDiagnostics(parsed.value.value, deps.engineSchemas?.(engineId) ?? { id: engineId });
+    return layoutConfigDiagnostics(parsed.value.value, deps.engineSchemas?.(engineId) ?? { id: engineId }, model.value.diagnostics);
   });
 
   const diags = computed<readonly Diagnostic[]>(() => [

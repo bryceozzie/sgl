@@ -571,6 +571,11 @@ describe('@pin under the registered engines (DD-12 N6, H4)', () => {
     expect(graph.nodes[asNodeId('box.a')]!.config.pin).toEqual({ x: -1, y: 2.5 });
   });
 
+  it('a malformed pin is reported once, by the resolver (SGL2011), not again as SGL4021 (fix round 1, item 6)', () => {
+    const env = setup('a: { @pin: { x: 1 } }\nb: { @pin: { x: 1, y: 2 } }\n', registered);
+    expect(env.pipeline.diags.value.map((d) => d.code).sort()).toEqual(['SGL2011', 'SGL4021']);
+  });
+
   it('a malformed pin never reaches the layout input', async () => {
     const env = setup('a: { @pin: { x: 1 } }\n', registered);
     await completeOneLayout(env, 'a');
