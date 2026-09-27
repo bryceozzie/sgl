@@ -1,4 +1,3 @@
-import type { Diagnostic } from '@sgl/core';
 import type { LayoutInput, LayoutResult, ResolvedThemeMetricsView } from './contract.js';
 
 /** The worker wire protocol (DD-06 §3). Every payload is `structuredClone`-able,
@@ -20,7 +19,9 @@ export type HostToWorker =
 
 export type WorkerToHost =
   | { readonly t: 'result'; readonly id: number; readonly result: LayoutResult; readonly ms: number }
-  | { readonly t: 'error'; readonly id: number; readonly diagnostic: Diagnostic }
+  /** The engine failed: `reason` is its error's message. The host builds
+   *  SGL4011 itself from it (fix round 1, item 4); nothing else is read. */
+  | { readonly t: 'error'; readonly id: number; readonly reason: string }
   /** Table miss — the host measures on the main thread and replies. */
   | { readonly t: 'measure'; readonly id: number; readonly req: number; readonly runs: readonly unknown[]; readonly box: Readonly<Record<string, unknown>> }
   | { readonly t: 'log'; readonly id: number; readonly level: 'info' | 'warn' | 'error'; readonly message: string; readonly nodeId?: string };

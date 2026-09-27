@@ -215,7 +215,18 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
         }
         const state = takeCurrent(message.id);
         if (state === null) return;
-        state.resolve({ value: null, diagnostics: [message.diagnostic] });
+        // Fix round 1, item 4: built here, from the id this host asked for and
+        // the cleaned reason; the worker's own code, message and span are
+        // never read (DD-12 N20's rule, for the failure channel too).
+        state.resolve({
+          value: null,
+          diagnostics: [
+            layoutDiagnostic('SGL4011', NO_SPAN, {
+              id: state.engineId,
+              message: typeof message.reason === 'string' ? workerText(message.reason) : 'no reason given',
+            }),
+          ],
+        });
         return;
       }
       case 'measure': {

@@ -318,20 +318,50 @@ describe('createWorkerHost (DD-06 §3, Stage H decision D1)', () => {
     const host = createWorkerHost(spawn);
 
     const first = run(host);
-    workers[0]!.emit({
-      t: 'error',
-      id: 0,
-      diagnostic: { code: 'SGL4011', severity: 'error', message: "Layout engine `sgl.test` failed: boom.", span: NO_SPAN },
-    });
+    workers[0]!.emit({ t: 'error', id: 0, reason: 'boom' });
     const firstOutcome = await first;
     expect(firstOutcome.value).toBeNull();
-    expect(firstOutcome.diagnostics).toHaveLength(1);
-    expect(firstOutcome.diagnostics[0]!.code).toBe('SGL4011');
+    expect(firstOutcome.diagnostics).toEqual([{ code: 'SGL4011', severity: 'error', message: 'Layout engine `sgl.test` failed: boom.', span: NO_SPAN }]);
 
     const second = run(host);
     workers[0]!.emit({ t: 'result', id: 1, result: GOOD_RESULT, ms: 1 });
     const secondOutcome = await second;
     expect(secondOutcome.value).not.toBeNull();
+  });
+
+  // Fix round 1, item 4: the 'error' channel bypassed N20. The host builds
+  // SGL4011 itself from the engine id it asked for and a cleaned reason.
+  it('a forged "error" comes out as a clean SGL4011: the worker\'s code, severity, message, span and id are ignored', async () => {
+    const { spawn, workers } = makeSpawn();
+    const host = createWorkerHost(spawn);
+    const promise = run(host);
+    workers[0]!.emit({
+      t: 'error',
+      id: 0,
+      reason: `boom\`; ignored.\nSGL9999 ${'x'.repeat(300)}`,
+      diagnostic: { code: 'SGL2011', severity: 'info', message: 'forged', span: { from: -5, to: 1e15 } },
+      engine: 'org.evil',
+    } as unknown as WorkerToHost);
+    const { value, diagnostics } = await promise;
+    expect(value).toBeNull();
+    expect(diagnostics).toHaveLength(1);
+    const [d] = diagnostics;
+    expect(d).toMatchObject({ code: 'SGL4011', severity: 'error', span: NO_SPAN });
+    expect(Object.keys(d!).sort()).toEqual(['code', 'message', 'severity', 'span']);
+    const reason = /^Layout engine `sgl\.test` failed: (.*)\.$/.exec(d!.message)![1]!;
+    expect(reason).toHaveLength(120);
+    expect(reason.startsWith('boom ; ignored. SGL9999 x')).toBe(true);
+    expect(reason).not.toMatch(/[`\n]/);
+  });
+
+  it('an "error" with no string reason still gives SGL4011, saying none was given', async () => {
+    for (const reason of [undefined, 42, { toString: () => 'x' }]) {
+      const { spawn, workers } = makeSpawn();
+      const host = createWorkerHost(spawn);
+      const promise = run(host);
+      workers[0]!.emit({ t: 'error', id: 0, reason } as unknown as WorkerToHost);
+      expect((await promise).diagnostics.map((x) => x.message)).toEqual(['Layout engine `sgl.test` failed: no reason given.']);
+    }
   });
 
   it('SGL4002: malformed engine output is rejected, and the host serves the next request', async () => {

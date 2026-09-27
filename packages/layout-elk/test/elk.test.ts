@@ -416,7 +416,7 @@ describe('errors are values', () => {
     const runtime = createWorkerRuntime(registry, { post: (m) => sent.push(m) });
     runtime.receive({ t: 'layout', id: 1, engine: elkEngine.id, input, options: {}, metrics: METRICS, table: {}, seed: 1 });
     await expect.poll(() => sent.length).toBe(1);
-    expect(sent[0]).toMatchObject({ t: 'error', id: 1, diagnostic: { code: 'SGL4011', severity: 'error' } });
+    expect(sent[0]).toMatchObject({ t: 'error', id: 1, reason: expect.any(String) });
   });
 });
 
