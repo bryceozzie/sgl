@@ -11,7 +11,9 @@
  * 2. two runs are byte-identical after quantization (`bitwise` engines also
  *    before it; `best-effort` engines are skipped, ADR-0004);
  * 3. no two sibling frames overlap (a container may enclose its own
- *    descendants; siblings are compared whether leaves or containers);
+ *    descendants; siblings are compared whether leaves or containers). For
+ *    an engine that declares `pins`, two siblings that both have a `@pin`
+ *    are exempt: the author placed them (F28, DD-12 §17 item 9);
  * 4. the case named `timedCase` (the 1 000-node graph) finishes inside the
  *    engine's timeout;
  * 5. an engine claiming `labelPlacement: true` returns a `LabelPlacement` for
@@ -36,6 +38,7 @@
 import type { EdgeId, GraphNode, LabelId, NodeId, PathSeg, Point, Rect, SemanticGraph } from '@sgl/core';
 import type { LayoutContext, LayoutEngine, LayoutInput, LayoutResult, ResolvedThemeMetricsView } from './contract.js';
 import { applyHostFallbacks } from './fallbacks.js';
+import { pinOf } from './pin.js';
 import { DEFAULT_ENGINE_TIMEOUT_MS, DEFAULT_TIMEOUT_MS } from './host.js';
 import { describeShapeError, quantize, validateResult } from './validate.js';
 
@@ -158,7 +161,10 @@ export async function runConformance(
       if (!deterministic) failures.push(`${c.name}: check 2 (two runs differ after quantization)`);
     }
 
-    const siblingOverlaps = describeShapeError(first.result) === null ? siblingLeafOverlaps(c.input.graph, first.result) : [];
+    // F28 (DD-12 §17 item 9): an engine that places nodes at their `@pin`
+    // may put two of them on top of each other, because the author did.
+    const pinned = engine.capabilities.pins === true ? (id: NodeId) => pinnedNode(c.input.graph, id) : undefined;
+    const siblingOverlaps = describeShapeError(first.result) === null ? siblingLeafOverlaps(c.input.graph, first.result, pinned) : [];
     for (const [a, b] of siblingOverlaps) failures.push(`${c.name}: check 3 (siblings '${a}' and '${b}' overlap)`);
 
     const withinTimeout = c.name === opts.timedCase ? ms <= timeoutMs : null;
@@ -186,8 +192,17 @@ export async function runConformance(
  *  root — leaves and containers alike (fix round 1, item 18: it compared leaf
  *  pairs only). Siblings are never each other's ancestors; a container
  *  enclosing its own descendants is not an overlap. Touching edges are not an
- *  overlap. Kept under its original name; `siblingOverlaps` is the same. */
-export function siblingLeafOverlaps(graph: SemanticGraph, result: LayoutResult): readonly (readonly [NodeId, NodeId])[] {
+ *  overlap. Kept under its original name; `siblingOverlaps` is the same.
+ *
+ *  `exempt` (F28): a pair is skipped when both of its nodes are exempt. The
+ *  suite passes the nodes with a `@pin` for an engine that declares `pins`:
+ *  two nodes the author placed may overlap on purpose, but a node the engine
+ *  placed may not overlap anything. */
+export function siblingLeafOverlaps(
+  graph: SemanticGraph,
+  result: LayoutResult,
+  exempt?: (id: NodeId) => boolean,
+): readonly (readonly [NodeId, NodeId])[] {
   const violations: (readonly [NodeId, NodeId])[] = [];
   const EPS = 1e-6;
   const overlaps = (a: Rect, b: Rect): boolean =>
@@ -198,6 +213,7 @@ export function siblingLeafOverlaps(graph: SemanticGraph, result: LayoutResult):
       for (let j = i + 1; j < visible.length; j += 1) {
         const a = result.nodes[visible[i]!];
         const b = result.nodes[visible[j]!];
+        if (exempt !== undefined && exempt(visible[i]!) && exempt(visible[j]!)) continue;
         if (a !== undefined && b !== undefined && overlaps(a.frame, b.frame)) violations.push([visible[i]!, visible[j]!]);
       }
     }
@@ -211,6 +227,11 @@ export function siblingLeafOverlaps(graph: SemanticGraph, result: LayoutResult):
 }
 
 export const siblingOverlaps = siblingLeafOverlaps;
+
+function pinnedNode(graph: SemanticGraph, id: NodeId): boolean {
+  const node = graph.nodes[id];
+  return node !== undefined && pinOf(node.config) !== undefined;
+}
 
 export interface DetachedEnd {
   readonly edge: EdgeId;
