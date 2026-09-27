@@ -969,6 +969,19 @@ function finalizeConfig(
   if (scope === 'root' || scope === 'node') {
     foldDirectionSugar(config);
     if (authored !== undefined) foldDirectionSugar(authored);
+    // An empty engine name is no engine (feat/b5-pin fix round 1, item 8):
+    // dropped with SGL2011, so the editor's engine applies. The rest of the
+    // block is kept.
+    const layout = config.layout;
+    if (isPlainObject(layout) && typeof layout.engine === 'string' && layout.engine.trim() === '') {
+      diags.push(diagnostic('SGL2011', bag.configSpans.get('layout') as SourceSpan, { key: 'layout.engine', type: 'an engine name' }));
+      for (const b of authored === undefined ? [config] : [config, authored]) {
+        if (!isPlainObject(b.layout)) continue;
+        const rest = { ...b.layout };
+        delete rest.engine;
+        b.layout = rest;
+      }
+    }
   }
   const drop = (key: string): void => {
     delete config[key];

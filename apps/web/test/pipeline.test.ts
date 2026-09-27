@@ -529,6 +529,19 @@ describe('document overrides (DD-08 §10)', () => {
     expect(env.pending.at(-1)!.engineId).toBe(id);
   });
 
+  it('an empty `engine` is not set: the editor\'s engine lays out, with one SGL2011 at the key (fix round 1, item 8)', async () => {
+    const source = '@layout: { engine: "" }\nbox: {\n  @layout.engine: ""\n  a: "A"\n}\n';
+    const env = setup(source, { ...registered, defaultEngineId: 'sgl.grid' });
+    expect(env.pipeline.documentEngineId.value).toBeUndefined();
+    expect(env.pipeline.effectiveEngineId.value).toBe('sgl.grid');
+    expect(env.pipeline.diags.value.map((d) => [d.code, source.slice(d.span.from, d.span.to)])).toEqual([
+      ['SGL2011', '@layout'],
+      ['SGL2011', '@layout.engine'],
+    ]);
+    await completeOneLayout(env, 'box');
+    expect(env.pending.at(-1)!.engineId).toBe('sgl.grid');
+  });
+
   it('an unknown bare name reaches the host unchanged, as an unknown id does (`layered` is not `elk`, H7)', async () => {
     const env = setup('@layout: { engine: "layered" }\na: "A"', registered);
     await completeOneLayout(env, 'a');

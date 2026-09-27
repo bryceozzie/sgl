@@ -98,11 +98,13 @@ function layoutKeys(entry: Extract<Entry, { kind: 'ConfigEntry' }>): LayoutKey[]
   return entry.value.props.map((p) => ({ key: p.key, span: p.keySpan, value: p.value }));
 }
 
-/** `sgl.elk`, or its short form `elk`. */
+/** `sgl.elk`, or its short form `elk`. An empty name counts as naming it:
+ *  the resolver drops it with SGL2011 (fix round 1, item 8), so it is not a
+ *  second engine to warn about. */
 function namesEngine(value: Value, id: string): boolean {
   const name = value.kind === 'String' || value.kind === 'Word' ? value.value : undefined;
   if (name === undefined) return false;
-  return name === id || (id.startsWith('sgl.') && name === id.slice('sgl.'.length));
+  return name.trim() === '' || name === id || (id.startsWith('sgl.') && name === id.slice('sgl.'.length));
 }
 
 function declaredKeys(engine: EngineSchemas): ReadonlySet<string> | null {

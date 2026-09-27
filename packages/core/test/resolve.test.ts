@@ -315,6 +315,36 @@ describe('config-key registry (DD-02 §7)', () => {
     expect(diagnostics.map((d) => d.code)).toEqual(['SGL2012']);
   });
 
+  // feat/b5-pin fix round 1, item 8: an empty engine name is not an engine id.
+  describe('an empty @layout.engine', () => {
+    const MSG = '`@layout.engine` expects an engine name; ignored.';
+    it.each([
+      ['@layout: { engine: "", direction: right }\na: "A"\n', '@layout'],
+      ['@layout.engine: ""\na: "A"\n', '@layout.engine'],
+      ['@layout: { engine: "   " }\na: "A"\n', '@layout'],
+    ])('%j: SGL2011 at the key, and the engine is not set', (src, text) => {
+      const { model, diagnostics } = resolveSrc(src);
+      expect(diagnostics.map((d) => [d.code, d.message, src.slice(d.span.from, d.span.to)])).toEqual([['SGL2011', MSG, text]]);
+      expect((model.root.config.layout as ConfigBag | undefined)?.engine).toBeUndefined();
+    });
+
+    it('the other @layout keys are kept', () => {
+      const { model } = resolveSrc('@layout: { engine: "", direction: right }\na: "A"\n');
+      expect(model.root.config.layout).toEqual({ direction: 'right' });
+      expect(toJson(model)).not.toContain('engine');
+    });
+
+    it('on a container too', () => {
+      const { model, diagnostics } = resolveSrc('box: {\n  @layout.engine: ""\n  a: "A"\n}\n');
+      expect(diagnostics.map((d) => d.code)).toEqual(['SGL2011']);
+      expect((model.root.children[0] as ContainerModel).config.layout).toEqual({});
+    });
+
+    it('a non-empty engine name is untouched', () => {
+      expect(resolveSrc('@layout: { engine: grid }\na: "A"\n').diagnostics).toEqual([]);
+    });
+  });
+
   describe('@pin (DD-12 N4)', () => {
     const PIN_MSG = '`@pin` expects `{ x, y }` numbers within ±100 000; ignored.';
     const pinOf = (src: string) => {

@@ -6,8 +6,8 @@
     "kind": "NodeDecl",
     "key": "a",
     "keySpan": {
-     "from": 370,
-     "to": 371
+     "from": 296,
+     "to": 297
     },
     "value": {
      "kind": "Block",
@@ -21,17 +21,17 @@
         "kind": "String",
         "value": "A",
         "span": {
-         "from": 383,
-         "to": 386
+         "from": 309,
+         "to": 312
         }
        },
        "keySpan": {
-        "from": 375,
-        "to": 381
+        "from": 301,
+        "to": 307
        },
        "span": {
-        "from": 375,
-        "to": 386
+        "from": 301,
+        "to": 312
        }
       },
       {
@@ -47,66 +47,66 @@
           "key": "x",
           "isConfig": false,
           "keySpan": {
-           "from": 396,
-           "to": 397
+           "from": 322,
+           "to": 323
           },
           "value": {
            "kind": "Number",
            "value": 10,
            "span": {
-            "from": 399,
-            "to": 401
+            "from": 325,
+            "to": 327
            }
           },
           "span": {
-           "from": 396,
-           "to": 401
+           "from": 322,
+           "to": 327
           }
          }
         ],
         "span": {
-         "from": 394,
-         "to": 403
+         "from": 320,
+         "to": 329
         }
        },
        "keySpan": {
-        "from": 388,
-        "to": 392
+        "from": 314,
+        "to": 318
        },
        "span": {
-        "from": 388,
-        "to": 403
+        "from": 314,
+        "to": 329
        }
       }
      ],
      "span": {
-      "from": 373,
-      "to": 405
+      "from": 299,
+      "to": 331
      }
     },
     "span": {
-     "from": 370,
-     "to": 405
+     "from": 296,
+     "to": 331
     }
    },
    {
     "kind": "NodeDecl",
     "key": "b",
     "keySpan": {
-     "from": 406,
-     "to": 407
+     "from": 332,
+     "to": 333
     },
     "value": {
      "kind": "String",
      "value": "B",
      "span": {
-      "from": 409,
-      "to": 412
+      "from": 335,
+      "to": 338
      }
     },
     "span": {
-     "from": 406,
-     "to": 412
+     "from": 332,
+     "to": 338
     }
    },
    {
@@ -123,19 +123,19 @@
          "kind": "Name",
          "value": "a",
          "span": {
-          "from": 413,
-          "to": 414
+          "from": 339,
+          "to": 340
          }
         }
        ],
        "span": {
-        "from": 413,
-        "to": 414
+        "from": 339,
+        "to": 340
        }
       },
       "span": {
-       "from": 413,
-       "to": 414
+       "from": 339,
+       "to": 340
       }
      },
      {
@@ -149,19 +149,19 @@
          "kind": "Name",
          "value": "b",
          "span": {
-          "from": 418,
-          "to": 419
+          "from": 344,
+          "to": 345
          }
         }
        ],
        "span": {
-        "from": 418,
-        "to": 419
+        "from": 344,
+        "to": 345
        }
       },
       "span": {
-       "from": 418,
-       "to": 419
+       "from": 344,
+       "to": 345
       }
      }
     ],
@@ -169,14 +169,14 @@
      "->"
     ],
     "span": {
-     "from": 413,
-     "to": 419
+     "from": 339,
+     "to": 345
     }
    }
   ],
   "span": {
    "from": 0,
-   "to": 420
+   "to": 346
   }
  },
  "diagnostics": []
