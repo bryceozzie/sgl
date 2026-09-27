@@ -422,7 +422,9 @@ engine's defaults (Stage K; `{}` before F11 gave engines real ones).
 ending Stage I's interim `grid` default (I1); a stored document keeps its own `engineId` (boot
 already falls back to the default only for an engine the worker does not register).
 `REGISTERED_ENGINES` (`io/app-boot.ts`) reads `elk` from `@sgl/layout-elk/descriptor` — everything
-but `layout()`, and none of elkjs — so the pickers never pull elkjs into the main thread.
+but `layout()`, and none of elkjs — so the pickers never pull elkjs into the main thread; since
+F20 it reads `grid` from `@sgl/layout-std/descriptor` the same way, so grid's packing code stays in
+the worker.
 **The engine options panel (F11) is built**, as one hand-built form per engine (K9):
 `state/engine-options.ts` holds each engine's fields, labels and defaults, normalises the
 untrusted stored bag (a value the field does not allow shows, and — since Stage K fix round 1,

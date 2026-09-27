@@ -355,6 +355,8 @@ optionsSchema: { columns: number | 'auto' ('auto'), gap: number (24), align: enu
 hintsSchema:   { columns: number, span: number (⟶ v1.x) }
 ```
 
+Everything above but `layout()` is `gridDescriptor`, its own entry point `@sgl/layout-std/descriptor` (F20), which `gridEngine` spreads. The main thread imports only the descriptor (Engine ▾, SGL4010's schemas), as it does `@sgl/layout-elk/descriptor` for `elk`; the packing code below is bundled into the layout worker alone (`check-core-chunks.mjs` checks).
+
 Post-order over containers so child sizes are known before the parent packs them:
 
 ```

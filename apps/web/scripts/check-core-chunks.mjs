@@ -97,6 +97,20 @@ if (!existsSync(`${DIST}index.html`)) {
   if (bootRows === 0) fail('no catalogue row found in the boot chunks; update the row pattern for this minifier output.');
   if (process.exitCode !== 1) console.log(`check-core-chunks: no import catalogue row or imports chunk at boot (${bootRows} other rows).`);
 
+  // F20: the page lists `grid` in Engine ▾ from `@sgl/layout-std/descriptor`
+  // alone; only the worker runs `gridEngine.layout()`. The worker's copy must
+  // carry the packing code (else this signature, one of its error messages, no
+  // longer matches the minified output and the check would pass vacuously).
+  const GRID_LAYOUT_SIGNATURE = 'grid: unknown scope';
+  for (const file of seen) {
+    if (readFileSync(`${DIST}assets/${file}`, 'utf8').includes(GRID_LAYOUT_SIGNATURE)) fail(`${file} (reachable at boot) contains the grid engine's layout code; the page needs only @sgl/layout-std/descriptor.`);
+  }
+  const workerFiles = assets.filter((f) => /^layout\.worker-[\w-]+\.js$/.test(f));
+  if (!workerFiles.some((f) => readFileSync(`${DIST}assets/${f}`, 'utf8').includes(GRID_LAYOUT_SIGNATURE))) {
+    fail(`no layout worker chunk contains '${GRID_LAYOUT_SIGNATURE}'; update GRID_LAYOUT_SIGNATURE for this minifier output.`);
+  }
+  if (process.exitCode !== 1) console.log('check-core-chunks: the grid layout code is in the worker only.');
+
   // A8 follow-up: the layout worker emits only layout diagnostics (`SGL4xxx`),
   // built from `@sgl/core`'s `LAYOUT_CATALOGUE` through `layoutDiagnostic()`.
   // If anything in the worker imports the full `diagnostic()` again, the whole

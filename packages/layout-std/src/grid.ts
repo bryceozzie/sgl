@@ -1,13 +1,6 @@
 import type { GraphNode, NodeId, Rect, SemanticGraph, Size } from '@sgl/core';
-import {
-  LAYOUT_API_VERSION,
-  type LayoutContext,
-  type LayoutEngine,
-  type LayoutInput,
-  type LayoutResult,
-  type NodeLayout,
-  type NodeSizing,
-} from '@sgl/layout-api';
+import type { LayoutContext, LayoutEngine, LayoutInput, LayoutResult, NodeLayout, NodeSizing } from '@sgl/layout-api';
+import { gridDescriptor } from './descriptor.js';
 
 /**
  * Deterministic row/column packing. The second engine exists to prove that two
@@ -15,7 +8,9 @@ import {
  *
  * It declares `labelPlacement: false` and `edgeRouting: 'straight'` deliberately:
  * the host's fallbacks then do label placement and routing, which exercises the
- * negotiation path that makes third-party engines approachable.
+ * negotiation path that makes third-party engines approachable. Its id, name,
+ * capabilities and schemas are `gridDescriptor` (`descriptor.ts`, F20), which the
+ * main thread imports on its own.
  *
  * Exit criterion (DD-00 §6): bitwise identical across two runs and across
  * Chrome and Firefox.
@@ -23,37 +18,7 @@ import {
  * Design: DD-06 §7.
  */
 export const gridEngine: LayoutEngine = {
-  id: 'sgl.grid',
-  name: 'Grid',
-  version: '0.0.0',
-  apiVersion: LAYOUT_API_VERSION,
-
-  capabilities: {
-    containers: true,
-    edgeRouting: 'straight',
-    ports: false,
-    labelPlacement: false,
-    incremental: false,
-    determinism: 'bitwise',
-  },
-
-  optionsSchema: {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-      columns: { oneOf: [{ type: 'number' }, { type: 'string', enum: ['auto'] }], default: 'auto' },
-      gap: { type: 'number', default: 24 },
-      align: { type: 'string', enum: ['start', 'center'], default: 'center' },
-    },
-  },
-
-  hintsSchema: {
-    type: 'object',
-    properties: {
-      columns: { type: 'number' },
-      span: { type: 'number' }, // ⟶ v1.x
-    },
-  },
+  ...gridDescriptor,
 
   // `LayoutEngine.layout` is async by contract; grid's own work is pure and
   // synchronous, so this never actually awaits anything.

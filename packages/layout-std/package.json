@@ -7,7 +7,8 @@
   "sideEffects": false,
   "files": ["dist"],
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./descriptor": { "types": "./dist/descriptor.d.ts", "default": "./dist/descriptor.js" }
   },
   "scripts": {
     "build": "tsdown"
