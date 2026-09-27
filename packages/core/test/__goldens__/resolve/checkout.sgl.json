@@ -3,7 +3,7 @@
   "@title": "Checkout Flow",
   "@theme": "neutral-light",
   "@layout": {
-    "engine": "layered",
+    "engine": "elk",
     "direction": "right"
   },
   "@vars": {

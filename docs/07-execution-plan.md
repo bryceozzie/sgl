@@ -1947,6 +1947,57 @@ unbuilt, and DD-00's DD-11 row was stale. Next is the plan in DD-12 §13: `feat/
 `feat/b5-fixed` → `fix/root-layout-options` → `feat/b5-tree` → `feat/b5-radial`. The estimated boot
 cost is ~3.2 kB of the 6.01 kB left.
 
+**B5 branch 1, `feat/b5-pin`** (from `main` at `caa0189`; not merged). This is DD-12 §13's branch 1.
+- **`@pin` has a registry row** (`config-registry.ts`, N4). Its scope is node, containers
+  included. It must be `{ x, y }`, both numbers within ±100 000; otherwise the whole pin is dropped
+  with `SGL2011` ("expects `{ x, y }` numbers within ±100 000"). Any other sub-key is `SGL2010`
+  and kept. On an edge, a class or the root it is `SGL2012`. The pin reaches `LayoutInput`
+  unchanged in `GraphNode.config.pin`, relative to the parent's content box (H2).
+- **Engine notes reach the document (N20;** DD-12 §17 item 3 is resolved). An engine returns
+  `LayoutResult.notes` (`{ code, span, params }`). `host.ts`'s `engineNotes()` keeps a note only
+  if it is a non-error `LAYOUT_CATALOGUE` row with a finite span, and builds its message with
+  `layoutDiagnostic()`. `LayoutResult.diagnostics` and `ctx.log` stay dropped. Notes are added
+  only to an accepted result.
+- **Pins are a capability.** `EngineCapabilities.pins?` is optional, so `apiVersion` stays 1.
+  **`SGL4021`** is allocated (H5): a warning at a node's first `@pin` key, from
+  `layoutConfigDiagnostics`, when the engine lacks `pins`. Neither `grid` nor `elk` has it.
+  `SGL4020` moves to `feat/b5-fixed`, its emitter.
+- **Bare engine names (N22, the orchestrator's bug fix).** `documentEngineOverride` maps
+  `grid` → `sgl.grid` when only the latter is registered. `corpus/checkout.sgl` says `elk` (H7).
+- **Fixtures:** all seven of DD-12 §12's `corpus/layout/pin-*.sgl`. The four `fixed` ones are
+  `SGL4021` per pin under `grid` until `fixed` lands (`DOWNSTREAM_EXTRA`).
+- **Goldens.** New: the fixtures' CST/AST pins and fonts-golden entries. Changed: only
+  `checkout.sgl`'s core resolve, compile, CST and AST goldens, for its source text (the engine
+  string and shifted spans). Its layout and render goldens are byte-identical.
+- **Found:** an elk conformance failure (check 6, an edge starting 12 px from its node) for
+  `root -> box` when `root` is declared after the titled container `box`. It happens without pins.
+  It is reported, not fixed; `pin-nested.sgl` avoids that edge.
+- **Size:** core **176.38 kB** of 182 (+0.39 kB) before fix round 1.
+- **Tests:** `resolve.test.ts` (18 `@pin` cases); `host.test.ts` (notes);
+  `host-runtime.integration.test.ts` (the engine → worker → host → `run()` seam);
+  `layout-config.test.ts` (`SGL4021`); `overrides.test.ts` and apps/web `pipeline.test.ts` (bare
+  names, `SGL4021` under the real registered engines, the pin in `LayoutInput`);
+  `e2e/engine-options.spec.ts` (`engine: grid` lays out, and `SGL4021` is squiggled at `@pin`).
+- **Docs:** DD-02 §7, DD-06 §2, §3 and §9, DD-08 §10, DD-12 §13 (as built, with deviations),
+  and the corpus README.
+- **Fix round 1** (after merging `main` at `b3171e6`). Eight items; each test failed first.
+  1. `engineNotes` reads at most 100 notes, by index. The cap is silent, because no catalogue
+     row can say how many were dropped. Params are read only for the template's placeholders.
+  2. A note's span must be non-negative integers with `from <= to`. The app clamps every span to
+     the document (`clampSpan`) before `setDiagnostics` and `scrollToSpan`.
+  3. `workerText()`: string params lose backticks and control characters, and are cut to 120
+     characters.
+  4. The worker's `'error'` message is `{ t, id, reason }`. The host builds `SGL4011` from its own
+     engine id and `workerText(reason)`, so the worker carries no catalogue row;
+     `check-core-chunks.mjs` now requires that.
+  5. `registeredEngine()` is exported, and a `pins: true` stub silences `SGL4021`. This kills
+     mutation M9.
+  6. and 7. `SGL4021` skips a pin the resolver dropped, so it is reported once, as `SGL2011`.
+     It is once per node path, at the first pin key in source order.
+  8. A blank `@layout.engine` is `SGL2011` and dropped, so the editor's engine applies.
+
+  Size: core **176.96 kB**, +0.08 kB over `main` (176.88).
+
 **Help branch 1, `feat/help-reference`** (Stage L, E19, DD-13 §13 branch 1; branched from `main` at
 `ca9956e`; no golden changed). **DD-13 P5's exports**, each now the value the code uses in place of
 its literal: `@sgl/core` exports `CONFIG_REGISTRY` and `LANGUAGE_SHAPES`; `DEFAULT_SHAPE` (`ids.ts`)

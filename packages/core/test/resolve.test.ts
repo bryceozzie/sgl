@@ -315,6 +315,99 @@ describe('config-key registry (DD-02 §7)', () => {
     expect(diagnostics.map((d) => d.code)).toEqual(['SGL2012']);
   });
 
+  // feat/b5-pin fix round 1, item 8: an empty engine name is not an engine id.
+  describe('an empty @layout.engine', () => {
+    const MSG = '`@layout.engine` expects an engine name; ignored.';
+    it.each([
+      ['@layout: { engine: "", direction: right }\na: "A"\n', '@layout'],
+      ['@layout.engine: ""\na: "A"\n', '@layout.engine'],
+      ['@layout: { engine: "   " }\na: "A"\n', '@layout'],
+    ])('%j: SGL2011 at the key, and the engine is not set', (src, text) => {
+      const { model, diagnostics } = resolveSrc(src);
+      expect(diagnostics.map((d) => [d.code, d.message, src.slice(d.span.from, d.span.to)])).toEqual([['SGL2011', MSG, text]]);
+      expect((model.root.config.layout as ConfigBag | undefined)?.engine).toBeUndefined();
+    });
+
+    it('the other @layout keys are kept', () => {
+      const { model } = resolveSrc('@layout: { engine: "", direction: right }\na: "A"\n');
+      expect(model.root.config.layout).toEqual({ direction: 'right' });
+      expect(toJson(model)).not.toContain('engine');
+    });
+
+    it('on a container too', () => {
+      const { model, diagnostics } = resolveSrc('box: {\n  @layout.engine: ""\n  a: "A"\n}\n');
+      expect(diagnostics.map((d) => d.code)).toEqual(['SGL2011']);
+      expect((model.root.children[0] as ContainerModel).config.layout).toEqual({});
+    });
+
+    it('a non-empty engine name is untouched', () => {
+      expect(resolveSrc('@layout: { engine: grid }\na: "A"\n').diagnostics).toEqual([]);
+    });
+  });
+
+  describe('@pin (DD-12 N4)', () => {
+    const PIN_MSG = '`@pin` expects `{ x, y }` numbers within ±100 000; ignored.';
+    const pinOf = (src: string) => {
+      const { model, diagnostics } = resolveSrc(src);
+      const a = model.root.children[0] as ContainerModel;
+      return { pin: a.config.pin, diags: diagnostics.map((d) => [d.code, d.message, src.slice(d.span.from, d.span.to)]) };
+    };
+
+    it('a well-formed pin is kept as written, with no diagnostic', () => {
+      expect(pinOf('a: { @pin: { x: 10, y: -20 } }\n')).toEqual({ pin: { x: 10, y: -20 }, diags: [] });
+    });
+
+    it('the bounds are inclusive: ±100 000 is kept', () => {
+      expect(pinOf('a: { @pin: { x: 100000, y: -100000 } }\n')).toEqual({ pin: { x: 100000, y: -100000 }, diags: [] });
+      expect(pinOf('a: { @pin: { x: 0.5, y: 0 } }\n').diags).toEqual([]);
+    });
+
+    it.each([
+      ['x missing', '{ y: 1 }'],
+      ['y missing', '{ x: 1 }'],
+      ['x a string', '{ x: "1", y: 1 }'],
+      ['y a boolean', '{ x: 1, y: true }'],
+      ['x over the bound', '{ x: 100001, y: 0 }'],
+      ['y under the bound', '{ x: 0, y: -100000.5 }'],
+      ['a number', '5'],
+      ['an array', '[1, 2]'],
+      ['a string', '"10,20"'],
+    ])('%s: the whole pin is dropped with SGL2011 at the key', (_, value) => {
+      expect(pinOf(`a: { @pin: ${value} }\n`)).toEqual({ pin: undefined, diags: [['SGL2011', PIN_MSG, '@pin']] });
+    });
+
+    it('an unknown sub-key is SGL2010 naming it, and the pin is kept', () => {
+      expect(pinOf('a: { @pin: { x: 1, y: 2, z: 3 } }\n')).toEqual({
+        pin: { x: 1, y: 2, z: 3 },
+        diags: [['SGL2010', expect.stringContaining('`@pin.z`'), '@pin']],
+      });
+    });
+
+    it('dotted sub-keys fold into one pin', () => {
+      expect(pinOf('a: { @pin.x: 3, @pin.y: 4 }\n').pin).toEqual({ x: 3, y: 4 });
+    });
+
+    it('a variable is substituted before the check', () => {
+      const { model, diagnostics } = resolveSrc('@vars: { origin: { x: 5, y: 6 }, far: { x: 1000000, y: 0 } }\na: { @pin: $origin }\nb: { @pin: $far }\n');
+      expect((model.root.children[0] as ContainerModel).config.pin).toEqual({ x: 5, y: 6 });
+      expect((model.root.children[1] as ContainerModel).config.pin).toBeUndefined();
+      expect(diagnostics.map((d) => d.code)).toEqual(['SGL2011']);
+    });
+
+    it('a container may be pinned', () => {
+      expect(pinOf('a: { @pin: { x: 1, y: 2 }, b: "B" }\n')).toEqual({ pin: { x: 1, y: 2 }, diags: [] });
+    });
+
+    it.each([
+      ['an edge', 'a: "A"\nb: "B"\na -> b: { @pin: { x: 1, y: 2 } }\n'],
+      ['a class', '@classes: { P: { @pin: { x: 1, y: 2 } } }\na: P\n'],
+      ['the root', '@pin: { x: 1, y: 2 }\na: "A"\n'],
+    ])('on %s it is SGL2012 and dropped', (_, src) => {
+      const { diagnostics } = resolveSrc(src);
+      expect(diagnostics.map((d) => [d.code, src.slice(d.span.from, d.span.to)])).toEqual([['SGL2012', '@pin']]);
+    });
+  });
+
   it('@direction folds into @layout.direction, an explicit one wins', () => {
     const { model } = resolveSrc('a: { @direction: down, @layout.direction: up }\n');
     const a = model.root.children[0] as ContainerModel;
