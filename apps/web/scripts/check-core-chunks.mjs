@@ -135,4 +135,22 @@ if (!existsSync(`${DIST}index.html`)) {
     for (const m of code.matchAll(STATIC)) if (!inWorker.has(m[1])) workerQueue.push(m[1]);
   }
   if (process.exitCode !== 1) console.log(`check-core-chunks: the layout worker carries no catalogue row (the boot chunks' ${bootRows} match the same pattern).`);
+
+  // DD-13 P46 (help branch 2): the help content is lazy. Its compiled form
+  // reaches the build only through `virtual:sgl-help-content`, which only the
+  // lazy help chunks may import (help branch 4). Neither the boot chunks nor
+  // the layout worker may carry the quick start's first heading or its
+  // summary, the sentinels for the whole of it. (`test/reference-boot.test.ts`
+  // checks the sources' imports.)
+  const quickstart = readFileSync(fileURLToPath(new URL('../help/quickstart.md', import.meta.url)), 'utf8').split('\n');
+  const heading = /^#\s+(.*?)\s*\{#/.exec(quickstart[0] ?? '')?.[1];
+  const summary = quickstart.slice(1).find((l) => l.trim() !== '')?.trim();
+  if (heading === undefined || summary === undefined) fail('apps/web/help/quickstart.md does not start with a heading carrying its id and a summary.');
+  else {
+    for (const file of [...seen, ...inWorker]) {
+      const code = readFileSync(`${DIST}assets/${file}`, 'utf8');
+      for (const sentinel of [summary, `"${heading}"`]) if (code.includes(sentinel)) fail(`${file} (boot or worker) contains the help content (${JSON.stringify(sentinel)}); it belongs to the lazy help chunks.`);
+    }
+    if (process.exitCode !== 1) console.log('check-core-chunks: no help content at boot or in the worker.');
+  }
 }

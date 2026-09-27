@@ -82,8 +82,10 @@ function subKeyFacts(row: ConfigKeySpec, engines: readonly ReferenceEngine[]): r
       return A11Y_KEYS.map((k) => sub(k, 'string'));
     case 'layout':
       // The one `@layout` key the app reads itself (`documentEngineOverride`);
-      // every other is an engine option or hint, listed on its engine.
-      return [sub('engine', 'string', engines.map((e) => e.id))];
+      // every other is an engine option or hint, listed on its engine. Its
+      // values are the bare names an author types (`grid`, DD-12 N22); the
+      // full ids (`sgl.grid`) are accepted too, and each engine fact has one.
+      return [sub('engine', 'string', engines.map((e) => bareNameOf(e.id)))];
     default:
       return [];
   }
