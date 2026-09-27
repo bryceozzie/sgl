@@ -781,7 +781,7 @@ Reviewable branches, in order. Each is one reviewer's work, and each passes the 
      do (H6's `fix/root-layout-options` is not merged). A container's `@layout: { engine: grid }`,
      as in spec §9's worked example, is `SGL4010` twice under `elk`. `@order`, `@tooltip` and
      `@size.aspectRatio` are kept but nothing uses them. An unknown `@theme` name falls back to
-     the default theme with no warning, and `@sgl`'s value is not checked.
+     the default theme with no warning (F31; since `fix/unknown-theme` it is `SGL5007`), and `@sgl`'s value is not checked.
 3. **`feat/help-content-2`.**
    - Content for `style`, `shape`, `engine` and `option`, `theme`, and `diag` (per HD4); all the
      topics.
