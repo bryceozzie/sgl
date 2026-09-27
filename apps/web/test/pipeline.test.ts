@@ -513,6 +513,27 @@ describe('document overrides (DD-08 §10)', () => {
     const env = setup('@layout: { engine: "sgl.grid" }\na: "A"');
     expect(env.pipeline.documentEngineId.value).toBe('sgl.grid');
   });
+
+  // DD-12 N22 (orchestrator's bug fix): with the app's real registered
+  // engines, a bare name reaches the host as the full id; before, `grid` went
+  // to the worker as `grid` and came back SGL4011 with no layout.
+  const registered = { engineSchemas: (id: string) => REGISTERED_ENGINES.find((e) => e.id === id) };
+
+  it.each([
+    ['@layout: { engine: grid }', 'sgl.grid'],
+    ['@layout.engine: "elk"', 'sgl.elk'],
+  ])('a bare engine name (%s) reaches the host as %s', async (config, id) => {
+    const env = setup(`${config}\na: "A"`, { ...registered, defaultEngineId: id === 'sgl.grid' ? 'sgl.elk' : 'sgl.grid' });
+    expect(env.pipeline.effectiveEngineId.value).toBe(id);
+    await completeOneLayout(env, 'a');
+    expect(env.pending.at(-1)!.engineId).toBe(id);
+  });
+
+  it('an unknown bare name reaches the host unchanged, as an unknown id does (`layered` is not `elk`, H7)', async () => {
+    const env = setup('@layout: { engine: "layered" }\na: "A"', registered);
+    await completeOneLayout(env, 'a');
+    expect(env.pending.at(-1)!.engineId).toBe('layered');
+  });
 });
 
 describe('@pin under the registered engines (DD-12 N6, H4)', () => {

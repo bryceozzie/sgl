@@ -315,7 +315,7 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
 
   // DD-08 §10: "@layout.engine / @theme in the document override the pickers."
   const documentThemeId = computed<string | undefined>(() => documentThemeOverride(model.value.model));
-  const documentEngineId = computed<string | undefined>(() => documentEngineOverride(model.value.model));
+  const documentEngineId = computed<string | undefined>(() => documentEngineOverride(model.value.model, (id) => deps.engineSchemas?.(id) !== undefined));
   const effectiveThemeId = computed<string>(() => documentThemeId.value ?? themeId.value);
   const effectiveEngineId = computed<string>(() => documentEngineId.value ?? engineId.value);
 
