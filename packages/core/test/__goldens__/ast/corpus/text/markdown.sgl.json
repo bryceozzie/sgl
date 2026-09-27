@@ -1,0 +1,763 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "vars"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "tier",
+       "isConfig": false,
+       "keySpan": {
+        "from": 155,
+        "to": 159
+       },
+       "value": {
+        "kind": "String",
+        "value": "*prod*",
+        "span": {
+         "from": 161,
+         "to": 169
+        }
+       },
+       "span": {
+        "from": 155,
+        "to": 169
+       }
+      }
+     ],
+     "span": {
+      "from": 153,
+      "to": 171
+     }
+    },
+    "keySpan": {
+     "from": 146,
+     "to": 151
+    },
+    "span": {
+     "from": 146,
+     "to": 171
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "bold",
+    "keySpan": {
+     "from": 173,
+     "to": 177
+    },
+    "value": {
+     "kind": "String",
+     "value": "**bold**",
+     "span": {
+      "from": 184,
+      "to": 194
+     }
+    },
+    "span": {
+     "from": 173,
+     "to": 194
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "italic",
+    "keySpan": {
+     "from": 195,
+     "to": 201
+    },
+    "value": {
+     "kind": "String",
+     "value": "*it*",
+     "span": {
+      "from": 206,
+      "to": 212
+     }
+    },
+    "span": {
+     "from": 195,
+     "to": 212
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "both",
+    "keySpan": {
+     "from": 213,
+     "to": 217
+    },
+    "value": {
+     "kind": "String",
+     "value": "***both***",
+     "span": {
+      "from": 224,
+      "to": 236
+     }
+    },
+    "span": {
+     "from": 213,
+     "to": 236
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "nestA",
+    "keySpan": {
+     "from": 237,
+     "to": 242
+    },
+    "value": {
+     "kind": "String",
+     "value": "**bold *and it***",
+     "span": {
+      "from": 248,
+      "to": 267
+     }
+    },
+    "span": {
+     "from": 237,
+     "to": 267
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "nestB",
+    "keySpan": {
+     "from": 268,
+     "to": 273
+    },
+    "value": {
+     "kind": "String",
+     "value": "*it **and bold***",
+     "span": {
+      "from": 279,
+      "to": 298
+     }
+    },
+    "span": {
+     "from": 268,
+     "to": 298
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "intraword",
+    "keySpan": {
+     "from": 299,
+     "to": 308
+    },
+    "value": {
+     "kind": "String",
+     "value": "a*b*c and 2*3*4",
+     "span": {
+      "from": 310,
+      "to": 327
+     }
+    },
+    "span": {
+     "from": 299,
+     "to": 327
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "spaced",
+    "keySpan": {
+     "from": 328,
+     "to": 334
+    },
+    "value": {
+     "kind": "String",
+     "value": "2 * 3 * 4",
+     "span": {
+      "from": 339,
+      "to": 350
+     }
+    },
+    "span": {
+     "from": 328,
+     "to": 350
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "lone",
+    "keySpan": {
+     "from": 351,
+     "to": 355
+    },
+    "value": {
+     "kind": "String",
+     "value": "*",
+     "span": {
+      "from": 362,
+      "to": 365
+     }
+    },
+    "span": {
+     "from": 351,
+     "to": 365
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "touching",
+    "keySpan": {
+     "from": 366,
+     "to": 374
+    },
+    "value": {
+     "kind": "String",
+     "value": "**a**b",
+     "span": {
+      "from": 377,
+      "to": 385
+     }
+    },
+    "span": {
+     "from": 366,
+     "to": 385
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "punct",
+    "keySpan": {
+     "from": 386,
+     "to": 391
+    },
+    "value": {
+     "kind": "String",
+     "value": "(**a**).",
+     "span": {
+      "from": 397,
+      "to": 407
+     }
+    },
+    "span": {
+     "from": 386,
+     "to": 407
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "unclosed",
+    "keySpan": {
+     "from": 408,
+     "to": 416
+    },
+    "value": {
+     "kind": "String",
+     "value": "**unclosed",
+     "span": {
+      "from": 419,
+      "to": 431
+     }
+    },
+    "span": {
+     "from": 408,
+     "to": 431
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "halfA",
+    "keySpan": {
+     "from": 432,
+     "to": 437
+    },
+    "value": {
+     "kind": "String",
+     "value": "*a**",
+     "span": {
+      "from": 443,
+      "to": 449
+     }
+    },
+    "span": {
+     "from": 432,
+     "to": 449
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "halfB",
+    "keySpan": {
+     "from": 450,
+     "to": 455
+    },
+    "value": {
+     "kind": "String",
+     "value": "**a*",
+     "span": {
+      "from": 461,
+      "to": 467
+     }
+    },
+    "span": {
+     "from": 450,
+     "to": 467
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "overlapA",
+    "keySpan": {
+     "from": 468,
+     "to": 476
+    },
+    "value": {
+     "kind": "String",
+     "value": "**a *b** c*",
+     "span": {
+      "from": 479,
+      "to": 492
+     }
+    },
+    "span": {
+     "from": 468,
+     "to": 492
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "overlapB",
+    "keySpan": {
+     "from": 493,
+     "to": 501
+    },
+    "value": {
+     "kind": "String",
+     "value": "*a *b* c*",
+     "span": {
+      "from": 504,
+      "to": 515
+     }
+    },
+    "span": {
+     "from": 493,
+     "to": 515
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "code",
+    "keySpan": {
+     "from": 516,
+     "to": 520
+    },
+    "value": {
+     "kind": "String",
+     "value": "`a*b*`",
+     "span": {
+      "from": 527,
+      "to": 535
+     }
+    },
+    "span": {
+     "from": 516,
+     "to": 535
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "codeIn",
+    "keySpan": {
+     "from": 536,
+     "to": 542
+    },
+    "value": {
+     "kind": "String",
+     "value": "*see `x`*",
+     "span": {
+      "from": 547,
+      "to": 558
+     }
+    },
+    "span": {
+     "from": 536,
+     "to": 558
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "ticks",
+    "keySpan": {
+     "from": 559,
+     "to": 564
+    },
+    "value": {
+     "kind": "String",
+     "value": "``a`b``",
+     "span": {
+      "from": 570,
+      "to": 579
+     }
+    },
+    "span": {
+     "from": 559,
+     "to": 579
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "spaces",
+    "keySpan": {
+     "from": 580,
+     "to": 586
+    },
+    "value": {
+     "kind": "String",
+     "value": "` x `",
+     "span": {
+      "from": 591,
+      "to": 598
+     }
+    },
+    "span": {
+     "from": 580,
+     "to": 598
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "open",
+    "keySpan": {
+     "from": 599,
+     "to": 603
+    },
+    "value": {
+     "kind": "String",
+     "value": "`open",
+     "span": {
+      "from": 610,
+      "to": 617
+     }
+    },
+    "span": {
+     "from": 599,
+     "to": 617
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "escaped",
+    "keySpan": {
+     "from": 618,
+     "to": 625
+    },
+    "value": {
+     "kind": "String",
+     "value": "\\*not\\*",
+     "span": {
+      "from": 629,
+      "to": 638
+     }
+    },
+    "span": {
+     "from": 618,
+     "to": 638
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "path",
+    "keySpan": {
+     "from": 639,
+     "to": 643
+    },
+    "value": {
+     "kind": "String",
+     "value": "C:\\temp\\*.log",
+     "span": {
+      "from": 650,
+      "to": 666
+     }
+    },
+    "span": {
+     "from": 639,
+     "to": 666
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "snake",
+    "keySpan": {
+     "from": 667,
+     "to": 672
+    },
+    "value": {
+     "kind": "String",
+     "value": "snake_case and _x_",
+     "span": {
+      "from": 678,
+      "to": 698
+     }
+    },
+    "span": {
+     "from": 667,
+     "to": 698
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "lines",
+    "keySpan": {
+     "from": 699,
+     "to": 704
+    },
+    "value": {
+     "kind": "String",
+     "value": "**Line one\nLine two**",
+     "span": {
+      "from": 710,
+      "to": 734
+     }
+    },
+    "span": {
+     "from": 699,
+     "to": 734
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "adjacent",
+    "keySpan": {
+     "from": 735,
+     "to": 743
+    },
+    "value": {
+     "kind": "String",
+     "value": "**a***b*`c`",
+     "span": {
+      "from": 746,
+      "to": 759
+     }
+    },
+    "span": {
+     "from": 735,
+     "to": 759
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "fromVar",
+    "keySpan": {
+     "from": 760,
+     "to": 767
+    },
+    "value": {
+     "kind": "String",
+     "value": "${tier} tier",
+     "span": {
+      "from": 771,
+      "to": 785
+     }
+    },
+    "span": {
+     "from": 760,
+     "to": 785
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "block",
+    "keySpan": {
+     "from": 786,
+     "to": 791
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "**Payments API**\nhandles `POST /pay`",
+        "span": {
+         "from": 805,
+         "to": 861
+        }
+       },
+       "keySpan": {
+        "from": 797,
+        "to": 803
+       },
+       "span": {
+        "from": 797,
+        "to": 861
+       }
+      }
+     ],
+     "span": {
+      "from": 793,
+      "to": 863
+     }
+    },
+    "span": {
+     "from": 786,
+     "to": 863
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "bold",
+         "span": {
+          "from": 865,
+          "to": 869
+         }
+        }
+       ],
+       "span": {
+        "from": 865,
+        "to": 869
+       }
+      },
+      "span": {
+       "from": 865,
+       "to": 869
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "italic",
+         "span": {
+          "from": 873,
+          "to": 879
+         }
+        }
+       ],
+       "span": {
+        "from": 873,
+        "to": 879
+       }
+      },
+      "span": {
+       "from": 873,
+       "to": 879
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "value": {
+     "kind": "String",
+     "value": "*async*",
+     "span": {
+      "from": 881,
+      "to": 890
+     }
+    },
+    "span": {
+     "from": 865,
+     "to": 890
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "both",
+         "span": {
+          "from": 891,
+          "to": 895
+         }
+        }
+       ],
+       "span": {
+        "from": 891,
+        "to": 895
+       }
+      },
+      "span": {
+       "from": 891,
+       "to": 895
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "code",
+         "span": {
+          "from": 899,
+          "to": 903
+         }
+        }
+       ],
+       "span": {
+        "from": 899,
+        "to": 903
+       }
+      },
+      "span": {
+       "from": 899,
+       "to": 903
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "value": {
+     "kind": "String",
+     "value": "`200 OK`",
+     "span": {
+      "from": 905,
+      "to": 915
+     }
+    },
+    "span": {
+     "from": 891,
+     "to": 915
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 916
+  }
+ },
+ "diagnostics": []
+}

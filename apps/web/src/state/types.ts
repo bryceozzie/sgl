@@ -1,6 +1,6 @@
-import type { CompileResult, Document, DocumentModel, LabelId, ResolveResult, Size } from '@sgl/core';
+import type { CompileOptions, CompileResult, Document, DocumentModel, LabelId, ResolveResult, Size, TextRun } from '@sgl/core';
 import type { EngineSchemas, LayoutHost, ResolvedThemeMetricsView } from '@sgl/layout-api';
-import type { Measurer, TextStyle } from '@sgl/measure';
+import type { LineModel, Measurer, TextStyle } from '@sgl/measure';
 import type { LayoutResult } from '@sgl/layout-api';
 import type { PaintPlan } from '@sgl/render-svg';
 import type { StyledGraph } from '@sgl/theme';
@@ -10,6 +10,9 @@ import type { StyledGraph } from '@sgl/theme';
  *  addition) but every real caller needs before the first pre-measure. */
 export interface AppMeasurer extends Measurer {
   ready(styles: readonly TextStyle[]): Promise<void>;
+  /** The line model (DD-11 §7): the pipeline hands it `layoutWrapped` once the
+   *  lazy `rich-text` chunk has loaded (T53). */
+  lineModel: LineModel;
 }
 
 /** Cancels a scheduled callback. */
@@ -47,6 +50,15 @@ export interface PipelineDeps {
    *  document with `@imports`. Absent: such a document resolves without its
    *  imports, as `resolve()` does. */
   readonly loadImports?: () => Promise<ImportsRuntime>;
+  /** A18 (DD-11 T53): loads the lazy `rich-text` chunk — the inline parser and
+   *  the word breaker — for the first document with markup in a label
+   *  (`needsInline`) or a label to wrap (`needsWrap`). Absent: labels compile
+   *  without the parser (one plain run each), and nothing hands the measurer
+   *  `layoutWrapped`, so a label with a box (`@size.maxWidth` or `@size.width`)
+   *  makes the default `layoutLines` **throw** during pre-measure (DD-11 §7), a
+   *  pipeline error. A caller without it must give its measurer `layoutWrapped`
+   *  itself, as the Node test harnesses do. */
+  readonly loadRichText?: () => Promise<RichText>;
   /**
    * Test-only fault injection for DD-08 §13's error boundary: called at the
    * start of every recompute of each guarded synchronous stage, with that
@@ -66,7 +78,15 @@ export interface PipelineDeps {
 export interface ImportsRuntime {
   /** `self` is the open document's id. */
   resolve(ast: Document, self: string): ResolveResult;
-  compile(model: DocumentModel): CompileResult;
+  compile(model: DocumentModel, options?: CompileOptions): CompileResult;
+}
+
+/** A18's lazy `rich-text` chunk (`state/rich-text.ts`, DD-11 T53). */
+export interface RichText {
+  /** `parseInline` from `@sgl/core/inline`. */
+  readonly inline: (text: string) => readonly TextRun[];
+  /** `layoutWrapped` from `@sgl/text/wrap`. */
+  readonly lineModel: LineModel;
 }
 
 /** What the canvas shows (DD-08 §3, §6). Updated only when `svg` exists **and**

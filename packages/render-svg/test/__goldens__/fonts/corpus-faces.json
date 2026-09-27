@@ -1,0 +1,296 @@
+{
+  "a11y-links.sgl": [
+    "Inter normal 500"
+  ],
+  "chains.sgl": [
+    "Inter normal 400",
+    "Inter normal 500"
+  ],
+  "checkout.sgl": [
+    "Inter normal 400",
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "classes.sgl": [
+    "Inter normal 500"
+  ],
+  "containers-edges.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "empty.sgl": [],
+  "forty-three-level.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "hidden.sgl": [
+    "Inter normal 500"
+  ],
+  "imports/ambiguous.sgl": [
+    "Inter normal 500"
+  ],
+  "imports/aws-icons.sgl": [
+    "Inter normal 500"
+  ],
+  "imports/broken-lib.sgl": [],
+  "imports/clash.sgl": [
+    "Inter normal 500"
+  ],
+  "imports/cycle-a.sgl": [],
+  "imports/cycle-b.sgl": [],
+  "imports/deep-1.sgl": [],
+  "imports/deep-2.sgl": [],
+  "imports/deep-3.sgl": [],
+  "imports/deep-4.sgl": [],
+  "imports/deep-5.sgl": [],
+  "imports/deep-6.sgl": [],
+  "imports/deep-7.sgl": [],
+  "imports/deep-8.sgl": [],
+  "imports/deep.sgl": [
+    "Inter normal 500"
+  ],
+  "imports/dup.sgl": [],
+  "imports/dup.sgl.json": [],
+  "imports/main.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "imports/node-clash.sgl": [
+    "Inter normal 500"
+  ],
+  "imports/nodes-without-as.sgl": [
+    "Inter normal 500"
+  ],
+  "imports/nothing.sgl": [],
+  "imports/problems.sgl": [
+    "Inter normal 500"
+  ],
+  "imports/remote.sgl": [
+    "Inter normal 500"
+  ],
+  "imports/shadow.sgl": [
+    "Inter normal 500"
+  ],
+  "imports/shared-classes.sgl": [],
+  "imports/too-many-items.sgl": [],
+  "imports/too-many.sgl": [
+    "Inter normal 500"
+  ],
+  "imports/too-wide.sgl": [
+    "Inter normal 500"
+  ],
+  "imports/unresolved.sgl": [
+    "Inter normal 500"
+  ],
+  "imports/wide.sgl": [],
+  "injection/attr-break-in-key.sgl": [
+    "Inter normal 500"
+  ],
+  "injection/cdata-in-label.sgl": [
+    "Inter normal 500"
+  ],
+  "injection/entity-in-label.sgl": [
+    "Inter normal 500"
+  ],
+  "injection/js-url-link.sgl": [
+    "Inter normal 500"
+  ],
+  "injection/markdown-in-label.sgl": [
+    "Inter normal 400",
+    "Inter normal 500"
+  ],
+  "injection/script-in-label.sgl": [
+    "Inter normal 500"
+  ],
+  "json-form.sgl.json": [
+    "Inter normal 400",
+    "Inter normal 500"
+  ],
+  "layout/nested-engine.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "layout/unknown-key.sgl": [
+    "Inter normal 500"
+  ],
+  "malformed/missing-brace.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "malformed/unexpected-token.sgl": [
+    "Inter normal 500"
+  ],
+  "malformed/unknown-escape.sgl": [
+    "Inter normal 500"
+  ],
+  "malformed/unterminated-comment.sgl": [
+    "Inter normal 500"
+  ],
+  "malformed/unterminated-string.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "malformed/unterminated-triple-string.sgl": [
+    "Inter normal 500"
+  ],
+  "malformed/wildcard-glob-descendants.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "malformed/wildcard-two-stars.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "multiline.sgl": [
+    "Inter normal 400",
+    "Inter normal 500"
+  ],
+  "n2000.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "n50.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "n500.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "nested-crossing.sgl": [
+    "Inter normal 400",
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "nesting-3.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "parallel-selfloop.sgl": [
+    "Inter normal 400",
+    "Inter normal 500"
+  ],
+  "ports.sgl": [
+    "Inter normal 500"
+  ],
+  "shapes.sgl": [
+    "Inter normal 500"
+  ],
+  "single.sgl": [
+    "Inter normal 500"
+  ],
+  "text/markdown.sgl": [
+    "Inter normal 400",
+    "Inter normal 500"
+  ],
+  "text/wrap.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "theme/bad-colour.sgl": [
+    "Inter normal 500"
+  ],
+  "unicode.sgl": [
+    "Inter normal 400",
+    "Inter normal 500"
+  ],
+  "unresolved/bad-config-scope.sgl": [
+    "Inter normal 500"
+  ],
+  "unresolved/bad-config-type.sgl": [
+    "Inter normal 500"
+  ],
+  "unresolved/bad-port-side.sgl": [
+    "Inter normal 500"
+  ],
+  "unresolved/class-body-non-config.sgl": [
+    "Inter normal 500"
+  ],
+  "unresolved/class-cycle.sgl": [
+    "Inter normal 500"
+  ],
+  "unresolved/dotted-key-replaces-scalar.sgl": [
+    "Inter normal 500"
+  ],
+  "unresolved/edge-block-non-config.sgl": [
+    "Inter normal 400",
+    "Inter normal 500"
+  ],
+  "unresolved/edge-expansion-limit.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "unresolved/redeclaration.sgl": [
+    "Inter normal 500"
+  ],
+  "unresolved/shape-not-drawn.sgl": [
+    "Inter normal 500"
+  ],
+  "unresolved/unknown-class.sgl": [
+    "Inter normal 500"
+  ],
+  "unresolved/unknown-config-key.sgl": [
+    "Inter normal 500"
+  ],
+  "unresolved/unknown-path.sgl": [
+    "Inter normal 500"
+  ],
+  "unresolved/unknown-port.sgl": [
+    "Inter normal 500"
+  ],
+  "unresolved/unknown-shape.sgl": [
+    "Inter normal 500"
+  ],
+  "unresolved/unknown-variable.sgl": [
+    "Inter normal 500"
+  ],
+  "unresolved/variable-cycle.sgl": [
+    "Inter normal 500"
+  ],
+  "unresolved/variable-declared-later.sgl": [
+    "Inter normal 500"
+  ],
+  "unresolved/variable-expansion.sgl": [
+    "Inter normal 500"
+  ],
+  "unresolved/variable-interpolate-object.sgl": [
+    "Inter normal 500"
+  ],
+  "unresolved/wildcard-glob-no-match.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "unresolved/wildcard-midpath.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "unresolved/wildcard-no-match.sgl": [
+    "Inter normal 500"
+  ],
+  "unresolved/wildcard-on-leaf.sgl": [
+    "Inter normal 500"
+  ],
+  "unresolved/wildcard-unknown-prefix.sgl": [
+    "Inter normal 500"
+  ],
+  "variables.sgl": [
+    "Inter normal 400",
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "wildcard-globs.sgl": [
+    "Inter normal 400",
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "wildcard-paths.sgl": [
+    "Inter normal 400",
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "wildcards.sgl": [
+    "Inter normal 400",
+    "Inter normal 500",
+    "Inter normal 600"
+  ]
+}

@@ -1,17 +1,24 @@
 /*
- * DD-08 §5: Inter (Regular 400, Medium 500, SemiBold 600) bundled as WOFF2,
- * `font-display: block` — block, not swap, so the first measurement
- * (`CanvasMeasurer`) is never against a fallback face. `measurer.ready()`
- * (`apps/web/src/state/pipeline.ts`'s measure effect) is awaited before the
- * first pre-measure, which is what makes "block" the right choice here: a
- * blocked paint is at worst invisible text for a beat, never a wrongly-sized
- * label baked into a layout result.
+ * DD-08 §5: the app's boot faces, Inter 400, 500 and 600 (the themes'
+ * weights), bundled as WOFF2, Latin subset only (the only one the language
+ * and MVP examples need), `font-display: block` — block, not swap, so the
+ * first measurement (`CanvasMeasurer`) is never against a fallback face.
+ * `measurer.ready()` (`apps/web/src/state/pipeline.ts`'s measure effect) is
+ * awaited before the first pre-measure, which is what makes "block" the right
+ * choice here: a blocked paint is at worst invisible text for a beat, never a
+ * wrongly-sized label baked into a layout result.
+ *
+ * A18's seven run faces (DD-11 T26: Inter 700, Inter italic 400–700, IBM
+ * Plex Mono 400/700) are deliberately **not** here: they are registered with
+ * the CSS Font Loading API by the lazy `rich-text` chunk (`src/io/run-faces.ts`),
+ * so the boot CSS carries none of their bytes and a document without markup
+ * declares and fetches none of them (`test/fonts.test.ts`, `e2e/pwa.spec.ts`).
  *
  * `@fontsource/inter`'s own `400.css`/`500.css`/`600.css` ship every Unicode
- * subset (cyrillic, greek, vietnamese, …) at `font-display: swap`, so they are
- * not imported directly — this file declares the three faces itself, Latin
- * subset only (the only one the language and MVP examples need), pointing at
- * the same WOFF2 files the installed package already ships.
+ * subset at `font-display: swap`, so they are not imported directly — this
+ * file declares the faces itself, pointing at the WOFF2 files the installed
+ * package already ships. `src/io/fonts.ts`'s `SHIPPED` lists these three and
+ * the run faces for export.
  */
 
 @font-face {

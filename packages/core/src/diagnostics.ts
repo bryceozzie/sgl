@@ -87,6 +87,10 @@ export const CATALOGUE = {
 
   // ---- 6xxx platform (DD-07) ---------------------------------------------
   SGL6001: { severity: 'warning', template: 'Link on `{element}` uses `{scheme}:`, which is not allowed; the link was removed.' },
+  // A18 fix round 1, item 2: the app could not load the lazy `rich-text`
+  // chunk (the inline parser and the word breaker, DD-11 T53), so labels are
+  // drawn as plain text and do not wrap. No document can cause it.
+  SGL6002: { severity: 'warning', template: 'Markdown and wrapping could not be loaded; labels are drawn as plain text and do not wrap.' },
 } as const satisfies Record<string, CodeSpec>;
 
 /** Build a diagnostic from the catalogue, substituting `{placeholders}`. */

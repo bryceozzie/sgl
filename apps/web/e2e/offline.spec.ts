@@ -400,6 +400,56 @@ test('offline, the lazy imports chunk comes from the precache: a document with i
 });
 
 /**
+ * A18 (DD-11 T53): a document with a label to wrap or markup in a label loads
+ * the lazy `rich-text` chunk (the word breaker and the inline parser). Offline,
+ * a reload of such a document still lays the label out wrapped, the chunk comes
+ * from the service worker, and nothing fails. Chromium only, as above.
+ */
+test('offline, the lazy rich-text chunk comes from the precache: a document with a label to wrap reloads and lays it out wrapped', async ({ page, context, browserName }) => {
+  test.skip(browserName !== 'chromium', 'fromServiceWorker() is proof only in Chromium');
+  await page.goto('/');
+  await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+  expect(await page.evaluate(async () => Boolean((await navigator.serviceWorker.ready).active))).toBe(true);
+  const doc = 'a: { @label: "**Payments** ledger reconciliation `service`", @size: { maxWidth: 150 } }\nb\na -> b\n';
+  await openFile(page, 'wrap.sgl', doc);
+  await waitForExactNodeCount(page, 2);
+  await expect.poll(async () => (await storedOpenDocument(page))?.source).toBe(doc);
+  const width = (): Promise<number> => renderedSvg(page).locator('g[id="n-a"] > path.n-shape').evaluate((p) => (p as SVGGraphicsElement).getBBox().width);
+  await expect.poll(width).toBeLessThanOrEqual(150);
+
+  await clearHttpCache(page, context, browserName);
+  await context.setOffline(true);
+  const responses: Response[] = [];
+  const failed: string[] = [];
+  context.on('response', (r) => {
+    if (r.url().startsWith('http')) responses.push(r);
+  });
+  context.on('requestfailed', (r) => failed.push(`${r.url()} ${r.failure()?.errorText ?? ''}`));
+  try {
+    await page.reload();
+    await waitForExactNodeCount(page, 2);
+    await expect.poll(width).toBeLessThanOrEqual(150);
+    // Parsed offline too: the markers are gone, the marks drawn in their own faces.
+    await expect(renderedSvg(page).locator('g[id="n-a"] text')).not.toContainText('**');
+    await expect(renderedSvg(page).locator('g[id="n-a"] tspan.r-strong')).toHaveText('Payments');
+    await expect(renderedSvg(page).locator('g[id="n-a"] tspan.r-code')).toHaveText('service');
+    await expect(page.locator('.diagnostics-panel')).toHaveCount(0);
+
+    const chunk = responses.filter((r) => /\/assets\/rich-text-[^/]*\.js$/.test(new URL(r.url()).pathname));
+    expect(chunk.length).toBe(1);
+    expect(chunk.every((r) => r.fromServiceWorker())).toBe(true);
+    // A18's faces (DD-11 T26), fetched before the first layout (T28), from the precache.
+    const faces = responses.filter((r) => /\/assets\/(inter-latin-700-normal|ibm-plex-mono-latin-400-normal)-[^/]*\.woff2$/.test(new URL(r.url()).pathname));
+    expect(faces.map((r) => new URL(r.url()).pathname.replace(/-[^-/]*\.woff2$/, '').replace('/assets/', '')).sort()).toEqual(['ibm-plex-mono-latin-400-normal', 'inter-latin-700-normal']);
+    expect(faces.every((r) => r.fromServiceWorker())).toBe(true);
+    expect(responses.filter((r) => !r.fromServiceWorker()).map((r) => r.url())).toEqual([]);
+    expect(failed).toEqual([]);
+  } finally {
+    await context.setOffline(false);
+  }
+});
+
+/**
  * C5: the `high-contrast` and `print` themes are in the core bundle, not a
  * lazy chunk (they cost 0.24 kB; execution plan §2), so a document stored in
  * one of them paints in it on an offline boot, and a pick between them works

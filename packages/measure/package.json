@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@sgl/core": "workspace:*",
+    "@sgl/text": "workspace:*",
     "@sgl/theme": "workspace:*"
   }
 }

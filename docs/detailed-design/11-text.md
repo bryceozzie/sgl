@@ -5,9 +5,12 @@
 **Inputs:** a label's string. **Outputs:** styled `TextRun`s in the IR, a wrapped `TextLayout` in the
 measure table, nested `<tspan>`s in the SVG.
 
-**Status: Phase 2 in progress.** Branch 1, `feat/a18-grammar` (2026-09-26), implements T10's decoder
-half, T11 and T15–T20; each carries an *Implemented* note with its deviations. Everything else is
-still design. Phase 1 (2026-09-25) was design only. The decisions are numbered
+**Status: Phase 2 implemented, in three branches.** Branch 1, `feat/a18-grammar` (2026-09-26),
+implements T10's decoder half, T11 and T15–T20. Branch 2, `feat/a18-text` (2026-09-26), implements
+T1–T10, T12–T14, T21–T41 (T26 as metrics only), T51–T54, T58 and T59, and fixes §19 items 1, 2, 6
+and 7. Branch 3, `feat/a18-render` (2026-09-26), implements T42–T50, the rest of T26, T55–T57 and
+T60's render tests, and fixes §19 items 3 and 8; item 5 is recorded as a finding for the human
+(execution plan §2.1 F25). Each carries an *Implemented* note with its deviations. Phase 1 (2026-09-25) was design only. The decisions are numbered
 **T1–T60**. Each carries a one-line reason in italics. Decisions marked **⚑** go to the human before
 Phase 2 starts; each has options and a recommendation (§18). Where this document changes a type or a
 rule in DD-01…DD-10, the change is listed in §17 and made in those documents in the Phase 2 branch
@@ -40,6 +43,7 @@ that implements it, not here.
   *The IR must carry styled runs (DD-03 §6), `@sgl/core` may import nothing from the workspace
   (07 §1), and a separate entry lets the app load the parser lazily (T53), as A8 did with
   `@sgl/core/json`.*
+  - *Implemented (branch 2, `feat/a18-text`), as written:* `compile(model, view?, options?)` with `CompileOptions { inline? }` (`compile.ts`); `compileImports` passes the options through. `packages/core/src/inline.ts` is the `@sgl/core/inline` entry.
 - **T2. `@sgl/text` is a new package that sits between `@sgl/theme` and its two consumers:
   `core, theme ← text ← measure, render-svg`.** It holds the run and layout types (moved out of
   `@sgl/measure`, which re-exports them), the run faces (T25), the table key (`hashRuns`, moved
@@ -48,10 +52,12 @@ that implements it, not here.
   be computed in two places, `premeasure` and now `render()` (T42). One function in a package both
   can import is how the two stay in step. Today it lives in `@sgl/measure`, which `render-svg` may
   not import.*
+  - *Implemented (branch 2, `feat/a18-text`), as written:* `packages/text` (`@sgl/text`); `eslint.config.js` has the boundary (`core, theme ← text ← measure, render-svg`), and DD-00 §2 and 07 §1 show it. `@sgl/measure` re-exports every moved name. `labelRuns` also moved (with `textStyleOf` and `DEFAULT_TEXT_STYLE`), since `labelRunKey` needs it.
 - **T3. `@sgl/text` has two entries.** `@sgl/text` holds the types, faces, keys and the non-wrapping
   line model `layoutLines`, and is on the boot path. `@sgl/text/wrap` holds the word breaker
   `layoutWrapped` and is lazy (T53). *Wrapping is the heavy half, and only documents that set
   `@size.maxWidth` need it.*
+  - *Implemented (branch 2, `feat/a18-text`), as written:* `src/index.ts` (boot) and `src/wrap.ts` (`@sgl/text/wrap`, in the app's lazy `rich-text` chunk).
 - **T4. `contentInsets` moves to `@sgl/core` (`src/shape-insets.ts`), together with its inverse,
   `labelMaxWidth` (T35).** `@sgl/layout-api` and `@sgl/render-svg` import it from there instead of
   keeping their two copies. *The wrap width needs the inverse of the shape insets, and
@@ -59,6 +65,7 @@ that implements it, not here.
   already warns has drifted once would be worse.*
 
 `eslint.config.js`'s boundary rules, DD-00 §2 and 07 §1 change to match T2 in Phase 2 (§17).
+  - *Implemented (branch 2, `feat/a18-text`), as written, and one step further:* `packages/core/src/shape-insets.ts` holds `contentInsets` and `labelMaxWidth`. `@sgl/layout-api`'s copy is deleted and `sizing.ts` imports core's; render-svg's `Shape` interface loses its `contentInsets` method (it had no caller outside tests), so there is one copy, not a shared import of two. DD-07 §4 records the interface change.
 
 ---
 
@@ -70,6 +77,7 @@ that implements it, not here.
   delimiter run is a maximal sequence of unescaped `*` outside a code span. A run of 1, 2 or 3 stars
   is meaningful. Three stars are `**` and `*` together. A run of 4 or more is literal. *These are the
   `*` spellings of the styles a label needs, with the fewest rules.*
+  - *Implemented (branch 2, `feat/a18-text`), as written* (`inline.ts`); every rule is in `core/test/inline.test.ts`.
 - **T6. Flanking, without intraword emphasis.** `prev` and `next` are the characters on either side of
   the run, or the start or end of the label. *Whitespace* is Unicode `White_Space`, `\n` included.
   *Punctuation* is `\p{P}` or `\p{S}`.
@@ -82,6 +90,8 @@ that implements it, not here.
   letter or digit may not touch the outside of the run. *`a*b*c`, `2*3*4` and `**a**b` stay literal.
   Pre-A18 labels that use `*` as an operator, a wildcard or a footnote mark keep their meaning (T13).
   The cost is that intraword emphasis, `un*frigging*believable`, is not available.*
+  - *Implemented (branch 2, `feat/a18-text`), as written:* whitespace is `\p{White_Space}`, punctuation `[\p{P}\p{S}]`, both on code points (an emoji is a symbol).
+  - *Fix round 1, item 7:* those property escapes use the **JavaScript engine's own Unicode tables**. A symbol or punctuation mark assigned in a newer Unicode version than an older engine knows is, there, neither punctuation nor whitespace, so a `*` beside it flanks differently: `🫨*x*` could be italic in one browser and literal in another. This is the same class of concern as T37's refusal of `Intl.Segmenter`, much narrower (only newly assigned characters directly beside a delimiter run), and accepted; a pinned table would remove it.
 - **T7. Matching, left to right with a stack.** At most one `strong` and one `em` can be open at a
   time.
   - A run that can close does so first. Length 1 closes an open `em`. Length 2 closes an open
@@ -100,6 +110,7 @@ that implements it, not here.
   (the first rows of §2.2) it agrees with CommonMark. Where marks overlap, or a mark nests in itself,
   it deliberately gives a simpler, predictable answer instead of CommonMark's delimiter
   arithmetic.*
+  - *Implemented (branch 2, `feat/a18-text`), as written.* One consequence the §2.2 rows do not show, pinned in the tests: `***` always opens `strong` then `em`, so `***a** b*` demotes the `em` opener and gives `*a`ˢ ` b*`, where CommonMark nests the other way round.
 - **T8. Code spans bind first, and nothing is parsed inside them.** A run of N backticks opens a
   code span if a run of *exactly* N backticks follows later on the same line, that is, before the
   next `\n`. Otherwise the N backticks are literal. The content is literal: stars and backslashes
@@ -108,16 +119,19 @@ that implements it, not here.
   run never spans one. A code span may sit inside `strong` or `em`, and then carries those marks
   too (T21). *These are CommonMark's code-span rules, minus spanning a line break. Double backticks
   let a label hold a literal backtick (``` ``a`b`` ```).*
+  - *Implemented (branch 2, `feat/a18-text`), as written.*
 - **T9. Underscores are out.** `_x_` and `__x__` are literal. *Snake_case identifiers are common in
   diagram labels, and CommonMark's intraword exception for `_` still italicises `_id_`. Leaving
   underscores out removes a whole class of surprises for no loss: the subset already has one
   spelling of each style.*
+  - *Implemented (branch 2, `feat/a18-text`), as written.*
 - **T10. Backslash escapes: only `\*` and `` \` ``.** Outside a code span, `\*` is a literal `*` and
   `` \` `` a literal backtick. Any other backslash is literal, `\\` included. *Pre-A18 labels that
   contain backslashes, such as Windows paths or regexes, keep every one. The only cost is that a
   label cannot put a literal backslash directly before an emphasis delimiter.*
   - *Implemented (branch 1), the decoder's half:* `\*` and `` \` `` reach the model with their
     backslash (T11). The inline parser that consumes it is branch 2.
+  - *Implemented (branch 2, `feat/a18-text`), the parser's half, as written:* `\\*` in the model (two backslashes and a star) is a literal backslash and then an escaped star.
 - **T11. How the escape gets past the string decoder.** Today `\*` in a `"…"` string is `SGL1004`
   and the decoder keeps it as written. From A18, `\*` and `` \` `` are *recognised* string escapes
   that decode **to themselves**, backslash included, with no diagnostic. The inline parser then
@@ -133,6 +147,7 @@ that implements it, not here.
   `<b>`, `&amp;`, autolinks and trailing-double-space line breaks are all literal text, escaped on
   output like any text (DD-07 §8). *This is the human's decision. Each item left out also removes
   a way for a pre-A18 label to change meaning.*
+  - *Implemented (branch 2, `feat/a18-text`), as written* (tested for each construct listed).
 
 ### 2.2 Examples (Phase 2 turns each row into a test)
 
@@ -179,10 +194,12 @@ that implements it, not here.
   label that changes**. The `*` characters in the corpus are in wildcard endpoints and comments,
   which are not labels. The installed base is small: Gate 3 cleared on 2026-09-24. The options, and
   the reasons this one is recommended, are in §18.
+  - *Implemented (branch 2, `feat/a18-text`), as written, with one correction:* the T13 scan is a test (`render-svg/test/markdown-scan.test.ts`): every corpus document, the app's example and the generated n50/n500/n2000 compile byte-identically with and without the parser, except the three documents that hold markdown (`multiline.sgl`, `text/markdown.sgl`, `text/wrap.sgl`). **Correction:** "`@label` set by a class" has nothing to apply to: a class's `@label` never reaches a node's title (DD-03 §6 reads the node's own `config`), before or after A18.
 - **T14. Markdown runs on the text after variable substitution.** `${x}` whose value is `"*x*"`
   gives italics. To keep a variable's text literal, escape it inside the value. *A variable is
   text substitution. A label assembled from variables should mean what it would mean written out,
   and the escape rule is the same everywhere.*
+  - *Implemented (branch 2, `feat/a18-text`), as written:* compile reads the substituted `config.label`, so nothing was needed; `inline.test.ts` covers `${}`, a whole `$name`, and an escaped value.
 
 ---
 
@@ -390,9 +407,11 @@ A9's I16 (⚑, awaiting the human) changes the same grammar file: `ClassRef` and
   not be told apart from two runs on separate lines without a second marker. With `\n` in the text,
   the markdown parser's output needs no post-processing. The MVP never read `style`, so nothing
   depends on the old field.*
+  - *Implemented (branch 2, `feat/a18-text`), as written:* `graph.ts`; `compile()` without `inline` gives one plain run, `\n` included. The unicode.sgl and multiline.sgl compile goldens changed accordingly (T58).
 - **T22. `plainText(runs)`** (`@sgl/text`) concatenates the runs' text. The accessibility label
   replaces `\n` with a space, as today's `labelLines(...).join(' ')` does. *Screen readers read
   words, not markers. For every pre-A18 label the result is byte-identical.*
+  - *Implemented (branch 2, `feat/a18-text`):* `plainText` is in `@sgl/text`; the renderer's `labelLines` is `plainText(runs).split('\n')` and its `aria-label` joins those lines with a space, byte-identical for every pre-A18 label.
 - **T23. The measurement types move to `@sgl/text`, and grow by one optional field.**
 
   ```ts
@@ -421,9 +440,11 @@ A9's I16 (⚑, awaiting the human) changes the same grammar file: `ClassRef` and
   `@sgl/measure` re-exports everything that moved. *DD-05 says "`TextLayout` does not change". An
   optional field keeps that promise for every reader. The renderer needs the marks, because a strong
   run whose weight equals its base weight has the same `TextStyle` as a plain run.*
+  - *Implemented (branch 2, `feat/a18-text`), as written:* `packages/text/src/types.ts`, plus `LaidRun` and `TextLine` names for the layout's parts.
 - **T24. Architecture §6's sketch (`kind?: 'text' | 'code' | 'link'`, `size`, `baseline`,
   `PositionedRun`) is superseded by DD-05 plus T21 and T23.** *DD-05 is the normative one and the
   code matches it. There are no links (T12).*
+  - *Implemented (branch 2, `feat/a18-text`):* architecture §6 now carries a superseded-sketch note (§19 item 2).
 
 ---
 
@@ -440,6 +461,7 @@ A9's I16 (⚑, awaiting the human) changes the same grammar file: `ClassRef` and
   line height (T31). *Only a small set of faces is ever needed (T26). Uniform line height keeps
   DD-05 §3's vertical model exact. Code is conventionally upright and regular. A label whose base
   weight is already 700 shows no difference for strong, and is documented as such.*
+  - *Implemented (branch 2, `feat/a18-text`), as written:* `runStyle` in `packages/text/src/faces.ts`; a plain run keeps the base style object.
 - **T26. Fonts.** There is no monospace font today, and only Inter 400, 500 and 600 roman. **⚑**
   Recommended, all from `@fontsource/*` 5.3.0, Latin subset only, under OFL-1.1:
 
@@ -460,16 +482,21 @@ A9's I16 (⚑, awaiting the human) changes the same grammar file: `ClassRef` and
   italics, so no slant is synthesised. IBM Plex Mono is the smallest OFL monospace in `@fontsource`
   with both weights: JetBrains Mono's 400 is 21.2 kB. Mono italic is never needed, because of T25.
   Without a shipped mono face, measurement and export would depend on each viewer's system font.*
+  - *Branch 2 (metrics only):* `CODE_FONT_FAMILY` is the stack above; measurement needs nothing more (`StaticMetricsMeasurer` classifies it as mono, T30). The font files, `@font-face` rules, licence and precache are the render branch's. Until then `CanvasMeasurer` measures bold, italic and mono runs in whatever face the browser synthesises or falls back to, and so draws the same.
+  - *Implemented (branch 3, `feat/a18-render`), as recommended and decided (⚑3 option a), with a count correction:* the table lists **seven** files, not eight (Inter 700; Inter italic 400, 500, 600, 700; Plex 400, 700: 156 kB), so the app ships ten faces in all. They are **not in the boot CSS**: `apps/web/src/io/run-faces.ts` (`RUN_FACES`) registers them with the CSS Font Loading API (`new FontFace(…, { display: 'block' })`, added to `document.fonts`) when the lazy `rich-text` chunk is evaluated, which is before the pipeline marks the chunk loaded and so before anything of the document is measured (T28); they are listed in export's `SHIPPED` (`src/io/fonts.ts`) from the same module, and precached. No stylesheet is injected, so the CSP needs no change (a `FontFace` is governed by `font-src 'self'`; `e2e/csp.spec.ts` walks a markdown document). Fix round 1, item 5: a label style asking for weight above 600 or italic loads the chunk (and so the faces) without markup, so the screen and the export use the same face. Inter 700 and Inter italic 400–700 come from the existing `@fontsource/inter` 5.3.0; IBM Plex Mono 400/700 from the one new dependency, **`@fontsource/ibm-plex-mono` 5.3.0, OFL-1.1**. The sizes are as tabled (the build emits 14.71, 14.91, 24.36, 25.04, 25.64, 25.81 and 25.87 kB). The licence ships as `public/fonts/OFL-IBM-Plex-Mono.txt` (the package's own `LICENSE`), attributed in the README. As first built, `fonts.css` declared them (0.14 kB of boot CSS); moving them to the chunk returned that (181.82 → 181.71 kB). A face is fetched only when text uses it, and a document without markup declares none (`e2e/rich-text.spec.ts`, `e2e/pwa.spec.ts` on the built CSS). `apps/web/test/rich-measure.browser.test.ts` fails if a run is measured before its face is declared (`document.fonts.load()` resolves silently for an undeclared face): each run's measured width must equal the real face's, loaded independently.
 - **T27. The code font and the strong weight are constants of `@sgl/text` in v1.0, not theme
   tokens or style properties.** *The run classes stay theme-invariant by construction (T44), and no
   registry row, cascade step or `geometryHash` input is added. A future `font.mono` token is an
   additive change, and it must then enter `geometryHash`, because it changes measurement.*
+  - *Implemented (branch 2, `feat/a18-text`), as written:* `CODE_FONT_FAMILY` and `STRONG_WEIGHT` are constants of `@sgl/text`.
 - **T28. Fonts load before the first layout that needs them.** `distinctTextStyles` (the app's
   `measure-styles.ts`) iterates `labelRuns`, which now applies `runStyle`, so `measurer.ready(...)`
   already receives the bold, italic and mono faces a document uses, and `document.fonts.load`
   fetches them. Until they arrive, the canvas keeps showing the last good picture (or the J6 stored
   one). *DD-05 §4 already makes readiness a precondition. The only change is that the set of styles
   is larger.*
+  - *Implemented (branch 2, `feat/a18-text`):* nothing to change: `distinctTextStyles` iterates `labelRuns`, which now applies `runStyle`.
+  - *Tested (branch 3):* with the faces shipped, `e2e/dd08-14.spec.ts` repeats DD-08 §14's font gate with italic, bold and code labels (cold and warm layouts equal, every face loaded), and `apps/web/test/rich-measure.browser.test.ts` checks in Chromium that `ready()` loads them and that each wrapped line's `getComputedTextLength()` is within 0.5 px of its measured width and within the wrap width. Firefox is not installed here, so its half of T60's test is not run.
 - **T29. The table key extends `hashRuns` (DD-05 §2) without changing any plain key.**
   - Per run: `text ␟ family ␟ size ␟ weight ␟ style ␟ lh ␟ ls`, then `␟` and the marks as the
     letters `s`, `e`, `c` in that order, **only when the run has marks**.
@@ -482,6 +509,7 @@ A9's I16 (⚑, awaiting the human) changes the same grammar file: `ClassRef` and
   *A plain single-line label keeps its key. A multi-line plain label's key changes, from several
   runs to one run containing `\n`. Keys appear in no golden, so this is invisible outside the
   table.*
+  - *Implemented (branch 2, `feat/a18-text`), as written:* a plain key is byte-identical to the MVP's (`text/test/label.test.ts` checks against the old function). **Correction:** the "(or `width`, if T36 is accepted)" is accepted: the smaller of the two.
 - **T30. Determinism.**
   - In the browser, `CanvasMeasurer` measures each run's own face through the `ctx.font` shorthand
     (`italic 500 13px Inter…`), so italic advances are Inter Italic's real ones. Within a browser
@@ -498,12 +526,14 @@ A9's I16 (⚑, awaiting the human) changes the same grammar file: `ClassRef` and
 
   *This follows ADR-0003 as amended. A18 adds no new source of non-determinism, only a second
   number, line breaks, that depends on the same measurements.*
+  - *Implemented (branch 2, `feat/a18-text`):* the breaker is a pure function of the measurements, so breaks are deterministic per session and in Node; `wrap.test.ts` and `rich-corpus.test.ts` run twice and compare bytes.
 - **T31. The line model's vertical metrics.** Every label has one line height,
   `lineHeightPx = fontSize × lineHeight`, identical for all of its runs by T25. Line `i` sits at
   `y_i = A + i × lineHeightPx`, where `A` is the largest measured ascent of the label's runs, and
   `A` is reported as `ascent`. `height = lines × lineHeightPx`. For a label in one face, this is
   DD-05 §3's formula exactly. *Line spacing stays even, and every existing layout number is
   unchanged.*
+  - *Implemented (branch 2, `feat/a18-text`), as written:* the baselines accumulate line by line (`advanceY + A`), as the MVP's did, so a plain label's `y`s are bit-identical; `line-model.test.ts` checks every corpus label against the MVP model under two measurers.
 
 ---
 
@@ -528,6 +558,7 @@ The decisions:
   style, plus `letterSpacing × (glyphs on the line − 1)`. The line's run `x`s are the running sums.
   *A single-fragment line is measured exactly as it is today, whole, so every plain label keeps its
   width to the bit. Kerning across a style boundary is ignored. It is sub-pixel, and deterministic.*
+  - *Implemented (branch 2, `feat/a18-text`), as written:* a fragment's `x` includes the letter spacing of the glyphs before it.
 - **T33. The greedy breaker.**
   - **Break opportunities** are runs of U+0020 or U+0009, and U+200B. U+00A0 is not one.
   - A **word** is the maximal text between two opportunities. A word may span several runs, as in
@@ -543,10 +574,12 @@ The decisions:
 
   *This is DD-05 §3's promised "greedy breaker over words with run boundaries preserved", and it
   leaves unwrapped labels byte-identical.*
+  - *Implemented (branch 2, `feat/a18-text`), as written:* leading and trailing whitespace of a hard line travel with its first and last word, so they are kept and measured, and a line of only whitespace is one word. Each fit test measures the candidate line through a per-call memo, so a repeat costs a lookup.
 - **T34. Explicit breaks always break.** `\n`, from an escape or from a `"""` newline, starts a new
   line whatever the width. Empty lines are kept, and a trailing `\n` gives an empty last line, as
   the MVP's split does. *These are the human's explicit breaks, and they behave as they did before
   A18.*
+  - *Implemented (branch 2, `feat/a18-text`), as written.*
 - **T35. `maxWidth` comes from the owner node's `@size.maxWidth`**, as resolved into
   `styles[nodeId].geometry.maxWidth` (DD-04 step 6, so a class's `@size` counts). The **wrap
   width** is the widest label that still fits the node:
@@ -557,19 +590,37 @@ The decisions:
     rect, round, cylinder, package, and any other shape → avail
     ellipse                          → avail / √2
     diamond, hexagon                 → avail / 2      // hexagon: exact when the label is taller than wide, conservative otherwise
+                                                      // (fix round 1, item 3: hexagon → avail, and the breaker keeps L + min(L, H) ≤ avail; see below)
   ```
 
   Containers wrap their titles the same way. Edge labels have no `@size`, so they never wrap: an
   edge label breaks only at explicit `\n`. **With no `maxWidth`, nothing wraps**, which is the MVP
   behaviour. *This is the human's decision. With no default width, no existing layout changes. The
   inverse insets are what make `intrinsic.w ≤ maxWidth` hold for every shape.*
+  - *Implemented (branch 2, `feat/a18-text`), as written, with one correction:* `labelBox` in `@sgl/text`, `labelMaxWidth` in core. **Correction, since reversed:** branch 2 found that a class's `@size` reached no geometry (DD-04 §4 step 6 applies only a node's own `@size`), so it did not wrap. Human decision H2 (fix round 1) makes it count, as T35 said: DD-04 §4 merges a class's size keys at step 4, and a class with `maxWidth` wraps its nodes' labels (tested end to end). And `@size.maxWidth` did not reach geometry at all: the theme registry had no `maxWidth` row, so the cascade dropped it with `SGL5003`. Branch 2 adds the row (DD-04 §2). Containers do not wrap their titles: `@size` keys apply to nodes only.
 - **T36. ⚑ A fixed `@size.width` also wraps**, at `labelMaxWidth(shape, width, padding)`. When both
   are set, the smaller wins. *Text that overflows a fixed-width box is never what the author
   wanted. The human's decision names only `maxWidth`, so this is an extension that needs a yes. No
   corpus document sets `@size`, so no golden depends on it.*
+  - *Implemented (branch 2, `feat/a18-text`), as accepted by the human:* the smaller of `maxWidth` and `width` wins.
+  - **Fix round 1, item 3: hexagons.** `avail / 2` over-wrapped: a 200-wide hexagon wrapped
+    "Order fulfilment" (110 px) onto two lines. A hexagon's side insets are `min(L, H)/2`, so a
+    label fits when `L + min(L, H) ≤ avail`. `labelMaxWidth('hexagon', …)` now returns `avail`
+    and `labelBox` marks the box `hexagon: true` (`␟h` in the key); `layoutWrapped` breaks at
+    `max(avail/2, avail − one line height)` and, while the result breaks the rule, again at
+    `max(avail/2, avail − H)`. `H` only grows and the width only shrinks, to `avail/2` at worst,
+    where the rule always holds. Only `text/wrap.sgl`'s hexagon changed (4 lines → 2), and its two
+    rich layout goldens with it.
+  - **Human decision H1 (2026-09-26, fix round 1): a fixed `@size.width` breaks only at spaces.** A
+    single word too wide for the line overflows, as before A18; T37's mid-word split happens only
+    when the author set `@size.maxWidth`, an explicit request to constrain text. With both, the
+    narrower width is where lines break, and words may be split. `labelBox` marks a width-only box
+    `keepWords: true`, which the key carries (`␟k` after the width, T29), and `layoutWrapped` then
+    puts an overlong word on a line of its own, unsplit.
 - **T37. Words that are too long, and text without spaces.** A word wider than the wrap width is
   split at the last code-point boundary that fits, repeatedly, and a line always gets at least one
-  unit. No hyphen is inserted. A split never lands:
+  unit. *(H1: only when `@size.maxWidth` is set; under a fixed `@size.width` alone the word
+  overflows, see T36.)* No hyphen is inserted. A split never lands:
   - inside a surrogate pair;
   - before a combining mark (U+0300–036F, U+1AB0–1AFF, U+20D0–20FF, U+FE20–FE2F);
   - before a variation selector (U+FE00–FE0F, U+E0100–E01EF);
@@ -584,9 +635,11 @@ The decisions:
   are the same. *The node box never overflows `maxWidth`, which is the property layout relies on.
   `Intl.Segmenter` is not used, because its rules follow each engine's ICU version and so are not
   deterministic across environments. The hand-written boundary rule above is.*
+  - *Implemented (branch 2, `feat/a18-text`), as written:* `breakUnits` in `wrap.ts`. A word too wide for the current line first moves to a line of its own, then splits; a split unit never goes back to fill the previous line. "The last boundary that fits" is found by adding units until the next one does not fit.
 - **T38. There is no hyphenation and no break after `-` or `/` in v1.0.** *UAX #14 is a later,
   additive refinement. Until then `order-service` wraps only by T37's emergency split, and only when
   it does not fit on a line of its own.*
+  - *Implemented (branch 2, `feat/a18-text`), as written.*
 
 ---
 
@@ -600,13 +653,16 @@ The decisions:
   `max`, `fixed` and `aspectRatio` reach engines exactly as they do now. *Engines never see text
   (DD-06 §2). The label box is the entire interface, and it already accounts for any number of
   lines.*
+  - *Implemented (branch 2, `feat/a18-text`):* nothing in the contract changed; `render-svg/test/wrap-pipeline.test.ts` checks, for every shape under both engines, that the table entry, `LayoutInput.labelSizes`, the node's intrinsic width and frame, and the label placement agree, and `apps/web/test/rich-text.test.ts` checks the same through the app's pipeline.
 - **T40. `elk` and `grid` need no change.** `elk` receives the node size and the label size (K4),
   and `grid` packs sized boxes. A container's title band grows with its line count
   (`titleHeight = label.h + titleGap`), which pushes its children down. *Both engines already handle
   multi-line labels through their sizes.*
+  - *Implemented (branch 2, `feat/a18-text`):* no engine change; tested (a two-line container title pushes its child down, under both engines). One elk pin gained an entry: `text/wrap.sgl` has one title crossing, F16's known case.
 - **T41. Label placement is unchanged.** The host fallbacks size the frame to the label. The
   renderer aligns each line on its own (`text-anchor` applies per line chunk, T43), so a wrapped
   node title is centred line by line. *This is the same mechanism a `\n` label uses today.*
+  - *Implemented (branch 2, `feat/a18-text`):* the fallbacks are unchanged. The renderer does not draw soft breaks until the render branch (T42), so a wrapped label is laid out wrapped but drawn on its hard lines, overflowing its node.
 
 ---
 
@@ -630,6 +686,7 @@ The decisions:
   been given a `TextLayout`. Adopting it would move every label by about 2 px, and that is a
   separate decision (§19, item 5). The app already holds the table, and on a theme switch it keeps
   the same table object (DD-08 §3's measure-effect skip), so the paint-only guard holds.*
+  - *Implemented (branch 3, `feat/a18-render`), with two deviations.* `render(styled, layout, theme, text?)` and `renderPaintOnly(previous, styled, layout, text?)` (`TextTable`), `PaintPlan.text`, `LabelPlacementView.text` and `textBlock`'s `supplied` removed; the vertical model unchanged. The test pipeline now passes the table, and **no existing render golden changed**. **Deviation 1:** only a label with a box (`labelBox(...).maxWidth` defined) is looked up. An unboxed label's entry is `layoutLines`'s, whose lines are exactly its runs split at `\n`, so the renderer draws that split without hashing a key: at `n2000-rich` the lookups cost ~2 ms instead of ~10 ms a render (T56's memo alone would not have helped a first render, because `premeasure` does not go through `labelRunKey`). A miss, or no table, falls back to the same split, which is also what DD-11's degraded mode (the chunk failed to load: plain runs, no wrap) draws. **Deviation 2:** the app renders with **the table its landed layout was sized from** (`layoutTable`, set with `layout`), not the latest `table`, so a label is never drawn on a newer table's breaks inside the frames of an older layout (DD-08 §3). **Fix round 1, item 1** (orchestrator's decision) refines deviation 2: a boxed label missing from the landed table is drawn from the latest table, and the render follows the latest table only while such a label exists. **Fix round 1 also removed the `labelRunKey` memo (T56):** `render()` hashes only boxed labels, `premeasure` never used it, and its bytes paid for item 1; `textBlock`'s per-glyph width estimate (no emitted attribute read it) went for item 5's. Tests: `render-svg/test/rich-render.test.ts`, the seam oracle in `rich-corpus.test.ts` (grid and elk), `apps/web/test/rich-text.test.ts`, `e2e/rich-text.spec.ts`.
 - **T43. The markup: one nested `<tspan>` per marked fragment, inside the line's `<tspan>`.**
 
   ```svg
@@ -650,6 +707,7 @@ The decisions:
   *This is DD-07 §5's "nested `<tspan class="r-code">`". Per-run `x` values from our measurement
   would fight the viewer's own shaping in exported files. Inkscape, resvg and every browser flow
   unpositioned tspans.*
+  - *Implemented (branch 3), as written:* `renderText` in `text.ts`; a fallback line's fragments carry their run's flags. `e2e/rich-text.spec.ts` checks the computed `font-weight`, `font-style` and `font-family` of each run tspan in Chromium, and that typing `**x**` gives weight 700.
 - **T44. Run classes are constants, and so are their rules**, appended to the one `<style>` only
   when some label uses them, always in this order:
 
@@ -665,22 +723,27 @@ The decisions:
   emits the same ones. *A theme switch changes no run class and no run rule, which keeps F7's
   paint-only contract by construction. A rule on the tspan itself beats the value the tspan
   inherits from `<text>`'s `g-` class, whatever the order.*
+  - *Implemented (branch 3), as written, with one spelling difference:* the `r-code` family is `@sgl/text`'s `CODE_FONT_FAMILY` verbatim (`'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`, with spaces after the commas), the same string measurement's `ctx.font` uses, and the strong weight is `STRONG_WEIGHT`. `ClassTable.runs` holds the marks drawn and `emit()` appends the used rules after the sorted generated ones; `PaintPlan.runs` carries them to the paint-only path.
 - **T45. `structureHash` includes the marks.** Its label-text field becomes the runs' text with each
   marked run prefixed by its mark letters and a separator that text cannot contain. For unmarked
   labels it is exactly today's string. The guarantee becomes: for the same `LayoutResult` **and
   the same table**, equal `structureHash` implies the output outside `<style>`/`<defs>` is
   byte-identical. *Two labels with the same text and different marks render different tspans. F9's
   guard must see that.*
-- **T46. There are no code-span background plates in v1.0.** *A plate needs per-run `x` and width
+  - *Implemented (branch 3), with a stronger separator:* the plain-text field is unchanged, and a label with marks adds **one more field**, `\0` then each run's mark bits and text length. The hasher frames every field with its length and a sentinel no code unit can forge, and the field after a label is the rendered config, which never starts with `\0`, so no text, even one containing `\0`, can make a marked label hash as an unmarked one. Tested: a marks-only edit (`**ab**` → `*ab*`, `` `ab` ``, `ab`, `**a**b`), two splits of the same text, an edge label's marks, and a theme switch that must not change it.
+- **T46. There are no code-span background plates in v1.0.**   *A plate needs per-run `x` and width
   from our measurement, which will not match the viewer's own glyphs in an exported file. It would
   also add a paint rule per label to the paint plan. Monospace alone distinguishes code.*
+  - *Implemented (branch 3):* no plates.
 - **T47. Escaping.** Each fragment's text goes through `escapeXml`, once, like any text (DD-07 §8).
   Class names are the three constants, never document text. The injection corpus gains
   `injection/markdown-in-label.sgl` with `**<script>…**`, `` `</tspan><script>` ``, `*" onload=*`
   and `` `]]>` ``. *Markdown moves no document text into any context it did not already reach.*
+  - *Implemented (branch 3), as written:* `corpus/injection/markdown-in-label.sgl` holds the four strings and two more (an edge label closing `</text>`, pre-encoded entities in every mark); `injection.test.ts` renders every injection document through both pipelines (with and without the parser) and checks the run tspans' classes are exactly the constants and the text is escaped once. `markdown-scan.test.ts` lists it among the documents that hold markdown.
 - **T48. Accessibility is unchanged.** `aria-label` is `plainText` with `\n` replaced by a space, and
   `<text>` stays `aria-hidden`. *Marks are visual, and the group's label already carries the
   words.*
+  - *Implemented (branch 3), as written:* `a11yText` is `plainText` with `\n` as a space, byte-identical for every pre-A18 label.
 
 ---
 
@@ -688,6 +751,7 @@ The decisions:
 
 - **T49. The app's `SHIPPED` faces grow by T26's eight**, fetched only when used, from the precache
   when offline. *D2 embeds "the weights the file uses", and an exported rich label uses these.*
+  - *Implemented (branch 3), as written:* `SHIPPED` lists the ten faces: `fonts.css`'s three and `RUN_FACES`' seven; `apps/web/test/fonts.test.ts` holds the three lists to T26's set.
 - **T50. `usedFontFaces` selects faces per element, not as a cross product.**
   - Today it collects families, weights and styles across all the rules and combines them. With run
     rules, a single `em` anywhere would pull in an italic for every weight any rule names, and a
@@ -701,6 +765,7 @@ The decisions:
 
   *"Exactly the used faces" is D2's promise (human decision, 2026-09-25). Scanning elements is
   string work in an export-time chunk, and costs the boot path nothing.*
+  - *Implemented (branch 3), as written:* `usedByElements` in `render-svg/src/fonts.ts` reads an SVG that has run tspans element by element (a `<text>`'s own face counts only when it has text outside a run tspan); an SVG without them takes the old path, so its selection is exactly today's (checked over the whole corpus). Tests: `render-svg/test/fonts.test.ts`; `e2e/svg-export.spec.ts` (Save ▾ SVG of a bold, an italic and a code title embeds exactly that face as the shipped bytes, and the file as an `<img>` inks the run within 1 px of the face's own metrics, missing by more than 3 px without the faces; a mixed diagram embeds four faces, not a cross product); `e2e/png-export.spec.ts` (an italic title's PNG inks within 1 px of Inter Italic 500 and embeds only that face); `e2e/offline.spec.ts` (a markdown document's faces come from the service worker offline).
 
 ---
 
@@ -716,9 +781,11 @@ The decisions:
   - The `"""` spelling is not preserved through JSON, which has none.
 
   *The model is canonical and the spelling is not semantic.*
+  - *Implemented (branch 2, `feat/a18-text`):* nothing changed, as designed.
 - **T52. A hand-written `.sgl.json` label is markdown too.** `"@label": "**API**"` is bold. *JSON is
   the same language (spec §1), not a literal-text escape hatch. §18's option (b) would add one, if
   wanted.*
+  - *Implemented (branch 2, `feat/a18-text`):* true without a change: compile parses `.sgl.json` label values like any other.
 
 ---
 
@@ -748,6 +815,7 @@ The decisions:
   `rich-text-*.js` by name, and `check-core-chunks.mjs` checks that the entry does not import it
   statically. *The parser and the breaker are most of A18's code, and a document without markup or
   `maxWidth` needs neither. This follows A9's pattern: a gate on the boot path, the work lazy.*
+  - *Implemented (branch 2, `feat/a18-text`), with two deviations:* both gates are in `pipeline.ts`, the chunk is `state/rich-text.ts`, `.size-limit.js` excludes `rich-text-*.js`, and `check-core-chunks.mjs`'s existing sweep fails if the entry reaches it. **Deviation 1:** the app does not replace its `CanvasMeasurer`; `lineModel` is a writable property it sets once the chunk loads, so the worker host keeps the measurer it holds and the per-run cache (which caches runs, not lines) is kept. **Deviation 2:** the measure effect no longer measures the boot-time fallback (the empty document) while a stage is held: laying that out made an empty layout the one a held document's first render was drawn with (A9's gate had the same latent case). A failed load is retried on the next change of the document. **Fix round 1, item 2:** a failed load used to hold the stages until then, freezing the picture for any label with `*` or a backtick; it now degrades like A9's gate (plain runs, the box ignored, one `SGL6002` warning, a new boot-catalogue code approved by the orchestrator, listed with `SGL2027` as unreachable from a document). Tests: `apps/web/test/rich-text.test.ts`, `e2e/rich-text.spec.ts` (never fetched without markup or a box), `e2e/offline.spec.ts` (from the precache).
 - **T54. What stays on the boot path, estimated gzipped:**
 
   | Item | Estimate |
@@ -762,6 +830,8 @@ The decisions:
 
   The lazy `rich-text` chunk is about 1.2 kB gzipped: the parser about 0.55 kB, the breaker about
   0.65 kB. With it on the boot path, A18 would cost about 2.0–2.3 kB.
+  - *Measured (branch 2):* the boot path grew **+0.84 kB** (180.38 → 181.22 kB): the `@sgl/text` boot half with `labelBox`, `runStyle` and the fragment line model, `labelMaxWidth`, the marks in the key, and the app's two gates and lazy import, net of render-svg's per-shape insets removed. The lazy chunk is **2.01 kB** gzipped (estimated 1.2). 0.78 kB is left for the render branch. *Fix round 1* (H1, the hexagon flag, H2, the container check, `SGL6002`'s degraded path, less a compaction) brings the boot path to **181.47 kB**: 0.53 kB left.
+  - *Measured (branch 3):* **+0.49 kB** (181.22 → 181.71 kB of 182): the renderer (measured lines, nested tspans, run rules, the table lookup, `structureHash` marks, the paint-plan fields, the `labelRunKey` memo) +0.45, the box gate on the lookup +0.01, and registering the run faces from the lazy chunk instead of the boot CSS −0.11 net of the removed rules (the seven `@font-face` rules had cost 0.14). A18's total at boot is **2.01 kB** (estimated 0.80–1.05 before the lazy chunk was measured). **0.29 kB is left under the limit.** `io/run-faces.ts` is a chunk of its own (`run-faces-*.js`, shared by `rich-text` and `file-actions`), excluded by name in `.size-limit.js`. T50's selection is in the lazy `file-actions` chunk.
 - **T55. ⚑ A18 and A9 together do not fit the current headroom without the F20 trim, and fit only
   narrowly with it.**
   - Headroom today is 1.09 kB. A9 estimates its boot cost at 0.8–1.0 kB (DD-02 §10.9 on
@@ -773,6 +843,7 @@ The decisions:
     a fresh measurement.
   - If A18 does not fit then, the next trims are those listed in §18. The 180 kB limit is the
     human's to move, not this design's.
+  - *Resolved (human decisions, 2026-09-26):* ⚑4 option (a), the lazy `rich-text` chunk, with the limit raised to 182 kB (with A9). A18 fits: 181.71 kB after branch 3 (T54's measured rows).
 
 ---
 
@@ -796,6 +867,9 @@ The decisions:
 
   *The expensive part, canvas calls, is bounded by words and cached by fragment. Nothing new runs
   on a keystroke for an unchanged label.*
+  - *Branch 2:* not measured. The `labelRunKey` memo is for `render()`'s per-label lookup (T42), so it comes with the render branch, as do the `{ rich: true }` scale variant and its bench. The breaker memoises measurements within a call.
+  - *Measured (branch 3), reported and not gated:* `scaleDocument(n, { rich: true })` in `bench/scale-document.js` (every node labelled, every tenth wrapped; built in memory, not written to `corpus/`). `apps/web/bench/rich-measure.bench.ts`, run by `pnpm bench:theme`, in headless Chromium: medians of 7 over 2 200 labels: parsing every label 2.3 ms; parse to `styleGraph` with the parser 84 ms; **pre-measure cold 44 ms** (plain `n2000`: 35 ms), warm 32 ms; `render()`'s table lookups 1.7 ms (only the 200 boxed labels are hashed, T42 deviation 1). The budget holds: the cold pre-measure is about half of 100 ms.
+  - **Fix round 1, item 5: the estimates above do not hold; the real numbers.** In Node, with static metrics, `premeasure` at n2000 with long labels is 11.7 ms unwrapped and **20.5 ms with every node wrapped** (about 1.75×; branch 2's quadratic breaker made it 30.8 ms here, and the review measured 17 → 87–98 ms, about 5×, on its document). A keystroke re-runs `premeasure` over every label, so wrapped labels are re-broken each time: the per-run cache makes it cache hits, not canvas calls, until the cache overflows. `CanvasMeasurer`'s 20 000-entry clear-all cache holds about three entries per wrapped label and thrashes from about 7 000 wrapped labels (every pass misses); an LRU was tried and does not help. Recorded as execution plan §2.1 **F24**, with the remedy (reuse the previous table's entries by key) and the browser measurement to take with F15.
 - **T57. F9's paint-only theme switch stays paint-only.**
   - A theme switch between themes of equal geometry does not re-measure (the table and every break
     are unchanged) and takes the paint-only path. `renderPaintOnly` swaps the `<style>` text, and
@@ -811,6 +885,7 @@ The decisions:
 
   *Nothing on the switch path does more work per element than it did. There are simply more
   elements.*
+  - *Implemented and measured (branch 3), not gated:* `pnpm bench:theme` runs `n2000-rich` (`scaleDocument(2000, { rich: true })`, every label marked, every tenth wrapped) through the same picker path. The switch takes the paint-only path (no `render()`, no pre-measure, no layout request), and the gated points are unchanged in the same run (slower-pick median `work`: n50 2.2, n500 10.9, n2000 37.3 ms). `n2000-rich`, no `@theme`: **48.0 ms** (first pick) and **54.1 ms** (repeat pick) median `work`, of which ~43–50 ms is Chromium's style recalculation over the extra run tspans and ~5 ms script. So a fully marked-up 2 000-node document misses the 50 ms budget by a few ms on the slower pick, within the 100 ms ceiling, as predicted above; recorded in F9's row (execution plan §2.1). With its own `@theme` (the full path): ~272–281 ms. The rich paint-only property itself is tested in `render-svg/test/paint-only.test.ts`, `paint-only-path.test.ts`, `oracle.test.ts` (the rich documents and a rich synthetic document under the synthetic theme pair) and `apps/web/test/rich-text.test.ts`.
 
 ---
 
@@ -846,6 +921,8 @@ The decisions:
   the same way as `unicode.sgl`'s (four labels with `\n`), and nothing downstream of it should.
   The `unicode.sgl` change itself is branch 2's (it comes with the `TextRun` flags), so branch 1
   changed no existing golden.
+  - *Implemented (branch 3, `feat/a18-render`):* the render goldens of `multiline.sgl`, `text/markdown.sgl` and `text/wrap.sgl` through the rich pipeline, under all four themes (`render-svg/test/__goldens__/rich/render/`), and `injection/markdown-in-label.sgl`. **No existing golden changed**: every render golden stayed byte-identical with the table passed to `render()`.
+  - *Implemented (branch 2, `feat/a18-text`):* exactly the two compile goldens changed, as listed. The new documents are `corpus/text/markdown.sgl` and `corpus/text/wrap.sgl` (in a subdirectory, so the suites over `CLEAN_DOCS` leave them out); `render-svg/test/rich-corpus.test.ts` gives them, and `multiline.sgl`, compile, `grid` and `elk` goldens through the rich pipeline, under `render-svg/test/__goldens__/rich/`. Their render goldens, and `injection/markdown-in-label.sgl`, are the render branch's. The suites over `CLEAN_DOCS` compile without the parser, as every existing golden always has; the T13 scan proves the two agree on every other document.
 
 ---
 
@@ -864,6 +941,7 @@ The decisions:
 
   *Each case either already has a code whose message fits, or should not be a diagnostic at all.
   That keeps A18 off the catalogue A9 is also growing.*
+  - *Implemented (branch 2, `feat/a18-text`):* no new code.
 
 ---
 
@@ -941,6 +1019,8 @@ The decisions:
 
   *This follows the order the brief suggested: grammar, then the text model, then pixels. Each
   branch is reviewable alone, and only the third touches the boot bundle.*
+  - *Branch 3 as built (`feat/a18-render`):* T42–T50, the fonts, T56–T57, the render goldens and the tests listed above, each shown failing first, plus a seam oracle (what `render()` draws is what was measured and laid out) and the paint-only oracle over the rich documents. Not done here: T60's Firefox half of the `CanvasMeasurer` test (Firefox is not installed in this environment; the test is in the `browser` project and runs under Firefox where it is). Core bundle 181.71 kB of 182.
+  - *Branch 2 as built (`feat/a18-text`), by the orchestrator's brief:* everything listed for branch 2, **plus** the app half of T53 that was listed for branch 3 — the `rich-text` chunk, both gates in `pipeline.ts`, `size-limit` and `check-core-chunks` — with the offline e2e case and the never-fetched case. The app therefore passes the parser and the wrap model now: a markdown label is drawn as its runs' plain text (markers removed), and a wrapped label is laid out wrapped but drawn on its hard lines, until branch 3 draws marks and soft breaks. Branch 3 keeps T42–T50, the fonts, T57 and the rest of T54's figures.
 
 ---
 
@@ -1003,12 +1083,12 @@ Each change is made in the branch that implements it (§16).
 
 ## 19. Contradictions found while designing this
 
-1. **DD-00 §2, rule 2** says `theme`, `measure`, `layout-api` and `render-svg` "import only core".
+1. *(Resolved by branch 2: DD-00 §2 now has the real graph and `@sgl/text`.)* **DD-00 §2, rule 2** says `theme`, `measure`, `layout-api` and `render-svg` "import only core".
    07 §1 and the code have `measure` and `render-svg` importing `theme`. DD-00 is stale.
-2. **Architecture §6** (`TextRun.kind` with `'link'`, `TextLayout.size`, `baseline`,
+2. *(Resolved by branch 2: architecture §6 and the backlog point to DD-05 and DD-11.)* **Architecture §6** (`TextRun.kind` with `'link'`, `TextLayout.size`, `baseline`,
    `PositionedRun`) and the **backlog's** `measureRuns(runs, box)` disagree with DD-05's
    normative `layoutRuns` and `TextLayout`, which the code implements (T24).
-3. **Architecture §7** says exported fonts are "embedded as subsetted base64 WOFF2". DD-07 §9 (D2)
+3. *(Resolved by branch 3: architecture §7 now says unsubsetted, per element, and points to DD-07 §9.)* **Architecture §7** says exported fonts are "embedded as subsetted base64 WOFF2". DD-07 §9 (D2)
    says there is no subsetting.
 4. *(Resolved: A9 had already brought the block in line; branch 1 re-checked it and added
    `MultilineString`.)* **DD-01 §2's grammar block** omits the `ConfigString` token, its `@precedence`, and `Variable`,
@@ -1021,11 +1101,24 @@ Each change is made in the branch that implements it (§16).
    today's behaviour. Adopting the measured ascent would move every label by about 2 px and change
    every render golden. That is worth a finding of its own (owner: whoever next touches DD-07 §5),
    not a side effect of A18.
-6. **DD-02 §7's registry** lists `maxHeight` in `@size`. `SIZE_KEYS` (`config-registry.ts`) and
+   *(Recorded by branch 3 as execution plan §2.1 **F25**, for the human; not fixed. DD-07 §5 now states what the renderer does. Measured in Chromium: `CanvasMeasurer`'s ascent is `fontBoundingBoxAscent`, which Chromium rounds to whole pixels, so Inter's 0.969 em comes out as a whole em — 13 px for a 13 px node title against the rendered 10.4 px (2.6 px lower), 12 px for a container title against 9.6 (2.4 px); `apps/web/test/rich-measure.browser.test.ts` pins it.)*
+6. *(Resolved by branch 2: DD-02 §7 lists exactly `SIZE_KEYS`; DD-06 §2 notes that `max.h` is never set.)* **DD-02 §7's registry** lists `maxHeight` in `@size`. `SIZE_KEYS` (`config-registry.ts`) and
    language spec §4 do not, and DD-06 §2 reads `g.maxHeight` anyway.
-7. **DD-05 §3 and DD-03 §6** say a plain label is "one run per line". T21 changes that, and DD-03 §6
+7. *(Resolved by branch 2: DD-03 §2 and §6 and DD-05 §2–§3 describe the canonical runs and the two line models.)* **DD-05 §3 and DD-03 §6** say a plain label is "one run per line". T21 changes that, and DD-03 §6
    also says "`LabelSpec` does not change shape". Both documents are updated in branch 2: the
    `LabelSpec` shape holds, and the `TextRun` shape changes.
-8. **DD-07 §9** says "an italic with only a normal face embeds the normal one, which the viewer
+8. *(Resolved by branch 3: DD-07 §9 says so.)* **DD-07 §9** says "an italic with only a normal face embeds the normal one, which the viewer
    slants". That stays true for user fonts, but once T26 ships italics, the Inter case is a real
    italic face.
+9. *(Found by branch 2, resolved there.)* **The theme registry had no `maxWidth` row**, although
+   language spec §4, `SIZE_KEYS` and DD-04 §4 step 6 all list `@size.maxWidth`: the cascade dropped it
+   with `SGL5003`, so no node could have a `maxWidth` and T35 had nothing to read. DD-04 §2 and the
+   registry now have the row.
+10. *(Found by branch 2; resolved by human decision H2 in fix round 1.)* **DD-02 §7 accepts `@size`
+    on a class, and T35 says a class's `@size` counts, but DD-04 §4 step 6 applied only a node's own
+    `@size`**: a class's `@size` validated and did nothing. H2: it applies, merged at DD-04 §4 step
+    4 in `@type` order, the node's own `@size` overriding per key; DD-02 §7, DD-04 §4 and spec §6
+    say so.
+11. *(Found by branch 2.)* **T13 says markdown covers "`@label` set by a class"**, but a class's
+    `@label` never reaches a node's title (DD-03 §6 reads the node's own `config`). Nothing to
+    parse; recorded under T13.

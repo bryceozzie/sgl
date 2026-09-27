@@ -403,6 +403,13 @@ Because markdown labels (A18) are Must and `<foreignObject>` is banned (D9), a l
 string — it is a sequence of **styled runs** that must be broken into lines and positioned by us.
 The measurement interface is therefore run-based, not string-based:
 
+> **Superseded sketch (A18, DD-11 T24; DD-11 §19 item 2).** The block below was the phase-0 sketch.
+> The normative interface is [DD-05 §2](detailed-design/05-measurement.md#2-interface) plus DD-11
+> T21 and T23: `StyledRun { text, style, marks? }` (marks `strong`, `em`, `code`; there are no
+> links), `layoutRuns(runs, box)`, and `TextLayout { width, height, ascent, lines: { y, width,
+> runs: { x, text, style, marks? }[] }[] }`. There is no `kind`, `size`, `baseline` or
+> `PositionedRun`. The types, the table key and the line models live in `@sgl/text`.
+
 ```ts
 export interface TextRun {
   text: string;
@@ -471,7 +478,7 @@ Guarantees:
 
 - **Stable IDs.** `n-<path>` / `e-<hash-of-endpoints-and-index>`. Reordering the source does not churn IDs, so exported SVGs diff cleanly in git.
 - **Layer order is explicit**, not accidental. Containers behind, edges next, nodes, then labels on top.
-- **Self-contained.** Fonts embedded as subsetted base64 WOFF2 (or a declared fallback stack if the user opts out for size). No external URLs.
+- **Self-contained.** An exported file embeds the fonts it draws with as base64 WOFF2 `@font-face` rules, **not subsetted**: the application's Latin files as shipped, only the faces the file uses (D2; since A18 chosen per element, so a bold, italic or code run brings exactly its face, DD-11 T50). DD-07 §9 is normative. The system fallbacks stay in the `font-family` stack for a viewer that ignores `@font-face`. No external URLs. (This line said "subsetted" until A18's render branch corrected it, DD-11 §19 item 3.)
 - **Escaped.** All text goes through XML escaping; `@link` values are scheme-allowlisted; IDs are sanitised.
 - **No `<foreignObject>`** on the default path — it breaks Inkscape, breaks CLI rasterisers, and reintroduces measurement nondeterminism.
 

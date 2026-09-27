@@ -168,18 +168,80 @@ function compareKeys(a: FontFaceKey, b: FontFaceKey): number {
 }
 
 /**
+ * The faces an SVG with run rules draws with, element by element (DD-11 T50):
+ * each `<text>`'s own face — the `font-family`, `font-weight` and `font-style`
+ * its classes give it, the later rule winning as in CSS (all are single-class
+ * selectors) — when it has text outside a run tspan, and each run tspan's face:
+ * the properties its own classes (`r-em`, `r-code`, `r-strong`) set, over what
+ * it inherits from its `<text>`. Only these combinations, never the cross
+ * product of every family, weight and style some rule names: one `em` would
+ * otherwise pull in an italic for every weight. `null` when there is nothing
+ * to draw with a named family.
+ */
+function usedByElements(svg: string): Used[] | null {
+  const m = STYLE.exec(svg);
+  if (m === null) return null;
+  // Class name → its rules' declarations, each with the rule's source position.
+  const rules = new Map<string, [number, Map<string, string>][]>();
+  let position = 0;
+  for (const rule of decodeXml(m[1]!).matchAll(/([^{}]*)\{([^{}]*)\}/g)) {
+    const d = declarations(rule[2]!);
+    position += 1;
+    for (const selector of rule[1]!.split(',')) {
+      const name = /^\s*\.([\w-]+)\s*$/.exec(selector)?.[1];
+      if (name !== undefined) rules.set(name, [...(rules.get(name) ?? []), [position, d]]);
+    }
+  }
+  /** The value the element's classes give `property`: the latest rule wins. */
+  const own = (classes: string, property: string): string | undefined => {
+    let value: string | undefined;
+    let at = 0;
+    for (const c of classes.split(/\s+/)) {
+      for (const [i, d] of rules.get(c) ?? []) {
+        if (i > at && d.has(property)) {
+          value = d.get(property);
+          at = i;
+        }
+      }
+    }
+    return value;
+  };
+  const faces: Used[] = [];
+  const add = (family: string | undefined, weight: string | undefined, style: string | undefined): void => {
+    if (family === undefined) return;
+    const names = family.split(',').map(familyKey).filter((f) => f !== '');
+    faces.push({ families: new Set(names), weights: new Set([parseWeight(weight ?? '') ?? 400]), styles: new Set([parseStyle(style ?? '') ?? 'normal']) });
+  };
+  for (const t of svg.matchAll(/<text\b[^>]*?\bclass="([^"]*)"[^>]*>([\s\S]*?)<\/text>/g)) {
+    const classes = decodeXml(t[1]!);
+    const [family, weight, style] = ['font-family', 'font-weight', 'font-style'].map((p) => own(classes, p));
+    const bare = t[2]!.replace(/<tspan class="[^"]*">[^<]*<\/tspan>/g, '').replace(/<[^>]*>/g, '');
+    if (bare !== '') add(family, weight, style);
+    for (const r of t[2]!.matchAll(/<tspan class="([^"]*)">[^<]*<\/tspan>/g)) {
+      const rc = decodeXml(r[1]!);
+      add(own(rc, 'font-family') ?? family, own(rc, 'font-weight') ?? weight, own(rc, 'font-style') ?? style);
+    }
+  }
+  return faces;
+}
+
+/**
  * The faces of `fonts` the SVG draws with: for each family its `<style>` names
  * that `fonts` has, each weight and style its rules use, matched as CSS font
  * matching would among `fonts` (a 700 with only 400–600 given uses 600). One
  * per slot, the first given for a slot winning, sorted by family, style and
  * weight. Empty when the SVG has no `font-family` rule (no text).
  *
+ * An SVG with run tspans (`class="r-…"`, DD-11 T50) is read element by element
+ * instead (`usedByElements`), so each run's face is chosen, not every
+ * combination of the rules; an SVG without them gets exactly the selection it
+ * always had.
+ *
  * Takes faces without bytes too, so a caller can find out what to fetch before
  * fetching it.
  */
 export function usedFontFaces<T extends FontFaceKey>(svg: string, fonts: readonly T[]): T[] {
-  const used = usedByRules(svg);
-  if (used === null) return [];
+  const used = /<tspan class="r-/.test(svg) ? (usedByElements(svg) ?? []) : [usedByRules(svg)].filter((u) => u !== null);
   const slots = new Map<string, T>();
   for (const f of fonts) {
     const key = `${familyKey(f.family)}\u0000${f.style}\u0000${f.weight}`;
@@ -187,18 +249,20 @@ export function usedFontFaces<T extends FontFaceKey>(svg: string, fonts: readonl
   }
   const unique = [...slots.values()];
   const chosen = new Set<T>();
-  for (const family of used.families) {
-    const ofFamily = unique.filter((f) => familyKey(f.family) === family);
-    if (ofFamily.length === 0) continue;
-    for (const style of used.styles) {
-      const fallback = STYLE_FALLBACK[style].find((s) => ofFamily.some((f) => f.style === s));
-      if (fallback === undefined) continue;
-      const ofStyle = ofFamily.filter((f) => f.style === fallback);
-      const available = ofStyle.map((f) => f.weight);
-      for (const weight of used.weights) {
-        const w = matchWeight(weight, available);
-        const face = ofStyle.find((f) => f.weight === w);
-        if (face !== undefined) chosen.add(face);
+  for (const u of used) {
+    for (const family of u.families) {
+      const ofFamily = unique.filter((f) => familyKey(f.family) === family);
+      if (ofFamily.length === 0) continue;
+      for (const style of u.styles) {
+        const fallback = STYLE_FALLBACK[style].find((s) => ofFamily.some((f) => f.style === s));
+        if (fallback === undefined) continue;
+        const ofStyle = ofFamily.filter((f) => f.style === fallback);
+        const available = ofStyle.map((f) => f.weight);
+        for (const weight of u.weights) {
+          const w = matchWeight(weight, available);
+          const face = ofStyle.find((f) => f.weight === w);
+          if (face !== undefined) chosen.add(face);
+        }
       }
     }
   }

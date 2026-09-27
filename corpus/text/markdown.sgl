@@ -1,0 +1,39 @@
+// Markdown in labels (A18, DD-11 §2): every row of the §2.2 table, nesting,
+// adjacency, escapes, code holding stars, and markdown after `${}`.
+@vars: { tier: "*prod*" }
+
+bold:      "**bold**"
+italic:    "*it*"
+both:      "***both***"
+nestA:     "**bold *and it***"
+nestB:     "*it **and bold***"
+intraword: "a*b*c and 2*3*4"
+spaced:    "2 * 3 * 4"
+lone:      "*"
+touching:  "**a**b"
+punct:     "(**a**)."
+unclosed:  "**unclosed"
+halfA:     "*a**"
+halfB:     "**a*"
+overlapA:  "**a *b** c*"
+overlapB:  "*a *b* c*"
+code:      "`a*b*`"
+codeIn:    "*see `x`*"
+ticks:     "``a`b``"
+spaces:    "` x `"
+open:      "`open"
+escaped:   "\*not\*"
+path:      "C:\\temp\*.log"
+snake:     "snake_case and _x_"
+lines:     "**Line one\nLine two**"
+adjacent:  "**a***b*`c`"
+fromVar:   "${tier} tier"
+block: {
+  @label: """
+    **Payments API**
+    handles `POST /pay`
+    """
+}
+
+bold -> italic: "*async*"
+both -> code: "`200 OK`"

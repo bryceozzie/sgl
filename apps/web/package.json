@@ -20,6 +20,7 @@
     "@codemirror/lint": "^6.9.2",
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.39.4",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
     "@fontsource/inter": "^5.3.0",
     "@lezer/common": "^1.2.3",
     "@lezer/highlight": "^1.2.1",
@@ -30,6 +31,7 @@
     "@sgl/layout-std": "workspace:*",
     "@sgl/measure": "workspace:*",
     "@sgl/render-svg": "workspace:*",
+    "@sgl/text": "workspace:*",
     "@sgl/theme": "workspace:*",
     "idb": "^8.0.3",
     "preact": "^10.27.2"

@@ -7,5 +7,5 @@
     "tsBuildInfoFile": "../../.tsbuild/render-svg.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
-  "references": [{ "path": "../core" }, { "path": "../theme" }]
+  "references": [{ "path": "../core" }, { "path": "../theme" }, { "path": "../text" }]
 }

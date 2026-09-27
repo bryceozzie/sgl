@@ -68,6 +68,9 @@ importers:
       '@codemirror/view':
         specifier: ^6.39.4
         version: 6.43.13
+      '@fontsource/ibm-plex-mono':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@fontsource/inter':
         specifier: ^5.3.0
         version: 5.3.0
@@ -98,6 +101,9 @@ importers:
       '@sgl/render-svg':
         specifier: workspace:*
         version: link:../../packages/render-svg
+      '@sgl/text':
+        specifier: workspace:*
+        version: link:../../packages/text
       '@sgl/theme':
         specifier: workspace:*
         version: link:../../packages/theme
@@ -167,6 +173,9 @@ importers:
       '@sgl/measure':
         specifier: workspace:*
         version: link:../measure
+      '@sgl/text':
+        specifier: workspace:*
+        version: link:../text
       '@sgl/theme':
         specifier: workspace:*
         version: link:../theme
@@ -183,6 +192,9 @@ importers:
       '@sgl/measure':
         specifier: workspace:*
         version: link:../measure
+      '@sgl/text':
+        specifier: workspace:*
+        version: link:../text
       '@sgl/theme':
         specifier: workspace:*
         version: link:../theme
@@ -192,6 +204,9 @@ importers:
       '@sgl/core':
         specifier: workspace:*
         version: link:../core
+      '@sgl/text':
+        specifier: workspace:*
+        version: link:../text
       '@sgl/theme':
         specifier: workspace:*
         version: link:../theme
@@ -201,6 +216,9 @@ importers:
       '@sgl/core':
         specifier: workspace:*
         version: link:../core
+      '@sgl/text':
+        specifier: workspace:*
+        version: link:../text
       '@sgl/theme':
         specifier: workspace:*
         version: link:../theme
@@ -220,6 +238,19 @@ importers:
       fast-xml-parser:
         specifier: ^4.5.0
         version: 4.5.7
+
+  packages/text:
+    dependencies:
+      '@sgl/core':
+        specifier: workspace:*
+        version: link:../core
+      '@sgl/theme':
+        specifier: workspace:*
+        version: link:../theme
+    devDependencies:
+      fast-check:
+        specifier: ^4.3.0
+        version: 4.10.0
 
   packages/theme:
     dependencies:
@@ -1029,6 +1060,9 @@ packages:
   '@eslint/plugin-kit@0.4.1':
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@fontsource/ibm-plex-mono@5.3.0':
+    resolution: {integrity: sha512-eTgnZjZEGk1QtD3ZstF+Vclo2HLAni8YMy34/DxllwZvyz1lR/1RF/xTiAquOBO7MvqBx8D2Ig2WCPMVfdZu7Q==}
 
   '@fontsource/inter@5.3.0':
     resolution: {integrity: sha512-RofMylZmjlJEfELXeNHFWBRcSs75rGU/6bV2S2jfnvv/3rPXPGe0LgUJTklcHZ9lM4OZmAVFhcJPnACfb91A3g==}
@@ -4439,6 +4473,8 @@ snapshots:
     dependencies:
       '@eslint/core': 0.17.0
       levn: 0.4.1
+
+  '@fontsource/ibm-plex-mono@5.3.0': {}
 
   '@fontsource/inter@5.3.0': {}
 

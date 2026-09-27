@@ -7,13 +7,14 @@
  * the block's own `ascent` instead.
  */
 
+import type { RunMarks } from '@sgl/text';
 import type { ComputedStyle } from '@sgl/theme';
-import type { LabelPlacementView, TextLayoutView } from './layout-view.js';
+import type { LabelPlacementView, RunView, TextLayoutView } from './layout-view.js';
 import { escapeXml } from './security.js';
 import { num, nums } from './num.js';
 
-/** Fallback metrics, used only to reconstruct a block when the host supplies none. */
-const FALLBACK_ADVANCE = 0.52;
+/** The ascent the renderer has always drawn with (DD-11 §19 item 5: Inter's
+ *  measured ascent is larger; execution plan §2.1 F25). */
 const FALLBACK_ASCENT = 0.8;
 
 function geometryNumber(style: ComputedStyle, key: string, fallback: number): number {
@@ -22,43 +23,40 @@ function geometryNumber(style: ComputedStyle, key: string, fallback: number): nu
 }
 
 /**
- * Reconstruct a text block from the label's runs and its resolved text geometry.
+ * A label's text block: its lines, placed by the renderer's own vertical model.
  *
- * `LayoutResult` (DD-06 §2) carries no `TextLayout` and `render` is not handed the
- * `MeasureTable`, so when a caller cannot supply a measured block there is nothing
- * on the contract to read one from. Rather than refuse to draw the label, rebuild
- * an equivalent block from the same inputs the measurer used.
- *
- * This is a fallback and it is approximate: the line *positions* it produces are
- * exact, because they depend only on `fontSize` and `lineHeight`, but the widths
- * are estimated. Widths only affect `text-anchor: start` offsets within an already
- * placed frame, so the error is bounded and never moves a node.
+ * `lines` holds each line's fragments with their marks: the lines measurement
+ * broke, from the measure table, when `render()` is given one (DD-11 T42), and
+ * otherwise the label's runs split at `\n`. Only *which* fragments sit on which
+ * line comes from measurement. The positions are computed here from `fontSize`
+ * and `lineHeight` alone, as they always have been — `0.8 × fontSize` to the
+ * first baseline, `fontSize × lineHeight` per line — which keeps every existing
+ * render byte-identical (T42; the measured ascent is §19 item 5's decision).
+ * Widths and run `x`s are 0: no emitted attribute reads them (fix round 1
+ * dropped the old per-glyph width estimate; its bytes paid for item 5).
  */
-export function textBlock(
-  lines: readonly string[],
-  style: ComputedStyle,
-  supplied?: TextLayoutView,
-): TextLayoutView {
-  if (supplied !== undefined) return supplied;
-
+export function textBlock(lines: readonly (readonly RunView[])[], style: ComputedStyle): TextLayoutView {
   const fontSize = geometryNumber(style, 'fontSize', 13);
-  const lineHeight = geometryNumber(style, 'lineHeight', 1.3);
-  const letterSpacing = geometryNumber(style, 'letterSpacing', 0);
-  const lineHeightPx = fontSize * lineHeight;
+  const lineHeightPx = fontSize * geometryNumber(style, 'lineHeight', 1.3);
   const ascent = fontSize * FALLBACK_ASCENT;
-
-  const laid = lines.map((text, i) => {
-    const glyphs = [...text].length;
-    const width = glyphs * fontSize * FALLBACK_ADVANCE + Math.max(0, glyphs - 1) * letterSpacing;
-    return { y: ascent + i * lineHeightPx, width, runs: [{ x: 0, text }] };
-  });
-
   return {
-    width: laid.reduce((w, l) => Math.max(w, l.width), 0),
+    width: 0,
     height: Math.max(lines.length, 1) * lineHeightPx,
-    lines: laid,
+    lines: lines.map((runs, i) => ({ y: ascent + i * lineHeightPx, width: 0, runs: runs as TextLayoutView['lines'][number]['runs'] })),
     ascent,
   };
+}
+
+/** A run's marks as bits, in the order their rules are emitted (DD-11 T44):
+ *  `em` 1, `code` 2, `strong` 4. 0 for a plain run. */
+export function markBits(m: RunMarks | undefined): number {
+  return m === undefined ? 0 : (m.em ? 1 : 0) | (m.code ? 2 : 0) | (m.strong ? 4 : 0);
+}
+
+/** A marked fragment's `class`: `r-strong`, `r-em`, `r-code`, in that order,
+ *  for the marks it carries (T43). */
+function runClass(bits: number): string {
+  return [bits & 4 && 'r-strong', bits & 1 && 'r-em', bits & 2 && 'r-code'].filter(Boolean).join(' ');
 }
 
 /**
@@ -117,6 +115,7 @@ export function renderText(
   className: string,
   extraClass: string,
   ariaHidden: boolean,
+  used?: { runs: number },
 ): string {
   if (block.lines.length === 0) return '';
 
@@ -145,8 +144,17 @@ export function renderText(
     .map((line, i) => {
       const dy = i === 0 ? 0 : line.y - previousY;
       previousY = line.y;
-      const text = line.runs.map((r) => r.text).join('');
-      return `<tspan x="${num(x)}" dy="${num(dy)}">${escapeXml(text)}</tspan>`;
+      // A plain fragment is bare text; a marked one is a nested tspan with no
+      // position of its own, so the viewer flows the line as one text chunk
+      // and `text-anchor` aligns all of it (DD-11 T43). `used` collects the
+      // marks drawn, for the run rules (T44).
+      let text = '';
+      for (const r of line.runs) {
+        const bits = markBits(r.marks);
+        if (used) used.runs |= bits;
+        text += bits ? `<tspan class="${runClass(bits)}">${escapeXml(r.text)}</tspan>` : escapeXml(r.text);
+      }
+      return `<tspan x="${num(x)}" dy="${num(dy)}">${text}</tspan>`;
     })
     .join('');
 

@@ -10,7 +10,8 @@
     ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
     "./editor": { "types": "./dist/editor.d.ts", "default": "./dist/editor.js" },
     "./json": { "types": "./dist/json.d.ts", "default": "./dist/json.js" },
-    "./imports": { "types": "./dist/imports.d.ts", "default": "./dist/imports.js" }
+    "./imports": { "types": "./dist/imports.d.ts", "default": "./dist/imports.js" },
+    "./inline": { "types": "./dist/inline.d.ts", "default": "./dist/inline.js" }
   },
   "scripts": {
     "grammar": "lezer-generator src/grammar/sgl.grammar -o src/grammar/sgl.parser.js",

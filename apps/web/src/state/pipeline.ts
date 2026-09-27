@@ -5,6 +5,8 @@ import {
   compile,
   diagnostic,
   hasImports,
+  needsInline,
+  NO_SPAN,
   parse,
   resolve,
   type CompileResult,
@@ -16,6 +18,7 @@ import {
 } from '@sgl/core';
 import { buildLayoutInput, layoutConfigDiagnostics, type LayoutInput, type LayoutResult } from '@sgl/layout-api';
 import { labelRunKey, premeasure, type MeasureTable } from '@sgl/measure';
+import { labelBox, layoutLines, needsWrap, UNCONSTRAINED } from '@sgl/text';
 import { BUILT_IN, DEFAULT_THEME_ID, resolveTheme, styleGraph, type ResolvedTheme, type StyledGraph } from '@sgl/theme';
 import { render, renderPaintOnly, type RenderResult } from '@sgl/render-svg';
 import { boundsChangedSignificantly, type Extent } from '../canvas/viewport.js';
@@ -24,7 +27,7 @@ import { optionsForEngine } from './engine-options.js';
 import { distinctTextStyles } from './measure-styles.js';
 import { documentEngineOverride, documentThemeOverride } from './overrides.js';
 import { makePipelineError, type PipelineError } from './pipeline-error.js';
-import type { Cancel, GuardedStageName, ImportsRuntime, LabelSizes, LastGood, PipelineDeps, Schedule } from './types.js';
+import type { Cancel, GuardedStageName, ImportsRuntime, LabelSizes, LastGood, PipelineDeps, RichText, Schedule } from './types.js';
 
 const DEFAULT_DEBOUNCE_MS = 120;
 /** DD-08 §11: the chip shows "laying out…" only after this long in flight, so
@@ -316,13 +319,57 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   const effectiveThemeId = computed<string>(() => documentThemeId.value ?? themeId.value);
   const effectiveEngineId = computed<string>(() => documentEngineId.value ?? engineId.value);
 
+  // A18 (DD-11 T53): the lazy `rich-text` chunk — the inline parser and the
+  // word breaker — loads for the first document whose labels hold `*` or a
+  // backtick (compiled without the parser, `needsInline`) or that has a label
+  // to wrap (`needsWrap`). Both are checked after `styleGraph`, which holds
+  // until it has loaded, like A9's import gate (the graph it was handed, with
+  // literal runs, goes no further), so nothing is measured or laid out with literal
+  // runs or unwrapped labels; the canvas keeps the last good or stored
+  // picture. Once loaded, compile always runs with the parser and the
+  // measurer with `layoutWrapped`, and every keystroke is synchronous again.
+  //
+  // If it cannot load (fix round 1, item 2), the document degrades as A9's
+  // does rather than holding forever: compile keeps plain runs, the measurer
+  // ignores the box (so `layoutLines` never throws), and one `SGL6002`
+  // warning says so. The load is tried again on the next change of the
+  // document, not in a loop.
+  const rich = signal<RichText | null>(null);
+  const richFailed = signal(false);
+  let richLoad: Promise<void> | undefined;
+  let richFailedFor: string | undefined;
+  /** Starts the load unless it is running, or failed for this very source; true
+   *  while the stage should hold (the load has not failed). */
+  const requestRichText = (): boolean => {
+    const source = doc.peek().source;
+    if (richLoad === undefined && source !== richFailedFor) {
+      richLoad = deps.loadRichText!().then(
+        (loaded) => {
+          deps.measurer.lineModel = loaded.lineModel;
+          rich.value = loaded;
+          richFailed.value = false;
+        },
+        (err: unknown) => {
+          console.warn('[SGL] the rich-text chunk could not be loaded.', err);
+          richLoad = undefined;
+          richFailedFor = source;
+          deps.measurer.lineModel = (measureRun, runs) => layoutLines(measureRun, runs, UNCONSTRAINED);
+          richFailed.value = true;
+        },
+      );
+    }
+    return !richFailed.peek();
+  };
+
   const graphOutcome = guardedStage(
     [modelOutcome],
     () => {
       const documentModel = model.value.model;
+      const loaded = rich.value;
       inject('compile');
       const runtime = documentModel.imports && imports.value;
-      const g = runtime ? runtime.compile(documentModel) : compile(documentModel);
+      const options = loaded ? { inline: loaded.inline } : undefined;
+      const g = runtime ? runtime.compile(documentModel, options) : compile(documentModel, undefined, options);
       return DEGRADED.has(documentModel) ? { ...g, diagnostics: g.diagnostics.filter((d) => d.code !== 'SGL2001') } : g;
     },
     () => emptyStages().graph,
@@ -346,8 +393,18 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
       const semanticGraph = graph.value.graph;
       const resolvedTheme = theme.value.value;
       const classes = model.value.model.classes;
+      const loaded = rich.value;
+      const failed = richFailed.value;
       inject('styleGraph');
-      return styleGraph(semanticGraph, resolvedTheme, classes);
+      const s = styleGraph(semanticGraph, resolvedTheme, classes);
+      // Fix round 1, item 5: a label style asking for a run face (weight above
+      // 600, or italic) loads the chunk too, which registers the faces, so the
+      // screen draws the face the export embeds even without markup.
+      if (loaded || !deps.loadRichText || !(needsInline(semanticGraph) || needsWrap(s.value) || Object.values(s.value.labelStyles).some(({ geometry: g }) => g['fontStyle'] === 'italic' || (g['fontWeight'] as number) > 600))) return s;
+      if (requestRichText()) throw HOLD;
+      // Degraded (fix round 1, item 2): one warning, here, for both gates. It
+      // is about the app, not a place in the document, so it has no span.
+      return failed ? { ...s, diagnostics: [diagnostic('SGL6002', NO_SPAN), ...s.diagnostics] } : s;
     },
     () => emptyStages().styled,
   );
@@ -355,6 +412,8 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
 
   const table = signal<MeasureTable>({});
   const layout = signal<LayoutResult | null>(null);
+  /** The table `layout` was sized from (A18, DD-11 T42; set with it). */
+  let layoutTable: MeasureTable | undefined;
   const layoutDiags = signal<readonly Diagnostic[]>([]);
   const inFlight = signal(false);
 
@@ -392,6 +451,28 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   // `geometryHash` below is also covered by `renderPaintOnly`'s own guard
   // (`structureHash` includes it): it is kept only as a cheap early exit
   // that skips hashing the structure when the geometry has visibly changed.
+  //
+  // A18 (DD-11 T42): a label is drawn from the measure table the layout was
+  // sized from, `layoutTable` (set together with `layout`), so it sits on
+  // exactly the lines that sized its node, never on a newer table's breaks
+  // inside older frames. A label missing there — edited since, its layout not
+  // landed yet — is drawn from the latest `table` (fix round 1, item 1: text
+  // overflowing its old box vertically for a moment reads better than one
+  // long line spilling sideways). Only then does the render follow `table`:
+  // while some label with a box misses the landed table (only those are looked
+  // up), so an edit that changes no boxed label — a `@theme` line, say — costs
+  // no second render when its table lands. The merged view is one object per
+  // pair of tables, and simply the table itself once the layout has caught
+  // up, so a theme switch keeps it and the paint-only guard (`paintPlan.text`)
+  // holds.
+  let drawn: readonly [MeasureTable | undefined, MeasureTable, MeasureTable] | undefined;
+  const drawTable = (s: StyledGraph): MeasureTable | undefined => {
+    const landed = layoutTable;
+    if (landed === undefined || landed === table.peek() || !Object.keys(s.graph.labels).some((id) => labelBox(s, id as LabelId).maxWidth !== undefined && !(labelRunKey(s, id as LabelId) in landed))) return landed;
+    const latest = table.value;
+    if (drawn?.[0] !== landed || drawn[1] !== latest) drawn = [landed, latest, { ...latest, ...landed }];
+    return drawn[2];
+  };
   let lastRendered: Rendered | null = null;
   const svgOutcome = guardedStage<Rendered | null>(
     [styledOutcome, themeOutcome],
@@ -400,13 +481,17 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
       if (layoutValue === null) return null;
       const styledValue = styled.value.value;
       const resolvedTheme = theme.value.value;
+      // Only a document with a box can have a label to draw from the latest
+      // table, so only it re-renders when a new table lands (no extra render
+      // on an edit elsewhere).
+      const text = drawTable(styledValue);
       inject('render');
       const previous = lastRendered;
       const paintOnly =
         previous !== null && previous.layout === layoutValue && previous.styled.graph === styledValue.graph && previous.styled.geometryHash === styledValue.geometryHash
-          ? renderPaintOnly(previous.result, styledValue, layoutValue)
+          ? renderPaintOnly(previous.result, styledValue, layoutValue, text)
           : null;
-      const rendered: Rendered = { result: paintOnly ?? render(styledValue, layoutValue, resolvedTheme), styled: styledValue, layout: layoutValue };
+      const rendered: Rendered = { result: paintOnly ?? render(styledValue, layoutValue, resolvedTheme, text), styled: styledValue, layout: layoutValue };
       lastRendered = rendered;
       return rendered;
     },
@@ -512,6 +597,12 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   const disposeMeasureEffect = effect(() => {
     const styledSnapshot = styled.value.value;
     void effectiveThemeId.value; // explicit dependency per DD-08 §3, alongside geometryHash below
+    // A stage held at boot (A9's imports, A18's rich-text chunk) leaves
+    // `styled` at its boot-time fallback, the empty document: measuring and
+    // laying that out would make its empty layout the one the document's
+    // first render is drawn with, a blank frame in place of the stored
+    // picture. Nothing is measured until a real styled graph exists.
+    if (!hasMeasuredOnce && styledOutcome.value.blocked) return;
     if (measuredFor !== null && measuredFor.graph === styledSnapshot.graph && measuredFor.geometryHash === styledSnapshot.geometryHash) return;
     measuredFor = styledSnapshot;
     const generation = (measureGeneration += 1);
@@ -632,6 +723,7 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
           if (generation !== layoutGeneration) return; // superseded; the new request owns layoutDiags now
           layoutDiags.value = result.diagnostics;
           if (result.value !== null) {
+            layoutTable = tableSnapshot;
             layout.value = result.value;
             lastRequest = { engineId: engine, optionsKey: key, inputKey, spansKey, graph: styledSnapshot.graph, table: tableSnapshot, geometryHash };
           }

@@ -6,12 +6,14 @@ import {
   EXAMPLE_NODE_COUNT,
   expectedErrorDecorations,
   layoutGeometryHash,
+  openFile,
   nodeGeometry,
   renderedIdentity,
   renderedSvg,
   setSource,
   SMALL_SOURCE,
   sourceDiagnostics,
+  storedOpenDocument,
   switchEngine,
   visibleNodeCount,
   waitForExactNodeCount,
@@ -123,5 +125,26 @@ test.describe('DD-08 §14', () => {
     const warm = await nodeGeometry(page);
 
     expect(warm).toEqual(cold);
+  });
+
+  test('8, with A18\'s faces (DD-11 T28, T60): an italic, bold and code label is laid out identically cold and warm', async ({ page }) => {
+    // Cold: the first use of each face in this page, so the measure effect
+    // has to wait for Inter Italic, Inter Bold and IBM Plex Mono to arrive.
+    await page.goto('/');
+    await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+    await openFile(page, 'faces.sgl', 'a: "*Asynchronous settlement queue*"\nb: "**Ledger** and `reconcile_v2()`"\na -> b: "*retries*"\n');
+    await waitForExactNodeCount(page, 2);
+    await expect(renderedSvg(page).locator('tspan.r-code')).toHaveCount(1);
+    await expect.poll(async () => (await storedOpenDocument(page))?.source).toContain('reconcile_v2');
+    const cold = await nodeGeometry(page);
+
+    await page.reload();
+    await waitForExactNodeCount(page, 2);
+    await expect(renderedSvg(page).locator('tspan.r-code')).toHaveCount(1);
+    const warm = await nodeGeometry(page);
+
+    expect(warm).toEqual(cold);
+    // That each face is loaded before its runs are measured, not just by the
+    // time of the paint, is `test/rich-font-gate.browser.test.ts`'s.
   });
 });

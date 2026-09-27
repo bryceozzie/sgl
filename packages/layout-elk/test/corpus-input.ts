@@ -1,6 +1,7 @@
 import { asNodeId, type LabelId, type Size } from '@sgl/core';
 import { buildLayoutInput, type LayoutInput, type ResolvedThemeMetricsView, type StyledGraphInput } from '@sgl/layout-api';
 import { labelRunKey, premeasure, StaticMetricsMeasurer } from '@sgl/measure';
+import { layoutWrapped } from '@sgl/text/wrap';
 import { styleGraph, resolveTheme, BUILT_IN, neutralLight, type StyledGraph } from '@sgl/theme';
 import { compile, parse, resolve } from '@sgl/core';
 import { corpusStyledGraph } from '../../theme/test/corpus.js';
@@ -14,7 +15,7 @@ export const METRICS: ResolvedThemeMetricsView = {
 };
 
 function inputOf(styled: StyledGraph): LayoutInput {
-  const table = premeasure(styled, new StaticMetricsMeasurer());
+  const table = premeasure(styled, new StaticMetricsMeasurer({ lineModel: layoutWrapped }));
   const labelSizes: Record<LabelId, Size> = {};
   for (const labelId of Object.keys(styled.graph.labels).sort() as LabelId[]) {
     const layout = table[labelRunKey(styled, labelId)];

@@ -62,17 +62,19 @@ Both nodes and edges carry their own `hidden` flag (DD-03 §2, §6) — a node's
 for each node in graph.order (already excludes hidden):
   g        = styles[node].geometry
   label    = labelId ? labelSizes[labelId] : { w: 0, h: 0 }
-  contentInset = g.padding (t r b l) + shape.contentInsets(label.w, label.h)   // DD-07 §4, duplicated in layout-api/content-insets.ts
+  contentInset = g.padding (t r b l) + contentInsets(node.shape, label.w, label.h)   // DD-07 §4; one copy, in @sgl/core (A18, DD-11 T4)
   intrinsic = { w: label.w + contentInset.l + contentInset.r,  h: label.h + contentInset.t + contentInset.b }
-  min      = { w: g.minWidth, h: g.minHeight }; max = { w: g.maxWidth, h: g.maxHeight }
+  min      = { w: g.minWidth, h: g.minHeight }; max = { w: g.maxWidth, h: g.maxHeight }   // there is no @size.maxHeight key (DD-02 §7): max.h is never set
   fixed    = { w: g.width, h: g.height }
   padding  = contentInset; if container: titleHeight = label.h + g.titleGap; padding.top += titleHeight
   sizing   = { intrinsic, min, max, fixed, aspectRatio: g.aspectRatio, contentInset, padding }
 ```
 
+**Wrapped labels (A18, DD-11 T35, T39–T41).** Nothing here changes: a label that wraps is measured narrower and taller, and `labelSizes` carries that size like any other. The wrap width is chosen so the rule above keeps `intrinsic.w ≤ maxWidth`: a node title with a finite positive `@size.maxWidth` or `@size.width` (the smaller) wraps at `labelMaxWidth(shape, width, padding)` (`@sgl/core`, beside `contentInsets`): the width inside the padding, over √2 for an ellipse and over 2 for a diamond; a hexagon's label is held by the breaker to `L + min(L, H)` within that width, its insets being `min(L, H)/2` a side (DD-11 T35, fix round 1). The one exception is a single unit wider than that, which overflows as an unwrapped label does. `elk` and `grid` need no change (a container's title band is `label.h + titleGap`, so a two-line title pushes its children down), and label placement is unchanged (§4.1). `render-svg/test/wrap-pipeline.test.ts` checks, under both engines, that the measured label, `labelSizes`, the node's frame and the label's placement agree for every shape. Containers do not wrap their titles: `@size` keys apply to nodes only (DD-04's registry).
+
 `contentInset` and `padding` are both kept on `NodeSizing`, not just the post-title-band one: §4.1 needs the *pre*-band inset to place a container's own title (which sits *in* the band), while `grid` (§7) needs the *post*-band one to know where a container's children start. They are equal for a leaf.
 
-**DEVIATION** from `buildLayoutInput(styled, table)`'s original signature: `table` was meant to be the runKey-keyed `MeasureTable`, with this function computing `hashRuns(...)` itself to look a label up. `hashRuns` and the `StyledRun`/`TextStyle` types it needs live in `@sgl/measure` (`run-key.ts`), and `layout-api` may not depend on `@sgl/measure` any more than on `@sgl/theme` (`eslint.config.js` enforces this on `src/**`, not just `test/**`). `buildLayoutInput` therefore takes the already-resolved `LabelId -> Size` table; the runKey lookup is the caller's job (Stage G's pipeline harness, eventually — Stage E's own tests do it inline).
+**DEVIATION** from `buildLayoutInput(styled, table)`'s original signature: `table` was meant to be the runKey-keyed `MeasureTable`, with this function computing `hashRuns(...)` itself to look a label up. `hashRuns` and the `StyledRun`/`TextStyle` types it needs live in `@sgl/text` since A18 (`run-key.ts`; `@sgl/measure` before), and `layout-api` may not depend on `@sgl/text` or `@sgl/measure` any more than on `@sgl/theme` (`eslint.config.js` enforces this on `src/**`, not just `test/**`). `buildLayoutInput` therefore takes the already-resolved `LabelId -> Size` table; the runKey lookup is the caller's job (Stage G's pipeline harness, eventually — Stage E's own tests do it inline).
 
 Circles and other `aspectRatio`-locked shapes get `max(w,h)` applied by the engine or the host post-pass (§4.4), not here — engines that lay out containers need the *unconstrained* intrinsic to pack children.
 

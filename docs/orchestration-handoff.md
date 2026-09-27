@@ -9,7 +9,7 @@
 
 It **does not replace** [07 — Execution plan](07-execution-plan.md) §2 and §2.1. Those remain the authoritative record of the build and of the open findings; read them first. This file adds what 07 doesn't hold: in-flight branches, pending next steps, and working practices.
 
-*Last updated: 2026-09-25 by the orchestrator (cloud session). `main` = `672948a` (plus this note). A18 branch 1 status added 2026-09-26 by its implementer (§2).*
+*Last updated: 2026-09-27 by the orchestrator (cloud session): A18 merged to `main` (§2). Next: the rest of Stage L (§3).*
 
 ---
 
@@ -81,11 +81,11 @@ After the fix round: re-verify, then merge `--no-ff`. The `wip` commit `544fe6d`
 
 **A18 part 1 (`feat/a18-grammar`) merged to `main` at `0ba4339`** (2026-09-26; one review, one fix round; 5050 Vitest, 98/98 e2e, 180.38 of 182 kB). Next: `feat/a18-text` (parser, runs, measurement, wrapping; T58's `unicode.sgl` and `multiline.sgl` compile-golden updates belong there), then `feat/a18-render`.
 
-**A18 parts 2+3 in flight (2026-09-26).** `feat/a18-text` (24e5638) is in fix round 1: human decisions H1 (a fixed width breaks a word only when `maxWidth` is set) and H2 (a class's `@size` applies to its nodes), plus 10 review fixes. `feat/a18-render` (865e4aa: 181.82 of 182 kB, 5333 Vitest, 107 e2e, no existing golden changed) is moving the eight new `@font-face` rules into the lazy rich-text chunk to regain headroom, then waits. Two reviewers (seams/security; mutation) are running on 865e4aa. Plan: verify text from clean → render merges `origin/feat/a18-text` → triage reviews → at most two fix rounds → merge **both** into `main` together (`--no-ff`). Escalate to the human: F24 (ascent 0.8 em vs `fontBoundingBoxAscent`, ~2.5 px; fixing it re-baselines every render golden) and T57 (rich theme switch 54 ms against a 50 ms budget on the slower pick).
-
-**Update:** `feat/a18-text` fix round 1 verified by the orchestrator at `94f3491` (5232 Vitest, 102/102 e2e, 181.47 kB). `feat/a18-render` at `2047603` (font faces moved to lazy chunk, 181.71 kB). Its merge of `origin/feat/a18-text` was **refused by the permission classifier**; awaiting the human. On merge: text keeps F24 (canvas cache), render's ascent becomes F25. Render fix round 1 (both reviews): table seam (a hit uses `layoutTable`, a miss uses the latest table; m15 survived), PNG real-italic check (m21 survived), code-not-italic behaviour test, the font gate before measuring, faces requested by styles loaded live, a corpus face-selection golden, the edge-label rule test, e2e waits, a T57 all-labelled control, and one nit.
-
-**Update 2:** the human authorised the merge; the orchestrator merged `feat/a18-text` into `feat/a18-render` at `dfb7a59` (pushed; ascent finding renumbered F25). Clean run: **181.97 of 182 kB**; 4 expected golden failures (`rich/render/*/text__wrap.sgl.svg`, the hexagon fix). The render agent has step 0 (regenerate those four goldens) plus the 10-item fix round; item 5 must add nothing to boot or be reported.
+**A18 (markdown labels, wrapping, rich rendering) MERGED to `main`** (2026-09-27): `feat/a18-text` and `feat/a18-render` merged together (`--no-ff` of `feat/a18-render` at `343e8d2`, which contains `feat/a18-text` `94f3491` via the orchestrator's merge `dfb7a59`). Two reviews per branch, one fix round each; verified by the orchestrator from clean at `343e8d2`: 5360 Vitest, 109/109 e2e, core **181.97 kB of 182 (30 B left)**. Only T58's two compile goldens changed on `main` (`unicode.sgl`, `multiline.sgl`); all other A18 goldens are new.
+- Human decisions applied: H1 (a fixed width splits a word only when `maxWidth` is set), H2 (a class's `@size` applies to its nodes); new dependency `@fontsource/ibm-plex-mono` (OFL, T26); new code `SGL6002` (rich-text chunk failed to load; degraded, not frozen).
+- Orchestrator decisions: a boxed label missing from the landed layout's table draws from the latest table (brief vertical overflow rather than a one-line sideways spill); run faces also load when a style (not markup) asks for weight >600 or italic; the `labelRunKey` memo and `textBlock`'s unused width estimate removed to stay under 182 kB.
+- **Open for the human:** **F25** (rendered ascent 0.8 em vs measured; fixing it re-baselines every render golden; cannot overflow a box; recommendation: defer). **F20**: 30 B of boot headroom; the next boot-path feature needs a trim or a budget decision. F24 (canvas cache thrashes past ~7 000 wrapped labels) recorded with a proposed remedy.
+- T57 on this machine: `n2000-labelled` 31.3 / 32.7 ms, `n2000-rich` 44.9 / 43.7 ms (markup ~12 ms); reported, not gated; F9's quiet-machine measurement before Gate 4 stands.
 
 ### A18 markdown labels: branch `design/a18-text` at `8ca91c9` (design only, not merged)
 

@@ -65,6 +65,9 @@ export function App({ boot }: { readonly boot: AppBoot }) {
         // A9 (DD-08 §15): the lazy `imports` chunk, for the first document
         // with `@imports`; it wraps this store's writes (I23).
         loadImports: () => import('./state/imports.js').then((m) => m.createImportsRuntime(boot.store)),
+        // A18 (DD-11 T53): the lazy `rich-text` chunk, for the first document
+        // with markup in a label or a label to wrap.
+        loadRichText: () => import('./state/rich-text.js').then((m) => m.richText),
       },
       boot.record.source,
     );

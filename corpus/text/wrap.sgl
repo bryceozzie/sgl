@@ -1,0 +1,27 @@
+// Wrapping at @size.maxWidth (A18, DD-11 §7): each wrapping shape, a fixed
+// width (T36), an overlong word (T37), CJK without spaces, an emoji ZWJ
+// sequence, mixed runs across a soft break, an explicit break beside a soft
+// one, and a container whose multi-line title pushes its children down (T40).
+rect:     { @shape: rect,     @label: "Payments ledger reconciliation service", @size: { maxWidth: 150 } }
+round:    { @shape: round,    @label: "Payments ledger reconciliation service", @size: { maxWidth: 150 } }
+ellipse:  { @shape: ellipse,  @label: "Payments ledger reconciliation service", @size: { maxWidth: 150 } }
+diamond:  { @shape: diamond,  @label: "Payments ledger reconciliation service", @size: { maxWidth: 200 } }
+hexagon:  { @shape: hexagon,  @label: "Payments ledger reconciliation service", @size: { maxWidth: 200 } }
+cylinder: { @shape: cylinder, @label: "Payments ledger reconciliation service", @size: { maxWidth: 150 } }
+fixed:    { @label: "A fixed width wraps as well", @size: { width: 110 } }
+overlong: { @label: "Supercalifragilisticexpialidocious", @size: { maxWidth: 100 } }
+cjk:      { @label: "東京都港区六本木一丁目", @size: { maxWidth: 100 } }
+zwj:      { @label: "Team 👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻", @size: { maxWidth: 100 } }
+mixed:    { @label: "**Payments** *ledger* `svc_v2` reconciliation", @size: { maxWidth: 130 } }
+breaks:   { @label: "First line\nsecond line wraps here", @size: { maxWidth: 120 } }
+unwrapped: "Payments ledger reconciliation service"
+group: {
+  @label: "Settlement\nand clearing"
+  inner: { @label: "Clearing house connector", @size: { maxWidth: 110 } }
+}
+
+rect -> round -> ellipse
+diamond -> hexagon -> cylinder
+fixed -> overlong -> cjk -> zwj
+mixed -> breaks -> unwrapped
+unwrapped -> group.inner

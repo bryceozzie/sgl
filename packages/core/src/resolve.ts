@@ -1028,6 +1028,14 @@ function finalizeContainer(
     delete acc.config.vars;
   }
   const { config, authored } = finalizeConfig(acc, scope, vars, classNames, diags, declared);
+  // `@size` is a node's (DD-04's size rows apply to nodes only): on a container,
+  // one with children from any of its declarations, it is the wrong scope
+  // (fix round 1, item 10; the cascade used to drop it silently).
+  if (acc.children.size > 0 && 'size' in config) {
+    diags.push(diagnostic('SGL2012', acc.configSpans.get('size') as SourceSpan, { key: 'size', scope: 'container' }));
+    delete (config as Record<string, unknown>).size;
+    if (authored !== undefined) delete (authored as Record<string, unknown>).size;
+  }
 
   const children: ContainerModel[] = [];
   for (const [childKey, childAcc] of acc.children) {

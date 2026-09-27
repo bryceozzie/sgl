@@ -36,7 +36,8 @@ Enforced by `eslint.config.js`; CI fails on a violation.
 
 ```
 core  ←  theme, layout-api
-core, theme  ←  measure, render-svg
+core, theme  ←  text                    (A18, DD-11 T2)
+core, theme, text  ←  measure, render-svg
 core, layout-api  ←  layout-elk, layout-std
 everything  ←  apps/web
 ```
@@ -417,8 +418,155 @@ deviations. Labels still draw as literal text.
 - **Size.** Core bundle 179.63 → **180.38 kB** of 182 kB: parse tables +0.12, `buildAst` +0.49, the editor +0.06.
   DD-11 T54 estimated 0.20–0.25 kB for this row, so branches 2 and 3 have 1.62 kB where T54
   planned about 0.6–0.8 kB of the rest.
+
+**A18 (branches 2 and 3) merged to `main`** (`--no-ff` of `feat/a18-render` at `343e8d2`, 2026-09-27; it
+contains `feat/a18-text` at `94f3491` through the orchestrator's merge `dfb7a59`). Two reviews per branch and
+one fix round each; verified by the orchestrator from clean: 5360 Vitest (unit + browser Chromium),
+109/109 e2e, core **181.97 kB of 182** (30 B left, F20). On `main` only T58's two compile goldens changed
+(`unicode.sgl`, `multiline.sgl`); every other A18 golden is new. Open for the human: **F25** (the
+rendered ascent). The two paragraphs below describe each branch; their "not merged" is as of writing.
+
+**A18 branch 2, the text model, the parser and wrapping** (Stage L, `feat/a18-text`, from `main` at
+`33af6e7`; **not merged**). DD-11 T1–T10, T12–T14, T21–T41 (T26 as metrics), T51–T54, T58, T59,
+each marked implemented there with its deviations; §19 items 1, 2, 6 and 7 fixed.
+- **`@sgl/text`** (new; `core, theme ← text ← measure, render-svg`, in the lint rules, DD-00 §2 and
+  §1 above): the run and layout types moved from `@sgl/measure` (re-exported there) with `marks`;
+  `runStyle` and the code and strong constants; `hashRuns` with marks only on a marked run, so every
+  plain key is unchanged; `labelRuns`, `labelBox`, `labelRunKey`, `plainText`, `needsWrap`;
+  `layoutLines` (hard breaks; throws on a box); and the lazy `@sgl/text/wrap` entry's
+  `layoutWrapped`, the greedy breaker (spaces, U+200B; overlong words and CJK split at code-point
+  units that never enter a surrogate pair, a combining mark, a variation selector, an emoji
+  modifier, a ZWJ join or a flag). Measurers take a `lineModel` option.
+- **`@sgl/core`**: `TextRun` flags and the canonical one-run form; `compile(…, { inline })` and
+  `needsInline`; `contentInsets` with its inverse `labelMaxWidth` (one copy: layout-api's and
+  render-svg's per-shape methods are gone); `parseInline` as the `@sgl/core/inline` entry.
+- **Theme**: the registry's missing `maxWidth` row — `@size.maxWidth` was always dropped with
+  `SGL5003`, so nothing could have wrapped. A fixed `@size.width` wraps too (T36); a class's `@size`
+  does not (DD-04 step 6 is inline only; DD-11 T35 corrected, §19 item 10 open).
+- **App**: the lazy `rich-text` chunk (`state/rich-text.ts`: the parser and the breaker) loads for
+  the first document with `*` or a backtick in a label, or a label with a box; the graph or styled
+  stage holds like A9's import gate, the measurer's `lineModel` becomes `layoutWrapped`, and a
+  failed load is retried on the next change. The measure effect no longer measures the boot-time
+  empty fallback while held (it made a held document's first render use an empty layout).
+  **Until branch 3 the renderer draws a parsed label as its runs' plain text (markers removed) and a
+  wrapped label on its hard lines only**, overflowing its narrower node; tested at unit and e2e.
+- **Goldens.** Exactly T58's two: `unicode.sgl`'s and `multiline.sgl`'s compile goldens (one run
+  with `\n`). No layout or render golden changed. New: `corpus/text/markdown.sgl` and `wrap.sgl`,
+  with compile and `grid`/`elk` goldens through the rich pipeline (`rich-corpus.test.ts`, which
+  also pins `multiline.sgl` there); their render goldens are branch 3's. The elk title-crossing pin
+  gains `text/wrap.sgl`: 1.
+- **Tests** (each shown failing first): `core/test/inline.test.ts` (every §2.2 row, T5–T14, five
+  fast-check properties), `label-max-width.test.ts` (containment per shape), `text/test/`
+  (`layoutLines` equals the MVP model on every corpus label under two measurers; faces, keys, boxes;
+  the breaker's cases and properties), `theme/test/size-max-width.test.ts`,
+  `render-svg/test/wrap-pipeline.test.ts` and `apps/web/test/rich-text.test.ts` (the measured box,
+  the engine input, the node and the placement agree end to end, under grid and elk and through the
+  app's pipeline), `markdown-scan.test.ts` (every corpus document, the app example and
+  n50/n500/n2000 compile identically with and without the parser but for the three markdown
+  documents), `e2e/rich-text.spec.ts` (3) and an offline case. Parser mutation testing: 16 mutants
+  over T5–T8, T10 and T21, all killed after one added case.
+- **Size.** Core bundle 180.38 → **181.23 kB** (step 1) → **181.22 kB** of 182; the lazy
+  `rich-text` chunk is 2.01 kB gzipped. The render branch has **0.78 kB**.
+- **Docs**: spec §3 ("Markdown in labels") and §4; DD-00 §2; DD-02 §7; DD-03 §2, §6; DD-04 §2;
+  DD-05 §2–§5, §7; DD-06 §2; DD-07 §4 (the `Shape` interface lost `contentInsets`); DD-08 §3;
+  DD-11; architecture §6 and backlog notes; `corpus/README.md`.
+
+**A18 branch 2, fix round 1** (two reviews; each item its own commit, tests shown failing first).
+Human decisions: **H1** a fixed `@size.width` breaks only at spaces (a `keepWords` box; only
+`@size.maxWidth` splits a word); **H2** a class's `@size` applies to its nodes (DD-04 §4 step 4,
+in `@type` order; geometry only). Fixes: the breaker keeps a running width per line (8 000 words
+6.7 s → 29 ms; output byte-identical over 22 330 corpus layouts); a rich-text chunk that cannot
+load degrades (plain runs, the box ignored, one new `SGL6002` warning, retried on the next change)
+instead of freezing the picture; hexagons wrap by `L + min(L, H) ≤ avail` instead of `avail/2`;
+M7 killed; T56's real numbers and **F24** (the canvas cache thrashes past ~7 000 wrapped labels;
+an LRU does not help); `Intl.Segmenter` banned below `apps/web` and `@sgl/core/inline` banned in
+`measure` and `render-svg`; flanking's Unicode-table caveat in DD-11; `loadRichText`'s comment;
+`@sgl/text`'s test dependencies; a container's `@size` is `SGL2012`. Goldens: only the two rich
+layout goldens of `text/wrap.sgl` changed (its hexagon, 4 lines → 2); none on `main`. Core bundle
+181.22 → **181.47 kB**: the render branch has **0.53 kB**, under the ~0.6 kB planned.
 - **Docs.** Language spec §3 (Strings) and §4 (`@label`); DD-01 §2 (listing, notes, audit), §3, §4,
   §6, §8; DD-02 §6 rule 7; DD-11 status, T10–T20 notes, T58 note, §19 item 4.
+
+**A18 branch 3, drawing marks and wrapped lines, the fonts and export** (Stage L,
+`feat/a18-render`, from `feat/a18-text` at `24e5638`; **not merged**). DD-11 T42–T50, the rest of
+T26, T55–T57 and T60's render tests, each marked implemented there; §19 items 3 and 8 fixed, item 5
+recorded as **F25** for the human.
+- **Renderer** (`@sgl/render-svg`): `render(styled, layout, theme, text?)` takes the measure table
+  and draws a label with a box on exactly the lines its entry holds; every other label, a miss and
+  no table are the runs split at `\n` (what an unboxed label is measured as, so its key is never
+  hashed: DD-11 T42's deviation 1). The vertical model stays `0.8 × fontSize` (F25). A marked
+  fragment is a nested `<tspan class="r-strong r-em r-code">` with no position; the three run rules
+  are constants appended after the generated rules, only those used; `structureHash` adds a field
+  for a marked label; `PaintPlan` keeps the table and the run rules, and `renderPaintOnly` refuses
+  another table object. `LabelPlacementView.text` is gone. **No existing render golden changed**:
+  the test pipeline passes the table.
+- **App**: the render stage uses the table its landed layout was sized from (`layoutTable`, set
+  with `layout`), so a label is never drawn on a newer table's breaks inside older frames, and a
+  theme switch stays paint-only.
+- **Fonts** (T26, human decision): seven run faces, Inter 700, Inter italic 400–700 and IBM Plex
+  Mono 400/700 (DD-11's "eight" miscounts its own table), Latin, `display: block`, **registered by
+  the lazy `rich-text` chunk** through the Font Loading API (`io/run-faces.ts`), not declared in the
+  boot CSS; fetched only when used and precached; export's `SHIPPED` lists the ten faces. No CSP
+  change (`font-src 'self'`). **New dependency: `@fontsource/ibm-plex-mono` 5.3.0
+  (OFL-1.1)**; Inter's new faces come from the existing `@fontsource/inter`. Plex's licence ships as
+  `fonts/OFL-IBM-Plex-Mono.txt`, attributed in the README.
+- **Export** (T50): `usedFontFaces` reads an SVG with run tspans element by element, so a bold,
+  italic or code run brings exactly its face, never a cross product; an SVG without run tspans
+  keeps its selection (checked over the corpus). In the lazy `file-actions` chunk.
+- **Goldens.** New: the render goldens of `multiline.sgl`, `text/markdown.sgl` and
+  `text/wrap.sgl` through the rich pipeline, four themes (`__goldens__/rich/render/`), and
+  `corpus/injection/markdown-in-label.sgl`. No existing golden changed.
+- **Tests** (each shown failing first): `rich-render.test.ts` (T42–T48); a seam oracle in
+  `rich-corpus.test.ts` (every label's drawn lines are its table entry's lines with its marks,
+  each within the wrap width, under grid and elk); the F7 contract, the P3/P4 paint-only path and
+  the paint oracle extended to the rich documents and a rich synthetic document under the synthetic
+  theme pair; the injection suite through both pipelines; per-element faces
+  (`fonts.test.ts`); `apps/web/test/fonts.test.ts` (fonts.css = `SHIPPED` = T26),
+  `rich-text.test.ts` (the app draws the measured lines; a rich theme switch keeps the element
+  tree), `rich-measure.browser.test.ts` (Chromium: `ready()` loads the faces, every wrapped line's
+  `getComputedTextLength()` within 0.5 px of its measured width; F25's numbers); e2e: computed run
+  faces and `**x**` → 700, wrapped lines within the node, no run face fetched without markup, the
+  seven faces in the precache and none in the built CSS, each run measured in its real face (fails if
+  measured before the chunk declares it), Save ▾ SVG embeds exactly each run's face and an `<img>` of it inks
+  bold, italic and code within 1 px of each face's metrics (and misses by more than 3 px without
+  them), a PNG of an italic title drawn in Inter Italic, the DD-08 §14 font gate with italic, bold
+  and code labels, and a markdown document's faces from the service worker offline.
+- **Inkscape 1.2.2** (checked by hand on `text/markdown.sgl`'s golden and on the same file with its
+  six faces embedded): it applies all three run classes (bold, italic and the code family, strong
+  code bold, code never italic), and ignores the embedded faces as D2 found ("font face rule
+  limited support"), drawing with installed fonts; the embedded and bare files rasterise
+  byte-identically. With only DejaVu Sans installed (no oblique) it draws `em` upright; with a
+  family that has an italic installed (Liberation Sans, substituted for the check) it draws `em`
+  italic. So the markup is right, and italic in Inkscape depends on the viewer's fonts.
+- **Benches** (reported, not gated): `bench/scale-document.js` gains `{ rich: true }`.
+  `n2000-rich`'s pre-measure in Chromium is 44 ms cold (plain n2000 35 ms), 32 ms warm; a Theme ▾
+  pick on it is paint-only at 48.0 / 54.1 ms median `work` (first / repeat pick), a few ms over the
+  50 ms budget on the slower pick (F9's row); the gated points in the same run: 2.2 / 10.9 /
+  37.3 ms.
+- **Size.** Core bundle 181.22 → **181.36 kB** (fonts, step 1) → **181.81 kB** (renderer, step 2) →
+  **181.81 kB** (T50, lazy) → **181.82 kB** (the box gate on the lookup) → **181.71 kB** (the run
+  faces moved from the boot CSS to the lazy chunk) of 182: **0.29 kB left**.
+
+**A18 branch 3, fix round 1** (`feat/a18-render`, after merging `feat/a18-text` at `94f3491` in
+`dfb7a59`). Step 0: `text/wrap.sgl`'s four rich render goldens re-baselined for branch 2's hexagon
+fix (only `n-hexagon` changes shape and lines — two lines instead of four — and every other node only
+moves with the packing; no golden from `main` changed). Then, each test shown failing first:
+(1) a boxed label missing from the landed layout's table draws from the latest table, not on one
+line, and the render follows the latest table only while such a label exists (an edit changing no
+boxed label costs one render: found by item 9's bench); (2) the italic PNG check reads the faces of
+the rasterised copy itself and compares the drawn advance with an independently loaded Inter Italic
+in the drawn tree; (3) code computed upright inside `em`; (4) every run face loaded before the
+pre-measure measures its runs (`rich-font-gate.browser.test.ts`), the post-paint checks removed;
+(5) a label style asking for weight above 600 or italic loads the run faces without markup, so the
+screen draws the face the export embeds; (6) the corpus's export font selections pinned as a golden
+made with `24e5638`'s code; (7) an edge label's marks alone emit `.r-em`; (8) each rich-export
+iteration waits for its own picture; (9) `n2000-labelled`, T57's control: 31.3 / 32.7 ms against
+`n2000-rich` 44.9 / 43.7 ms (median `work`, first / repeat pick, same run), so the run tspans cost
+~12 ms; (10) a comment nit. To stay under 182 kB, the `labelRunKey` memo and `textBlock`'s unused
+width estimate were removed. **Size:** 181.97 kB after the merge → 181 971 B (1) → 181 916 B (5) →
+**181 970 B** (1's follow-up), 30 B under.
+- **Docs**: DD-11 (status, T26, T28, T42–T50, T54–T58, T60, §19 items 3, 5, 8); DD-07 §5, §6, §9,
+  §11; DD-08 §3, §5, §7, §12; DD-09 §2, §3.2; DD-10 §1–§2; architecture §7; README attribution.
 
 **Stage K merged to `main` at `0e9ecfc`** (`--no-ff`, 2026-09-23) after a three-lens review and
 one fix round (23 items). `pnpm check`'s steps from clean are green on `main`, run by the
@@ -1732,14 +1880,16 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | # | Finding | Owner |
 |---|---|---|
 | **F6** | `renderNode`'s port-circle template (DD-07 §3) is live, correctly `aria-hidden`, and unit-tested directly — but unreachable through the real pipeline: `grid` declares `capabilities.ports: false` and no host fallback places ports (DD-06 §4 covers labels and routing, not ports), so `LayoutResult.nodes[id].ports` is never populated end to end. Found during Stage F's accessibility pass. **Since Stage K the port circles are reachable under `elk`**, which declares `ports: true` and fills `NodeLayout.ports`; still not under `grid`, and the row's owner is still to be assigned. | unassigned — whichever stage next reconsiders `ports: false` for `grid`, or ships a port-aware engine |
-| **F9** | **The paint-only theme-switch budget is met on a quiet machine, marginally.** Budget (DD-09 §2, kept by human decision 2026-09-23): `< 16 ms` up to 500 nodes, `< 50 ms` at 2 000, Chromium; hard ceilings 50 / 100 ms. Measured end to end by `pnpm bench:theme` on the ordinary path, a Theme ▾ pick on a document with no `@theme` (`feat/theme-fast-path`, §2: the pick sets `themeId`; `styleGraph` once per cascade signature; `renderPaintOnly` and a `<style>`-text swap; no re-parse, no re-measure, no layout). Slower-pick median `work`, ms: orchestrator's three runs on a quiet machine n500 13.2 / 12.8 / 13.0, n2000 48.9 / 44.3 / 44.8; this branch's fix round 1, one run of the three-sample gate on a quiet machine (load average 0.29 at the start, 0.50 at the end; 4 cores; nothing else running) n50 2.6 / 2.5 / 2.6, n500 13.9 / 14.8 / 13.0, n2000 47.6 / 47.0 / 48.6 (best 47.0, median 47.6; the `@theme` case n2000 265.6 / 266.6 first / repeat). A reviewer running alongside another test suite (load ≈ 6) saw n2000 50–56 and one n500 at 17.5. **Where the time goes at n2000:** ~3–4 ms of script; the rest is Chromium's style recalculation for the new `<style>` text, ~40 ms, which is the floor (replacing even one rule's text costs ~24 ms at that size, and replacing the `<style>` element instead of its text measured the same), so the headroom is a few ms and within machine noise. **Not gated:** a document that sets its own `@theme` is edited by the pick and re-parsed and re-rendered in full, ~250–275 ms at n2000 (~65–70 ms at n500): the document's own text changing. **Gate policy (fix round 1; DD-09 §3.1 "perf: nightly + release"):** the bench is not part of `check` or CI; run on demand on a quiet machine; three samples per point in one run, the best of the three slower-pick medians under the budget and the median of the three under the hard ceiling; all three reported. | watch; re-measure before Gate 4 |
+| **F9** | **The paint-only theme-switch budget is met on a quiet machine, marginally.** Budget (DD-09 §2, kept by human decision 2026-09-23): `< 16 ms` up to 500 nodes, `< 50 ms` at 2 000, Chromium; hard ceilings 50 / 100 ms. Measured end to end by `pnpm bench:theme` on the ordinary path, a Theme ▾ pick on a document with no `@theme` (`feat/theme-fast-path`, §2: the pick sets `themeId`; `styleGraph` once per cascade signature; `renderPaintOnly` and a `<style>`-text swap; no re-parse, no re-measure, no layout). Slower-pick median `work`, ms: orchestrator's three runs on a quiet machine n500 13.2 / 12.8 / 13.0, n2000 48.9 / 44.3 / 44.8; this branch's fix round 1, one run of the three-sample gate on a quiet machine (load average 0.29 at the start, 0.50 at the end; 4 cores; nothing else running) n50 2.6 / 2.5 / 2.6, n500 13.9 / 14.8 / 13.0, n2000 47.6 / 47.0 / 48.6 (best 47.0, median 47.6; the `@theme` case n2000 265.6 / 266.6 first / repeat). A reviewer running alongside another test suite (load ≈ 6) saw n2000 50–56 and one n500 at 17.5. **Where the time goes at n2000:** ~3–4 ms of script; the rest is Chromium's style recalculation for the new `<style>` text, ~40 ms, which is the floor (replacing even one rule's text costs ~24 ms at that size, and replacing the `<style>` element instead of its text measured the same), so the headroom is a few ms and within machine noise. **Not gated:** a document that sets its own `@theme` is edited by the pick and re-parsed and re-rendered in full, ~250–275 ms at n2000 (~65–70 ms at n500): the document's own text changing. **Gate policy (fix round 1; DD-09 §3.1 "perf: nightly + release"):** the bench is not part of `check` or CI; run on demand on a quiet machine; three samples per point in one run, the best of the three slower-pick medians under the budget and the median of the three under the hard ceiling; all three reported. **A18 (`feat/a18-render`, DD-11 T57), reported and not gated:** `n2000-rich`, every label marked up as nested run tspans and every tenth wrapped, takes the paint-only path at 48.0 / 54.1 ms median `work` (first / repeat pick), ~5 ms script and the rest style recalculation over the extra elements — a few ms over 50 on the slower pick, under the 100 ms ceiling. The gated n50/n500/n2000 hold no markup (same run: 2.2 / 10.9 / 37.3 ms). If this matters, the response is DD-09 §2's second column, not a change to the markup. **Control (fix round 1, item 9):** `n2000-labelled`, the same labels and boxes without markup, measured in the same run as `n2000-rich`: 31.3 / 32.7 ms against 44.9 / 43.7 ms, so about 12 ms is the run tspans and the rest is what any fully labelled 2 000-node document costs. | watch; re-measure before Gate 4 |
 | **F10** | `ctx.random`'s seed (`host.ts`'s `SEED = 1`) is one fixed constant, shared by every request for every document — `LayoutHost.run()`'s frozen signature has no per-call seed parameter, so Stage H could not add one unilaterally (DD-06 §3). Where a per-document seed should come from — a new `run()` parameter, or something content-addressed from a graph hash so the same document always seeds the same way without threading a value through every call site — is undecided, and is an orchestrator/design decision to make, not Stage H's to settle unilaterally. No engine shipped so far reads `ctx.random` at all (`grid` is fully deterministic; `elk` is unbuilt), so nothing depends on the answer yet. | Stage L (B5 `radial`/`force`, the first seed-consuming engines) |
 | **F12** | After a service-worker update is accepted in one tab, other open tabs keep running the old JS while `cleanupOutdatedCaches` has already removed the old precache, so a lazy chunk the old code has not yet loaded (from Stage K, `elk`) can fail to load offline in those tabs. Found in Stage J's review; `pwa.ts` has no cross-tab coordination (e.g. reloading other clients on `controllerchange`). | Stage L |
 | **F13** | A share link pasted into an already-open tab (Stage J fix round 1, item 14) imports by flushing autosave and **reloading**, not by switching in place like Open and Documents ▾ (fix round 2). That loses undo history, and when IndexedDB is unavailable (memory-store fallback) the reload loses the tab's documents outright. Also: criterion 5's offline test is falsifiable against the HTTP cache in Chromium and WebKit but not in Firefox, which has neither mechanism the spec uses; and error toasts persist until closed with no cap on how many pile up. | Stage L (E17, alongside the rest of the Documents UI) |
-| **F15** | `elk` misses DD-09 §2's performance budget as measured in Node by Stage K's review: `elkEngine.layout` alone takes 0.5–0.8 s warm / 1.4 s cold at n500 (budget: 400 ms for the whole pipeline) and ~1.9 s warm / 3.8 s cold at n2000 (budget 3 s). Gate 3 is not timed. **Decision (human, 2026-09-23): record it and measure in the browser before Gate 4; the budget is not reopened.** | Stage L, before Gate 4 (the Gate 4 bench) |
+| **F15** | `elk` misses DD-09 §2's performance budget as measured in Node by Stage K's review: `elkEngine.layout` alone takes 0.5–0.8 s warm / 1.4 s cold at n500 (budget: 400 ms for the whole pipeline) and ~1.9 s warm / 3.8 s cold at n2000 (budget 3 s). Gate 3 is not timed. **Decision (human, 2026-09-23): record it and measure in the browser before Gate 4; the budget is not reopened.** That browser measurement should also take F24's wrapped-label numbers (pre-measure and the canvas cache) at n2000. | Stage L, before Gate 4 (the Gate 4 bench) |
 | **F16** | Under `elk`, some edges enter a container through its own title (the endpoint's ancestor, so the K4 hierarchy-crossing check does not count them): `checkout` 2, `containers-edges` 1, `nesting-3` 1, `wildcards` 4, `wildcard-paths` 4 (added 2026-09-24 with the document), pinned by `titleCrossings` in `packages/layout-elk/test/elk.test.ts`. No ELK option tried removes them (`considerModelOrder` crashes ELK on 8 documents; `FIXED_SIDE` moves them). Candidates: a host-side nudge of the final segment, or port placement once ports are real (F6). | Stage L |
 | **F23** | **A document that imports many nodes `as:` costs what that many nodes cost, on every keystroke** (A9 fix round 1). Eight 1 500-node libraries imported `as:` graft 12 000 nodes, and a keystroke is ~250 ms in Node: `resolveImports` 39 ms (the imports themselves are cached; the graft is cheaper than resolving the same nodes written in the document, 53 ms) and `compileImports` 221 ms (`compile()` of the same nodes, 214 ms). The keystroke budget (DD-09 §2) is for 50 nodes; this is a 12 000-node document. Candidates: an incremental compile, or a graft kept across keystrokes when the imports are unchanged. Measured by `packages/core/test/imports-keystroke.test.ts` (DD-02 §10.8). | Stage L, with the next performance work on large documents |
-| **F20** | **Bundle headroom.** After A8's fix round 2 the core bundle was 178.63 kB; after C5's two themes (+0.24 kB) it is **178.87 kB** of 180, **178.90 kB** after D6/D7's +27 B on `main`, and **178.91 kB** after D2's +10 B (1.09 kB under): `@sgl/core/json` and the lazy `engine-options-form` chunk are done. On `feat/imports` (A9, §2) the Documents ▾ list is a lazy chunk (−244 B, not the −0.6 kB hoped for) and A9's boot share is +805 B (grammar, seam, records, the pipeline gate, Share), so the bundle was **179.47 kB (179 472 B)**, and after A9's fix round 1 (a degraded path for a chunk that cannot load, +218 B; a share link's storing moved to the lazy `share` chunk, −60 B) it is **179.63 kB (179 630 B)**. **The limit is 182 kB since 2026-09-26 (human decision; it was 180 kB; the 300 kB hard ceiling is unchanged)**, so 2.37 kB under. No named candidate is left on the boot path; A18 is estimated at 0.8–1.05 kB at boot, more than remains (orchestration handoff §2). | Stage L, before the next feature on the boot path |
+| **F24** | **Wrapping re-measures every wrapped label on each keystroke, and `CanvasMeasurer`'s cache thrashes past ~7 000 of them** (A18 fix round 1, item 5). Measured in Node (static metrics, 7-run medians; long labels on the n2000 document): `premeasure` 11.7 ms unwrapped, **20.5 ms with every node wrapped** at 90 px (30.8 ms with the branch's first, quadratic breaker; the review measured 17 → 87–98 ms on its own document with it). Through `CanvasMeasurer` with a counting fake canvas, three `premeasure` passes over the same graph (what three keystrokes do) make 5 746 / 0 / 0 canvas calls at 2 000 wrapped labels and 17 174 / 0 / 0 at 6 000, but **20 068 / 20 053 / 20 051 at 7 000** and 29 375 / 28 846 / 28 938 at 10 000: past the 20 000-entry cache (about three entries per wrapped label: its words, separators and laid fragments) every pass misses. With the quadratic breaker it thrashed from ~5 000 (24 027 / 24 006 / 24 006 at 6 000). **An LRU does not help** (tried: 19 016 per repeat pass at 7 000, 28 479 at 10 000; a cyclic scan larger than the cache defeats any recency policy), so the clear-all cache stays. The remedy is for `premeasure` to reuse the previous table's entry for an unchanged key (DD-05 §5 already describes the app keeping its previous table), dropping the table when the measurer's line model changes (the rich-text chunk loading, or its degraded model); or a larger cap. **Notes:** measure it in the browser, with real `measureText`, together with F15's browser measurement before Gate 4 (the n2000-rich variant of DD-11 T56 is not built yet). | Stage L, before Gate 4, with F15 |
+| **F25** | **The renderer's first baseline is `0.8 × fontSize`; measurement's ascent is the font's own** (DD-11 §19 item 5; found by DD-11's design, measured by `feat/a18-render`). DD-07 §5 once said `y = frame.y + layout.ascent` from the measured `TextLayout`; `render()` was never given one and has always drawn `0.8 × fontSize`, which A18 kept (T42) so no golden moved. `CanvasMeasurer`'s ascent is `fontBoundingBoxAscent`, which Chromium rounds to whole pixels: Inter's 0.969 em comes out as **13 px** for a 13 px node title against the rendered **10.4 px** (label drawn **2.6 px** higher than measurement's baseline), 12 px against 9.6 for a container title (2.4 px). Adopting the measured ascent would move every label by about 2–2.6 px and re-baseline every render golden under every theme; the label boxes and layout are unaffected (heights use `lineHeight`). `apps/web/test/rich-measure.browser.test.ts` pins the numbers. **A human decision:** keep `0.8 em` (DD-07 §5 now says so), or adopt the measured (or a fixed 0.97 em, deterministic across browsers) ascent in one golden re-baseline. | the human; then whoever next touches DD-07 §5 |
+| **F20** | **Bundle headroom.** After A8's fix round 2 the core bundle was 178.63 kB; after C5's two themes (+0.24 kB) it is **178.87 kB** of 180, **178.90 kB** after D6/D7's +27 B on `main`, and **178.91 kB** after D2's +10 B (1.09 kB under): `@sgl/core/json` and the lazy `engine-options-form` chunk are done. On `feat/imports` (A9, §2) the Documents ▾ list is a lazy chunk (−244 B, not the −0.6 kB hoped for) and A9's boot share is +805 B (grammar, seam, records, the pipeline gate, Share), so the bundle was **179.47 kB (179 472 B)**, and after A9's fix round 1 (a degraded path for a chunk that cannot load, +218 B; a share link's storing moved to the lazy `share` chunk, −60 B) it is **179.63 kB (179 630 B)**. **The limit is 182 kB since 2026-09-26 (human decision; it was 180 kB; the 300 kB hard ceiling is unchanged)**, so 2.37 kB under. No named candidate is left on the boot path; A18 is estimated at 0.8–1.05 kB at boot, more than remains (orchestration handoff §2). **A18 measured:** branch 1 +0.68 kB (180.38), branch 2 +0.84 kB (181.22), branch 3 +0.49 kB (**181.71 kB**: the renderer 0.46; the run faces are registered by the lazy chunk, not the boot CSS), so **0.29 kB** was left before the merge with fix round 1 of branch 2 (which alone brought branch 2 to 181.47 kB); merged, **181.97 kB**, and after branch 3's fix round 1 **181 970 B** (30 B under; the `labelRunKey` memo and `textBlock`'s unused width estimate removed to pay for the table seam and the style-driven faces); the lazy `rich-text` chunk is 2.01 kB. | Stage L, before the next feature on the boot path |
 
 ---
 

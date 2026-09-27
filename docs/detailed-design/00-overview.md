@@ -20,39 +20,50 @@
 | [DD-08](08-application.md) | State, pipeline orchestration, editor, canvas, persistence, files, share, PWA | `apps/web` |
 | [DD-09](09-security-performance-testing.md) | Threat model, budgets and where they are spent, test matrix, corpus | cross-cutting |
 | [DD-10](10-build-and-deploy.md) | Monorepo, package builds, Lezer generation, Cloudflare deploy, CI | cross-cutting |
-| [DD-11](11-text.md) | **⟶ v1.0 (A18)** markdown in labels: the inline subset, `"""` strings, styled runs, run faces, line breaking at `maxWidth`, nested `<tspan>`s. Phase 1 design, awaiting review | `@sgl/text` (new), `@sgl/core`, `@sgl/measure`, `@sgl/render-svg`, `apps/web` |
+| [DD-11](11-text.md) | **⟶ v1.0 (A18)** markdown in labels: the inline subset, `"""` strings, styled runs, run faces, line breaking at `maxWidth`, nested `<tspan>`s. Phase 2: branches 1 (grammar) and 2 (text model) implemented, 3 (render) to come | `@sgl/text` (new), `@sgl/core`, `@sgl/measure`, `@sgl/render-svg`, `apps/web` |
 
 ---
 
 ## 2. Module map and dependency direction
 
 ```
-                 ┌──────────────┐
-                 │  apps/web    │  Preact + signals · CodeMirror 6 · Vite
-                 └──────┬───────┘
-        ┌───────────────┼──────────────────┬───────────────┐
-        ▼               ▼                  ▼               ▼
- ┌────────────┐  ┌──────────────┐  ┌──────────────┐  ┌────────────┐
- │ render-svg │  │  layout-api  │  │   measure    │  │   theme    │
- └─────┬──────┘  └──────┬───────┘  └──────┬───────┘  └─────┬──────┘
-       │                │  ▲              │                │
-       │         ┌──────┘  │              │                │
-       │         ▼         │              │                │
-       │  ┌─────────────┐  │              │                │
-       │  │ layout-elk  │  │ (engines     │                │
-       │  │ layout-std  │  │  implement   │                │
-       │  └─────────────┘  │  the api)    │                │
-       └────────────┬──────┴──────────────┴────────────────┘
-                    ▼
-             ┌────────────┐
-             │    core    │  Lezer parser · resolver · IR · diagnostics
-             └────────────┘   zero runtime dependencies except @lezer/common + the generated parser
+                       apps/web          Preact + signals · CodeMirror 6 · Vite
+        ┌──────────┬──────┴────┬──────────────────────┐
+        ▼          ▼           ▼                      ▼
+   render-svg   measure    layout-api  ◄───  layout-elk, layout-std
+        │          │           │                (engines implement the api)
+        └────┬─────┘           │
+             ▼                 │
+           text                │      runs, faces, the table key, line models (A18, DD-11)
+             │                 │
+             ▼                 │
+           theme               │
+             │                 │
+             └────────┬────────┘
+                      ▼
+                    core                Lezer parser · resolver · IR · diagnostics;
+                                        no runtime dependencies but @lezer/common and the generated parser
+```
+
+The edges, as `eslint.config.js` enforces them (`A ← B`: B may import A):
+
+```
+core  ←  theme, layout-api
+core, theme  ←  text
+core, theme, text  ←  measure, render-svg
+core, layout-api  ←  layout-elk, layout-std
+everything  ←  apps/web
 ```
 
 Rules, enforced by `eslint-plugin-import` boundaries in CI:
 
 1. `core` imports nothing from the workspace.
-2. `theme`, `measure`, `layout-api`, `render-svg` import only `core`.
+2. `theme` and `layout-api` import only `core`. `text` imports `core` and `theme` (its `labelRuns`
+   reads a `StyledGraph`). `measure` and `render-svg` import `core`, `theme` and `text`: DD-05 takes a
+   `StyledGraph`, DD-07 a `StyledGraph` and a `ResolvedTheme`, and both key the measure table with
+   `text`'s one key function (DD-11 T2). *(Corrected by A18, DD-11 §19 item 1: this rule said the
+   four packages "import only core", which `measure` and `render-svg` importing `theme` had not
+   matched since the MVP.)*
 3. Engines import only `layout-api` and `core`.
 4. `apps/web` is the only package that touches the DOM, except `measure`'s canvas implementation, which is isolated behind an interface.
 5. No package other than `apps/web` may import `preact`.

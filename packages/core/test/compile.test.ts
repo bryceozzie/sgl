@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import type { Document, Entry } from '../src/ast.js';
-import { compile } from '../src/compile.js';
+import { compile, needsInline } from '../src/compile.js';
 import type { DiagnosticCode } from '../src/diagnostics.js';
 import type { GraphEdge } from '../src/graph.js';
 import type { ClassModel, ContainerModel, DocumentModel } from '../src/model.js';
@@ -865,10 +865,36 @@ describe('labels (DD-03 §6)', () => {
     expect(graph.labels[labelId]?.runs).toEqual([{ text: 'inner' }]);
   });
 
-  it('a multi-line label splits into one run per line', () => {
+  it('a multi-line label is one run, the hard break a \\n inside it (DD-11 T21; the MVP gave one run per line)', () => {
     const { graph } = compileSrc('a: { @label: "one\\ntwo" }\n');
     const labelId = graph.nodes.a?.labelId as string;
-    expect(graph.labels[labelId]?.runs).toEqual([{ text: 'one' }, { text: 'two' }]);
+    expect(graph.labels[labelId]?.runs).toEqual([{ text: 'one\ntwo' }]);
+  });
+
+  it('without the inline parser, markup stays literal text in one plain run (DD-11 T1)', () => {
+    const { graph } = compileSrc('a: { @label: "**b** `c`" }\nb\na -> b: "*e*"\n');
+    expect(graph.labels['l:a']?.runs).toEqual([{ text: '**b** `c`' }]);
+    expect(Object.values(graph.labels).find((l) => l.role === 'edge')?.runs).toEqual([{ text: '*e*' }]);
+  });
+
+  it('options.inline parses node and edge @label values, and never a key-derived title (DD-11 T1, T13)', () => {
+    const { ast } = parse('"*k*": {}\na: { @label: "**b**" }\nb\na -> b: "*e*"\n');
+    const seen: string[] = [];
+    const inline = (text: string) => {
+      seen.push(text);
+      return [{ text: text.toUpperCase(), strong: true as const }];
+    };
+    const { graph } = compile(resolve(ast).model, undefined, { inline });
+    expect(seen.sort()).toEqual(['**b**', '*e*']);
+    expect(graph.labels['l:a']?.runs).toEqual([{ text: '**B**', strong: true }]);
+    expect(graph.labels['l:*k*']?.runs).toEqual([{ text: '*k*' }]);
+  });
+
+  it('needsInline is true exactly when some label text holds * or ` (DD-11 T53)', () => {
+    expect(needsInline(compileSrc('a: { @label: "2 * 3" }\n').graph)).toBe(true);
+    expect(needsInline(compileSrc('a: { @label: "x `y`" }\n').graph)).toBe(true);
+    expect(needsInline(compileSrc('a\nb\na -> b: "*"\n').graph)).toBe(true);
+    expect(needsInline(compileSrc('a: { @label: "plain_snake" }\nb\na -> b\n').graph)).toBe(false);
   });
 
   it('an edge gets no label unless @label is explicitly set', () => {

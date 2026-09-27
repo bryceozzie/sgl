@@ -311,10 +311,7 @@
       "role": "title",
       "runs": [
         {
-          "text": "Line one"
-        },
-        {
-          "text": "Line two"
+          "text": "Line one\nLine two"
         }
       ]
     }

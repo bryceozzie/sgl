@@ -1,18 +1,20 @@
-import type { Insets, Point, Rect } from '@sgl/core';
+import type { Point, Rect } from '@sgl/core';
 import { num, nums } from './num.js';
 
 /**
  * A shape is three pure functions over a frame and a corner radius (DD-07 §4).
  *
- * ⟶ C7: user shapes are parameterised path templates whose `contentInsets` and
- * `anchor` come from a declared `anchor: box | ellipse | polygon`. This interface
- * does not change.
+ * A shape's content insets are `@sgl/core`'s `contentInsets(shape, w, h)` (DD-11
+ * T4): one copy of DD-07 §4's inset column, shared with node sizing
+ * (`@sgl/layout-api`) and the wrap width (`labelMaxWidth`), instead of a method
+ * here that had to be kept equal to a second copy in layout-api.
+ *
+ * ⟶ C7: user shapes are parameterised path templates whose insets and `anchor`
+ * come from a declared `anchor: box | ellipse | polygon`.
  */
 export interface Shape {
   /** SVG path data, absolute coordinates. */
   path(f: Rect, r: number): string;
-  /** Extra space the shape needs beyond padding. */
-  contentInsets(labelW: number, labelH: number): Insets;
   /** Boundary intersection of the ray centre→`from`. */
   anchor(f: Rect, from: Point): Point;
 }
@@ -24,13 +26,6 @@ export interface Shape {
  *  cancellation. */
 const EPS = 1e-9;
 
-const SQRT2 = Math.SQRT2;
-/** Half the width an inscribed rectangle gives back to an ellipse, per side:
- *  the largest axis-aligned rectangle in an ellipse of half-axes `a, b` is
- *  `a√2 × b√2`, so a label of width `L` needs `L√2` and the surplus is
- *  `L(√2 − 1)`, half of it on each side. */
-const ELLIPSE_INSET_RATIO = (SQRT2 - 1) / 2;
-
 /** Cylinder lid radius, DD-07 §4: `ry = min(8, h/6)`. */
 const CYL_MAX_RY = 8;
 /** Package tab, DD-07 §4: `w·0.35 × 14`. */
@@ -38,9 +33,6 @@ const PKG_TAB_H = 14;
 const PKG_TAB_W_RATIO = 0.35;
 
 const centre = (f: Rect): Point => ({ x: f.x + f.w / 2, y: f.y + f.h / 2 });
-
-const insets = (t: number, r: number, b: number, l: number): Insets => [t, r, b, l];
-const NO_INSETS: Insets = [0, 0, 0, 0];
 
 // ---------------------------------------------------------------------------
 // Anchors (DD-07 §4)
@@ -163,7 +155,6 @@ export function cylinderRy(f: Rect): number {
 const rect: Shape = {
   // DD-07 §4 gives this one in relative form; kept verbatim.
   path: (f) => `M ${nums(f.x, f.y)} h ${num(f.w)} v ${num(f.h)} h ${num(-f.w)} Z`,
-  contentInsets: () => NO_INSETS,
   anchor: boxAnchor,
 };
 
@@ -186,9 +177,6 @@ const round: Shape = {
       'Z',
     ].join(' ');
   },
-  // DD-07 §4: 0. The corner cuts into the content box by at most r(1 − 1/√2),
-  // which the table accepts rather than pays for.
-  contentInsets: () => NO_INSETS,
   anchor: boxAnchor,
 };
 
@@ -200,13 +188,6 @@ const ellipse: Shape = {
     const arc = `A ${nums(rx, ry)} 0 0 1`;
     return `M ${nums(f.x, cy)} ${arc} ${nums(f.x + f.w, cy)} ${arc} ${nums(f.x, cy)} Z`;
   },
-  contentInsets: (labelW, labelH) =>
-    insets(
-      labelH * ELLIPSE_INSET_RATIO,
-      labelW * ELLIPSE_INSET_RATIO,
-      labelH * ELLIPSE_INSET_RATIO,
-      labelW * ELLIPSE_INSET_RATIO,
-    ),
   anchor: ellipseAnchor,
 };
 
@@ -215,9 +196,6 @@ const diamond: Shape = {
     const [top, right, bottom, left] = diamondVertices(f) as [Point, Point, Point, Point];
     return `M ${nums(top.x, top.y)} L ${nums(right.x, right.y)} L ${nums(bottom.x, bottom.y)} L ${nums(left.x, left.y)} Z`;
   },
-  // The largest centred rectangle in a diamond is half its width by half its
-  // height, so a label of `L × H` needs a `2L × 2H` diamond: `L/2` per side.
-  contentInsets: (labelW, labelH) => insets(labelH / 2, labelW / 2, labelH / 2, labelW / 2),
   anchor: (f, from) => polygonAnchor(diamondVertices(f), centre(f), from),
 };
 
@@ -227,13 +205,6 @@ const hexagon: Shape = {
     const head = v[0] as Point;
     const tail = v.slice(1).map((p) => `L ${nums(p.x, p.y)}`);
     return `M ${nums(head.x, head.y)} ${tail.join(' ')} Z`;
-  },
-  // `i = min(h/2, 0.25w)` is stated in terms of the *shape's* w and h; solving it
-  // for the label the shape has to hold (`h = H`, `w = L + 2i`) gives
-  // `i = min(L, H)/2` in both branches.
-  contentInsets: (labelW, labelH) => {
-    const i = Math.min(labelW, labelH) / 2;
-    return insets(0, i, 0, i);
   },
   anchor: (f, from) => polygonAnchor(hexagonVertices(f), centre(f), from),
 };
@@ -257,12 +228,6 @@ const cylinder: Shape = {
     const lid = `M ${nums(x + w, top)} A ${nums(rx, ry)} 0 0 1 ${nums(x, top)}`;
     return `${body} ${lid}`;
   },
-  // Top `2·ry`, bottom `ry`, with `ry` solved for the label: `h = H + 3ry` and
-  // `ry = min(8, h/6)` give `ry = min(8, H/3)`.
-  contentInsets: (_labelW, labelH) => {
-    const ry = Math.min(CYL_MAX_RY, labelH / 3);
-    return insets(2 * ry, 0, ry, 0);
-  },
   anchor: boxAnchor,
 };
 
@@ -283,7 +248,6 @@ const packageShape: Shape = {
       'Z',
     ].join(' ');
   },
-  contentInsets: () => insets(PKG_TAB_H, 0, 0, 0),
   anchor: boxAnchor,
 };
 
@@ -301,7 +265,7 @@ const packageShape: Shape = {
  * | `package`  | top 14                              | box     |
  *
  * The inset column of DD-07 §4 is written in terms of the *shape's* own width and
- * height; `contentInsets` is handed the *label's*, so each entry above is the
+ * height; `@sgl/core`'s `contentInsets` is handed the *label's*, so it returns the
  * solution of the table's equation for the shape that has to hold that label. The
  * two agree at the fixed point, which the shape tests assert.
  */

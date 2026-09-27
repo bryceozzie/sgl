@@ -119,6 +119,62 @@ api -> db: """reads
 
 An unterminated `"""` is `SGL1003` from the opening quotes to the end of the file.
 
+### Markdown in labels
+
+Every `@label` value (A18) is read as a small subset of Markdown, always, with no switch: node,
+container and edge labels, and the shorthands `api: "…"` and `a -> b: "…"`. Nothing else is:
+a node's key used as its title, `@title`, `@tooltip`, `@link`, `@a11y.*` and `@meta.*` are plain
+text. Markdown is read **after** variables are substituted (§5), so a variable holding `*x*` gives
+italics. A `.sgl.json` document is the same language: its `"@label"` strings are Markdown too.
+
+| Write | Get |
+|---|---|
+| `**bold**` | **bold** |
+| `*italic*` | *italic* |
+| `***both***` | ***both*** |
+| `` `code` `` | `code`, in a monospace face. Nothing inside is markup: `` `a*b*` `` shows the stars |
+| ``` ``a`b`` ``` | code holding a backtick: open and close with the same number of backticks |
+| `\n`, or a new line in `"""…"""` | a line break |
+| `\*`, `` \` `` | a literal `*` or `` ` `` |
+
+The rules that keep ordinary text ordinary:
+
+- **A star next to a letter or digit is literal.** `a*b*c`, `2*3*4`, `x**2` and `*.log` stay as
+  written, and so does a lone `*` or a `*` with spaces round it (`2 * 3`). Emphasis opens after the
+  start of the label, a space or punctuation, and closes before the end, a space or punctuation.
+- **Underscores are never markup.** `snake_case`, `_x_` and `__x__` are literal.
+- **An unclosed marker is literal**, silently: `**draft` shows its stars. So is a run of four or more
+  stars.
+- **Bold and italic do not nest in themselves.** `**a **b** c**` is bold `a **b` then ` c**`. When
+  marks overlap, the one closed first wins: `**a *b** c*` is bold `a *b`, then ` c*`.
+- **Code stays on one line**: a backtick with no match before the next line break is literal.
+- **Only `\*` and `` \` `` are escapes** for the markup; every other backslash is kept, so
+  the label `"C:\\temp\*.log"` shows `C:\temp*.log`.
+- Nothing else is Markdown: links, headings, lists, images, HTML, `~~strike~~` and entities are
+  literal text.
+
+```sgl
+api: {
+  @label: """
+    **Payments API**
+    handles `POST /pay`
+    """                                    // bold "Payments API", a break, "handles ", code "POST /pay"
+  @size: { maxWidth: 160 }                 // and wrapped to fit 160 px
+}
+api -> db: "*async*"                       // italic edge label
+calc: "2*3*4 and snake_case"               // literal: no markup here
+```
+
+**Wrapping.** A node title wraps to fit the node when the node sets `@size.maxWidth` or a fixed
+`@size.width` (the narrower of the two): lines break at spaces. With `@size.maxWidth`, a word too
+long for a line is also split between characters, and text without spaces (CJK) breaks between
+any two characters; with only a fixed `@size.width`, a word is never split and a word too long
+for the node overflows it, as it always has. The node's
+padding and its shape are allowed for, so an ellipse, a diamond or a tall hexagon wraps narrower
+than a rectangle of the same width. A label with neither key never wraps, and an edge label breaks only where it
+has a line break. If the app cannot load its markdown support (a broken install), labels are
+drawn as plain text and do not wrap, with one `SGL6002` warning.
+
 ### Scoping and references
 
 Edges may be declared at any depth. Endpoints resolve **relative to the enclosing container**, with:
@@ -235,14 +291,14 @@ gives every expanded edge that label and that style. There is no way to tell, do
 
 | Key | Applies to | Notes |
 |---|---|---|
-| `@label` | node, edge, container | Text or inline-markup string, `"…"` or `"""…"""` (§3, Strings). `\*` and `` \` `` are kept for the markup (A18) |
+| `@label` | node, edge, container | Text with inline Markdown, always on: `**bold**`, `*italic*`, `` `code` ``, and line breaks (`\n`, `"""…"""`). `\*` and `` \` `` write a literal `*` or `` ` `` (§3, Strings and Markdown in labels; A18) |
 | `@type` | node, edge | Class reference; may be a list |
 | `@shape` | node | `rect` `round` `circle` `ellipse` `diamond` `hexagon` `cylinder` `cloud` `document` `actor` `package` `note`, or a theme-defined shape |
 | `@icon` | node | Icon reference (see backlog) |
 | `@tooltip`, `@link` | node, edge | `@link` restricted to `https:` and `mailto:`; anything else, including in-document `#path`, is dropped with `SGL6001` (DD-07 §8) |
 | `@style.*` | any | Paint overrides: `fill`, `stroke`, `strokeWidth`, `strokeDash`, `opacity`, `font*`, `radius`, `shadow` |
 | `@layout.*` | any | Engine hints. `@layout.engine`, plus free-form engine-specific keys |
-| `@size.*` | node | `width`, `height`, `minWidth`, `minHeight`, `maxWidth`, `aspectRatio` (any other key: `SGL2010`, and no effect) |
+| `@size.*` | node, class | A node's, not a container's (on a container: `SGL2012`, ignored). `width`, `height`, `minWidth`, `minHeight`, `maxWidth`, `aspectRatio` (any other key: `SGL2010`, and no effect). A class's `@size` applies to its nodes (§6). `maxWidth`, or a fixed `width`, wraps the node's title (§3, Markdown in labels) |
 | `@pin` | node | `{ x, y }` — absolute position auto-layout must respect |
 | `@ports` | node | Named anchors |
 | `@direction` | container | Sugar for `@layout.direction`: `down` `up` `left` `right` |
@@ -340,9 +396,9 @@ Classes may extend other classes (`@extends`). Class application order is the de
 
 1. Theme role defaults for the resolved `@shape`
 2. Theme rules matching the node's classes
-3. `@classes` definitions, in `@type` order
+3. `@classes` definitions, in `@type` order: a class's `@style`, and its `@size` (a node's size keys; a later class wins per key)
 4. Selector rules (§7), in declaration order
-5. Inline `@style` / `@size` on the element itself
+5. Inline `@style` / `@size` on the element itself (its own `@size` overrides its classes' per key)
 6. **Theme force** — a theme may *force* paint properties (fill, stroke, text colour, plate, shadow) over everything above, including inline `@style`. Only the built-in `print` theme uses it (every fill white, every stroke and text black, no shadow). Force never touches geometry: a forced geometry key is ignored with a warning. (Human decision, 2026-09-25; DD-04 §4 step 7.)
 
 `@token` references (`"@accent"`, `"@surface.raised"`) resolve against the active theme, so a class written once works in light, dark, and print.

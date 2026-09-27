@@ -12,6 +12,7 @@ import {
   type StyledGraphInput,
 } from '@sgl/layout-api';
 import { labelRunKey, premeasure, StaticMetricsMeasurer } from '@sgl/measure';
+import { layoutWrapped } from '@sgl/text/wrap';
 import type { StyledGraph } from '@sgl/theme';
 import { describe, expect, it } from 'vitest';
 import { CLEAN_DOCS } from '../../core/test/corpus-docs.js';
@@ -48,7 +49,7 @@ const CTX: LayoutContext = {
  *  `StaticMetricsMeasurer` so this runs under Node exactly like CI. */
 function layoutInputFor(name: string): { readonly styled: StyledGraph; readonly input: LayoutInput } {
   const { styled } = corpusStyledGraph(name);
-  const table = premeasure(styled, new StaticMetricsMeasurer());
+  const table = premeasure(styled, new StaticMetricsMeasurer({ lineModel: layoutWrapped }));
   const labelSizes: Record<LabelId, Size> = {};
   for (const labelId of Object.keys(styled.graph.labels).sort() as LabelId[]) {
     const layout = table[labelRunKey(styled, labelId)];

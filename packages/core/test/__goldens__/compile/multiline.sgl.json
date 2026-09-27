@@ -149,10 +149,7 @@
       "role": "edge",
       "runs": [
         {
-          "text": "charges"
-        },
-        {
-          "text": "refunds"
+          "text": "charges\nrefunds"
         }
       ]
     },
@@ -165,10 +162,7 @@
       "role": "title",
       "runs": [
         {
-          "text": "**Payments API**"
-        },
-        {
-          "text": "handles `POST /pay`"
+          "text": "**Payments API**\nhandles `POST /pay`"
         }
       ]
     },
@@ -181,10 +175,7 @@
       "role": "title",
       "runs": [
         {
-          "text": "  Ledger"
-        },
-        {
-          "text": "(production)"
+          "text": "  Ledger\n(production)"
         }
       ]
     },
@@ -197,10 +188,7 @@
       "role": "title",
       "runs": [
         {
-          "text": "Outbox"
-        },
-        {
-          "text": "async"
+          "text": "Outbox\nasync"
         }
       ]
     },

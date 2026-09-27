@@ -17,6 +17,7 @@
  */
 
 import { fnv1a64, shortHash } from '@sgl/core';
+import { CODE_FONT_FAMILY, STRONG_WEIGHT } from '@sgl/text';
 import type { ComputedStyle, StyleValue } from '@sgl/theme';
 import { num } from './num.js';
 import type { PaintRule } from './paint-plan.js';
@@ -224,11 +225,27 @@ export class ClassTable {
     return `${geometry} ${paint}`;
   }
 
-  /** Every generated rule, sorted by class name. */
+  /** The marks some label drew, as `markBits` (DD-11 T44): which run rules
+   *  `emit` appends. `renderText` sets it; the paint-only path copies it from
+   *  the plan. */
+  runs = 0;
+
+  /** Every generated rule, sorted by class name, then the run rules used. */
   emit(): readonly string[] {
-    return [...this.rules.keys()].sort().map((name) => `.${name}{${this.rules.get(name) as string}}`);
+    return [...[...this.rules.keys()].sort().map((name) => `.${name}{${this.rules.get(name) as string}}`), ...RUN_RULES.filter((_, i) => this.runs & (1 << i))];
   }
 }
+
+/**
+ * The run rules (DD-11 T44): constants, named after no hash and taken from no
+ * theme, so a theme switch changes none of them (F7 by construction). Emitted
+ * after every generated rule, only those some label uses, always in this
+ * order: the selectors have equal specificity, so `code` is never italic and
+ * strong code is bold (T25). A rule on the tspan itself beats what it
+ * inherits from its `<text>`'s `g-` class. The code family is `@sgl/text`'s
+ * constant, as measurement names it.
+ */
+const RUN_RULES: readonly string[] = ['.r-em{font-style:italic}', `.r-code{font-family:${CODE_FONT_FAMILY};font-weight:400;font-style:normal}`, `.r-strong{font-weight:${STRONG_WEIGHT}}`];
 
 /** The fixed rules every document gets after `.canvas`, in a fixed order. */
 const PREAMBLE: readonly string[] = [

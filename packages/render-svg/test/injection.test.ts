@@ -3,14 +3,23 @@ import { fileURLToPath } from 'node:url';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { describe, expect, it } from 'vitest';
 import { ALLOWED_LINK_SCHEMES } from '../src/security.js';
-import { renderCorpusDoc } from './pipeline.js';
+import { corpusPath, corpusSource, INLINE, renderCorpusDoc, runPipeline, type RenderedDoc } from './pipeline.js';
 
 /**
  * The injection suite (DD-07 §11, DD-09 §3.3 invariant 6): parse the rendered
  * SVG as XML and assert no `<script>` element, no `on*` attribute, and every
  * `href` on the allowlist — against every corpus/injection/*.sgl document, one
- * hostile string per markup context.
+ * hostile string per markup context. A18 (DD-11 T47): each document is also
+ * rendered through the rich pipeline, which draws marked runs as nested
+ * `<tspan class="r-…">`s; `markdown-in-label.sgl` puts hostile text inside
+ * every mark.
  */
+
+/** Both pipelines: without and with the inline parser (A18). */
+const PIPELINES = [
+  ['plain', (doc: string): Promise<RenderedDoc> => renderCorpusDoc(doc)],
+  ['rich', (doc: string): Promise<RenderedDoc> => runPipeline(corpusSource(doc), undefined, undefined, {}, corpusPath(doc), INLINE)],
+] as const;
 
 const injectionDir = fileURLToPath(new URL('../../../corpus/injection/', import.meta.url));
 const INJECTION_DOCS = readdirSync(injectionDir)
@@ -44,11 +53,13 @@ function walk(nodes: readonly XmlNode[], visit: (tag: string, attrs: Readonly<Re
 
 describe('injection suite: the rendered SVG is well-formed XML', () => {
   for (const doc of INJECTION_DOCS) {
-    it(`${doc}: parses as valid XML`, async () => {
-      const { rendered } = await renderCorpusDoc(doc);
-      const result = XMLValidator.validate(rendered.svg);
-      expect(result).toBe(true);
-    });
+    for (const [name, run] of PIPELINES) {
+      it(`${doc} (${name}): parses as valid XML`, async () => {
+        const { rendered } = await run(doc);
+        const result = XMLValidator.validate(rendered.svg);
+        expect(result).toBe(true);
+      });
+    }
   }
 
   it('every clean corpus document also parses as valid XML (not just the injection set)', async () => {
@@ -58,9 +69,9 @@ describe('injection suite: the rendered SVG is well-formed XML', () => {
 });
 
 describe('injection suite: no script element, no on* attribute, every href on the allowlist', () => {
-  for (const doc of INJECTION_DOCS) {
-    it(`${doc}: produces no executable content`, async () => {
-      const { rendered } = await renderCorpusDoc(doc);
+  for (const doc of INJECTION_DOCS) for (const [name, run] of PIPELINES) {
+    it(`${doc} (${name}): produces no executable content`, async () => {
+      const { rendered } = await run(doc);
       const tree = parser.parse(rendered.svg) as XmlNode[];
 
       const tags: string[] = [];
@@ -126,5 +137,22 @@ describe('injection suite: no script element, no on* attribute, every href on th
       for (const name of Object.keys(attrs)) if (/^on/i.test(name)) eventAttrs.push(name);
     });
     expect(eventAttrs).toEqual([]);
+  });
+
+  it('markdown-in-label.sgl (rich): hostile text inside every mark stays text; the only classes on run tspans are the three constants', async () => {
+    const { rendered } = await PIPELINES[1][1]('injection/markdown-in-label.sgl');
+    const classes = [...rendered.svg.matchAll(/<tspan class="([^"]*)"/g)].map((m) => m[1]!);
+    expect(new Set(classes)).toEqual(new Set(['r-strong', 'r-code', 'r-em', 'r-strong r-em']));
+    expect(rendered.svg).toContain('<tspan class="r-strong">&lt;script&gt;alert(1)&lt;/script&gt;</tspan>');
+    expect(rendered.svg).toContain('<tspan class="r-code">&lt;/tspan&gt;&lt;script&gt;alert(2)&lt;/script&gt;</tspan>');
+    expect(rendered.svg).toContain('<tspan class="r-em">&quot; onload=&quot;alert(3)</tspan>');
+    expect(rendered.svg).toContain('<tspan class="r-code">]]&gt;</tspan>');
+    expect(rendered.svg).toContain('<tspan class="r-strong">&amp;lt;b&amp;gt;</tspan>');
+    expect(rendered.svg).not.toContain('<![CDATA[');
+    const tree = parser.parse(rendered.svg) as XmlNode[];
+    const tags: string[] = [];
+    walk(tree, (tag) => tags.push(tag));
+    expect(tags).not.toContain('script');
+    expect(tags.filter((t) => t === 'tspan').length).toBeGreaterThan(8);
   });
 });

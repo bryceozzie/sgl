@@ -2,27 +2,34 @@ import inter400 from '@fontsource/inter/files/inter-latin-400-normal.woff2?url';
 import inter500 from '@fontsource/inter/files/inter-latin-500-normal.woff2?url';
 import inter600 from '@fontsource/inter/files/inter-latin-600-normal.woff2?url';
 import { embedFonts, usedFontFaces, type FontFaceKey } from '@sgl/render-svg/fonts';
+import { RUN_FACES } from './run-faces.js';
 
 /**
  * D2 (DD-07 §9, DD-08 §7): an SVG leaving the app — Save ▾ SVG, Copy SVG, and
- * the PNG's rasterisation-only copy — carries the Inter faces it uses,
+ * the PNG's rasterisation-only copy — carries the shipped faces it uses,
  * embedded by `@sgl/render-svg/fonts`'s `embedFonts`. This is the DOM half:
  * the bytes. In the lazy `file-actions` chunk.
  *
- * The faces are the very files `fonts.css` loads (Vite gives both the same
- * hashed URL), fetched from our own origin (`connect-src 'self'`; offline,
+ * The faces are the very files `fonts.css` (the three boot faces) and the
+ * lazy `rich-text` chunk (`io/run-faces.ts`, A18's seven) load — Vite gives
+ * both the same hashed URLs — fetched from our own origin (`connect-src 'self'`; offline,
  * from the service worker's precache), only the weights the SVG uses.
  */
 
-interface ShippedFace extends FontFaceKey {
+export interface ShippedFace extends FontFaceKey {
   readonly url: string;
 }
 
-/** The faces the app bundles (DD-08 §5, `fonts.css`): Inter, Latin subset. */
-const SHIPPED: readonly ShippedFace[] = [
+/** The faces the app bundles (DD-08 §5), Latin subset: Inter 400–600, which
+ *  `fonts.css` declares at boot, and A18's seven run faces (DD-11 T26, T49;
+ *  `RUN_FACES`, registered by the lazy `rich-text` chunk): Inter 700, Inter
+ *  italic 400–700, IBM Plex Mono 400 and 700. Export fetches only those an SVG
+ *  draws with (`usedFontFaces`, per element: T50). */
+export const SHIPPED: readonly ShippedFace[] = [
   { family: 'Inter', weight: 400, style: 'normal', url: inter400 },
   { family: 'Inter', weight: 500, style: 'normal', url: inter500 },
   { family: 'Inter', weight: 600, style: 'normal', url: inter600 },
+  ...RUN_FACES,
 ];
 
 /** Each face's base64, fetched once per page and kept (a failure is not

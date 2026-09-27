@@ -18,17 +18,19 @@ import {
   type Point,
   type Rect,
   type SemanticGraph,
+  type TextRun,
 } from '@sgl/core';
+import { labelBox, labelRunKey, plainText } from '@sgl/text';
 import type { ComputedStyle, ResolvedTheme, StyledGraph } from '@sgl/theme';
 
-import type { EdgeLayoutView, LabelPlacementView, LayoutView } from './layout-view.js';
+import type { EdgeLayoutView, LabelPlacementView, LayoutView, RunView, TextLayoutView } from './layout-view.js';
 import { isArrowhead, markerPaintClass, MarkerTable, type Arrowhead } from './markers.js';
 import { num, nums } from './num.js';
 import { paintOnlyStyleBlock, withStyleBlock, type PaintPlan } from './paint-plan.js';
 import { escapeXml, edgeElementId, nodeElementId, safeUrl } from './security.js';
 import { DEFAULT_SHAPE, resolveShape } from './shapes.js';
 import { buildStyleBlock, cascadeSignature, ClassTable } from './style.js';
-import { renderText, textBlock } from './text.js';
+import { markBits, renderText, textBlock } from './text.js';
 
 export * from './layout-view.js';
 export * from './markers.js';
@@ -83,10 +85,21 @@ function renderedConfig(config: Readonly<Record<string, unknown>>): string {
   return out;
 }
 
-function labelText(graph: SemanticGraph, labelId: LabelId | null): string {
-  if (labelId === null) return '';
-  const spec = graph.labels[labelId];
-  return spec === undefined ? '' : labelLines(spec.runs).join('\n');
+/** The measure table `render()` may be given (DD-11 T42): `TextLayout`s by
+ *  `labelRunKey`. */
+export type TextTable = Readonly<Record<string, TextLayoutView>>;
+
+/**
+ * A label's fields of `structureHash`: its plain text, exactly as before A18,
+ * and — only when some run is marked — one more field holding each run's
+ * marks and length (DD-11 T45). The next field hashed is the rendered config,
+ * which never starts with `\0`, so a marked label cannot hash as an unmarked
+ * one, and the marks plus the lengths say exactly how the text is split.
+ */
+function addLabel(h: StructureHasher, graph: SemanticGraph, labelId: LabelId | null): void {
+  const runs = labelId === null ? undefined : graph.labels[labelId]?.runs;
+  h.add(runs === undefined ? '' : plainText(runs));
+  if (runs?.some((r) => markBits(r))) h.add(`\0${runs.map((r) => `${markBits(r)}:${r.text.length}`).join()}`);
 }
 
 /**
@@ -138,7 +151,7 @@ function graphStructure(graph: SemanticGraph): string {
     h.add(id);
     h.add(node.hidden ? '1' : '0');
     h.add(cascadeSignature(role, node.shape, node.classes, node.config));
-    h.add(labelText(graph, node.labelId));
+    addLabel(h, graph, node.labelId);
     h.add(renderedConfig(node.config));
   }
   for (const edge of graph.edges) {
@@ -148,7 +161,7 @@ function graphStructure(graph: SemanticGraph): string {
     h.add(edge.to.node);
     h.add(edge.directed);
     h.add(cascadeSignature('edge', undefined, edge.classes, edge.config));
-    h.add(labelText(graph, edge.labelId));
+    addLabel(h, graph, edge.labelId);
     h.add(renderedConfig(edge.config));
   }
   digest = h.digest();
@@ -168,13 +181,15 @@ function graphStructure(graph: SemanticGraph): string {
  * `null` — do a full `render()` — unless it is safe: `previous` was drawn with
  * this very `layout` object (a copy, however equal, is refused) and
  * `structureHash(styled)` equals `previous.structureHash` (so the geometry,
- * the graph content the output shows and every arrowhead kind are the same).
+ * the graph content the output shows — marks included — and every arrowhead
+ * kind are the same), and `text` is the very measure table `previous` was
+ * drawn with (DD-11 T42: it says which fragments sit on which line).
  * The `<defs>` text needs no recomputing under that guard: a marker is named
  * and drawn from its arrowhead kind, size and edge signature token alone.
  */
-export function renderPaintOnly(previous: RenderResult, styled: StyledGraph, layout: LayoutView): RenderResult | null {
+export function renderPaintOnly(previous: RenderResult, styled: StyledGraph, layout: LayoutView, text?: TextTable): RenderResult | null {
   const plan = previous.paintPlan;
-  if (plan.layout !== layout) return null;
+  if (plan.layout !== layout || plan.text !== text) return null;
   const hash = structureHash(styled);
   if (hash !== previous.structureHash) return null;
   const styleBlock = paintOnlyStyleBlock(plan, styled);
@@ -248,20 +263,29 @@ function segment(seg: PathSeg): string {
 }
 
 /**
- * The label's lines, from its runs.
- *
- * `LabelSpec.runs` is already one plain run per line — `compile()`'s `textRuns`
- * splits on `\n` before a `TextRun` is ever created (DD-03), and no run's text
- * contains an embedded newline. `.map((r) => r.text)` is therefore the whole
- * function: the previous `.join('').split('\n')` concatenated every run's text
- * with no separator and then searched the result for a `\n` that could no longer
- * be there, silently collapsing every multi-line label — title and edge label
- * alike — onto one line (found via the golden churn Fix 2's baseline change
- * exposed: a label frame sized for two lines rendered as one).
+ * A label's lines, each its fragments with their marks (DD-11 T42): for a
+ * label with a box (`labelBox`: its node has `@size.maxWidth` or `width`), the
+ * lines the measure table holds for it (`labelRunKey`, as `premeasure` keyed
+ * it), so a wrapped label is drawn on exactly the lines that sized its node.
+ * Otherwise — and with no table, or on a miss — its runs split at every `\n`
+ * (T21, T34), which is exactly what an unboxed label was measured as
+ * (`layoutLines`), so no key is hashed for it on a render.
  */
-function labelLines(runs: readonly { readonly text: string }[]): readonly string[] {
-  return runs.map((r) => r.text);
+function labelLines(ctx: Ctx, labelId: LabelId, runs: readonly TextRun[]): readonly (readonly RunView[])[] {
+  const measured = labelBox(ctx.styled, labelId).maxWidth === undefined ? undefined : ctx.text?.[labelRunKey(ctx.styled, labelId)];
+  if (measured) return measured.lines.map((l) => l.runs);
+  const lines: RunView[][] = [[]];
+  for (const r of runs) {
+    r.text.split('\n').forEach((text, i) => {
+      if (i) lines.push([]);
+      if (text) lines[lines.length - 1]!.push({ text, marks: r });
+    });
+  }
+  return lines;
 }
+
+/** The accessible name's text (T48): the plain text, breaks as spaces. */
+const a11yText = (runs: readonly TextRun[]): string => plainText(runs).split('\n').join(' ');
 
 interface Ctx {
   readonly styled: StyledGraph;
@@ -270,6 +294,7 @@ interface Ctx {
   readonly markers: MarkerTable;
   readonly placements: ReadonlyMap<string, LabelPlacementView>;
   readonly diagnostics: Diagnostic[];
+  readonly text: TextTable | undefined;
 }
 
 /**
@@ -347,14 +372,14 @@ function renderNode(id: NodeId, isContainer: boolean, ctx: Ctx): string {
     const placement = ctx.placements.get(title.id as string);
     const labelStyle = ctx.styled.labelStyles[title.id];
     if (placement !== undefined && labelStyle !== undefined) {
-      const block = textBlock(labelLines(title.runs), labelStyle, placement.text);
+      const block = textBlock(labelLines(ctx, title.id, title.runs), labelStyle);
       parts.push(
-        renderText(placement, block, ctx.classes.textClasses(labelStyle, cascadeSignature(`${role}.title`, undefined, node.classes, node.config), title.id), `${kind}-title`, true),
+        renderText(placement, block, ctx.classes.textClasses(labelStyle, cascadeSignature(`${role}.title`, undefined, node.classes, node.config), title.id), `${kind}-title`, true, ctx.classes),
       );
     }
   }
 
-  const label = a11yLabel(node.config, title === null || title === undefined ? node.path[node.path.length - 1] ?? String(id) : labelLines(title.runs).join(' '));
+  const label = a11yLabel(node.config, title === null || title === undefined ? node.path[node.path.length - 1] ?? String(id) : a11yText(title.runs));
   const description = a11yDescription(node.config);
   const classAttr = escapeXml([kind, isContainer ? '' : `sh-${node.shape}`, ...node.classes].filter(Boolean).join(' '));
   const g =
@@ -400,7 +425,7 @@ function renderEdge(edgeIndex: number, ctx: Ctx): string {
   const to = String(edge.to.node);
   const joiner = edge.directed === 'none' ? 'and' : 'to';
   const labelSpec = edge.labelId === null ? undefined : ctx.styled.graph.labels[edge.labelId];
-  const labelText = labelSpec === undefined ? '' : `: ${labelLines(labelSpec.runs).join(' ')}`;
+  const labelText = labelSpec === undefined ? '' : `: ${a11yText(labelSpec.runs)}`;
 
   const edgeDescription = a11yDescription(edge.config);
   const g =
@@ -422,7 +447,7 @@ function renderEdgeLabel(edge: GraphEdge, labelId: LabelId, ctx: Ctx): string {
   const style = ctx.styled.labelStyles[labelId];
   if (spec === undefined || placement === undefined || style === undefined) return '';
 
-  const block = textBlock(labelLines(spec.runs), style, placement.text);
+  const block = textBlock(labelLines(ctx, labelId, spec.runs), style);
   const parts: string[] = [];
   const labelSignature = cascadeSignature('edge.label', undefined, edge.classes, edge.config);
 
@@ -439,7 +464,7 @@ function renderEdgeLabel(edge: GraphEdge, labelId: LabelId, ctx: Ctx): string {
     }
   }
 
-  parts.push(renderText(placement, block, ctx.classes.textClasses(style, labelSignature, labelId), 'el-text', true));
+  parts.push(renderText(placement, block, ctx.classes.textClasses(style, labelSignature, labelId), 'el-text', true, ctx.classes));
   return `<g class="el" aria-hidden="true">${parts.join('')}</g>`;
 }
 
@@ -453,9 +478,13 @@ function renderEdgeLabel(edge: GraphEdge, labelId: LabelId, ctx: Ctx): string {
  * `_theme` is part of DD-07's signature but no longer read: everything the
  * output needs from it is already resolved into `styled` (its only reader was
  * the token `<style>` element, removed with F18).
+ *
+ * `text` is the measure table the layout was sized from (DD-11 T42): each
+ * label is drawn on the lines it holds for it, marks included. Without it, or
+ * on a miss, a label is drawn on its hard lines. A label with no marks draws
+ * exactly what it drew before A18.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- DD-07's signature; see above.
-export function render(styled: StyledGraph, layout: LayoutView, _theme: ResolvedTheme): RenderResult {
+export function render(styled: StyledGraph, layout: LayoutView, _theme: ResolvedTheme, text?: TextTable): RenderResult {
   const ctx: Ctx = {
     styled,
     layout,
@@ -463,6 +492,7 @@ export function render(styled: StyledGraph, layout: LayoutView, _theme: Resolved
     markers: new MarkerTable(),
     placements: new Map(layout.labels.map((p) => [p.labelId, p])),
     diagnostics: [],
+    text,
   };
 
   const containers: string[] = [];
@@ -517,7 +547,7 @@ export function render(styled: StyledGraph, layout: LayoutView, _theme: Resolved
     structureHash: structureHash(styled),
     bounds,
     diagnostics: ctx.diagnostics,
-    paintPlan: { layout, svg, rules: ctx.classes.paintRules },
+    paintPlan: { layout, text, svg, rules: ctx.classes.paintRules, runs: ctx.classes.runs },
   };
 }
 

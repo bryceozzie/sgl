@@ -3,6 +3,7 @@
   "references": [
     { "path": "./packages/core" },
     { "path": "./packages/theme" },
+    { "path": "./packages/text" },
     { "path": "./packages/measure" },
     { "path": "./packages/layout-api" },
     { "path": "./packages/layout-elk" },

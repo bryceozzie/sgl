@@ -5,7 +5,7 @@ import { corpusStyledGraph, listCorpusDocs } from '../../theme/test/corpus.js';
 import { CanvasMeasurer, canvasIsAvailable } from '../src/canvas-measurer.js';
 import { createDefaultMeasurer } from '../src/default-measurer.js';
 import { glyphCount, layoutLines, type MeasureRun } from '../src/line-model.js';
-import { labelRunKey, labelRuns, premeasure, textStyleOf } from '../src/premeasure.js';
+import { labelBox, labelRunKey, labelRuns, premeasure, textStyleOf } from '../src/premeasure.js';
 import { canonicalRunKey, hashRuns, UNCONSTRAINED } from '../src/run-key.js';
 import {
   fontClassOf,
@@ -14,6 +14,7 @@ import {
   STATIC_METRICS,
 } from '../src/static-measurer.js';
 import { TableMeasurer } from '../src/table-measurer.js';
+import { layoutWrapped } from '@sgl/text/wrap';
 import { MeasureMiss, type StyledRun, type TextStyle } from '../src/types.js';
 
 // ---------------------------------------------------------------------------
@@ -128,14 +129,14 @@ function fixtureGraph(): StyledGraph {
         id: id<LabelId>('l:platform.api'),
         owner: { kind: 'node', id: id<NodeId>('platform.api') },
         role: 'title',
-        runs: [{ text: 'API Gateway' }, { text: 'edge · public' }],
+        runs: [{ text: 'API Gateway\nedge · public' }],
       },
       // Byte-identical text and style to `l:platform.api` — one table entry, two labels.
       [id<LabelId>('l:platform.worker')]: {
         id: id<LabelId>('l:platform.worker'),
         owner: { kind: 'node', id: id<NodeId>('platform.worker') },
         role: 'title',
-        runs: [{ text: 'API Gateway' }, { text: 'edge · public' }],
+        runs: [{ text: 'API Gateway\nedge · public' }],
       },
       [id<LabelId>('l:store')]: {
         id: id<LabelId>('l:store'),
@@ -239,15 +240,15 @@ describe('hashRuns', () => {
 // Line model
 // ---------------------------------------------------------------------------
 
-describe('the MVP line model', () => {
+describe('the hard-break line model (DD-11 §7; the MVP one-run-per-line model before A18)', () => {
   /** Fixed advances, so the arithmetic is checkable by hand (DD-05 §8). */
   const stub: MeasureRun = (text, style) => ({
     width: text.length * style.fontSize,
     ascent: style.fontSize * 0.8,
   });
 
-  it('puts one run on one line, with no wrapping', () => {
-    const layout = layoutLines(stub, [run('ab'), run('cde'), run('f')], UNCONSTRAINED);
+  it('puts each hard line on its own line, with no wrapping', () => {
+    const layout = layoutLines(stub, [run('ab\ncde\nf')], UNCONSTRAINED);
     expect(layout.lines).toHaveLength(3);
     for (const line of layout.lines) {
       expect(line.runs).toHaveLength(1);
@@ -258,7 +259,7 @@ describe('the MVP line model', () => {
 
   it('computes height and baselines from fontSize * lineHeight', () => {
     const style: TextStyle = { ...BASE_STYLE, fontSize: 10, lineHeight: 2 };
-    const layout = layoutLines(stub, [run('a', style), run('bb', style), run('c', style)], {});
+    const layout = layoutLines(stub, [run('a\nbb\nc', style)], {});
 
     // lineHeightPx = 10 * 2 = 20; ascent = 8.
     expect(layout.height).toBe(60);
@@ -294,7 +295,7 @@ describe('the MVP line model', () => {
 
   it('still occupies a line for an empty string', () => {
     const style: TextStyle = { ...BASE_STYLE, fontSize: 10, lineHeight: 1.5 };
-    const layout = layoutLines(stub, [run('a', style), run('', style)], UNCONSTRAINED);
+    const layout = layoutLines(stub, [run('a\n', style)], UNCONSTRAINED);
     expect(layout.lines).toHaveLength(2);
     expect(layout.height).toBe(30);
   });
@@ -472,12 +473,13 @@ describe('premeasure: over the corpus (DD-00 §6)', () => {
   it('covers 100% of labels in the corpus — zero worker RPC misses', () => {
     for (const doc of listCorpusDocs()) {
       const { styled } = corpusStyledGraph(doc);
-      const table = premeasure(styled, new StaticMetricsMeasurer());
+      const table = premeasure(styled, new StaticMetricsMeasurer({ lineModel: layoutWrapped }));
       const worker = new TableMeasurer(table);
       for (const id of Object.keys(styled.graph.labels)) {
         const labelId = id as LabelId;
         expect(table[labelRunKey(styled, labelId)], `${doc}: ${labelId}`).toBeDefined();
-        expect(worker.has(labelRuns(styled, labelId), UNCONSTRAINED), `${doc}: ${labelId}`).toBe(true);
+        // The worker looks a label up by its runs *and* its box (DD-11 T29).
+        expect(worker.has(labelRuns(styled, labelId), labelBox(styled, labelId)), `${doc}: ${labelId}`).toBe(true);
       }
     }
   });
@@ -489,13 +491,13 @@ describe('premeasure: over the corpus (DD-00 §6)', () => {
     // produced here by two nodes the compiler actually built.
     const { styled } = corpusStyledGraph('wildcards.sgl');
     expect(labelRunKey(styled, 'l:lane2.x' as LabelId)).toBe(labelRunKey(styled, 'l:fan1.x' as LabelId));
-    const table = premeasure(styled, new StaticMetricsMeasurer());
+    const table = premeasure(styled, new StaticMetricsMeasurer({ lineModel: layoutWrapped }));
     expect(Object.keys(table).length).toBeLessThan(Object.keys(styled.graph.labels).length);
   });
 
   it('measures a real multiline, unicode and RTL title (unicode.sgl)', () => {
     const { styled } = corpusStyledGraph('unicode.sgl');
-    const table = premeasure(styled, new StaticMetricsMeasurer());
+    const table = premeasure(styled, new StaticMetricsMeasurer({ lineModel: layoutWrapped }));
 
     const multiline = table[labelRunKey(styled, 'l:multiline' as LabelId)];
     expect(multiline?.lines).toHaveLength(2);

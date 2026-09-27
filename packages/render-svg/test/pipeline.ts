@@ -1,6 +1,7 @@
-import type { Diagnostic, LabelId, Size } from '@sgl/core';
+import type { CompileOptions, Diagnostic, LabelId, Size } from '@sgl/core';
 import { compile, parse, resolve } from '@sgl/core';
 import { compileImports, createImportLinker, resolveImports } from '@sgl/core/imports';
+import { parseInline } from '@sgl/core/inline';
 import {
   applyHostFallbacks,
   buildLayoutInput,
@@ -15,13 +16,20 @@ import {
   type StyledGraphInput,
 } from '@sgl/layout-api';
 import { gridEngine } from '@sgl/layout-std';
-import { labelRunKey, premeasure, StaticMetricsMeasurer } from '@sgl/measure';
+import { labelRunKey, premeasure, StaticMetricsMeasurer, type MeasureTable } from '@sgl/measure';
+import { layoutWrapped } from '@sgl/text/wrap';
 import { BUILT_IN, neutralLight, resolveTheme, styleGraph, type ResolvedTheme, type StyledGraph, type ThemeDoc } from '@sgl/theme';
 import { fileSystemHost } from '../../core/test/fs-host.js';
 import { corpusPath, corpusSource, listCorpusDocs } from '../../theme/test/corpus.js';
 import { render, type RenderResult } from '../src/index.js';
 
 export { corpusPath, corpusSource, listCorpusDocs };
+
+/** A18: the corpus documents that hold markdown or wrap, which the rich
+ *  pipeline (`INLINE`: compile with `@sgl/core/inline`) draws with marks and
+ *  soft breaks (DD-11 T42–T47, T58). */
+export const RICH_DOCS: readonly string[] = ['multiline.sgl', 'text/markdown.sgl', 'text/wrap.sgl', 'injection/markdown-in-label.sgl'];
+export const INLINE: CompileOptions = { inline: parseInline };
 
 /**
  * `source -> RenderResult`: `parse -> resolve -> compile -> resolveTheme ->
@@ -68,6 +76,8 @@ export interface RenderedDoc {
   readonly styled: StyledGraph;
   readonly input: LayoutInput;
   readonly result: LayoutResult;
+  /** The pre-measure table the layout was sized from (A18: the seam test). */
+  readonly table: MeasureTable;
   readonly theme: ResolvedTheme;
   readonly rendered: RenderResult;
   /** Every diagnostic from every stage — parse, resolve, compile, resolveTheme,
@@ -93,8 +103,8 @@ async function layOut(
   styled: StyledGraph,
   engine: LayoutEngine,
   options: Readonly<Record<string, unknown>>,
-): Promise<{ readonly input: LayoutInput; readonly result: LayoutResult; readonly diagnostics: readonly Diagnostic[] }> {
-  const table = premeasure(styled, new StaticMetricsMeasurer());
+): Promise<{ readonly input: LayoutInput; readonly result: LayoutResult; readonly table: MeasureTable; readonly diagnostics: readonly Diagnostic[] }> {
+  const table = premeasure(styled, new StaticMetricsMeasurer({ lineModel: layoutWrapped }));
   const labelSizes: Record<LabelId, Size> = {};
   for (const labelId of Object.keys(styled.graph.labels).sort() as LabelId[]) {
     const layout = table[labelRunKey(styled, labelId)];
@@ -104,7 +114,7 @@ async function layOut(
   const raw = await engine.layout(input, ctxWith(options));
   const result = quantize(applyHostFallbacks(input, raw, engine.capabilities, METRICS), 64);
   const diagnostics = validateResult(result, styled.graph, engine.id);
-  return { input, result, diagnostics };
+  return { input, result, table, diagnostics };
 }
 
 /** The whole pipeline, `source -> RenderResult`, under one theme. Calls the
@@ -118,22 +128,24 @@ export async function runPipeline(
   engine: LayoutEngine = gridEngine,
   options: Readonly<Record<string, unknown>> = {},
   path?: string,
+  compileOptions?: CompileOptions,
 ): Promise<RenderedDoc> {
   const { ast, diagnostics: d1 } = parse(source);
   const linker = path === undefined ? undefined : createImportLinker(fileSystemHost(path), { self: path });
   const { model, diagnostics: d2 } = linker === undefined ? resolve(ast) : resolveImports(ast, linker);
-  const { graph, diagnostics: d3 } = linker === undefined ? compile(model) : compileImports(model);
+  const { graph, diagnostics: d3 } = linker === undefined ? compile(model, undefined, compileOptions) : compileImports(model, undefined, compileOptions);
   // SGL4010 (Stage K fix round 1, item 23), as the app's pipeline emits it:
   // the document's `@layout` keys against the engine laying it out.
   const d3b = layoutConfigDiagnostics(ast, { id: engine.id, ...(engine.optionsSchema && { optionsSchema: engine.optionsSchema }), ...(engine.hintsSchema && { hintsSchema: engine.hintsSchema }) });
   const { value: theme, diagnostics: d4 } = resolveTheme(themeDoc, (id) => BUILT_IN[id]);
   const { value: styled, diagnostics: d5 } = styleGraph(graph, theme, model.classes);
-  const { input, result, diagnostics: d6 } = await layOut(styled, engine, options);
-  const rendered = render(styled, result, theme);
+  const { input, result, table, diagnostics: d6 } = await layOut(styled, engine, options);
+  const rendered = render(styled, result, theme, table);
   return {
     styled,
     input,
     result,
+    table,
     theme,
     rendered,
     diagnostics: [...d1, ...d2, ...d3, ...d3b, ...d4, ...d5, ...d6, ...rendered.diagnostics],

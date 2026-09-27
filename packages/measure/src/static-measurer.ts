@@ -27,7 +27,8 @@
  * remains the browser default (DD-05 §4).
  */
 
-import { layoutLines, type MeasureRun, type RunMetrics } from './line-model.js';
+import { layoutLines, type LineModel, type MeasureRun, type RunMetrics } from '@sgl/text';
+import type { MeasurerOptions } from './canvas-measurer.js';
 import type { BoxConstraints, Measurer, StyledRun, TextLayout, TextStyle } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -199,8 +200,17 @@ export const staticRunMetrics: MeasureRun = (text: string, style: TextStyle): Ru
 // ---------------------------------------------------------------------------
 
 export class StaticMetricsMeasurer implements Measurer {
+  /** `layoutLines` unless the caller passes `layoutWrapped` (DD-11 T53); Node,
+   *  the CLI and the test pipelines import both statically and pass it.
+   *  Writable, as `CanvasMeasurer`'s is. */
+  lineModel: LineModel;
+
+  constructor(options: MeasurerOptions = {}) {
+    this.lineModel = options.lineModel ?? layoutLines;
+  }
+
   layoutRuns(runs: readonly StyledRun[], box: BoxConstraints): TextLayout {
-    return layoutLines(staticRunMetrics, runs, box);
+    return this.lineModel(staticRunMetrics, runs, box);
   }
 
   layoutRunsAsync(runs: readonly StyledRun[], box: BoxConstraints): Promise<TextLayout> {

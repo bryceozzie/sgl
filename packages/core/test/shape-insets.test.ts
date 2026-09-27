@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contentInsets } from '../src/content-insets.js';
+import { contentInsets } from '../src/shape-insets.js';
 
 /**
  * DD-07 §4's inset column is stated in terms of the *shape's own* w/h, not the

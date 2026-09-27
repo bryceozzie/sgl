@@ -1,0 +1,9 @@
+// Markdown in labels (A18, DD-11 T47): hostile text inside each mark, drawn as
+// a nested <tspan class="r-..."> by the rich pipeline. Fragment text is escaped
+// once, like any text; class names are the three run constants, never text.
+a: { @label: "**<script>alert(1)</script>**" }
+b: { @label: "`</tspan><script>alert(2)</script>`" }
+c: { @label: "*\" onload=\"alert(3)*" }
+d: { @label: "`]]>` and ***<![CDATA[x]]>***" }
+e: { @label: "**&lt;b&gt;** *&#60;i&#62;* `&amp;`" }
+a -> b: "*</text><script>alert(4)</script>*"

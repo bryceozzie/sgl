@@ -18,6 +18,7 @@ import type { BoxConstraints, StyledRun } from '@sgl/measure';
 import n50 from '../../../corpus/n50.sgl?raw';
 import n500 from '../../../corpus/n500.sgl?raw';
 import n2000 from '../../../corpus/n2000.sgl?raw';
+import { scaleDocument } from '../../../bench/scale-document.js';
 
 /**
  * F9, end to end (execution plan §1, §2; orchestrator decisions, Stage L phase
@@ -184,7 +185,15 @@ const SAMPLES = 3;
  *  gate asserts the miss persists. Empty since `feat/theme-fast-path`: F9's
  *  gate is on at every point. */
 const KNOWN_MISSES: ReadonlySet<string> = new Set<string>([]);
-const SOURCES: Readonly<Record<string, string>> = { n50, n500, n2000 };
+/**
+ * A18 (DD-11 T57): `n2000-rich`, every label marked up (``**Node** `n${i}` ``,
+ * nested run tspans) and every tenth wrapped, built in memory by
+ * `bench/scale-document.js`. Measured and printed, **not gated**: F9's gate
+ * judges n50/n500/n2000, which hold no markup. A miss is recorded in F9's row,
+ * and the response is DD-09 §2's second column, not a change to T43.
+ */
+const REPORTED_ONLY: readonly string[] = ['n2000-labelled', 'n2000-rich'];
+const SOURCES: Readonly<Record<string, string>> = { n50, n500, n2000, 'n2000-labelled': scaleDocument(2000, { labelled: true }), 'n2000-rich': scaleDocument(2000, { rich: true }) };
 
 vi.setConfig({ testTimeout: 600_000, hookTimeout: 120_000 });
 
@@ -332,7 +341,9 @@ async function mountApp(source: string): Promise<Harness> {
     },
     dispose: () => realHost.dispose(),
   };
-  const pipeline = createPipeline({ measurer, host: layoutHost, metrics: APP_METRICS, defaultEngineId: 'sgl.grid', defaultThemeId: LIGHT }, source);
+  // The lazy `rich-text` chunk, as `App.tsx` loads it (A18, DD-11 T53).
+  const loadRichText = () => import('../src/state/rich-text.js').then((m) => m.richText);
+  const pipeline = createPipeline({ measurer, host: layoutHost, metrics: APP_METRICS, defaultEngineId: 'sgl.grid', defaultThemeId: LIGHT, loadRichText }, source);
   // `Editor`'s `updateListener` calls `pipeline.setDocument(tree, source)` by
   // property lookup, so timing it here splits the dispatch into CodeMirror's
   // share and the pipeline's, with `Editor.tsx` unchanged.
@@ -639,12 +650,12 @@ function measure(name: string, c: Case, p: Pick, sample = 0): Promise<readonly R
 }
 
 describe.skipIf(navigator.userAgent.includes('Firefox'))("F9 end to end: Theme ▾ neutral-light → neutral-dark, the picker's real path (Chromium)", () => {
-  for (const name of ['n50', 'n500', 'n2000']) {
+  for (const name of ['n50', 'n500', 'n2000', ...REPORTED_ONLY]) {
     for (const c of CASES) {
       for (const p of PICKS) {
         it(`${name} (${CASE_LABEL[c]}, ${p} pick): measure`, async () => {
           const runs = await measure(name, c, p);
-          const gated = c === 'no-theme' ? `budget ${BUDGET_MS[name]} ms` : 'not gated: the document text changes';
+          const gated = REPORTED_ONLY.includes(name) ? 'not gated: reported (DD-11 T57)' : c === 'no-theme' ? `budget ${BUDGET_MS[name]} ms` : 'not gated: the document text changes';
           const line = `[F9-E2E] ${name} ${CASE_LABEL[c]} ${p} | ${COLUMNS.map(([k, label]) => `${label} ${fmt(runs.map((r) => r[k]))}`).join(' | ')} | ${gated}`;
           console.log(`[F9-E2E] (ms, median (min–max) of ${RUNS} runs after ${WARMUP} warmups)\n${line}`);
           expect(runs).toHaveLength(RUNS);
@@ -655,6 +666,7 @@ describe.skipIf(navigator.userAgent.includes('Firefox'))("F9 end to end: Theme �
     // The F9 gate for this point: the slower pick of the ordinary, no-@theme
     // case, in three samples (fix round 1, item 3). It measures for itself
     // when run alone, so it can never pass without a measurement.
+    if (REPORTED_ONLY.includes(name)) continue;
     it(`${name}: meets the budget (best of ${SAMPLES} samples < ${BUDGET_MS[name]} ms; median of them < ${CEILING_MS[name]} ms ceiling; median work, no @theme, slower pick)${KNOWN_MISSES.has(name) ? ' [known miss]' : ''}`, async () => {
       // One after the other: the timing wrappers are shared, so two
       // measurements must never overlap.
