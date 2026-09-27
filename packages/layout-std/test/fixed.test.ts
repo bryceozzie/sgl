@@ -127,6 +127,35 @@ describe('fixed: root pins fix positions relative to each other; the host frames
   });
 });
 
+describe('fixed: the ±100 000 bound is per pin; nested pins add up (fix round 1, item 4)', () => {
+  // Three levels, each pinned at the bound: every pin is valid (no SGL2011),
+  // and the leaf lands past 300 000 in the engine's own coordinates. No new
+  // warning (orchestrator decision); the frame stays finite, so the host
+  // accepts it. The golden pins the bounds of that input.
+  const SOURCE = 'outer: {\n  @pin: { x: 100000, y: 100000 }\n  mid: {\n    @pin: { x: 100000, y: 100000 }\n    leaf: { @pin: { x: 100000, y: 100000 } }\n  }\n}\nfar: { @pin: { x: -100000, y: -100000 } }\n';
+
+  it('accepts every pin, and the leaf lands at the sum of the pins and paddings', async () => {
+    const input = layoutInputForSource(SOURCE);
+    for (const id of ['outer', 'outer.mid', 'outer.mid.leaf', 'far']) expect(input.graph.nodes[n(id)]!.config['pin'], id).toBeDefined();
+    const r = await raw(input);
+    const po = input.sizing[n('outer')]!.padding;
+    const pm = input.sizing[n('outer.mid')]!.padding;
+    expect(frame(r, 'outer.mid.leaf').x).toBe(100000 + po[3] + 100000 + pm[3] + 100000);
+    expect(frame(r, 'outer.mid.leaf').x).toBeGreaterThan(300000);
+  });
+
+  it('is laid out and framed by the host with no diagnostic (bounds golden)', async () => {
+    const input = layoutInputForSource(SOURCE);
+    const { raw: r, result } = await runHostSequence(fixedEngine, input, {}, METRICS);
+    expect(r.notes ?? []).toEqual([]);
+    expect(validateResult(result, input.graph, fixedEngine.id)).toEqual([]);
+    expect(result.bounds.w).toBeGreaterThan(400000);
+    await expect(`${JSON.stringify({ bounds: result.bounds, frames: Object.fromEntries(input.graph.order.map((id) => [id, result.nodes[id]!.frame])) }, null, 2)}\n`).toMatchFileSnapshot(
+      './__goldens__/fixed/nested-pins-past-bound.json',
+    );
+  });
+});
+
 describe('fixed: containers (DD-12 N12, N13)', () => {
   it('derives a container’s size from its children’s far edges plus padding', async () => {
     const input = layoutInputForSource('box: {\n  @label: "B"\n  a: { @pin: { x: 10, y: 0 } }\n  b: { @pin: { x: 0, y: 50 } }\n}\n');
