@@ -313,24 +313,30 @@ function withLink(inner: string, config: Readonly<Record<string, unknown>>, elem
   return `<a href="${escapeXml(href)}" target="_blank" rel="noopener noreferrer">${inner}</a>`;
 }
 
-function a11yLabel(config: Readonly<Record<string, unknown>>, fallback: string): string {
+/** The `@a11y` sub-keys the renderer reads (DD-07 §7): `label` replaces the
+ *  default `aria-label`, `description` adds `aria-description`. Anything else
+ *  under `@a11y` has no effect. Exported for the help reference (DD-13 P5). */
+export const A11Y_KEYS = ['label', 'description'] as const;
+const [A11Y_LABEL, A11Y_DESCRIPTION] = A11Y_KEYS;
+
+/** One `@a11y` sub-key's text, or `null` when it is absent or empty. */
+function a11yField(config: Readonly<Record<string, unknown>>, key: (typeof A11Y_KEYS)[number]): string | null {
   const a11y = config['a11y'];
   if (typeof a11y === 'object' && a11y !== null) {
-    const l = (a11y as Record<string, unknown>)['label'];
-    if (typeof l === 'string' && l !== '') return l;
+    const v = (a11y as Record<string, unknown>)[key];
+    if (typeof v === 'string' && v !== '') return v;
   }
-  return fallback;
+  return null;
+}
+
+function a11yLabel(config: Readonly<Record<string, unknown>>, fallback: string): string {
+  return a11yField(config, A11Y_LABEL) ?? fallback;
 }
 
 /** `@a11y.description` adds `aria-description` alongside `aria-label`; absent when
  *  not given (DD-07 §7). Found missing entirely during Stage F verification. */
 function a11yDescription(config: Readonly<Record<string, unknown>>): string | null {
-  const a11y = config['a11y'];
-  if (typeof a11y === 'object' && a11y !== null) {
-    const d = (a11y as Record<string, unknown>)['description'];
-    if (typeof d === 'string' && d !== '') return d;
-  }
-  return null;
+  return a11yField(config, A11Y_DESCRIPTION);
 }
 
 /** A node or container. Containers go in the first layer, leaves in the third. */

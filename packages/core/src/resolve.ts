@@ -51,6 +51,7 @@ import type {
 } from './model.js';
 import { parse } from './parse.js';
 import { NO_SPAN, type SourceSpan } from './span.js';
+import { EDGES_KEY, EXTENDS_KEY } from './structural-keys.js';
 
 export interface ResolveResult {
   readonly model: DocumentModel;
@@ -483,7 +484,7 @@ function buildEntries(entries: readonly Entry[], acc: Acc, classNames: ReadonlyS
   for (const entry of entries) {
     switch (entry.kind) {
       case 'ConfigEntry':
-        if (entry.key.length === 1 && entry.key[0] === 'edges') applyEdgesArray(entry, acc, classNames, diags);
+        if (entry.key.length === 1 && entry.key[0] === EDGES_KEY) applyEdgesArray(entry, acc, classNames, diags);
         else applyConfigEntry(entry, acc, classNames, diags);
         break;
       case 'NodeDecl':
@@ -789,7 +790,7 @@ function buildClassBody(props: readonly Property[], diags: Diagnostic[]): { bag:
       continue;
     }
     const keyParts = prop.key.split('.');
-    if (keyParts.length === 1 && keyParts[0] === 'extends') {
+    if (keyParts.length === 1 && keyParts[0] === EXTENDS_KEY) {
       extendRefs.push(...extractNameRefs(prop.value));
       continue;
     }

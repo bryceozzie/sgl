@@ -37,7 +37,7 @@ import type {
 import { breakExtendsCycles, extendsEdge } from './class-graph.js';
 import { LANGUAGE_SHAPES } from './config-registry.js';
 import { fnv1a64 } from './hash.js';
-import { asEdgeId, asLabelId, asNodeId, asPortId, DRAWABLE_SHAPES, nodeIdFromPath, type NodeId, type ShapeId } from './ids.js';
+import { asEdgeId, asLabelId, asNodeId, asPortId, DEFAULT_SHAPE, DRAWABLE_SHAPES, nodeIdFromPath, type NodeId, type ShapeId } from './ids.js';
 import type { ClassModel, ConfigBag, ConfigValue, ContainerModel, DocumentModel, EdgeModel, SpanTable } from './model.js';
 import { NO_SPAN, type SourceSpan } from './span.js';
 
@@ -191,15 +191,15 @@ function resolveShape(
       }
     }
   }
-  if (raw === undefined) return 'rect';
+  if (raw === undefined) return DEFAULT_SHAPE;
   if (DRAWABLE_SHAPES.has(raw)) return raw;
   const related = classDeclarationRelated(sourceClass, spans);
   if (LANGUAGE_SHAPES.has(raw)) {
     diags.push(diagnostic('SGL3006', span, { name: raw }, related));
-    return 'rect';
+    return DEFAULT_SHAPE;
   }
   diags.push(diagnostic('SGL3001', span, { name: raw }, related));
-  return 'rect';
+  return DEFAULT_SHAPE;
 }
 
 /** A port's merged value plus which class (if any — `undefined` means the
@@ -232,7 +232,9 @@ function mergePorts(
   return merged;
 }
 
-const PORT_SIDES: ReadonlySet<string> = new Set(['north', 'south', 'east', 'west']);
+/** The frozen four port sides, in the order help lists them (DD-13 P5): the
+ *  values `@ports` accepts, and nothing else. */
+export const PORT_SIDES: ReadonlySet<string> = new Set<PortSpec['side']>(['north', 'south', 'east', 'west']);
 
 /** A port whose value isn't one of the frozen four sides is `SGL3007` and falls
  *  back to `east` — the compiler's job, exactly as it owns `shape` (DD-02 §7's
