@@ -2076,6 +2076,25 @@ cost is ~3.2 kB of the 6.01 kB left.
 - **Size:** core **178.04 kB** of 182, +1.08 kB over `main`.
 - **Docs:** DD-12 §13 (as built, with deviations), DD-06 §3, §7, §7a, §8, §9, DD-08 §10, the
   corpus and bench READMEs.
+- **Fix round 1** (after merging `main` at `281c173`; no blocker, 14 of 14 mutations killed). Five
+  items; each test failed first, or, for behaviour that already held, was shown to fail against a
+  mutant.
+  1. Unpinned nodes pack from `max(0, leftmost pin)` and `max(0, lowest bottom + gap)`, so only a
+     node its author pinned outside its container is outside it (orchestrator decision).
+     `pin-negative.sgl` gains an unpinned `c`: still only `SGL4003` for `box.a`.
+  2. Root pins are relative to each other, and the drawing is framed to fit (human decision). The
+     spec §4 `@pin` row says so; a host-sequence test pins it (a negative sibling and a self-loop
+     move the canvas, and the offsets stay exact).
+  3. **`SGL4022`** (info, human decision): past `MAX_ENGINE_NOTES`, the host adds one "`N` more
+     layout warnings not shown." at the document start. An engine cannot emit it. Fixture:
+     `layout/pin-many-loose.sgl` (150 unpinned nodes: 100 `SGL4020`, one `SGL4022` with 50).
+  4. The ±100 000 bound is per pin, and nested pins add up. This is in the spec and DD-12 N4, with a
+     bounds golden. There is no new warning.
+  5. `fixed`'s conformance run has pinned siblings that overlap, so check 3's exemption is
+     exercised by behaviour (mutation M6).
+
+  After the merge, `fixed`'s `checkout.sgl` golden was regenerated: `main`'s `@style` rewrite
+  shifts its note spans. Size: core **179.19 kB** of 182, +1.16 kB over `main` (178.03).
 
 **Help branch 1, `feat/help-reference`** (Stage L, E19, DD-13 §13 branch 1; branched from `main` at
 `ca9956e`; no golden changed). **DD-13 P5's exports**, each now the value the code uses in place of
