@@ -75,9 +75,8 @@ test('markup in a label loads the chunk, and each mark is drawn in its own face:
   expect((await computed('g[id="n-api"] tspan.r-code')).family).toMatch(/^"IBM Plex Mono"/);
   expect(await computed('g.el tspan.r-em')).toMatchObject({ weight: '400', style: 'italic' });
   expect(await renderedSvg(page).locator('g[id="n-calc"] tspan[class]').count()).toBe(0);
-  // The faces themselves arrived: the real Inter 700, Inter Italic 400 and Plex Mono 400, not synthesised ones.
-  const loaded = await page.evaluate(() => [...document.fonts].filter((f) => f.status === 'loaded').map((f) => `${f.family.replace(/"/g, '')} ${f.style} ${f.weight}`).sort());
-  expect(loaded).toEqual(expect.arrayContaining(['IBM Plex Mono normal 400', 'Inter italic 400', 'Inter normal 700']));
+  // (That the faces are loaded before the runs are measured is
+  // `test/rich-font-gate.browser.test.ts`'s: after the paint they always are.)
 });
 
 test('code is never italic, as the browser computes it: `b` inside *a `b`* is upright Plex (DD-11 T25, T44)', async ({ page }) => {

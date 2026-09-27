@@ -144,8 +144,7 @@ test.describe('DD-08 §14', () => {
     const warm = await nodeGeometry(page);
 
     expect(warm).toEqual(cold);
-    // …and measured in the real faces: the italic title is not the upright one's width.
-    const loaded = await page.evaluate(() => [...document.fonts].filter((f) => f.status === 'loaded').map((f) => `${f.family.replace(/"/g, '')} ${f.style} ${f.weight}`));
-    expect(loaded).toEqual(expect.arrayContaining(['Inter italic 500', 'Inter italic 400', 'Inter normal 700', 'IBM Plex Mono normal 400']));
+    // That each face is loaded before its runs are measured, not just by the
+    // time of the paint, is `test/rich-font-gate.browser.test.ts`'s.
   });
 });
