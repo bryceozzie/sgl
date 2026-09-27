@@ -71,6 +71,23 @@ describe('toasts (DD-08 §11)', () => {
       expect(toasts.hidden.value).toBe(0);
     });
 
+    it('round 1, item 5: errors take the three places before info toasts, and held errors are counted', () => {
+      const clock = createFakeClock();
+      const toasts = createToasts(clock.schedule);
+      const first = toasts.push('error 1', 'error');
+      for (const n of [2, 3, 4]) toasts.push(`error ${n}`, 'error');
+      toasts.push('info 1');
+      toasts.push('info 2');
+      // Newer info toasts never push an error out of view.
+      expect(toasts.visible.value.map((t) => t.message)).toEqual(['error 2', 'error 3', 'error 4']);
+      expect(toasts.hidden.value).toBe(3);
+      expect(toasts.heldErrors.value).toBe(1);
+      // The first error is reachable: close a shown one and it comes forward.
+      toasts.dismiss(toasts.visible.value[2]!.id);
+      expect(toasts.visible.value.map((t) => t.id)).toContain(first);
+      expect(toasts.heldErrors.value).toBe(0);
+    });
+
     it('dismissAll closes every toast, shown or held, and cancels their timers', () => {
       const clock = createFakeClock();
       const toasts = createToasts(clock.schedule);

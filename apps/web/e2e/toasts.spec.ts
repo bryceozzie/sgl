@@ -25,7 +25,7 @@ test('five error toasts: three show, two wait behind "2 more", and come back as 
 
   await expect(errors(page)).toHaveCount(3);
   // The count is announced politely, outside the alert region.
-  await expect(more(page)).toHaveText(/^2 more/);
+  await expect(more(page).locator('.toast-message')).toHaveText('2 more, 2 of them errors');
   expect(await more(page).evaluate((el) => el.closest('[role="status"]') !== null && el.closest('[role="alert"]') === null)).toBe(true);
 
   // Closing a shown error brings a held one back: nothing was dropped.
@@ -39,7 +39,8 @@ test('five error toasts: three show, two wait behind "2 more", and come back as 
   // Close all.
   await pasteInvalidLink(page, 4);
   await expect(more(page)).toHaveText(/^1 more/);
-  await more(page).getByRole('button', { name: 'Dismiss all' }).click();
+  // The button says it closes unread errors too (round 1, item 5).
+  await more(page).getByRole('button', { name: 'Dismiss all, including 1 unread error', exact: true }).click();
   await expect(page.locator('.toasts .toast')).toHaveCount(0);
   await expect(more(page)).toHaveCount(0);
 });
