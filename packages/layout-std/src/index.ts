@@ -7,4 +7,5 @@
  * (ADR-0005).
  */
 
+export * from './descriptor.js';
 export * from './grid.js';

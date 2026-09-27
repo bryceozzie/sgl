@@ -120,6 +120,9 @@ importers:
       '@preact/preset-vite':
         specifier: ^2.10.2
         version: 2.10.6(@babel/core@7.29.7)(preact@10.29.8)(rollup@4.63.2)(vite@7.3.6(jiti@2.7.0)(terser@5.51.2))
+      terser:
+        specifier: ^5.51.2
+        version: 5.51.2
       vite:
         specifier: ^7.1.7
         version: 7.3.6(jiti@2.7.0)(terser@5.51.2)

@@ -2,6 +2,7 @@ import preact from '@preact/preset-vite';
 import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { HEADERS_FILE, META_CSP, headersFor, parseHeadersFile } from './build/headers.js';
+import { sglMinify } from './build/minify.js';
 
 /**
  * DD-10 §5 / DD-09 §1.2 (J4): writes `dist/_headers`, mirrors the CSP into the
@@ -100,6 +101,9 @@ export default defineConfig({
       },
     }),
     sglHeaders(),
+    // F20: terser, not esbuild, minifies the JS (`build/minify.ts`), so
+    // `build.minify` is off below; the worker build takes the same plugin.
+    sglMinify(),
   ],
   // The layout worker is its own Rollup build. It must be an ES module
   // (Vite's default worker format is `iife`, which cannot code-split), so
@@ -107,9 +111,12 @@ export default defineConfig({
   // fetched on first use rather than being inlined into the worker (K1).
   worker: {
     format: 'es',
+    plugins: () => [sglMinify()],
     rollupOptions: { output: { manualChunks: elkChunk } },
   },
   build: {
+    minify: false, // `sglMinify()` minifies instead (F20).
+    cssMinify: 'esbuild', // As before: it follows `minify` unless set.
     rollupOptions: {
       output: {
         manualChunks(id) {

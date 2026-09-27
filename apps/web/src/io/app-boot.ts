@@ -1,5 +1,5 @@
 import { elkDescriptor } from '@sgl/layout-elk/descriptor';
-import { gridEngine } from '@sgl/layout-std';
+import { gridDescriptor } from '@sgl/layout-std/descriptor';
 import { BUILT_IN, DEFAULT_THEME_ID } from '@sgl/theme';
 import EXAMPLE_SOURCE from '../examples/checkout.sgl?raw';
 import { bootDocument, fallbackBoot, newDocumentId, type BootResult, type IdSource } from '../state/boot.js';
@@ -9,9 +9,10 @@ import { openIdbStore } from '../state/storage-idb.js';
 /** The engines actually registered in `apps/web/src/layout.worker.ts`: `elk`
  *  and `grid`. Read from the same objects the worker registers — `elk`'s
  *  descriptor entry, which carries everything but `layout()` and so none of
- *  elkjs (Stage K, K1) — rather than duplicated by hand, so the picker cannot
- *  list something the worker does not actually run. */
-export const REGISTERED_ENGINES = [elkDescriptor, gridEngine].map((e) => ({
+ *  elkjs (Stage K, K1), and `grid`'s, which leaves its packing code to the
+ *  worker (F20) — rather than duplicated by hand, so the picker cannot list
+ *  something the worker does not actually run. */
+export const REGISTERED_ENGINES = [elkDescriptor, gridDescriptor].map((e) => ({
   id: e.id,
   name: e.name,
   determinism: e.capabilities.determinism,

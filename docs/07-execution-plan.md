@@ -568,6 +568,36 @@ width estimate were removed. **Size:** 181.97 kB after the merge → 181 971 B (
 - **Docs**: DD-11 (status, T26, T28, T42–T50, T54–T58, T60, §19 items 3, 5, 8); DD-07 §5, §6, §9,
   §11; DD-08 §3, §5, §7, §12; DD-09 §2, §3.2; DD-10 §1–§2; architecture §7; README attribution.
 
+**F20 bundle headroom** (Stage L, `feat/boot-headroom`, from `main` at `944015b`; **not merged**).
+Size only; no behaviour, golden, CSP or precache change, and no new chunk. Measured first: the core
+bundle's 181 970 B broken down by source module (marginal gzip; `@codemirror/view` 55.1 kB, `state`
+14.7, `@lezer/lr` 8.0, `language` 7.5, `commands` 7.0, `@lezer/common` 6.6, `lint` 4.5, core's
+`resolve` 4.2, preact 4.0, …; the worker 8.8 kB). Two changes, each its own commit:
+- **`@sgl/layout-std/descriptor`** (`ea5fd5c`, **−996 B**). The page imported `gridEngine` for
+  `REGISTERED_ENGINES`, and an object literal's `layout()` cannot be tree-shaken, so grid's packing
+  code sat in the boot bundle though only the worker runs it. `gridDescriptor` (everything but
+  `layout()`, as `@sgl/layout-elk/descriptor` is for elk) is its own entry; `gridEngine` spreads it.
+  Tests: `layout-std/test/descriptor.test.ts` (the descriptor field by field, and `gridEngine`
+  minus `layout()`); `check-core-chunks.mjs` fails if a boot chunk holds grid's layout code, and
+  requires the worker to (shown failing on the build before the change).
+- **Terser minifies the JS** (`bf1053c`, **−4 980 B**). `apps/web/build/minify.ts`'s `sglMinify()`,
+  a `post` `renderChunk` hook on the page and the worker builds, with `build.minify: false` (terser
+  over esbuild's output was 1 kB *larger*) and `build.cssMinify: 'esbuild'` (CSS byte-identical).
+  `module: true`, `ecma: 2020`, two compress passes, no `unsafe*` option. The lazy `elk` chunk keeps
+  esbuild (terser takes ~45 s on elkjs; the build stays ~15 s). `terser` 5.51.2 was already in the
+  lockfile (vite's optional peer, through workbox-build) and is now a declared **devDependency** of
+  `@sgl/web`; nothing of it ships. Tests: `apps/web/test/minify.test.ts` (3); all 109 e2e cases run
+  against this build.
+- **Size.** Core bundle 181 970 → 180 974 → **175 994 B (175.99 kB) of 182 kB: 6.01 kB left**
+  (5 976 B reclaimed). §2.1 F20 is closed. Not taken, for the human (each needs a behaviour or
+  design change): elk's mapping into the lazy `elk` chunk (−2.3 kB from the worker, but the
+  default engine needs it before the first picture, and DD-10 §2 settles that chunk as elkjs only);
+  a lazy `@codemirror/lint` (−4.3 kB, but the editor's first render shows diagnostics); the static
+  measurer as a lazy degrade path (−1.0 kB, but `CanvasMeasurer` falls back to it synchronously);
+  the high-contrast and print themes, the example document and the diagnostics catalogue (each
+  needed by some first render).
+- **Docs**: DD-06 §7, DD-08 (Stage K's engines paragraph), DD-10 §2.
+
 **Stage K merged to `main` at `0e9ecfc`** (`--no-ff`, 2026-09-23) after a three-lens review and
 one fix round (23 items). `pnpm check`'s steps from clean are green on `main`, run by the
 orchestrator: 2139 Vitest passed (unit + browser project, Chromium only), e2e 55/55 in Chromium,
@@ -1889,7 +1919,6 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F23** | **A document that imports many nodes `as:` costs what that many nodes cost, on every keystroke** (A9 fix round 1). Eight 1 500-node libraries imported `as:` graft 12 000 nodes, and a keystroke is ~250 ms in Node: `resolveImports` 39 ms (the imports themselves are cached; the graft is cheaper than resolving the same nodes written in the document, 53 ms) and `compileImports` 221 ms (`compile()` of the same nodes, 214 ms). The keystroke budget (DD-09 §2) is for 50 nodes; this is a 12 000-node document. Candidates: an incremental compile, or a graft kept across keystrokes when the imports are unchanged. Measured by `packages/core/test/imports-keystroke.test.ts` (DD-02 §10.8). | Stage L, with the next performance work on large documents |
 | **F24** | **Wrapping re-measures every wrapped label on each keystroke, and `CanvasMeasurer`'s cache thrashes past ~7 000 of them** (A18 fix round 1, item 5). Measured in Node (static metrics, 7-run medians; long labels on the n2000 document): `premeasure` 11.7 ms unwrapped, **20.5 ms with every node wrapped** at 90 px (30.8 ms with the branch's first, quadratic breaker; the review measured 17 → 87–98 ms on its own document with it). Through `CanvasMeasurer` with a counting fake canvas, three `premeasure` passes over the same graph (what three keystrokes do) make 5 746 / 0 / 0 canvas calls at 2 000 wrapped labels and 17 174 / 0 / 0 at 6 000, but **20 068 / 20 053 / 20 051 at 7 000** and 29 375 / 28 846 / 28 938 at 10 000: past the 20 000-entry cache (about three entries per wrapped label: its words, separators and laid fragments) every pass misses. With the quadratic breaker it thrashed from ~5 000 (24 027 / 24 006 / 24 006 at 6 000). **An LRU does not help** (tried: 19 016 per repeat pass at 7 000, 28 479 at 10 000; a cyclic scan larger than the cache defeats any recency policy), so the clear-all cache stays. The remedy is for `premeasure` to reuse the previous table's entry for an unchanged key (DD-05 §5 already describes the app keeping its previous table), dropping the table when the measurer's line model changes (the rich-text chunk loading, or its degraded model); or a larger cap. **Notes:** measure it in the browser, with real `measureText`, together with F15's browser measurement before Gate 4 (the n2000-rich variant of DD-11 T56 is not built yet). | Stage L, before Gate 4, with F15 |
 | **F25** | **The renderer's first baseline is `0.8 × fontSize`; measurement's ascent is the font's own** (DD-11 §19 item 5; found by DD-11's design, measured by `feat/a18-render`). DD-07 §5 once said `y = frame.y + layout.ascent` from the measured `TextLayout`; `render()` was never given one and has always drawn `0.8 × fontSize`, which A18 kept (T42) so no golden moved. `CanvasMeasurer`'s ascent is `fontBoundingBoxAscent`, which Chromium rounds to whole pixels: Inter's 0.969 em comes out as **13 px** for a 13 px node title against the rendered **10.4 px** (label drawn **2.6 px** higher than measurement's baseline), 12 px against 9.6 for a container title (2.4 px). Adopting the measured ascent would move every label by about 2–2.6 px and re-baseline every render golden under every theme; the label boxes and layout are unaffected (heights use `lineHeight`). `apps/web/test/rich-measure.browser.test.ts` pins the numbers. **A human decision:** keep `0.8 em` (DD-07 §5 now says so), or adopt the measured (or a fixed 0.97 em, deterministic across browsers) ascent in one golden re-baseline. | the human; then whoever next touches DD-07 §5 |
-| **F20** | **Bundle headroom.** After A8's fix round 2 the core bundle was 178.63 kB; after C5's two themes (+0.24 kB) it is **178.87 kB** of 180, **178.90 kB** after D6/D7's +27 B on `main`, and **178.91 kB** after D2's +10 B (1.09 kB under): `@sgl/core/json` and the lazy `engine-options-form` chunk are done. On `feat/imports` (A9, §2) the Documents ▾ list is a lazy chunk (−244 B, not the −0.6 kB hoped for) and A9's boot share is +805 B (grammar, seam, records, the pipeline gate, Share), so the bundle was **179.47 kB (179 472 B)**, and after A9's fix round 1 (a degraded path for a chunk that cannot load, +218 B; a share link's storing moved to the lazy `share` chunk, −60 B) it is **179.63 kB (179 630 B)**. **The limit is 182 kB since 2026-09-26 (human decision; it was 180 kB; the 300 kB hard ceiling is unchanged)**, so 2.37 kB under. No named candidate is left on the boot path; A18 is estimated at 0.8–1.05 kB at boot, more than remains (orchestration handoff §2). **A18 measured:** branch 1 +0.68 kB (180.38), branch 2 +0.84 kB (181.22), branch 3 +0.49 kB (**181.71 kB**: the renderer 0.46; the run faces are registered by the lazy chunk, not the boot CSS), so **0.29 kB** was left before the merge with fix round 1 of branch 2 (which alone brought branch 2 to 181.47 kB); merged, **181.97 kB**, and after branch 3's fix round 1 **181 970 B** (30 B under; the `labelRunKey` memo and `textBlock`'s unused width estimate removed to pay for the table seam and the style-driven faces); the lazy `rich-text` chunk is 2.01 kB. | Stage L, before the next feature on the boot path |
 
 ---
 
