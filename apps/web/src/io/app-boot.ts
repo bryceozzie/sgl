@@ -4,6 +4,8 @@ import { BUILT_IN, DEFAULT_THEME_ID } from '@sgl/theme';
 import EXAMPLE_SOURCE from '../examples/checkout.sgl?raw';
 import { bootDocument, fallbackBoot, newDocumentId, type BootResult, type IdSource, type ShareImportDeps } from '../state/boot.js';
 import type { SharePayload } from '../state/share.js';
+import { lazyChunk } from '../state/lazy.js';
+import { createShareLinkQueue } from '../state/share-links.js';
 import { createMemoryStore, type DocumentStore } from '../state/storage.js';
 import { openIdbStore } from '../state/storage-idb.js';
 
@@ -131,6 +133,10 @@ export interface ShareLinkWatch {
   readonly onInvalid: () => void;
 }
 
+/** `share.ts`, a lazy chunk (F9 fix round 1), precached like the rest; a
+ *  failed load is reported and retried (`state/lazy.ts`). */
+const loadShare = lazyChunk(() => import('../state/share.js'));
+
 /**
  * DD-08 §8's "decode on load", for a link pasted into a tab that already has
  * SGL open: that is a same-document fragment change, which fires `hashchange`
@@ -139,32 +145,19 @@ export interface ShareLinkWatch {
  * A valid link is imported **in place** (F13): `watch.open` stores it with
  * boot's own `importShare` and switches to it as Open does — the open
  * document flushed, a fresh undo history, no reload — so a tab on the
- * in-memory store (IndexedDB unavailable) keeps its documents. The hash is
- * cleared once it is open. An invalid link toasts, clears the hash and
- * leaves the open document as it is. Links are handled one at a time, in
- * order; one replaced by a newer hash before it was decoded is skipped.
- * Returns the unsubscribe.
+ * in-memory store (IndexedDB unavailable) keeps its documents. One link at a
+ * time, the hash cleared before each is imported (`state/share-links.ts`).
+ * An invalid link toasts, clears the hash and leaves the open document as
+ * it is. Returns the unsubscribe.
  */
 export function watchShareLinks(watch: ShareLinkWatch): () => void {
-  let queue = Promise.resolve();
-  const onHashChange = (): void => {
-    const hash = window.location.hash;
-    queue = queue
-      .then(async () => {
-        // `share.ts` is a lazy chunk (F9 fix round 1), precached like the rest.
-        const share = await import('../state/share.js');
-        const decoded = await share.decodeShareFragment(hash);
-        if (decoded.kind === 'none' || window.location.hash !== hash) return;
-        if (decoded.kind === 'invalid') {
-          clearHash();
-          watch.onInvalid();
-          return;
-        }
-        await watch.open(decoded.payload, share);
-        if (window.location.hash === hash) clearHash();
-      })
-      .catch((err: unknown) => console.error('[SGL] opening a share link failed.', err));
-  };
+  const onHashChange = createShareLinkQueue({
+    hash: () => window.location.hash,
+    clearHash,
+    decode: async (hash) => (await loadShare()).decodeShareFragment(hash),
+    open: async (payload) => watch.open(payload, await loadShare()),
+    onInvalid: watch.onInvalid,
+  });
   window.addEventListener('hashchange', onHashChange);
   return () => window.removeEventListener('hashchange', onHashChange);
 }

@@ -210,6 +210,58 @@ describe('autosave', () => {
     expect(autosave.saved()).toBe(true);
   });
 
+  it('F12 round 1: flush also writes what was typed while it ran, and saved() is false while anything is pending', async () => {
+    const clock = createFakeClock();
+    const store = createMemoryStore();
+    const real = store.putDocument.bind(store);
+    let release: () => void = () => undefined;
+    let puts = 0;
+    store.putDocument = async (r) => {
+      puts += 1;
+      if (puts === 1) await new Promise<void>((resolve) => (release = resolve)); // the first put hangs
+      return real(r);
+    };
+    const autosave = createAutosave({ store, schedule: clock.schedule, onQuotaExceeded: vi.fn(), onError: vi.fn() });
+    autosave.request(record('a'));
+    let flushed = false;
+    const flushing = autosave.flush().then(() => (flushed = true));
+    expect(autosave.saved()).toBe(false); // a write in flight
+    autosave.request(record('ab')); // typed during the flush
+    expect(autosave.saved()).toBe(false);
+    release();
+    await flushing;
+    expect(flushed).toBe(true);
+    expect(puts).toBe(2); // the edit typed during the flush was written too
+    expect((await store.getDocument('doc-1'))?.source).toBe('ab');
+    expect(autosave.saved()).toBe(true);
+    expect(clock.pendingCount()).toBe(0);
+  });
+
+  it('F12 round 1: an edit whose timer fires while a flush waits on a slow write is still part of that flush', async () => {
+    // Found by e2e/sw-update.spec.ts (a slow disk): the timer took the edit
+    // off `pending` into a queued write, the flush saw nothing pending and
+    // resolved "saved", and the page reloaded before the queued write ran.
+    const clock = createFakeClock();
+    const store = createMemoryStore();
+    const real = store.putDocument.bind(store);
+    let release: () => void = () => undefined;
+    let puts = 0;
+    store.putDocument = async (r) => {
+      puts += 1;
+      if (puts === 1) await new Promise<void>((resolve) => (release = resolve));
+      return real(r);
+    };
+    const autosave = createAutosave({ store, schedule: clock.schedule, onQuotaExceeded: vi.fn(), onError: vi.fn() });
+    autosave.request(record('a'));
+    const flushing = autosave.flush();
+    autosave.request(record('ab'));
+    clock.advance(AUTOSAVE_DELAY_MS); // the edit's own timer write, queued behind the slow one
+    release();
+    expect(await flushing).toBe(true);
+    expect((await store.getDocument('doc-1'))?.source).toBe('ab');
+    expect(autosave.saved()).toBe(true);
+  });
+
   it('any other write failure goes to onError', async () => {
     const clock = createFakeClock();
     const store = createMemoryStore();

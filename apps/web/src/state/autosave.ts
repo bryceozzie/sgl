@@ -23,10 +23,16 @@ export interface Autosave {
   request(record: DocumentRecord): void;
   /** Writes a pending record now (page hide, reload for an update): the
    *  store call is issued before this returns. Resolves once every write
-   *  issued so far has settled. */
-  flush(): Promise<void>;
-  /** The last write settled reached the store (true before any write).
-   *  After `flush()`, whether a reload would lose nothing (F12). */
+   *  issued so far has settled, including records requested meanwhile,
+   *  or once one has failed. Resolves to `saved()` as it stood then: true
+   *  when everything reached the store (F12 round 1; read at that moment,
+   *  so a render landing a microtask later cannot turn a good flush into a
+   *  refused switch or reload — that record is the next write's, and
+   *  leaving the page flushes it). */
+  flush(): Promise<boolean>;
+  /** Nothing is pending or in flight, and the last write reached the store
+   *  (true before any write): whether a reload would lose nothing (F12). A
+   *  failed record stays pending until a later write succeeds. */
   saved(): boolean;
   dispose(): void;
 }
@@ -44,6 +50,11 @@ export function createAutosave(deps: AutosaveDeps): Autosave {
   let taken = 0;
   let issuedSeq = 0;
 
+  /** Records taken from `pending` whose write has not settled yet, issued
+   *  or still queued on the chain (F12 round 1). */
+  let outstanding = 0;
+  const saved = (): boolean => !failing && pending === null && outstanding === 0;
+
   async function put(record: DocumentRecord): Promise<void> {
     try {
       await deps.store.putDocument(record);
@@ -51,6 +62,10 @@ export function createAutosave(deps: AutosaveDeps): Autosave {
     } catch (err) {
       // Editing continues in memory either way: the pipeline never reads
       // back from the store, so a failed write loses nothing on screen.
+      // The record waits to be written again by the next flush or edit
+      // (F12 round 1: until then, `saved()` is false), unless a newer one
+      // has replaced it.
+      pending ??= record;
       if (failing) return;
       failing = true;
       if (isQuotaExceeded(err)) deps.onQuotaExceeded();
@@ -75,11 +90,13 @@ export function createAutosave(deps: AutosaveDeps): Autosave {
     // issued a newer record while it waited on the chain, and issuing it
     // afterwards would overwrite that newer record (fix round 2, R1).
     taken += 1;
+    outstanding += 1;
     const seq = taken;
     const issue = (): Promise<void> => {
-      if (seq < issuedSeq) return Promise.resolve();
+      const done = (): void => void (outstanding -= 1);
+      if (seq < issuedSeq) return Promise.resolve().then(done);
       issuedSeq = seq;
-      return put(record);
+      return put(record).then(done);
     };
     if (now) {
       const issued = issue(); // runs synchronously up to the store call
@@ -99,14 +116,20 @@ export function createAutosave(deps: AutosaveDeps): Autosave {
         void write(false);
       }, delay);
     },
-    flush() {
-      if (timer !== null) {
-        timer();
-        timer = null;
-      }
-      return write(true);
+    // The first write is issued synchronously (the async body runs up to its
+    // first `await`); then anything requested while it ran is written too,
+    // until nothing is pending or a write has failed (F12 round 1).
+    async flush() {
+      do {
+        if (timer !== null) {
+          timer();
+          timer = null;
+        }
+        await write(true);
+      } while ((pending !== null || outstanding > 0) && !failing);
+      return saved();
     },
-    saved: () => !failing,
+    saved,
     dispose() {
       if (timer !== null) timer();
       timer = null;

@@ -20,6 +20,7 @@ import { createOpenQueue } from './state/open-queue.js';
 import { APP_METRICS } from './state/metrics.js';
 import { createPipeline } from './state/pipeline.js';
 import type { DocumentRecord } from './state/storage.js';
+import { onChunkFailure } from './state/lazy.js';
 import { createToasts } from './state/toasts.js';
 import type { Cancel } from './state/types.js';
 import { createAppWorkerHost } from './state/worker-host.js';
@@ -42,8 +43,19 @@ const NOTICE_TOASTS: Readonly<Record<BootNotice, { readonly message: string; rea
   'boot-failed': { message: "Something went wrong opening your documents, so the example is open instead. Changes are kept in this tab only.", kind: 'error' },
 };
 
-/** F12: an update this tab cannot follow without losing documents. */
-const STALE_TAB = 'SGL was updated in another tab. This tab could not save everything, so it was not reloaded: save your work (Save ▾), then reload.';
+/** F12/F13 round 1, item 8: a switch refused because the open document
+ *  could not be saved first. */
+const NOT_SWITCHED = "Couldn't save the open document, so nothing else was opened: save your work (Save ▾).";
+/** Round 1, item 2: a lazy chunk that could not be loaded. */
+const CHUNK_FAILED = "Part of SGL couldn't be loaded. If you are offline, save your work (Save ▾) and reload when online.";
+
+/** Round 1, item 2: loads what Save ▾ needs (the lazy `file-actions`
+ *  chunk) now, while the precache still holds it — for a tab whose work
+ *  may exist only in the page, which an update would then leave unable to
+ *  save once the new worker drops the old chunk. */
+function preloadSave(): void {
+  loadFileActions().catch(() => undefined);
+}
 
 /**
  * The application shell (DD-08 §2's layout: editor left, canvas right).
@@ -81,17 +93,29 @@ export function App({ boot }: { readonly boot: AppBoot }) {
     const autosave = createAutosave({
       store: boot.store,
       schedule: browserSchedule,
-      onQuotaExceeded: () => toasts.push("This browser's storage is full: changes are kept in this tab only until space is freed.", 'error'),
+      onQuotaExceeded: () => {
+        preloadSave();
+        toasts.push("This browser's storage is full: changes are kept in this tab only until space is freed.", 'error');
+      },
       onError: (err) => {
         console.warn('[SGL] autosave failed.', err);
+        preloadSave();
         toasts.push("Couldn't save to this browser's storage: changes are kept in this tab only.", 'error');
       },
     });
+    onChunkFailure(() => toasts.push(CHUNK_FAILED, 'error'));
     const session = createDocumentSession(pipeline, boot.record, autosave, () => Date.now());
     // The open document's stored picture, painted until its first live
     // render: at boot (J6), and again after every switch (fix round 2).
     const storedSvg = signal<string | undefined>(boot.record.lastGoodSvg);
     for (const notice of boot.notices) toasts.push(NOTICE_TOASTS[notice].message, NOTICE_TOASTS[notice].kind);
+    // Round 1, item 1: a record boot could not store is written again by
+    // autosave, so until that succeeds the tab knows it holds unsaved work
+    // (and an update does not reload it away). Round 1, item 2: a tab whose
+    // documents may exist only here loads Save's chunk now, while it is
+    // still in the precache, so "save your work" can always be done.
+    if (boot.notices.includes('storage-failed')) autosave.request(boot.record);
+    if (boot.store.persistent !== true || boot.notices.includes('storage-failed')) preloadSave();
     for (const t of boot.toasts ?? []) toasts.push(t.message, t.kind);
     return { pipeline, toasts, autosave, session, storedSvg };
   }, []);
@@ -111,7 +135,7 @@ export function App({ boot }: { readonly boot: AppBoot }) {
    *  editor (a fresh undo history: undo never crosses documents) and the
    *  stored picture, and the next render fits. */
   async function openRecord(editor: EditorView, record: DocumentRecord, created: boolean): Promise<boolean> {
-    const { ok } = await switchDocument(
+    const { ok, switched } = await switchDocument(
       {
         store: boot.store,
         autosave,
@@ -127,8 +151,12 @@ export function App({ boot }: { readonly boot: AppBoot }) {
       record,
       { created },
     );
-    if (!ok) toasts.push(NOTICE_TOASTS['storage-failed'].message, 'error');
-    return ok;
+    // Round 1, item 8: the open document could not be saved, so it stays.
+    if (!ok) {
+      preloadSave();
+      toasts.push(switched ? NOTICE_TOASTS['storage-failed'].message : NOT_SWITCHED, 'error');
+    }
+    return switched;
   }
 
   /** A new record from the pickers as they stand (Open, New document). Open
@@ -151,24 +179,29 @@ export function App({ boot }: { readonly boot: AppBoot }) {
   /** A share link pasted into this tab, already stored (`importShare`), to
    *  switch to in place like Open (F13) — held, like an Open, until the
    *  editor exists. */
-  const shares = useMemo(() => createOpenQueue<ShareImport>(), []);
+  const shares = useMemo(() => createOpenQueue<ShareImport & { readonly done: () => void }>(), []);
   useEffect(() => {
     shares.setTarget(
       view === null
         ? null
         : (shared) => {
-            void openRecord(view, shared.record, false).then(() => {
-              for (const notice of shared.notices) toasts.push(NOTICE_TOASTS[notice].message, NOTICE_TOASTS[notice].kind);
-              for (const t of shared.toasts ?? []) toasts.push(t.message, t.kind);
-            });
+            // A record the import could not store is stored again by the
+            // switch, or handed to autosave (round 1, item 1).
+            void openRecord(view, shared.record, shared.notices.includes('storage-failed'))
+              .then((switched) => {
+                if (!switched) return;
+                for (const notice of shared.notices) if (notice !== 'storage-failed') toasts.push(NOTICE_TOASTS[notice].message, NOTICE_TOASTS[notice].kind);
+                for (const t of shared.toasts ?? []) toasts.push(t.message, t.kind);
+              })
+              .finally(shared.done);
           },
     );
     opens.setTarget(
       view === null
         ? null
         : (opened) => {
-            void openRecord(view, newRecord(opened.text, opened), true).then(() =>
-              toasts.push(`Opened ${opened.name} as a new document. Your previous document is in Documents.`),
+            void openRecord(view, newRecord(opened.text, opened), true).then(
+              (switched) => switched && toasts.push(`Opened ${opened.name} as a new document. Your previous document is in Documents.`),
             );
           },
     );
@@ -217,7 +250,12 @@ export function App({ boot }: { readonly boot: AppBoot }) {
     document.addEventListener('visibilitychange', onVisibility);
     // A share link pasted into this already-open tab (§8, fix round 1).
     const unwatchShare = watchShareLinks({
-      open: async (payload, share) => shares.deliver(await share.importShare(shareImportDeps(boot.store), payload)),
+      // Resolves once the link's document is open (or refused), so the
+      // next link waits for it (round 1, item 6).
+      open: async (payload, share) => {
+        const shared = await share.importShare(shareImportDeps(boot.store), payload);
+        await new Promise<void>((done) => shares.deliver({ ...shared, done }));
+      },
       onInvalid: () => toasts.push(NOTICE_TOASTS['share-invalid'].message, NOTICE_TOASTS['share-invalid'].kind),
     });
     // DD-08 §12. A tab whose documents live only in memory is never offered
@@ -226,7 +264,7 @@ export function App({ boot }: { readonly boot: AppBoot }) {
       (apply) => {
         if (boot.store.persistent === true) setApplyUpdate(() => apply);
       },
-      () => void followUpdate(updateSteps(() => window.location.reload())),
+      (here) => void followUpdate(updateSteps(() => window.location.reload()), here),
     );
     consumeLaunchQueue(open);
     return () => {
@@ -241,17 +279,18 @@ export function App({ boot }: { readonly boot: AppBoot }) {
    *  reopens it; never when that would lose documents. */
   function updateSteps(reload: () => void): FollowUpdate {
     return {
-      flush: () => autosave.flush(),
-      safe: () => boot.store.persistent === true && autosave.saved(),
+      autosave,
+      persistent: boot.store.persistent === true,
       remember: () => reopenAfterReload(session.record.peek().id),
       reload,
-      stale: () => toasts.push(STALE_TAB, 'error'),
+      // Once, however many updates arrive (round 1, items 5 and 7).
+      stale: (message) => toasts.items.peek().some((t) => t.message === message) || toasts.push(message, 'error'),
     };
   }
 
   function reloadForUpdate(): void {
     // The new version takes over (and this page reloads) once saved.
-    if (applyUpdate !== null) void followUpdate(updateSteps(applyUpdate));
+    if (applyUpdate !== null) void followUpdate(updateSteps(applyUpdate), true);
   }
 
   return (
