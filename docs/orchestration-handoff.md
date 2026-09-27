@@ -9,7 +9,7 @@
 
 It **does not replace** [07 — Execution plan](07-execution-plan.md) §2 and §2.1. Those remain the authoritative record of the build and of the open findings; read them first. This file adds what 07 doesn't hold: in-flight branches, pending next steps, and working practices.
 
-*Last updated: 2026-09-27 by the orchestrator (cloud session): A18 merged to `main` at `1e92015` and verified there from clean (5360 Vitest, 109/109 e2e). **F20 merged** (`0345d73`): core **175.99 kB of 182** (grid descriptor split, terser minifier as a build-time devDependency). Next: the rest of Stage L (§3).*
+*Last updated: 2026-09-27 by the orchestrator (cloud session): A18 merged to `main` at `1e92015` and verified there from clean (5360 Vitest, 109/109 e2e). **F20 merged** (`0345d73`): core **175.99 kB of 182** (grid descriptor split, terser minifier as a build-time devDependency). Verified on `main` from clean (5366 Vitest, 109/109 e2e, 175.99 kB). **In flight (2026-09-27):** `design/b5-engines` (DD-12: `fixed`, `tree`, `radial`, `force`; design only, decisions for the human), `fix/f16-title-crossings` (elk edges through container titles; only changed-route elk goldens may move), `fix/f12-f13-app` (multi-tab SW update, in-place share import, toast cap).*
 
 **Trap (new):** `pnpm typecheck` (`tsc -b`) writes per-file JS into `packages/*/dist` over the build output; running it *after* `pnpm build` breaks the next app build until you rebuild. The clean-check order (typecheck before build) avoids it.
 
