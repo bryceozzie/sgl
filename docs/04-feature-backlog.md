@@ -47,7 +47,7 @@ Prior art referenced: **Mm**=Mermaid · **D2**=D2 · **GV**=Graphviz · **PU**=P
 | B2 | Engines control label and title placement | (rare — differentiator) | You asked for it and almost nobody does it | **M** | M |
 | B3 | Built-in `layered` (Sugiyama) engine | Mm, D2, GV dot | The default anyone expects | **M** | M |
 | B4 | Built-in `grid` engine | D2 grid | Deterministic and fast; great fallback for huge graphs | **M** | M |
-| B5 | Built-in `tree`, `radial`, `force`, `fixed` engines | GV twopi/circo/neato | Rounds out the set; `fixed` is the escape hatch | **M** | M |
+| B5 | Built-in `tree`, `radial`, `fixed` engines | GV twopi/circo/neato | Rounds out the set; `fixed` is the escape hatch. `force` was part of this row until 2026-09-27 and is now B22 (DD-12) | **M** | M |
 | B6 | Sandboxed execution (iframe + Worker, timeout, abort) | — | Non-negotiable once third-party code loads | **M** | M |
 | B7 | Engine options schema driving a generated settings UI | — | Makes engines self-documenting | **S** | S |
 | B8 | Per-container engine selection | — | Mixed layouts; big differentiator | **S** | **C** |
@@ -63,7 +63,8 @@ Prior art referenced: **Mm**=Mermaid · **D2**=D2 · **GV**=Graphviz · **PU**=P
 | B18 | Engine conformance test suite in the SDK | — | Without it, third-party engines will be broken | **S** | S |
 | B19 | Self-loops and parallel edges routed sensibly | GV | Looks broken when missing; easy to forget | **M** | M |
 | B20 | Orthogonal edge routing with obstacle avoidance | D2, GV | Expensive to do well; `layered` should ship it | **S** | S |
-| B21 | Edge bundling for dense graphs | GV | Narrow use case | **N** | **S** |
+| B21 | Edge bundling for dense graphs | GV | Narrow use case. Demoted with `force` (B22), which it was scoped to live inside, by human decision 2026-09-27 (F27) | **N** | **C** |
+| B22 | Built-in `force` engine (seeded n-body) | GV neato/fdp | Split out of B5 and cut from v1.0 by human decision, 2026-09-27 (DD-12 N49, H3): the only `best-effort` engine (ADR-0004), it needs a per-document seed (F10) and a snapshot to `@pin` to be useful, and `radial` covers hub-and-spoke. B21 is scoped to live inside it | **M** | **C** |
 
 ## C. Themes and styling
 
@@ -127,6 +128,7 @@ Prior art referenced: **Mm**=Mermaid · **D2**=D2 · **GV**=Graphviz · **PU**=P
 | E16 | Side-by-side visual diff of two document versions | — | Compelling for the PR-review workflow | **C** | **S** |
 | E17 | Multiple documents / tabs in one session | — | Expected once people have more than one diagram | **S** | **M** |
 | E18 | Presentation mode (fullscreen, step through layers) | D2 | Nice-to-have | **C** | **S** |
+| E19 | In-app help and reference: a Help drawer for quick lookup and a help page for detail | Mm and D2 docs sites | Look up `@` keys, style properties, shapes, engines and their options, tokens and diagnostics; basic topics; examples with rendered previews and "Open as new document"; offline. Facts generated from the registries so they cannot drift; prose and examples hand-written, every example tested. Shares its generated data with E6. Added after triage; [DD-13](detailed-design/13-help.md) | — | **M** (Must, human decision 2026-09-27) |
 
 ## F. Files, sharing and interop
 
@@ -209,6 +211,10 @@ Reviewed 2026-09-14. 136 features, 0 undecided, **32 changed** from the recommen
 | **N — Not necessary** | 8 | **7** | −1 |
 
 Rows where the two differ show the call in bold.
+
+*Amended 2026-09-27 (human decision, DD-12 H3): B5's `force` engine was split out as B22 and cut to Could. The counts above are as reviewed on 2026-09-14, before that split.*
+
+*Amended 2026-09-27 (human decision): E19, in-app help, was added as a Must (DD-13). It is not in the counts above.*
 
 ### Promoted into Must
 
@@ -342,10 +348,10 @@ criteria in [06 — Feasibility and MVP](06-feasibility-and-mvp.md).
 | Area | MVP | Deferred to v1.0 (still Must) |
 |---|---|---|
 | Language | A1–A7, A10, **A21 wildcard endpoints** | A8 variables · A9 imports · **A18 markdown labels** |
-| Layout | B1, B10, B12, B19 via **elkjs** + `grid`; Worker with timeout/abort | B5 other engines (`fixed` first, `force` last) · B6 iframe isolation → with B17 |
+| Layout | B1, B10, B12, B19 via **elkjs** + `grid`; Worker with timeout/abort | B5 other engines (`fixed` first, then `tree` and `radial`; `force` cut to Could as B22, 2026-09-27) · B6 iframe isolation → with B17 |
 | Themes | C1–C4, C6, C12; two themes | C5 four themes |
 | Render | D1–D5, D9; fonts by reference | D6 PNG · D7 clipboard |
-| Editor | E1–E5, E8, E9 | E17 tabs |
+| Editor | E1–E5, E8, E9 | E17 tabs · E19 in-app help |
 | Files | F1, **F4** URL share | F2 drag-drop · F5 `.sglpack` |
 | Platform | G1, G2, G3, H1 | — |
 
@@ -357,13 +363,13 @@ Must is now 51 of 136, which is a large v1 — so Must splits across two phases 
 |---|---|---|
 | **0 — Spike** | Lexer, parser, IR, `grid` engine, minimal SVG out | The pipeline shape is right |
 | **1 — Core loop** (Must) | `layered` engine, theme system with the metrics/paint split, 4 built-in themes, **`@sgl/text` rich labels**, classes, variables, imports, direction, self-loops and parallel edges, inline styles, accessible SVG with stable IDs, editor with live preview and last-good-render, local persistence | Someone can write a real architecture diagram and export it |
-| **2 — Rest of Must** | Remaining engines (`tree`, `radial`, `force`, `fixed`), capability negotiation, engine sandbox, `.sgl.json` round-trip, PNG and clipboard export, drag-and-drop, URL-fragment share, `.sglpack` bundles, multiple documents, PWA | It fits a real workflow, offline |
+| **2 — Rest of Must** | Remaining engines (`fixed`, `tree`, `radial`; `force` is B22, Could), capability negotiation, engine sandbox, `.sgl.json` round-trip, PNG and clipboard export, drag-and-drop, URL-fragment share, `.sglpack` bundles, multiple documents, PWA | It fits a real workflow, offline |
 | **3 — Plugin surface** (Should) | Options UI, conformance suite, plugin SDK, ports, pinning, incremental layout, orthogonal routing, elkjs adapter, formatter, icon packs, custom shapes, font embedding, WCAG validation, CLI, Worker render API with KV cache and Turnstile, short links, GitHub Action, VS Code preview | Third parties can extend it |
 | **4 — Model and UX** (Should) | One model many views, sequence diagrams, UML/ER shapes, legends, search and filter, keyboard navigation, visual diff, version history, presentation mode, example gallery, autocomplete, source mapping, Mermaid import, relative positioning, edge bundling | It has range |
 | **5 — Could** | Pulled in as demand appears | — |
 
 ### Still the first thing to cut if schedule bites
 
-**The `force` engine in B5.** Physics layout is the least used of the six and the hardest to make
+**The `force` engine in B5 — cut (human decision, 2026-09-27; now B22, Could; DD-12).** Physics layout is the least used of the six and the hardest to make
 deterministic — and B21 (edge bundling), now Should, is scoped to live inside it. Deferring both
 together is a clean cut: `layered`, `grid`, `tree` and `fixed` cover the real cases.

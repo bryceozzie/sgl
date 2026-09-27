@@ -60,3 +60,11 @@ describe('_headers (DD-10 §5)', () => {
     expect(() => parseHeadersFile('  X-Orphan: 1\n')).toThrow();
   });
 });
+
+describe('wrangler.toml (DD-10 §5)', () => {
+  it('is DD-10 §5 verbatim', () => {
+    const block = fencedBlockAfter(doc('10-build-and-deploy.md'), '## 5. Deploy');
+    const file = readFileSync(new URL('../wrangler.toml', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+    expect(file).toBe(block);
+  });
+});

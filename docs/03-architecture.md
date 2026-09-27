@@ -105,7 +105,7 @@ packages/
   layout-api/    @sgl/layout-api    engine interface, registry, worker host, conformance suite
   layout-elk/    @sgl/layout-elk    DEFAULT engine: elkjs adapter (ADR-0005). Lazy-loaded chunk;
                                     excluded from the core bundle budget.
-  layout-std/    @sgl/layout-std    grid (MVP), then fixed, tree, radial, force. In-house
+  layout-std/    @sgl/layout-std    grid (MVP), then fixed, tree, radial (DD-12). In-house
                                     `layered` is roadmap, not v1.
   theme/         @sgl/theme         token model, cascade, built-in themes, theme validation
   measure/       @sgl/measure       Measurer interface + font-metrics / canvas / offscreen impls
@@ -297,9 +297,9 @@ Enforcement:
 | `layered` | In-house Sugiyama — **roadmap, not v1**. Future replacement for `elk` if a smaller bundle or tighter control is needed | — |
 | `tree` | Reingold–Tilford (tidy trees), with compound support | Hierarchies, org charts, decision trees |
 | `grid` | Deterministic row/column packing with spans | Dashboards, matrices, "just line them up" |
-| `radial` | Concentric rings by depth | Ego networks, hub-and-spoke |
-| `force` | Seeded Barnes–Hut n-body, then snap-to-grid for determinism | Undirected networks |
-| `fixed` | Honours `@pin` and `@size` exactly; errors on unpinned nodes | Hand-placed diagrams, generated coordinates |
+| `radial` | Concentric rings by depth, wedges by subtree weight; in-house trigonometry, so `bitwise` (DD-12 §9) | Ego networks, hub-and-spoke |
+| `force` | **Cut from v1.0** (backlog B22, Could; human decision 2026-09-27, DD-12 H3). If built: seeded Barnes–Hut n-body. Snapping to a grid does **not** make it deterministic (a last-bit difference early on is amplified, not absorbed): it is `best-effort` (ADR-0004), made reproducible only by baking the result into `@pin`s | Undirected networks |
+| `fixed` | Honours `@pin` (relative to the parent's content box) and `@size` exactly; packs unpinned nodes below the pinned ones, with a warning each (`SGL4020`). DD-12 §4 | Hand-placed diagrams, generated coordinates |
 
 `layered` is also the reference implementation for third parties: it exercises every part of the API (containers, ports, label placement, orthogonal routing, sublayout delegation).
 
@@ -623,7 +623,7 @@ authority on scope. Must came out at 51 of 136 features, so Must spans two phase
 | **0 — Spike** | Lexer, parser, IR, `grid` engine, minimal SVG out | The pipeline shape is right |
 | **1 — MVP** | **elkjs** + `grid` behind one interface in a Worker, theme system with the `affects` partition and two themes, classes, direction, plain-text labels, accessible SVG with stable IDs, editor with live preview and last-good-render, autosave, URL-fragment share, installable and offline. Cut detailed in [06](06-feasibility-and-mvp.md) | Someone can write a real architecture diagram and share it |
 | **1b — v1.0** (rest of phase-1 Must) | `@sgl/text` rich labels, variables, imports, two more themes, `fixed` engine | Someone can write a real architecture diagram and export it |
-| **2 — Rest of Must** | `tree`/`radial`/`force`/`fixed` engines, capability negotiation, engine sandbox, `.sgl.json` round-trip, PNG and clipboard export, drag-and-drop, URL-fragment share, `.sglpack` bundles, multiple documents, PWA | It fits a real workflow, offline |
+| **2 — Rest of Must** | `tree`/`radial`/`fixed` engines (`force` cut to Could, B22), capability negotiation, engine sandbox, `.sgl.json` round-trip, PNG and clipboard export, drag-and-drop, URL-fragment share, `.sglpack` bundles, multiple documents, PWA | It fits a real workflow, offline |
 | **3 — Plugin surface** (Should) | Options UI, conformance suite, plugin SDK, ports, pinning, incremental layout, orthogonal routing, elkjs adapter, formatter, icon packs, custom shapes, font embedding, WCAG validation, CLI, Worker render API with KV cache and Turnstile, short links, GitHub Action, VS Code preview | Third parties can extend it |
 | **4 — Model and UX** (Should) | One model many views, sequence diagrams, UML/ER shapes, legends, search and filter, keyboard navigation, visual diff, version history, presentation mode, example gallery, autocomplete, source mapping, Mermaid import, relative positioning, edge bundling | It has range |
 | **5 — Could** | Pulled in as demand appears | — |
