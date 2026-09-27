@@ -1,4 +1,5 @@
 import { decodeBase64Url, encodeBase64Url } from './base64url.js';
+import { create, safeId, type BootNotice, type ShareImport, type ShareImportDeps } from './boot.js';
 import type { DocumentRecord } from './storage.js';
 
 /**
@@ -283,6 +284,22 @@ export async function openShared(
   const group = payload.imports && newId();
   for (const d of payload.imports ?? []) await create(d.s, { title: d.t, fileName: `${d.n}.sgl`, group: group as string }, false);
   return { record: await create(payload.source, group ? { group } : undefined), toast: bundleToast(payload) };
+}
+
+/**
+ * Stores a decoded link's documents (DD-08 §8; I29) and returns the main
+ * one, to open: boot's path for a link on load, and — since F13 — the open
+ * tab's for a link pasted into it, which then switches to the record in
+ * place, as Open does (`App.tsx`), instead of reloading into boot. One
+ * import path either way, in this lazy chunk. An engine or theme the app
+ * does not know falls back to the default; a storage failure is a notice.
+ */
+export async function importShare(deps: ShareImportDeps, payload: SharePayload): Promise<ShareImport> {
+  const notices: BootNotice[] = [];
+  const engineId = payload.engineId !== undefined && deps.isKnownEngine(payload.engineId) ? payload.engineId : deps.defaultEngineId;
+  const themeId = payload.themeId !== undefined && deps.isKnownTheme(payload.themeId) ? payload.themeId : deps.defaultThemeId;
+  const { record, toast } = await openShared(payload, (source, extra, open) => create(deps, notices, source, engineId, themeId, extra, open), () => safeId(deps));
+  return { record, notices: payload.imports ? notices : ['share-opened', ...notices], ...(toast ? { toasts: [toast] } : {}) };
 }
 
 /** What boot says about a link's imported documents (I28, I29), if

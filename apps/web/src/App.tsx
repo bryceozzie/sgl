@@ -7,13 +7,13 @@ import { CanvasMeasurer } from '@sgl/measure';
 import { Canvas } from './canvas/Canvas.js';
 import { Editor } from './editor/Editor.js';
 import { loadDocument } from './editor/extensions.js';
-import { DEFAULT_ENGINE_ID, REGISTERED_ENGINES, watchShareLinks, type AppBoot } from './io/app-boot.js';
+import { DEFAULT_ENGINE_ID, REGISTERED_ENGINES, shareImportDeps, watchShareLinks, type AppBoot } from './io/app-boot.js';
 import { consumeLaunchQueue } from './io/launch-queue.js';
 import { registerServiceWorker, type ApplyUpdate } from './io/pwa.js';
 import { DiagnosticsPanel } from './panels/DiagnosticsPanel.js';
 import { Toasts } from './panels/Toasts.js';
 import { createAutosave } from './state/autosave.js';
-import { blankRecord, newDocumentId, type BootNotice, type IdSource } from './state/boot.js';
+import { blankRecord, newDocumentId, type BootNotice, type IdSource, type ShareImport } from './state/boot.js';
 import { createDocumentSession } from './state/document-session.js';
 import { switchDocument } from './state/documents.js';
 import { createOpenQueue } from './state/open-queue.js';
@@ -145,7 +145,21 @@ export function App({ boot }: { readonly boot: AppBoot }) {
    *  before the editor exists (the launch queue can deliver that early)
    *  waits in `opens` until it does (fix round 1, item 13). */
   const opens = useMemo(() => createOpenQueue<{ readonly name: string; readonly text: string; readonly extension: string }>(), []);
+  /** A share link pasted into this tab, already stored (`importShare`), to
+   *  switch to in place like Open (F13) — held, like an Open, until the
+   *  editor exists. */
+  const shares = useMemo(() => createOpenQueue<ShareImport>(), []);
   useEffect(() => {
+    shares.setTarget(
+      view === null
+        ? null
+        : (shared) => {
+            void openRecord(view, shared.record, false).then(() => {
+              for (const notice of shared.notices) toasts.push(NOTICE_TOASTS[notice].message, NOTICE_TOASTS[notice].kind);
+              for (const t of shared.toasts ?? []) toasts.push(t.message, t.kind);
+            });
+          },
+    );
     opens.setTarget(
       view === null
         ? null
@@ -200,7 +214,7 @@ export function App({ boot }: { readonly boot: AppBoot }) {
     document.addEventListener('visibilitychange', onVisibility);
     // A share link pasted into this already-open tab (§8, fix round 1).
     const unwatchShare = watchShareLinks({
-      flush: () => autosave.flush(),
+      open: async (payload, share) => shares.deliver(await share.importShare(shareImportDeps(boot.store), payload)),
       onInvalid: () => toasts.push(NOTICE_TOASTS['share-invalid'].message, NOTICE_TOASTS['share-invalid'].kind),
     });
     registerServiceWorker((apply) => setApplyUpdate(() => apply));

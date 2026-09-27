@@ -142,30 +142,41 @@ export function fallbackBoot(deps: Pick<BootDeps, 'exampleSource' | 'now' | 'def
   return { record, created: true, clearHash: false, notices: ['boot-failed'] };
 }
 
+/** What storing a new document needs: boot's, or the open tab's (F13). */
+export type CreateDeps = Pick<BootDeps, 'store' | 'newId' | 'now'>;
+
+/** `deps.newId`, falling back to `newDocumentId` if it throws. */
+export function safeId(deps: CreateDeps): string {
+  try {
+    return deps.newId();
+  } catch {
+    return newDocumentId(undefined, deps.now);
+  }
+}
+
+/** A new record, stored; `open` also remembers it as the one to open. A
+ *  storage failure is a notice, never a throw. */
+export async function create(deps: CreateDeps, notices: BootNotice[], source: string, engineId: string, themeId: string, extra?: Partial<DocumentRecord>, open = true): Promise<DocumentRecord> {
+  const record = { ...blankRecord(safeId(deps), source, engineId, themeId, deps.now()), ...extra };
+  try {
+    await deps.store.putDocument(record);
+    if (open) await deps.store.putSetting('lastOpenDocId', record.id);
+  } catch {
+    notices.push('storage-failed');
+  }
+  return record;
+}
+
+/** What the lazy `share` chunk's `importShare` needs. */
+export type ShareImportDeps = CreateDeps & Pick<BootDeps, 'defaultEngineId' | 'defaultThemeId' | 'isKnownEngine' | 'isKnownTheme'>;
+
+/** A link's documents, stored, and the main one to open (`importShare`). */
+export type ShareImport = Pick<BootResult, 'record' | 'notices' | 'toasts'>;
+
 export async function bootDocument(deps: BootDeps): Promise<BootResult> {
   const notices: BootNotice[] = [];
   const engineOr = (id: string | undefined): string => (id !== undefined && deps.isKnownEngine(id) ? id : deps.defaultEngineId);
   const themeOr = (id: string | undefined): string => (id !== undefined && deps.isKnownTheme(id) ? id : deps.defaultThemeId);
-
-  const newId = (): string => {
-    try {
-      return deps.newId();
-    } catch {
-      return newDocumentId(undefined, deps.now);
-    }
-  };
-
-  /** A new record, stored; `open` also remembers it as the one to open. */
-  async function create(source: string, engineId: string, themeId: string, extra?: Partial<DocumentRecord>, open = true): Promise<DocumentRecord> {
-    const record = { ...blankRecord(newId(), source, engineId, themeId, deps.now()), ...extra };
-    try {
-      await deps.store.putDocument(record);
-      if (open) await deps.store.putSetting('lastOpenDocId', record.id);
-    } catch {
-      notices.push('storage-failed');
-    }
-    return record;
-  }
 
   // `share.ts` is loaded only for a link that has a payload (F9 fix round 1:
   // it is off the ordinary boot path, and the core bundle has no room for
@@ -173,14 +184,7 @@ export async function bootDocument(deps: BootDeps): Promise<BootResult> {
   const shareModule = new URLSearchParams(deps.hash.replace(/^#/, '')).has('s') ? await import('./share.js') : undefined;
   const share = shareModule ? await shareModule.decodeShareFragment(deps.hash, deps.codec) : ({ kind: 'none' } as const);
   const clearHash = share.kind !== 'none';
-  if (shareModule && share.kind === 'ok') {
-    const engineId = engineOr(share.payload.engineId);
-    const themeId = themeOr(share.payload.themeId);
-    // A9 (I29): storing what the link carries is the lazy `share` chunk's
-    // (fix round 1, item 16: off the boot path).
-    const { record, toast } = await shareModule.openShared(share.payload, (source, extra, open) => create(source, engineId, themeId, extra, open), newId);
-    return { record, created: true, clearHash, notices: share.payload.imports ? notices : ['share-opened', ...notices], ...(toast ? { toasts: [toast] } : {}) };
-  }
+  if (shareModule && share.kind === 'ok') return { ...(await shareModule.importShare(deps, share.payload)), created: true, clearHash };
   if (share.kind === 'invalid') notices.push('share-invalid');
 
   try {
@@ -196,6 +200,6 @@ export async function bootDocument(deps: BootDeps): Promise<BootResult> {
     notices.push('storage-failed');
   }
 
-  const record = await create(deps.exampleSource, deps.defaultEngineId, deps.defaultThemeId);
+  const record = await create(deps, notices, deps.exampleSource, deps.defaultEngineId, deps.defaultThemeId);
   return { record, created: true, clearHash, notices: [...new Set(notices)] };
 }

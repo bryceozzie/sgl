@@ -272,3 +272,32 @@ describe('boot with a share link that carries imported documents (A9, DD-08 §15
     expect(await store.listDocuments()).toHaveLength(1);
   });
 });
+
+/** F13: a link pasted into an open tab is imported in place, by the same
+ *  code boot uses, into the store the tab already has. */
+describe('importShare: a share link imported into an open tab', () => {
+  it('stores a new document beside the ones the store has, as boot would', async () => {
+    const current = stored('doc-a', 'mine: "Mine"\n');
+    const store = createMemoryStore({ documents: [current], settings: { lastOpenDocId: 'doc-a' } });
+    const share = await import('../src/state/share.js');
+    const decoded = await share.decodeShareFragment(await fragmentFor({ source: 'shared: "Shared"\n', engineId: 'sgl.nope', themeId: 'neutral-dark' }));
+    if (decoded.kind !== 'ok') throw new Error('decode failed');
+
+    const result = await share.importShare(deps(store), decoded.payload);
+
+    expect(result.notices).toEqual(['share-opened']);
+    expect(result.record).toMatchObject({ id: 'new-1', source: 'shared: "Shared"\n', engineId: 'sgl.grid', themeId: 'neutral-dark' });
+    expect(await store.getDocument('doc-a')).toEqual(current);
+    expect(await store.getDocument('new-1')).toEqual(result.record);
+    expect((await store.listDocuments()).map((d) => d.id)).toEqual(['doc-a', 'new-1']);
+  });
+
+  it('a failing store still gives the record, with the storage notice', async () => {
+    const store = createMemoryStore();
+    store.failPut = () => new Error('disk');
+    const share = await import('../src/state/share.js');
+    const result = await share.importShare(deps(store), { source: 'x\n' });
+    expect(result.record.source).toBe('x\n');
+    expect(result.notices).toEqual(['share-opened', 'storage-failed']);
+  });
+});
