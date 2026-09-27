@@ -82,6 +82,9 @@ const DOWNSTREAM_EXTRA: Readonly<Record<string, readonly DiagnosticCode[]>> = {
   // `pin-nested` and `forty-three-pinned` have no extra: every node is
   // pinned.
   'layout/pin-half.sgl': ['SGL4020'],
+  // Fix round 1, item 3: 150 unpinned nodes, of which the host shows the
+  // first 100 SGL4020 notes; its own SGL4022 is the header's.
+  'layout/pin-many-loose.sgl': new Array<DiagnosticCode>(100).fill('SGL4020'),
   // Fix round 1, item 1: `box.c` has no pin; it packs inside the box (from
   // x = 0, not from `box.a`'s negative pin), so it is no SGL4003.
   'layout/pin-negative.sgl': ['SGL4020'],

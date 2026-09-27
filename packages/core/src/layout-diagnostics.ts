@@ -33,6 +33,7 @@ export const LAYOUT_CATALOGUE = {
   SGL4011: { severity: 'error', template: 'Layout engine `{id}` failed: {message}.' },
   SGL4020: { severity: 'warning', template: '`{node}` has no `@pin`; `fixed` placed it below the pinned nodes.' },
   SGL4021: { severity: 'warning', template: '`@pin` is not honoured by engine `{id}`; ignored.' },
+  SGL4022: { severity: 'info', template: '{count} more layout warnings not shown.' },
 } as const satisfies Record<string, CodeSpec>;
 
 export type LayoutDiagnosticCode = keyof typeof LAYOUT_CATALOGUE;

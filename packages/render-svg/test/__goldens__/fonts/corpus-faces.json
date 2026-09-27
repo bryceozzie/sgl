@@ -126,6 +126,9 @@
   "layout/pin-malformed.sgl": [
     "Inter normal 500"
   ],
+  "layout/pin-many-loose.sgl": [
+    "Inter normal 500"
+  ],
   "layout/pin-negative.sgl": [
     "Inter normal 500",
     "Inter normal 600"

@@ -27,9 +27,11 @@ export function isRenderSvgOwned(code: DiagnosticCode): boolean {
   // whole-pipeline gate owns them. SGL4020 (DD-12 N9) is `fixed`'s engine
   // note, and SGL4003 is the host's validation of a child `fixed` pinned
   // outside its container (`layout/pin-negative.sgl`, feat/b5-fixed): both
-  // come from a real layout, so the whole-pipeline gate owns them too.
+  // come from a real layout, so the whole-pipeline gate owns them too, as it
+  // does SGL4022, the host's count of engine notes past its cap
+  // (`layout/pin-many-loose.sgl`, fix round 1, item 3).
   return (
-    code.startsWith('SGL5') || code === 'SGL6001' || code === 'SGL4003' || code === 'SGL4010' || code === 'SGL4020' || code === 'SGL4021'
+    code.startsWith('SGL5') || code === 'SGL6001' || code === 'SGL4003' || code === 'SGL4010' || code === 'SGL4020' || code === 'SGL4021' || code === 'SGL4022'
   );
 }
 

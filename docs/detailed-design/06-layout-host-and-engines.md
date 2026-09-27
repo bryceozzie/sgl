@@ -158,7 +158,10 @@ All payloads are plain objects; `LayoutInput` and `MeasureTable` are already `st
                    are read from its params: finite numbers, or strings through workerText()
                    (backticks and control characters become spaces; cut to 120 characters).
                    The message is rebuilt with layoutDiagnostic(), never the engine's.
-                   `engineNotes()` in host.ts; fix round 1, items 1-3)
+                   `engineNotes()` in host.ts; fix round 1, items 1-3. Past the first 100,
+                   the host adds one SGL4022 (info) at the document start, {count} being
+                   the entries it did not read; an engine's own SGL4022 note is dropped:
+                   feat/b5-fixed fix round 1, item 3, human decision 2026-09-27)
                   (or resolve { value: null, diagnostics } if §5 rejects it — SGL4002)
    on 'error'   → clear timer → resolve { value: null, diagnostics: [SGL4011] }, built by the host
                   from the engine id it asked for and workerText(reason); nothing else in the
@@ -487,6 +490,7 @@ For each corpus graph (empty, one node, one edge, self-loop, parallel edges, 3-d
 | `SGL4011` | error | Layout engine `{id}` failed: {message}. |
 | `SGL4020` | warning | `{node}` has no `@pin`; `fixed` placed it below the pinned nodes. **Implemented** (`feat/b5-fixed`, DD-12 N9, H1, H5): a `fixed` engine note (§3), one per unpinned node, at its span. Fixture: `corpus/layout/pin-half.sgl` |
 | `SGL4021` | warning | `@pin` is not honoured by engine `{id}`; ignored. **Implemented** (`feat/b5-pin`, DD-12 N6, H4, H5): from `layoutConfigDiagnostics`, on the main thread, at the key. It fires once per node (by path), at its first pin key, when the engine does not declare `capabilities.pins`, and not for a pin the resolver dropped with `SGL2011` (fix round 1). Fixture: `corpus/layout/pin-under-elk.sgl` |
+| `SGL4022` | info | {count} more layout warnings not shown. **Implemented** (`feat/b5-fixed` fix round 1, item 3; human decision 2026-09-27): built by the host (`engineNotes`, §3) when an engine returns more than `MAX_ENGINE_NOTES` (100) notes, at the document start; an engine cannot emit it. Fixture: `corpus/layout/pin-many-loose.sgl` |
 
 An engine may emit a warning or info row of this table through `LayoutResult.notes`
 (§2, §3). The host drops an `error` row, because an engine that fails throws.

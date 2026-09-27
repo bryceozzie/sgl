@@ -244,6 +244,7 @@ hintsSchema:   { type: 'object', properties: {} }
 |---|---|---|---|
 | `SGL4020` | warning | `{node}` has no `@pin`; `fixed` placed it below the pinned nodes. | `fixed`, in `LayoutResult.diagnostics` (§5) |
 | `SGL4021` | warning | `@pin` is not honoured by engine `{id}`; ignored. | `layoutConfigDiagnostics`, main thread (N6) |
+| `SGL4022` | info | `{count}` more layout warnings not shown. | the host (`engineNotes`), past `MAX_ENGINE_NOTES`; never an engine (`feat/b5-fixed` fix round 1, item 3, human decision 2026-09-27) |
 
 Existing codes cover the rest: `SGL2010`/`SGL2011`/`SGL2012` for a malformed or misplaced `@pin`
 (N4), and `SGL4003` for a child pinned outside its container (N12). Pinned nodes may overlap. They
@@ -615,8 +616,12 @@ begins.
      no layout, so there is nothing for its notes to describe.
    - **How a note is checked (fix round 1, items 1–3).** N20's check, tightened:
      - Only the first 100 entries of `notes` are read (`MAX_ENGINE_NOTES`), by index, so a
-       sparse or huge array costs nothing. The cap is silent: no catalogue row says how many
-       were dropped.
+       sparse or huge array costs nothing. The cap was silent here; since `feat/b5-fixed` fix
+       round 1, item 3 (human decision 2026-09-27) the host adds one **`SGL4022`** (info,
+       "`{count}` more layout warnings not shown.") at the document start, `count` being the
+       entries past the cap. It is the host's alone: an engine's `SGL4022` note is dropped.
+       Fixture: `corpus/layout/pin-many-loose.sgl` (150 unpinned nodes under `fixed`: 100
+       `SGL4020` and one `SGL4022` with 50).
      - A span must be two non-negative integers with `from <= to`.
      - Parameters are read only for the template's own placeholders, and must be finite numbers
        or strings. `workerText()` makes each string safe: backticks, line breaks and other
