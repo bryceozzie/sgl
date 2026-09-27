@@ -5,7 +5,8 @@
 `@sgl/core` (the `@pin` registry row), `apps/web` (registration, pickers, options forms, the build).
 **Inputs:** `LayoutInput` (DD-06 §2). **Outputs:** `LayoutResult`.
 
-**Status: design only (2026-09-27), from `main` at `755bfd0`. No code is changed by this document.**
+**Status: design (2026-09-27), from `main` at `755bfd0`. Branch 1 (`feat/b5-pin`) is implemented
+(§13); branches 2–5 are not.**
 **Human decisions (2026-09-27): every §15 recommendation was accepted, H1–H9.** The documents they
 change (language spec §4 and §9, the backlog, ADR-0004, Architecture §4.5, 01, 06, 07) are updated
 on this branch (§18). The orchestrator also decided that bare engine names are accepted (N22), as a
@@ -568,7 +569,8 @@ For each engine, in its own branch:
 Each branch is from `main`, has its own T1+T2 gate, is reviewed, and merges `--no-ff` before the next
 begins.
 
-1. **`feat/b5-pin`** (small; H2, H4, H5).
+1. **`feat/b5-pin`** (small; H2, H4, H5). **Implemented** on `feat/b5-pin` (2026-09-27); the
+   deviations are below the list.
    - `@pin` gets its registry row and sub-key check (N4).
    - Engine notes reach the document (N20); the capability `pins?` (N6); `SGL4021` in
      `layoutConfigDiagnostics`.
@@ -576,6 +578,54 @@ begins.
    - The `corpus/layout/pin-*.sgl` fixtures.
    - Spec §4 text, if approved; DD-02 §7 and DD-06 §2, §5 and §9.
    - No engine yet: under `elk` and `grid` the only visible change is `SGL2010` becoming `SGL4021`.
+
+   **As built, and its deviations:**
+   - **Only `SGL4021` is allocated in this branch.** `SGL4020` has no emitter until `fixed`, and a
+     catalogue row without a fixture that emits it fails the coverage gate. So it moves to
+     `feat/b5-fixed`.
+   - **All seven `corpus/layout/pin-*.sgl` fixtures are here.** Three carry this branch's codes:
+     `pin-under-elk.sgl` (`SGL4021`), `pin-malformed.sgl` (`SGL2011`) and `pin-edge.sgl`
+     (`SGL2012`). The other four are `fixed`'s: `pin-full`, `pin-half`, `pin-nested` and
+     `pin-negative`. Until `fixed` exists, each of their pins is an `SGL4021` under the harness's
+     `grid`. The extras are listed in `render-svg/test/pipeline.test.ts`'s `DOWNSTREAM_EXTRA`, and
+     `feat/b5-fixed` changes their headers to `SGL4020`, `SGL4003` or none.
+   - **`pin-nested.sgl` has no edge from outside into `box`.** With `root -> box` or
+     `root -> box.a` (the node declared after the container), `elk`'s conformance check 6
+     fails: the edge starts 12 px from its node. That happens with or without pins, so it is
+     reported separately and not fixed here.
+   - **`SGL4021` reads the AST (N6), and is given the resolver's diagnostics.** A node whose pin
+     the resolver dropped (`SGL2011` at one of its pin keys) gets no `SGL4021`: the pin is
+     reported once (fix round 1, item 6). The warning is keyed by the node's path, so a node
+     declared twice warns once, at its first pin key in source order (item 7).
+   - **Every malformed pin is one `SGL2011` with N4's message.** That includes a value that is
+     not an object at all, which the registry's `type: 'object'` alone would report as "expects
+     object".
+   - **Engine notes are added only to an accepted result.** A result refused with `SGL4002` shows
+     no layout, so there is nothing for its notes to describe.
+   - **How a note is checked (fix round 1, items 1–3).** N20's check, tightened:
+     - Only the first 100 entries of `notes` are read (`MAX_ENGINE_NOTES`), by index, so a
+       sparse or huge array costs nothing. The cap is silent: no catalogue row says how many
+       were dropped.
+     - A span must be two non-negative integers with `from <= to`.
+     - Parameters are read only for the template's own placeholders, and must be finite numbers
+       or strings. `workerText()` makes each string safe: backticks, line breaks and other
+       control characters become spaces, and it is cut to 120 characters with an ellipsis.
+     - The app also clamps every diagnostic span to the document before it reaches CodeMirror
+       (`clampSpan`, in `setDiagnostics` and in `scrollToSpan`).
+   - **The failure channel follows the same rule (fix round 1, item 4).** The worker's `'error'`
+     message is now `{ t, id, reason }`. The host builds `SGL4011` itself, from the engine id it
+     asked for and `workerText(reason)`, and reads nothing else. So the worker builds no
+     diagnostic, and no catalogue row is bundled into it (`check-core-chunks.mjs`).
+   - **An empty `@layout.engine` is not an engine (fix round 1, item 8).** The resolver drops a
+     blank `engine` with `SGL2011` ("`@layout.engine` expects an engine name"), so the editor's
+     engine applies.
+   - `engineNotes()` is exported from `@sgl/layout-api`, and the render-svg corpus harness uses
+     it, so the coverage gate will see `fixed`'s `SGL4020` as the app does.
+   - **`corpus/checkout.sgl` says `engine: "elk"` (H7).** Its core resolve, compile, CST and AST
+     goldens changed for the text alone: the string, and spans shifted by −4. Its layout and
+     render goldens did not change. Root options still do not reach the engine (H6).
+   - Size: core **176.96 kB**, +0.08 kB over `main` at `b3171e6` (176.88). Before fix round 1 it was
+     +0.38 kB; removing the catalogue rows from the worker more than paid for the round.
 2. **`feat/b5-fixed`**.
    - `pack.ts` (N10), with `grid`'s goldens unchanged, as its own first commit.
    - `fixed.ts`, `ports.ts` and `SGL4020`.
@@ -719,7 +769,8 @@ precache and test offline.
 2. **Language spec §4 says `@pin` is an "absolute position auto-layout must respect".** No engine
    honours it, and the resolver says so (`SGL2010`, no registry row). B11 (auto-layout respects
    pins) is a Should. The row is both over-promising and, per ⚑2, the wrong frame of reference.
-3. **The `LayoutResult.diagnostics` field is in the contract, but `host.ts` drops it** (and every
+3. *(Resolved in `feat/b5-pin`, through `LayoutResult.notes`; `ctx.log` stays dropped, N21.)*
+   **The `LayoutResult.diagnostics` field is in the contract, but `host.ts` drops it** (and every
    `ctx.log`). DD-06 §3 and §5 never say an engine's diagnostics are discarded, so the contract
    implies a channel that does not exist (§5).
 4. **Engine names.** Spec §4 and §9 and `corpus/checkout.sgl` write `engine: "layered"` and

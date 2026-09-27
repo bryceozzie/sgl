@@ -5,6 +5,7 @@ import { parseInline } from '@sgl/core/inline';
 import {
   applyHostFallbacks,
   buildLayoutInput,
+  engineNotes,
   layoutConfigDiagnostics,
   quantize,
   validateResult,
@@ -113,8 +114,9 @@ async function layOut(
   const input = buildLayoutInput(styled as StyledGraphInput, labelSizes);
   const raw = await engine.layout(input, ctxWith(options));
   const result = quantize(applyHostFallbacks(input, raw, engine.capabilities, METRICS), 64);
+  // DD-12 N20: the engine's own notes, checked and rebuilt as the host does.
   const diagnostics = validateResult(result, styled.graph, engine.id);
-  return { input, result, table, diagnostics };
+  return { input, result, table, diagnostics: [...diagnostics, ...engineNotes(raw.notes)] };
 }
 
 /** The whole pipeline, `source -> RenderResult`, under one theme. Calls the
@@ -134,9 +136,15 @@ export async function runPipeline(
   const linker = path === undefined ? undefined : createImportLinker(fileSystemHost(path), { self: path });
   const { model, diagnostics: d2 } = linker === undefined ? resolve(ast) : resolveImports(ast, linker);
   const { graph, diagnostics: d3 } = linker === undefined ? compile(model, undefined, compileOptions) : compileImports(model, undefined, compileOptions);
-  // SGL4010 (Stage K fix round 1, item 23), as the app's pipeline emits it:
-  // the document's `@layout` keys against the engine laying it out.
-  const d3b = layoutConfigDiagnostics(ast, { id: engine.id, ...(engine.optionsSchema && { optionsSchema: engine.optionsSchema }), ...(engine.hintsSchema && { hintsSchema: engine.hintsSchema }) });
+  // SGL4010 (Stage K fix round 1, item 23) and SGL4021 (DD-12 N6), as the
+  // app's pipeline emits them: the document's `@layout` keys and `@pin`s
+  // against the engine laying it out.
+  const d3b = layoutConfigDiagnostics(ast, {
+    id: engine.id,
+    ...(engine.optionsSchema && { optionsSchema: engine.optionsSchema }),
+    ...(engine.hintsSchema && { hintsSchema: engine.hintsSchema }),
+    ...(engine.capabilities.pins === true && { pins: true }),
+  }, d2);
   const { value: theme, diagnostics: d4 } = resolveTheme(themeDoc, (id) => BUILT_IN[id]);
   const { value: styled, diagnostics: d5 } = styleGraph(graph, theme, model.classes);
   const { input, result, table, diagnostics: d6 } = await layOut(styled, engine, options);

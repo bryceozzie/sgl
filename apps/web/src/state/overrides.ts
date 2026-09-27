@@ -16,8 +16,14 @@ export function documentThemeOverride(model: DocumentModel): string | undefined 
   return typeof value === 'string' ? value : undefined;
 }
 
-export function documentEngineOverride(model: DocumentModel): string | undefined {
+/** DD-12 N22: a bare name (`grid`, `elk`, `fixed`, …) means the `sgl.*`
+ *  engine of that name when `known` says it is registered, the rule
+ *  `layoutConfigDiagnostics`' `namesEngine` uses. A registered id, or any
+ *  name whose `sgl.*` engine is not registered, is passed through, so an
+ *  unknown one is `SGL4011` from the worker, as before. */
+export function documentEngineOverride(model: DocumentModel, known?: (id: string) => boolean): string | undefined {
   const layout = asBag(model.root.config.layout);
   const value = layout?.engine;
-  return typeof value === 'string' ? value : undefined;
+  if (typeof value !== 'string') return undefined;
+  return known !== undefined && !known(value) && known(`sgl.${value}`) ? `sgl.${value}` : value;
 }

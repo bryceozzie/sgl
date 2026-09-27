@@ -1,4 +1,4 @@
-import { layoutDiagnostic, NO_SPAN, type StageResult } from '@sgl/core';
+import { LAYOUT_CATALOGUE, layoutDiagnostic, NO_SPAN, type Diagnostic, type LayoutDiagnosticCode, type StageResult } from '@sgl/core';
 import type { LayoutInput, LayoutResult, ResolvedThemeMetricsView } from './contract.js';
 import type { HostToWorker, WorkerToHost } from './protocol.js';
 import { quantize, validateResult } from './validate.js';
@@ -199,7 +199,11 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
         if (state === null) return;
         const diagnostics = validateResult(message.result, state.input.graph, state.engineId);
         const hasError = diagnostics.some((d) => d.severity === 'error');
-        state.resolve(hasError ? { value: null, diagnostics } : { value: quantize(message.result, 64), diagnostics });
+        state.resolve(
+          hasError
+            ? { value: null, diagnostics }
+            : { value: quantize(message.result, 64), diagnostics: [...diagnostics, ...engineNotes(message.result.notes)] },
+        );
         return;
       }
       case 'error': {
@@ -211,7 +215,18 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
         }
         const state = takeCurrent(message.id);
         if (state === null) return;
-        state.resolve({ value: null, diagnostics: [message.diagnostic] });
+        // Fix round 1, item 4: built here, from the id this host asked for and
+        // the cleaned reason; the worker's own code, message and span are
+        // never read (DD-12 N20's rule, for the failure channel too).
+        state.resolve({
+          value: null,
+          diagnostics: [
+            layoutDiagnostic('SGL4011', NO_SPAN, {
+              id: state.engineId,
+              message: typeof message.reason === 'string' ? workerText(message.reason) : 'no reason given',
+            }),
+          ],
+        });
         return;
       }
       case 'measure': {
@@ -233,9 +248,10 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
         return;
       }
       case 'log':
-        // Nothing surfaces worker-side `ctx.log` calls yet (out of Stage H's
-        // scope); dropped here rather than thrown so a chatty engine cannot
-        // break the host.
+        // `ctx.log` is a developer channel with no code or span, so it is not
+        // how an engine reports a document problem (DD-12 N21: `notes` is);
+        // dropped here rather than thrown so a chatty engine cannot break the
+        // host.
         return;
     }
   }
@@ -301,6 +317,60 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
       }
     },
   };
+}
+
+/** At most this many of an engine's notes are read (fix round 1, item 1). The
+ *  rest are dropped silently: no catalogue row says "n more were dropped". */
+export const MAX_ENGINE_NOTES = 100;
+
+/**
+ * Text from the worker, made fit for a catalogue template (fix round 1, item
+ * 3): backticks, line breaks and every other control character become
+ * spaces, so it cannot close the template's code span or start a new line,
+ * and it is cut to 120 characters, the last an ellipsis, never splitting a
+ * surrogate pair.
+ */
+export function workerText(text: string): string {
+  // eslint-disable-next-line no-control-regex -- matching control characters is the point.
+  const s = text.replace(/[`\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, ' ');
+  return s.length <= 120 ? s : `${s.slice(0, 119).replace(/[\ud800-\udbff]$/, '')}…`;
+}
+
+/**
+ * An engine's `LayoutResult.notes` as diagnostics (DD-12 N20). The worker is
+ * untrusted (B17), so each note is checked field by field: a `LAYOUT_CATALOGUE`
+ * code whose row is not an error (an engine that fails throws, which is
+ * `SGL4011`), a span of two non-negative integers with `from <= to`
+ * (copied), and, for each of the
+ * template's own placeholders only, a finite number or a string (through
+ * `workerText`). The
+ * message is the catalogue's, never the engine's. Anything else is dropped
+ * without a word. Only the first `MAX_ENGINE_NOTES` entries are read, so a
+ * huge or sparse array costs nothing (fix round 1, item 1).
+ */
+export function engineNotes(notes: unknown): Diagnostic[] {
+  const out: Diagnostic[] = [];
+  if (!Array.isArray(notes)) return out;
+  const n = Math.min(notes.length, MAX_ENGINE_NOTES);
+  for (let i = 0; i < n; i++) {
+    const note = notes[i] as { code?: unknown; span?: { from?: unknown; to?: unknown }; params?: Record<string, unknown> } | null | undefined;
+    const code = note?.code;
+    const from = note?.span?.from;
+    const to = note?.span?.to;
+    if (typeof code !== 'string' || !Object.hasOwn(LAYOUT_CATALOGUE, code)) continue;
+    const row = LAYOUT_CATALOGUE[code as LayoutDiagnosticCode];
+    if (row.severity === 'error') continue;
+    // Non-negative integers, from <= to (fix round 1, item 2).
+    if (!Number.isInteger(from) || !Number.isInteger(to) || (from as number) < 0 || (to as number) < (from as number)) continue;
+    const params: Record<string, string | number> = {};
+    for (const [, k] of row.template.matchAll(/\{(\w+)\}/g)) {
+      const v = typeof note?.params === 'object' && note.params !== null && Object.hasOwn(note.params, k!) ? note.params[k!] : undefined;
+      if (typeof v === 'string') params[k!] = workerText(v);
+      else if (Number.isFinite(v)) params[k!] = v as number;
+    }
+    out.push(layoutDiagnostic(code as LayoutDiagnosticCode, { from: from as number, to: to as number }, params));
+  }
+  return out;
 }
 
 /**

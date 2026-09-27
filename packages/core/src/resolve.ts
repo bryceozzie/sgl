@@ -37,7 +37,7 @@ import type {
   Value,
 } from './ast.js';
 import { breakExtendsCycles } from './class-graph.js';
-import { SIZE_KEYS, validateConfigKey } from './config-registry.js';
+import { isPin, PIN_KEYS, SIZE_KEYS, validateConfigKey } from './config-registry.js';
 import { diagnostic, type Diagnostic } from './diagnostics.js';
 import { nodeIdFromPath } from './ids.js';
 import type {
@@ -969,6 +969,19 @@ function finalizeConfig(
   if (scope === 'root' || scope === 'node') {
     foldDirectionSugar(config);
     if (authored !== undefined) foldDirectionSugar(authored);
+    // An empty engine name is no engine (feat/b5-pin fix round 1, item 8):
+    // dropped with SGL2011, so the editor's engine applies. The rest of the
+    // block is kept.
+    const layout = config.layout;
+    if (isPlainObject(layout) && typeof layout.engine === 'string' && layout.engine.trim() === '') {
+      diags.push(diagnostic('SGL2011', bag.configSpans.get('layout') as SourceSpan, { key: 'layout.engine', type: 'an engine name' }));
+      for (const b of authored === undefined ? [config] : [config, authored]) {
+        if (!isPlainObject(b.layout)) continue;
+        const rest = { ...b.layout };
+        delete rest.engine;
+        b.layout = rest;
+      }
+    }
   }
   const drop = (key: string): void => {
     delete config[key];
@@ -980,16 +993,22 @@ function finalizeConfig(
     if (result.outcome === 'bad-scope') {
       diags.push(diagnostic('SGL2012', span, { key, scope }));
       drop(key);
+    } else if (key === 'pin' && !isPin(config[key])) {
+      // DD-12 N4: one message for every malformed pin, an object or not.
+      diags.push(diagnostic('SGL2011', span, { key, type: '`{ x, y }` numbers within ±100 000' }));
+      drop(key);
     } else if (result.outcome === 'bad-type') {
       diags.push(diagnostic('SGL2011', span, { key, type: result.expected }));
       drop(key);
     } else if (result.outcome === 'unknown') {
       diags.push(diagnostic('SGL2010', span, { key }));
-    } else if (key === 'size' && isPlainObject(config[key])) {
+    } else if ((key === 'size' || key === 'pin') && isPlainObject(config[key])) {
       // Spec §4: an unknown key within a known namespace is a warning. Kept,
-      // like any unknown key; DD-04 §4 step 6 ignores it.
+      // like any unknown key; DD-04 §4 step 6 ignores it, as every engine
+      // ignores a pin's.
+      const known = key === 'size' ? SIZE_KEYS : PIN_KEYS;
       for (const sub of Object.keys(config[key] as Record<string, unknown>).sort()) {
-        if (!SIZE_KEYS.has(sub)) diags.push(diagnostic('SGL2010', span, { key: `size.${sub}` }));
+        if (!known.has(sub)) diags.push(diagnostic('SGL2010', span, { key: `${key}.${sub}` }));
       }
     }
   }

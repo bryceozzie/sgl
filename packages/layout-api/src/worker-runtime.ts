@@ -1,4 +1,3 @@
-import { layoutDiagnostic, NO_SPAN } from '@sgl/core';
 import type { LayoutContext } from './contract.js';
 import { applyHostFallbacks } from './fallbacks.js';
 import type { HostToWorker, WorkerToHost } from './protocol.js';
@@ -65,7 +64,7 @@ export function createWorkerRuntime(registry: EngineRegistry, port: WorkerRuntim
       port.post({
         t: 'error',
         id: message.id,
-        diagnostic: layoutDiagnostic('SGL4011', NO_SPAN, { id: message.engine, message: 'not registered in this worker' }),
+        reason: 'not registered in this worker',
       });
       return;
     }
@@ -146,7 +145,7 @@ export function createWorkerRuntime(registry: EngineRegistry, port: WorkerRuntim
       port.post({
         t: 'error',
         id: message.id,
-        diagnostic: layoutDiagnostic('SGL4011', NO_SPAN, { id: message.engine, message: errorMessage(err) }),
+        reason: errorMessage(err),
       });
     } finally {
       running.delete(message.id);

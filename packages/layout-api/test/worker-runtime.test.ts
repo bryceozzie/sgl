@@ -177,8 +177,7 @@ describe('createWorkerRuntime (DD-06 §3, Stage H decision D2)', () => {
 
     expect(port.sent).toHaveLength(1);
     const msg = port.sent[0]!;
-    expect(msg.t).toBe('error');
-    expect(msg.t === 'error' && msg.diagnostic.code).toBe('SGL4011');
+    expect(msg).toEqual({ t: 'error', id: expect.any(Number), reason: 'not registered in this worker' });
   });
 
   it('SGL4011: an engine that throws synchronously', async () => {
@@ -196,8 +195,7 @@ describe('createWorkerRuntime (DD-06 §3, Stage H decision D2)', () => {
 
     const msg = port.sent[0]!;
     expect(msg.t).toBe('error');
-    expect(msg.t === 'error' && msg.diagnostic.code).toBe('SGL4011');
-    expect(msg.t === 'error' && msg.diagnostic.message).toContain('boom');
+    expect(msg.t === 'error' && msg.reason).toContain('boom');
   });
 
   it('SGL4011: an engine whose promise rejects', async () => {
@@ -211,7 +209,7 @@ describe('createWorkerRuntime (DD-06 §3, Stage H decision D2)', () => {
 
     const msg = port.sent[0]!;
     expect(msg.t).toBe('error');
-    expect(msg.t === 'error' && msg.diagnostic.message).toContain('async boom');
+    expect(msg.t === 'error' && msg.reason).toContain('async boom');
   });
 
   it("'abort' aborts the running request's signal", async () => {
@@ -264,7 +262,7 @@ describe('createWorkerRuntime (DD-06 §3, Stage H decision D2)', () => {
 
     const msg = port.sent[0]!;
     expect(msg.t).toBe('error');
-    expect(msg.t === 'error' && msg.diagnostic.message).toContain('layoutRuns');
+    expect(msg.t === 'error' && msg.reason).toContain('layoutRuns');
   });
 
   it("measure-miss round trip: 'measure' out, 'measure-reply' in, resumes the engine", async () => {

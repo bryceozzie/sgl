@@ -31,6 +31,36 @@ describe('documentThemeOverride / documentEngineOverride (DD-08 §10)', () => {
   it('ignores a non-string engine value rather than throwing', () => {
     expect(documentEngineOverride(modelOf('@layout: { engine: 5 }\na: "A"'))).toBeUndefined();
   });
+
+  describe('bare engine names (DD-12 N22)', () => {
+    const REGISTERED = new Set(['sgl.elk', 'sgl.grid']);
+    const known = (id: string): boolean => REGISTERED.has(id);
+    const engineOf = (source: string) => documentEngineOverride(modelOf(source), known);
+
+    it('a bare name maps to the registered `sgl.*` id, quoted or not, in either spelling', () => {
+      expect(engineOf('@layout: { engine: grid }\na: "A"')).toBe('sgl.grid');
+      expect(engineOf('@layout: { engine: "elk" }\na: "A"')).toBe('sgl.elk');
+      expect(engineOf('@layout.engine: elk\na: "A"')).toBe('sgl.elk');
+    });
+
+    it('a full id is passed through unchanged', () => {
+      expect(engineOf('@layout: { engine: "sgl.grid" }\na: "A"')).toBe('sgl.grid');
+    });
+
+    it('a bare name whose `sgl.*` engine is not registered is passed through, as an unknown id is (SGL4011)', () => {
+      expect(engineOf('@layout: { engine: fixed }\na: "A"')).toBe('fixed');
+      expect(engineOf('@layout: { engine: "org.example.x" }\na: "A"')).toBe('org.example.x');
+    });
+
+    it('`layered` is not an alias for `elk` (H7)', () => {
+      expect(engineOf('@layout: { engine: "layered" }\na: "A"')).toBe('layered');
+    });
+
+    it('a registered id wins over the `sgl.` mapping', () => {
+      const withBare = (id: string): boolean => id === 'grid' || id === 'sgl.grid';
+      expect(documentEngineOverride(modelOf('@layout: { engine: grid }\na: "A"'), withBare)).toBe('grid');
+    });
+  });
 });
 
 

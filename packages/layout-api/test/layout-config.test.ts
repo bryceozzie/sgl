@@ -1,4 +1,4 @@
-import { parse } from '@sgl/core';
+import { parse, resolve } from '@sgl/core';
 import { describe, expect, it } from 'vitest';
 import { layoutConfigDiagnostics, type EngineSchemas } from '../src/layout-config.js';
 
@@ -61,5 +61,77 @@ describe('layoutConfigDiagnostics (SGL4010)', () => {
     expect(run('@layout: { anything: 1 }\nbox: {\n  @layout.engine: grid\n  a\n}\n', { id: 'org.example.x' }).map((d) => d.text)).toEqual([
       '@layout.engine',
     ]);
+  });
+});
+
+describe('layoutConfigDiagnostics (SGL4021, DD-12 N6)', () => {
+  const PINNING: EngineSchemas = { ...GRID, id: 'sgl.fixed', pins: true };
+  const froms = (src: string, engine: EngineSchemas): number[] =>
+    layoutConfigDiagnostics(parse(src).ast, engine).map((d) => d.span.from);
+
+  it('a node @pin under an engine without the pins capability warns once, at the key', () => {
+    const src = 'a: { @pin: { x: 1, y: 2 } }\nb: "B"\n';
+    expect(run(src, ELK)).toEqual([
+      { code: 'SGL4021', severity: 'warning', text: '@pin', message: '`@pin` is not honoured by engine `sgl.elk`; ignored.' },
+    ]);
+    expect(run(src, GRID).map((d) => d.message)).toEqual(['`@pin` is not honoured by engine `sgl.grid`; ignored.']);
+  });
+
+  it('an engine that declares `pins: true` is not warned about; `pins: false` or absent is', () => {
+    const src = 'a: { @pin: { x: 1, y: 2 } }\n';
+    expect(run(src, PINNING)).toEqual([]);
+    expect(run(src, { ...PINNING, pins: false }).map((d) => d.code)).toEqual(['SGL4021']);
+    expect(run(src, { id: 'org.example.x' }).map((d) => d.code)).toEqual(['SGL4021']);
+  });
+
+  it('one warning per node, at its first pin key, however the pin is spelled; containers and their children each count', () => {
+    const src = 'a: {\n  @pin.x: 1\n  @pin.y: 2\n}\nbox: {\n  @pin: $p\n  inner: { @pin: { x: 0, y: 0 } }\n}\n';
+    expect(froms(src, ELK)).toEqual([src.indexOf('@pin.x'), src.indexOf('@pin: $p'), src.indexOf('@pin: { x: 0')]);
+    expect(run(src, ELK).map((d) => d.text)).toEqual(['@pin.x', '@pin', '@pin']);
+  });
+
+  it("a pin on the root, a class or an edge is not SGL4021 (it is the resolver's SGL2012)", () => {
+    expect(run('@pin: { x: 1, y: 2 }\n@classes: { P: { @pin: { x: 1, y: 2 } } }\na: P\nb: "B"\na -> b: { @pin: { x: 1, y: 2 } }\n', ELK)).toEqual([]);
+  });
+
+  // Fix round 1, item 6: a pin the resolver dropped (SGL2011) is reported once, by the resolver.
+  describe('a pin the resolver dropped', () => {
+    const withResolver = (src: string, engine: EngineSchemas) => {
+      const { ast } = parse(src);
+      return layoutConfigDiagnostics(ast, engine, resolve(ast).diagnostics).map((d) => [d.code, src.slice(d.span.from, d.span.to)]);
+    };
+
+    it.each([
+      ['y missing', 'a: { @pin: { x: 10 } }\n'],
+      ['dotted, y missing', 'a: {\n  @pin.x: 10\n}\n'],
+      ['out of range through a variable', '@vars: { far: { x: 1000000, y: 0 } }\na: { @pin: $far }\n'],
+      ['not an object', 'a: { @pin: 5 }\n'],
+    ])('%s: no SGL4021', (_, src) => {
+      expect(withResolver(src, ELK)).toEqual([]);
+    });
+
+    it('only the node whose pin was dropped is skipped', () => {
+      expect(withResolver('a: { @pin: { x: 10 } }\nb: { @pin: { x: 1, y: 2 } }\n', ELK)).toEqual([['SGL4021', '@pin']]);
+      const src = 'a: { @pin: { x: 10 } }\nb: { @pin: { x: 1, y: 2 } }\n';
+      expect(layoutConfigDiagnostics(parse(src).ast, ELK, resolve(parse(src).ast).diagnostics)[0]!.span.from).toBe(src.indexOf('@pin: { x: 1,'));
+    });
+
+    it('without the resolver\'s diagnostics every pin key counts, as before', () => {
+      expect(run('a: { @pin: { x: 10 } }\n', ELK).map((d) => d.code)).toEqual(['SGL4021']);
+    });
+  });
+
+  // Fix round 1, item 7: one SGL4021 per node, not per declaration.
+  it('a node declared twice warns once, at its first pin key in source order', () => {
+    const src = 'a: { @pin: { x: 1, y: 2 } }\nb: "B"\na: { @pin: { x: 3, y: 4 } }\nbox: {\n  c: { @pin.x: 0, @pin.y: 0 }\n}\nbox: {\n  c: { @pin: { x: 5, y: 5 } }\n  @pin: { x: 9, y: 9 }\n}\n';
+    expect(froms(src, ELK)).toEqual([src.indexOf('@pin'), src.indexOf('@pin.x'), src.indexOf('@pin: { x: 9')].sort((p, q) => p - q));
+  });
+
+  it('two nodes with the same key under different parents are different nodes', () => {
+    expect(froms('p: { a: { @pin: { x: 1, y: 2 } } }\nq: { a: { @pin: { x: 1, y: 2 } } }\n', ELK)).toHaveLength(2);
+  });
+
+  it('a document without a pin gets none', () => {
+    expect(run('a: { @size: { width: 10 } }\nb: "B"\na -> b\n', ELK)).toEqual([]);
   });
 });

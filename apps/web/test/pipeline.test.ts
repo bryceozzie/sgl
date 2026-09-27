@@ -4,6 +4,7 @@ import { asNodeId, diagnostic, NO_SPAN, parse, type Diagnostic, type LabelId } f
 import type { LayoutHost, LayoutInput, LayoutResult, ResolvedThemeMetricsView } from '@sgl/layout-api';
 import type { StageResult } from '@sgl/core';
 import { labelRunKey, StaticMetricsMeasurer } from '@sgl/measure';
+import { REGISTERED_ENGINES, registeredEngine } from '../src/io/app-boot.js';
 import { createImportsRuntime } from '../src/state/imports.js';
 import { createPipeline } from '../src/state/pipeline.js';
 import { createMemoryStore, type DocumentRecord, type DocumentStore } from '../src/state/storage.js';
@@ -511,6 +512,99 @@ describe('document overrides (DD-08 §10)', () => {
   it('@layout: { engine: "..." } (object form) is read the same as the dotted form', () => {
     const env = setup('@layout: { engine: "sgl.grid" }\na: "A"');
     expect(env.pipeline.documentEngineId.value).toBe('sgl.grid');
+  });
+
+  // DD-12 N22 (orchestrator's bug fix): with the app's real registered
+  // engines, a bare name reaches the host as the full id; before, `grid` went
+  // to the worker as `grid` and came back SGL4011 with no layout.
+  const registered = { engineSchemas: (id: string) => REGISTERED_ENGINES.find((e) => e.id === id) };
+
+  it.each([
+    ['@layout: { engine: grid }', 'sgl.grid'],
+    ['@layout.engine: "elk"', 'sgl.elk'],
+  ])('a bare engine name (%s) reaches the host as %s', async (config, id) => {
+    const env = setup(`${config}\na: "A"`, { ...registered, defaultEngineId: id === 'sgl.grid' ? 'sgl.elk' : 'sgl.grid' });
+    expect(env.pipeline.effectiveEngineId.value).toBe(id);
+    await completeOneLayout(env, 'a');
+    expect(env.pending.at(-1)!.engineId).toBe(id);
+  });
+
+  it('an empty `engine` is not set: the editor\'s engine lays out, with one SGL2011 at the key (fix round 1, item 8)', async () => {
+    const source = '@layout: { engine: "" }\nbox: {\n  @layout.engine: ""\n  a: "A"\n}\n';
+    const env = setup(source, { ...registered, defaultEngineId: 'sgl.grid' });
+    expect(env.pipeline.documentEngineId.value).toBeUndefined();
+    expect(env.pipeline.effectiveEngineId.value).toBe('sgl.grid');
+    expect(env.pipeline.diags.value.map((d) => [d.code, source.slice(d.span.from, d.span.to)])).toEqual([
+      ['SGL2011', '@layout'],
+      ['SGL2011', '@layout.engine'],
+    ]);
+    await completeOneLayout(env, 'box');
+    expect(env.pending.at(-1)!.engineId).toBe('sgl.grid');
+  });
+
+  it('an unknown bare name reaches the host unchanged, as an unknown id does (`layered` is not `elk`, H7)', async () => {
+    const env = setup('@layout: { engine: "layered" }\na: "A"', registered);
+    await completeOneLayout(env, 'a');
+    expect(env.pending.at(-1)!.engineId).toBe('layered');
+  });
+});
+
+describe('@pin under the registered engines (DD-12 N6, H4)', () => {
+  const registered = { engineSchemas: (id: string) => REGISTERED_ENGINES.find((e) => e.id === id) };
+
+  it.each(['sgl.grid', 'sgl.elk'])('neither grid nor elk honours pins: SGL4021 at the key under %s', (id) => {
+    const source = 'a: { @pin: { x: 10, y: 20 } }\nb: "B"\n';
+    const env = setup(source, { ...registered, defaultEngineId: id });
+    const warnings = env.pipeline.diags.value.filter((d) => d.code === 'SGL4021');
+    expect(warnings.map((d) => [source.slice(d.span.from, d.span.to), d.message])).toEqual([['@pin', `\`@pin\` is not honoured by engine \`${id}\`; ignored.`]]);
+    // The resolver accepted it: no SGL2010 ("unknown key") any more.
+    expect(env.pipeline.diags.value.map((d) => d.code)).toEqual(['SGL4021']);
+  });
+
+  // Fix round 1, item 5 (mutation M9): a `pins: true` engine, listed through
+  // the same mapping REGISTERED_ENGINES uses, silences SGL4021.
+  it('an engine whose capabilities declare pins is not warned about', () => {
+    const capabilities = { containers: true, edgeRouting: 'straight', ports: false, labelPlacement: false, incremental: false, determinism: 'bitwise' } as const;
+    const stub = registeredEngine({ id: 'test.pinning', name: 'Pinning', capabilities: { ...capabilities, pins: true } });
+    expect(stub.pins).toBe(true);
+    const source = 'a: { @pin: { x: 10, y: 20 } }\n';
+    const env = setup(source, { defaultEngineId: 'test.pinning', engineSchemas: (id) => (id === stub.id ? stub : undefined) });
+    expect(env.pipeline.diags.value).toEqual([]);
+    // The control: the same stub without pins warns.
+    const plain = registeredEngine({ id: 'test.pinning', name: 'Pinning', capabilities });
+    const env2 = setup(source, { defaultEngineId: 'test.pinning', engineSchemas: (id) => (id === plain.id ? plain : undefined) });
+    expect(env2.pipeline.diags.value.map((d) => d.code)).toEqual(['SGL4021']);
+  });
+
+  it('the pin reaches the layout input unchanged, relative to its parent (H2)', async () => {
+    const env = setup('box: {\n  @pin: { x: 5, y: 6 }\n  a: { @pin: { x: -1, y: 2.5 } }\n}\n', registered);
+    await completeOneLayout(env, 'box');
+    const { graph } = env.pending.at(-1)!.input;
+    expect(graph.nodes[asNodeId('box')]!.config.pin).toEqual({ x: 5, y: 6 });
+    expect(graph.nodes[asNodeId('box.a')]!.config.pin).toEqual({ x: -1, y: 2.5 });
+  });
+
+  it('a malformed pin is reported once, by the resolver (SGL2011), not again as SGL4021 (fix round 1, item 6)', () => {
+    const env = setup('a: { @pin: { x: 1 } }\nb: { @pin: { x: 1, y: 2 } }\n', registered);
+    expect(env.pipeline.diags.value.map((d) => d.code).sort()).toEqual(['SGL2011', 'SGL4021']);
+  });
+
+  it('a malformed pin never reaches the layout input', async () => {
+    const env = setup('a: { @pin: { x: 1 } }\n', registered);
+    await completeOneLayout(env, 'a');
+    expect(env.pending.at(-1)!.input.graph.nodes[asNodeId('a')]!.config.pin).toBeUndefined();
+  });
+
+  it("an engine's warning from the host reaches the document's diagnostics beside a landed layout (DD-12 N20, the app half)", async () => {
+    const env = setup('a: "A"');
+    await flushUntil(() => env.calls.some((c) => !c.cancelled));
+    env.fireLatest();
+    await flush();
+    const note = diagnostic('SGL4021', { from: 0, to: 1 }, { id: 'sgl.grid' });
+    env.pending.at(-1)!.resolve({ value: fakeLayoutResult('a'), diagnostics: [note] });
+    await flush();
+    expect(env.pipeline.layout.value).not.toBeNull();
+    expect(env.pipeline.diags.value).toContainEqual(note);
   });
 });
 

@@ -26,12 +26,23 @@ import type { JSONSchema7 } from './contract.js';
  * `@layout` sub-key: the squiggle belongs on the key itself.
  *
  * An engine the caller has no schemas for gets (a) only.
+ *
+ * SGL4021 (DD-12 N6, H4), in the same walk: a node's `@pin` under an engine
+ * that does not declare `pins: true` is warned about once per node (by path,
+ * however many times it is declared), at its first pin key in source order,
+ * and ignored. Given the resolver's diagnostics (`resolved`), a node whose pin
+ * the resolver dropped with `SGL2011` is skipped: that is already reported.
+ * A pin on the root, a class or an edge is the resolver's `SGL2012` and is not
+ * visited. Nodes grafted by `@imports` have
+ * no AST here and are not checked (they cannot be edited from this document).
  */
 
 export interface EngineSchemas {
   readonly id: string;
   readonly optionsSchema?: JSONSchema7;
   readonly hintsSchema?: JSONSchema7;
+  /** The engine's `capabilities.pins` (DD-12 N6); absent means `false`. */
+  readonly pins?: boolean;
 }
 
 interface LayoutKey {
@@ -40,19 +51,29 @@ interface LayoutKey {
   readonly value: Value;
 }
 
-export function layoutConfigDiagnostics(ast: Document, engine: EngineSchemas): readonly Diagnostic[] {
+export function layoutConfigDiagnostics(ast: Document, engine: EngineSchemas, resolved: readonly Diagnostic[] = []): readonly Diagnostic[] {
   const out: Diagnostic[] = [];
   const declared = declaredKeys(engine);
-  const visit = (entries: readonly Entry[], level: 'root' | 'node'): void => {
+  // SGL4021 (fix round 1, items 6 and 7): each node's first pin key in source
+  // order, by its path, so a node declared twice is warned about once; `null`
+  // once the resolver has dropped one of its pins (SGL2011 at that key), which
+  // is then reported once, by the resolver.
+  const dropped = new Set(resolved.filter((d) => d.code === 'SGL2011').map((d) => d.span.from));
+  const pins = new Map<string, SourceSpan | null>();
+  const visit = (entries: readonly Entry[], path: string | null): void => {
     for (const entry of entries) {
       if (entry.kind === 'NodeDecl') {
-        if (entry.value?.kind === 'Block') visit(entry.value.entries, 'node');
+        if (entry.value?.kind === 'Block') visit(entry.value.entries, path === null ? entry.key : `${path}\u0000${entry.key}`);
         continue;
       }
       if (entry.kind !== 'ConfigEntry') continue;
+      if (path !== null && engine.pins !== true && entry.key[0] === 'pin') {
+        if (dropped.has(entry.keySpan.from)) pins.set(path, null);
+        else if (!pins.has(path)) pins.set(path, entry.keySpan);
+      }
       for (const k of layoutKeys(entry)) {
         if (k.key === 'engine') {
-          if (level === 'node' && !namesEngine(k.value, engine.id)) {
+          if (path !== null && !namesEngine(k.value, engine.id)) {
             out.push(layoutDiagnostic('SGL4010', k.span, { key: 'engine', id: engine.id }));
           }
           continue;
@@ -61,7 +82,8 @@ export function layoutConfigDiagnostics(ast: Document, engine: EngineSchemas): r
       }
     }
   };
-  visit(ast.entries, 'root');
+  visit(ast.entries, null);
+  for (const span of pins.values()) if (span !== null) out.push(layoutDiagnostic('SGL4021', span, { id: engine.id }));
   return out;
 }
 
@@ -76,11 +98,13 @@ function layoutKeys(entry: Extract<Entry, { kind: 'ConfigEntry' }>): LayoutKey[]
   return entry.value.props.map((p) => ({ key: p.key, span: p.keySpan, value: p.value }));
 }
 
-/** `sgl.elk`, or its short form `elk`. */
+/** `sgl.elk`, or its short form `elk`. An empty name counts as naming it:
+ *  the resolver drops it with SGL2011 (fix round 1, item 8), so it is not a
+ *  second engine to warn about. */
 function namesEngine(value: Value, id: string): boolean {
   const name = value.kind === 'String' || value.kind === 'Word' ? value.value : undefined;
   if (name === undefined) return false;
-  return name === id || (id.startsWith('sgl.') && name === id.slice('sgl.'.length));
+  return name.trim() === '' || name === id || (id.startsWith('sgl.') && name === id.slice('sgl.'.length));
 }
 
 function declaredKeys(engine: EngineSchemas): ReadonlySet<string> | null {

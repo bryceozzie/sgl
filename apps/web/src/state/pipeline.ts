@@ -315,7 +315,7 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
 
   // DD-08 §10: "@layout.engine / @theme in the document override the pickers."
   const documentThemeId = computed<string | undefined>(() => documentThemeOverride(model.value.model));
-  const documentEngineId = computed<string | undefined>(() => documentEngineOverride(model.value.model));
+  const documentEngineId = computed<string | undefined>(() => documentEngineOverride(model.value.model, (id) => deps.engineSchemas?.(id) !== undefined));
   const effectiveThemeId = computed<string>(() => documentThemeId.value ?? themeId.value);
   const effectiveEngineId = computed<string>(() => documentEngineId.value ?? engineId.value);
 
@@ -550,7 +550,7 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   // and ignored. From the parsed AST, where each key has its own span.
   const layoutConfigDiags = computed<readonly Diagnostic[]>(() => {
     const engineId = effectiveEngineId.value;
-    return layoutConfigDiagnostics(parsed.value.value, deps.engineSchemas?.(engineId) ?? { id: engineId });
+    return layoutConfigDiagnostics(parsed.value.value, deps.engineSchemas?.(engineId) ?? { id: engineId }, model.value.diagnostics);
   });
 
   const diags = computed<readonly Diagnostic[]>(() => [
