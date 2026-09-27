@@ -10,7 +10,7 @@ implements T10's decoder half, T11 and T15–T20. Branch 2, `feat/a18-text` (202
 T1–T10, T12–T14, T21–T41 (T26 as metrics only), T51–T54, T58 and T59, and fixes §19 items 1, 2, 6
 and 7. Branch 3, `feat/a18-render` (2026-09-26), implements T42–T50, the rest of T26, T55–T57 and
 T60's render tests, and fixes §19 items 3 and 8; item 5 is recorded as a finding for the human
-(execution plan §2.1 F24). Each carries an *Implemented* note with its deviations. Phase 1 (2026-09-25) was design only. The decisions are numbered
+(execution plan §2.1 F25). Each carries an *Implemented* note with its deviations. Phase 1 (2026-09-25) was design only. The decisions are numbered
 **T1–T60**. Each carries a one-line reason in italics. Decisions marked **⚑** go to the human before
 Phase 2 starts; each has options and a recommendation (§18). Where this document changes a type or a
 rule in DD-01…DD-10, the change is listed in §17 and made in those documents in the Phase 2 branch
@@ -91,6 +91,7 @@ that implements it, not here.
   Pre-A18 labels that use `*` as an operator, a wildcard or a footnote mark keep their meaning (T13).
   The cost is that intraword emphasis, `un*frigging*believable`, is not available.*
   - *Implemented (branch 2, `feat/a18-text`), as written:* whitespace is `\p{White_Space}`, punctuation `[\p{P}\p{S}]`, both on code points (an emoji is a symbol).
+  - *Fix round 1, item 7:* those property escapes use the **JavaScript engine's own Unicode tables**. A symbol or punctuation mark assigned in a newer Unicode version than an older engine knows is, there, neither punctuation nor whitespace, so a `*` beside it flanks differently: `🫨*x*` could be italic in one browser and literal in another. This is the same class of concern as T37's refusal of `Intl.Segmenter`, much narrower (only newly assigned characters directly beside a delimiter run), and accepted; a pinned table would remove it.
 - **T7. Matching, left to right with a stack.** At most one `strong` and one `em` can be open at a
   time.
   - A run that can close does so first. Length 1 closes an open `em`. Length 2 closes an open
@@ -589,21 +590,37 @@ The decisions:
     rect, round, cylinder, package, and any other shape → avail
     ellipse                          → avail / √2
     diamond, hexagon                 → avail / 2      // hexagon: exact when the label is taller than wide, conservative otherwise
+                                                      // (fix round 1, item 3: hexagon → avail, and the breaker keeps L + min(L, H) ≤ avail; see below)
   ```
 
   Containers wrap their titles the same way. Edge labels have no `@size`, so they never wrap: an
   edge label breaks only at explicit `\n`. **With no `maxWidth`, nothing wraps**, which is the MVP
   behaviour. *This is the human's decision. With no default width, no existing layout changes. The
   inverse insets are what make `intrinsic.w ≤ maxWidth` hold for every shape.*
-  - *Implemented (branch 2, `feat/a18-text`), as written, with one correction:* `labelBox` in `@sgl/text`, `labelMaxWidth` in core. **Correction:** "so a class's `@size` counts" is wrong: DD-04 §4 step 6 applies only a node's *own* `@size`, so a class's `@size` reaches no geometry and does not wrap (tested). And `@size.maxWidth` did not reach geometry at all: the theme registry had no `maxWidth` row, so the cascade dropped it with `SGL5003`. Branch 2 adds the row (DD-04 §2). Containers do not wrap their titles: `@size` keys apply to nodes only.
+  - *Implemented (branch 2, `feat/a18-text`), as written, with one correction:* `labelBox` in `@sgl/text`, `labelMaxWidth` in core. **Correction, since reversed:** branch 2 found that a class's `@size` reached no geometry (DD-04 §4 step 6 applies only a node's own `@size`), so it did not wrap. Human decision H2 (fix round 1) makes it count, as T35 said: DD-04 §4 merges a class's size keys at step 4, and a class with `maxWidth` wraps its nodes' labels (tested end to end). And `@size.maxWidth` did not reach geometry at all: the theme registry had no `maxWidth` row, so the cascade dropped it with `SGL5003`. Branch 2 adds the row (DD-04 §2). Containers do not wrap their titles: `@size` keys apply to nodes only.
 - **T36. ⚑ A fixed `@size.width` also wraps**, at `labelMaxWidth(shape, width, padding)`. When both
   are set, the smaller wins. *Text that overflows a fixed-width box is never what the author
   wanted. The human's decision names only `maxWidth`, so this is an extension that needs a yes. No
   corpus document sets `@size`, so no golden depends on it.*
   - *Implemented (branch 2, `feat/a18-text`), as accepted by the human:* the smaller of `maxWidth` and `width` wins.
+  - **Fix round 1, item 3: hexagons.** `avail / 2` over-wrapped: a 200-wide hexagon wrapped
+    "Order fulfilment" (110 px) onto two lines. A hexagon's side insets are `min(L, H)/2`, so a
+    label fits when `L + min(L, H) ≤ avail`. `labelMaxWidth('hexagon', …)` now returns `avail`
+    and `labelBox` marks the box `hexagon: true` (`␟h` in the key); `layoutWrapped` breaks at
+    `max(avail/2, avail − one line height)` and, while the result breaks the rule, again at
+    `max(avail/2, avail − H)`. `H` only grows and the width only shrinks, to `avail/2` at worst,
+    where the rule always holds. Only `text/wrap.sgl`'s hexagon changed (4 lines → 2), and its two
+    rich layout goldens with it.
+  - **Human decision H1 (2026-09-26, fix round 1): a fixed `@size.width` breaks only at spaces.** A
+    single word too wide for the line overflows, as before A18; T37's mid-word split happens only
+    when the author set `@size.maxWidth`, an explicit request to constrain text. With both, the
+    narrower width is where lines break, and words may be split. `labelBox` marks a width-only box
+    `keepWords: true`, which the key carries (`␟k` after the width, T29), and `layoutWrapped` then
+    puts an overlong word on a line of its own, unsplit.
 - **T37. Words that are too long, and text without spaces.** A word wider than the wrap width is
   split at the last code-point boundary that fits, repeatedly, and a line always gets at least one
-  unit. No hyphen is inserted. A split never lands:
+  unit. *(H1: only when `@size.maxWidth` is set; under a fixed `@size.width` alone the word
+  overflows, see T36.)* No hyphen is inserted. A split never lands:
   - inside a surrogate pair;
   - before a combining mark (U+0300–036F, U+1AB0–1AFF, U+20D0–20FF, U+FE20–FE2F);
   - before a variation selector (U+FE00–FE0F, U+E0100–E01EF);
@@ -798,7 +815,7 @@ The decisions:
   `rich-text-*.js` by name, and `check-core-chunks.mjs` checks that the entry does not import it
   statically. *The parser and the breaker are most of A18's code, and a document without markup or
   `maxWidth` needs neither. This follows A9's pattern: a gate on the boot path, the work lazy.*
-  - *Implemented (branch 2, `feat/a18-text`), with two deviations:* both gates are in `pipeline.ts`, the chunk is `state/rich-text.ts`, `.size-limit.js` excludes `rich-text-*.js`, and `check-core-chunks.mjs`'s existing sweep fails if the entry reaches it. **Deviation 1:** the app does not replace its `CanvasMeasurer`; `lineModel` is a writable property it sets once the chunk loads, so the worker host keeps the measurer it holds and the per-run cache (which caches runs, not lines) is kept. **Deviation 2:** the measure effect no longer measures the boot-time fallback (the empty document) while a stage is held: laying that out made an empty layout the one a held document's first render was drawn with (A9's gate had the same latent case). A failed load is retried on the next change of the document. Tests: `apps/web/test/rich-text.test.ts`, `e2e/rich-text.spec.ts` (never fetched without markup or a box), `e2e/offline.spec.ts` (from the precache).
+  - *Implemented (branch 2, `feat/a18-text`), with two deviations:* both gates are in `pipeline.ts`, the chunk is `state/rich-text.ts`, `.size-limit.js` excludes `rich-text-*.js`, and `check-core-chunks.mjs`'s existing sweep fails if the entry reaches it. **Deviation 1:** the app does not replace its `CanvasMeasurer`; `lineModel` is a writable property it sets once the chunk loads, so the worker host keeps the measurer it holds and the per-run cache (which caches runs, not lines) is kept. **Deviation 2:** the measure effect no longer measures the boot-time fallback (the empty document) while a stage is held: laying that out made an empty layout the one a held document's first render was drawn with (A9's gate had the same latent case). A failed load is retried on the next change of the document. **Fix round 1, item 2:** a failed load used to hold the stages until then, freezing the picture for any label with `*` or a backtick; it now degrades like A9's gate (plain runs, the box ignored, one `SGL6002` warning, a new boot-catalogue code approved by the orchestrator, listed with `SGL2027` as unreachable from a document). Tests: `apps/web/test/rich-text.test.ts`, `e2e/rich-text.spec.ts` (never fetched without markup or a box), `e2e/offline.spec.ts` (from the precache).
 - **T54. What stays on the boot path, estimated gzipped:**
 
   | Item | Estimate |
@@ -813,7 +830,7 @@ The decisions:
 
   The lazy `rich-text` chunk is about 1.2 kB gzipped: the parser about 0.55 kB, the breaker about
   0.65 kB. With it on the boot path, A18 would cost about 2.0–2.3 kB.
-  - *Measured (branch 2):* the boot path grew **+0.84 kB** (180.38 → 181.22 kB): the `@sgl/text` boot half with `labelBox`, `runStyle` and the fragment line model, `labelMaxWidth`, the marks in the key, and the app's two gates and lazy import, net of render-svg's per-shape insets removed. The lazy chunk is **2.01 kB** gzipped (estimated 1.2). 0.78 kB is left for the render branch.
+  - *Measured (branch 2):* the boot path grew **+0.84 kB** (180.38 → 181.22 kB): the `@sgl/text` boot half with `labelBox`, `runStyle` and the fragment line model, `labelMaxWidth`, the marks in the key, and the app's two gates and lazy import, net of render-svg's per-shape insets removed. The lazy chunk is **2.01 kB** gzipped (estimated 1.2). 0.78 kB is left for the render branch. *Fix round 1* (H1, the hexagon flag, H2, the container check, `SGL6002`'s degraded path, less a compaction) brings the boot path to **181.47 kB**: 0.53 kB left.
   - *Measured (branch 3):* **+0.49 kB** (181.22 → 181.71 kB of 182): the renderer (measured lines, nested tspans, run rules, the table lookup, `structureHash` marks, the paint-plan fields, the `labelRunKey` memo) +0.45, the box gate on the lookup +0.01, and registering the run faces from the lazy chunk instead of the boot CSS −0.11 net of the removed rules (the seven `@font-face` rules had cost 0.14). A18's total at boot is **2.01 kB** (estimated 0.80–1.05 before the lazy chunk was measured). **0.29 kB is left under the limit.** `io/run-faces.ts` is a chunk of its own (`run-faces-*.js`, shared by `rich-text` and `file-actions`), excluded by name in `.size-limit.js`. T50's selection is in the lazy `file-actions` chunk.
 - **T55. ⚑ A18 and A9 together do not fit the current headroom without the F20 trim, and fit only
   narrowly with it.**
@@ -852,6 +869,7 @@ The decisions:
   on a keystroke for an unchanged label.*
   - *Branch 2:* not measured. The `labelRunKey` memo is for `render()`'s per-label lookup (T42), so it comes with the render branch, as do the `{ rich: true }` scale variant and its bench. The breaker memoises measurements within a call.
   - *Measured (branch 3), reported and not gated:* `scaleDocument(n, { rich: true })` in `bench/scale-document.js` (every node labelled, every tenth wrapped; built in memory, not written to `corpus/`). `apps/web/bench/rich-measure.bench.ts`, run by `pnpm bench:theme`, in headless Chromium: medians of 7 over 2 200 labels: parsing every label 2.3 ms; parse to `styleGraph` with the parser 84 ms; **pre-measure cold 44 ms** (plain `n2000`: 35 ms), warm 32 ms; `render()`'s table lookups 1.7 ms (only the 200 boxed labels are hashed, T42 deviation 1). The budget holds: the cold pre-measure is about half of 100 ms.
+  - **Fix round 1, item 5: the estimates above do not hold; the real numbers.** In Node, with static metrics, `premeasure` at n2000 with long labels is 11.7 ms unwrapped and **20.5 ms with every node wrapped** (about 1.75×; branch 2's quadratic breaker made it 30.8 ms here, and the review measured 17 → 87–98 ms, about 5×, on its document). A keystroke re-runs `premeasure` over every label, so wrapped labels are re-broken each time: the per-run cache makes it cache hits, not canvas calls, until the cache overflows. `CanvasMeasurer`'s 20 000-entry clear-all cache holds about three entries per wrapped label and thrashes from about 7 000 wrapped labels (every pass misses); an LRU was tried and does not help. Recorded as execution plan §2.1 **F24**, with the remedy (reuse the previous table's entries by key) and the browser measurement to take with F15.
 - **T57. F9's paint-only theme switch stays paint-only.**
   - A theme switch between themes of equal geometry does not re-measure (the table and every break
     are unchanged) and takes the paint-only path. `renderPaintOnly` swaps the `<style>` text, and
@@ -1083,7 +1101,7 @@ Each change is made in the branch that implements it (§16).
    today's behaviour. Adopting the measured ascent would move every label by about 2 px and change
    every render golden. That is worth a finding of its own (owner: whoever next touches DD-07 §5),
    not a side effect of A18.
-   *(Recorded by branch 3 as execution plan §2.1 **F24**, for the human; not fixed. DD-07 §5 now states what the renderer does. Measured in Chromium: `CanvasMeasurer`'s ascent is `fontBoundingBoxAscent`, which Chromium rounds to whole pixels, so Inter's 0.969 em comes out as a whole em — 13 px for a 13 px node title against the rendered 10.4 px (2.6 px lower), 12 px for a container title against 9.6 (2.4 px); `apps/web/test/rich-measure.browser.test.ts` pins it.)*
+   *(Recorded by branch 3 as execution plan §2.1 **F25**, for the human; not fixed. DD-07 §5 now states what the renderer does. Measured in Chromium: `CanvasMeasurer`'s ascent is `fontBoundingBoxAscent`, which Chromium rounds to whole pixels, so Inter's 0.969 em comes out as a whole em — 13 px for a 13 px node title against the rendered 10.4 px (2.6 px lower), 12 px for a container title against 9.6 (2.4 px); `apps/web/test/rich-measure.browser.test.ts` pins it.)*
 6. *(Resolved by branch 2: DD-02 §7 lists exactly `SIZE_KEYS`; DD-06 §2 notes that `max.h` is never set.)* **DD-02 §7's registry** lists `maxHeight` in `@size`. `SIZE_KEYS` (`config-registry.ts`) and
    language spec §4 do not, and DD-06 §2 reads `g.maxHeight` anyway.
 7. *(Resolved by branch 2: DD-03 §2 and §6 and DD-05 §2–§3 describe the canonical runs and the two line models.)* **DD-05 §3 and DD-03 §6** say a plain label is "one run per line". T21 changes that, and DD-03 §6
@@ -1096,11 +1114,11 @@ Each change is made in the branch that implements it (§16).
    language spec §4, `SIZE_KEYS` and DD-04 §4 step 6 all list `@size.maxWidth`: the cascade dropped it
    with `SGL5003`, so no node could have a `maxWidth` and T35 had nothing to read. DD-04 §2 and the
    registry now have the row.
-10. *(Found by branch 2, open.)* **DD-02 §7 accepts `@size` on a class, and T35 says a class's
-    `@size` counts, but DD-04 §4 step 6 applies only a node's own `@size`**: a class's `@size`
-    validates and does nothing, with no diagnostic. Branch 2 follows the cascade (a class's
-    `@size` does not wrap) and records it in DD-02 §7. Whether class `@size` should apply is a
-    language question for the human.
+10. *(Found by branch 2; resolved by human decision H2 in fix round 1.)* **DD-02 §7 accepts `@size`
+    on a class, and T35 says a class's `@size` counts, but DD-04 §4 step 6 applied only a node's own
+    `@size`**: a class's `@size` validated and did nothing. H2: it applies, merged at DD-04 §4 step
+    4 in `@type` order, the node's own `@size` overriding per key; DD-02 §7, DD-04 §4 and spec §6
+    say so.
 11. *(Found by branch 2.)* **T13 says markdown covers "`@label` set by a class"**, but a class's
     `@label` never reaches a node's title (DD-03 §6 reads the node's own `config`). Nothing to
     parse; recorded under T13.

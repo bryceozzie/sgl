@@ -39,6 +39,14 @@ export interface StyledRun {
  *  *label's* width, not the node's (`labelBox`). */
 export interface BoxConstraints {
   readonly maxWidth?: number;
+  /** Break only at spaces: a word wider than `maxWidth` overflows rather than
+   *  being split (human decision H1: a fixed `@size.width` without `maxWidth`). */
+  readonly keepWords?: true;
+  /** A hexagon's title (fix round 1, item 3): `maxWidth` is the width inside the
+   *  padding, `A`, and a label `L` wide and `H` tall must keep `L + min(L, H) ≤ A`,
+   *  the hexagon's side insets being `min(L, H)/2` each. The breaker narrows its
+   *  line width until that holds. */
+  readonly hexagon?: true;
 }
 
 export interface LaidRun {

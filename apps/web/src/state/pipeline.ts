@@ -6,6 +6,7 @@ import {
   diagnostic,
   hasImports,
   needsInline,
+  NO_SPAN,
   parse,
   resolve,
   type CompileResult,
@@ -17,7 +18,7 @@ import {
 } from '@sgl/core';
 import { buildLayoutInput, layoutConfigDiagnostics, type LayoutInput, type LayoutResult } from '@sgl/layout-api';
 import { labelRunKey, premeasure, type MeasureTable } from '@sgl/measure';
-import { needsWrap } from '@sgl/text';
+import { layoutLines, needsWrap, UNCONSTRAINED } from '@sgl/text';
 import { BUILT_IN, DEFAULT_THEME_ID, resolveTheme, styleGraph, type ResolvedTheme, type StyledGraph } from '@sgl/theme';
 import { render, renderPaintOnly, type RenderResult } from '@sgl/render-svg';
 import { boundsChangedSignificantly, type Extent } from '../canvas/viewport.js';
@@ -321,26 +322,43 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   // A18 (DD-11 T53): the lazy `rich-text` chunk — the inline parser and the
   // word breaker — loads for the first document whose labels hold `*` or a
   // backtick (compiled without the parser, `needsInline`) or that has a label
-  // to wrap (`needsWrap`, after `styleGraph`). Until it has, those stages hold
-  // like A9's import gate, so nothing is measured or laid out with literal
+  // to wrap (`needsWrap`). Both are checked after `styleGraph`, which holds
+  // until it has loaded, like A9's import gate (the graph it was handed, with
+  // literal runs, goes no further), so nothing is measured or laid out with literal
   // runs or unwrapped labels; the canvas keeps the last good or stored
   // picture. Once loaded, compile always runs with the parser and the
   // measurer with `layoutWrapped`, and every keystroke is synchronous again.
-  // A failed load is retried on the next change of the document.
+  //
+  // If it cannot load (fix round 1, item 2), the document degrades as A9's
+  // does rather than holding forever: compile keeps plain runs, the measurer
+  // ignores the box (so `layoutLines` never throws), and one `SGL6002`
+  // warning says so. The load is tried again on the next change of the
+  // document, not in a loop.
   const rich = signal<RichText | null>(null);
+  const richFailed = signal(false);
   let richLoad: Promise<void> | undefined;
-  const holdForRichText = (): never => {
-    richLoad ??= deps.loadRichText!().then(
-      (loaded) => {
-        deps.measurer.lineModel = loaded.lineModel;
-        rich.value = loaded;
-      },
-      (err: unknown) => {
-        console.warn('[SGL] the rich-text chunk could not be loaded.', err);
-        richLoad = undefined;
-      },
-    );
-    throw HOLD;
+  let richFailedFor: string | undefined;
+  /** Starts the load unless it is running, or failed for this very source; true
+   *  while the stage should hold (the load has not failed). */
+  const requestRichText = (): boolean => {
+    const source = doc.peek().source;
+    if (richLoad === undefined && source !== richFailedFor) {
+      richLoad = deps.loadRichText!().then(
+        (loaded) => {
+          deps.measurer.lineModel = loaded.lineModel;
+          rich.value = loaded;
+          richFailed.value = false;
+        },
+        (err: unknown) => {
+          console.warn('[SGL] the rich-text chunk could not be loaded.', err);
+          richLoad = undefined;
+          richFailedFor = source;
+          deps.measurer.lineModel = (measureRun, runs) => layoutLines(measureRun, runs, UNCONSTRAINED);
+          richFailed.value = true;
+        },
+      );
+    }
+    return !richFailed.peek();
   };
 
   const graphOutcome = guardedStage(
@@ -352,7 +370,6 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
       const runtime = documentModel.imports && imports.value;
       const options = loaded ? { inline: loaded.inline } : undefined;
       const g = runtime ? runtime.compile(documentModel, options) : compile(documentModel, undefined, options);
-      if (!loaded && deps.loadRichText && needsInline(g.graph)) holdForRichText();
       return DEGRADED.has(documentModel) ? { ...g, diagnostics: g.diagnostics.filter((d) => d.code !== 'SGL2001') } : g;
     },
     () => emptyStages().graph,
@@ -377,10 +394,14 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
       const resolvedTheme = theme.value.value;
       const classes = model.value.model.classes;
       const loaded = rich.value;
+      const failed = richFailed.value;
       inject('styleGraph');
       const s = styleGraph(semanticGraph, resolvedTheme, classes);
-      if (!loaded && deps.loadRichText && needsWrap(s.value)) holdForRichText();
-      return s;
+      if (loaded || !deps.loadRichText || !(needsInline(semanticGraph) || needsWrap(s.value))) return s;
+      if (requestRichText()) throw HOLD;
+      // Degraded (fix round 1, item 2): one warning, here, for both gates. It
+      // is about the app, not a place in the document, so it has no span.
+      return failed ? { ...s, diagnostics: [diagnostic('SGL6002', NO_SPAN), ...s.diagnostics] } : s;
     },
     () => emptyStages().styled,
   );

@@ -21,6 +21,9 @@ const noNondeterminism = {
       property: 'now',
       message: 'Non-deterministic (DD-00 §3). The one sanctioned exception is worker-runtime.ts\'s ms telemetry — disable inline with a reason if this really is that call site.',
     },
+    // DD-11 T37: word and grapheme segmentation follow each engine's ICU
+    // version, so line breaks would differ across environments.
+    { object: 'Intl', property: 'Segmenter', message: 'Non-deterministic across engines (DD-11 T37). Break at the hand-written unit rule in @sgl/text/wrap.' },
   ],
   'no-restricted-globals': [
     'error',
@@ -69,7 +72,13 @@ export default tseslint.config(
   //    `core, theme ← text ← measure, render-svg` (DD-00 §2).
   {
     files: ['packages/measure/**/*.ts', 'packages/render-svg/**/*.ts'],
-    rules: boundaries([NO_PREACT, { group: ['@sgl/*', '!@sgl/core', '!@sgl/core/*', '!@sgl/theme', '!@sgl/text', '!@sgl/text/*'], message: 'DD-00 §2 rule 2: this package may import only @sgl/core, @sgl/theme and @sgl/text.' }]),
+    rules: boundaries([
+      NO_PREACT,
+      { group: ['@sgl/*', '!@sgl/core', '!@sgl/core/*', '!@sgl/theme', '!@sgl/text', '!@sgl/text/*'], message: 'DD-00 §2 rule 2: this package may import only @sgl/core, @sgl/theme and @sgl/text.' },
+      // DD-11 T53: the inline parser is the app's lazy `rich-text` chunk; a
+      // static import from a package the app loads at boot puts it on the boot path.
+      { group: ['@sgl/core/inline'], message: 'DD-11 T53: @sgl/core/inline is lazy (the rich-text chunk); take the parser as compile()\'s `inline` option instead.' },
+    ]),
   },
 
   // 3. Engines import only layout-api and core.

@@ -116,13 +116,19 @@ accept. `distinctTextStyles` (DD-05 §4's "fonts first") is not exported by
 
 **A18 addition (DD-11 T53): the `rich-text` gate.** `PipelineDeps.loadRichText` loads the lazy
 `rich-text` chunk (`state/rich-text.ts`: `parseInline` from `@sgl/core/inline` and `layoutWrapped`
-from `@sgl/text/wrap`). The `graph` stage compiles without the parser and, if `needsInline(graph)`
-(a label holding `*` or a backtick), starts the load and holds; the `styled` stage does the same
-when `needsWrap(styled)` (a node title with `@size.maxWidth` or `@size.width`). Holding is A9's
+from `@sgl/text/wrap`). The `graph` stage compiles without the parser until it has loaded; the `styled` stage then
+starts the load and holds if `needsInline(graph)` (a label holding `*` or a backtick) or
+`needsWrap(styled)` (a node title with `@size.maxWidth` or `@size.width`). *(Fix round 1: one
+check, in the styled stage, where the graph stage had its own; the graph with literal runs goes no
+further than `styleGraph`.)* Holding is A9's
 `HOLD`: the stages below keep their last value, nothing is reported, and the canvas keeps the last
 good or stored picture, so nothing is measured or laid out with literal runs or unwrapped labels.
-Once loaded, `measurer.lineModel` becomes `layoutWrapped` and compile always runs with the parser;
-a failed load is retried on the next change of the document. The measure effect does not measure
+Once loaded, `measurer.lineModel` becomes `layoutWrapped` and compile always runs with the parser.
+**If the chunk cannot load** (fix round 1, item 2), the document degrades as A9's does instead of
+holding: compile keeps plain runs, the measurer's line model ignores the box (so `layoutLines`
+never throws, and a wrapped label is measured on its hard lines under its usual key), and the
+styled stage adds one `SGL6002` warning (boot catalogue, no span: it is about the app, not the
+document). The load is tried again on the next change of the document's source, not in a loop. The measure effect does not measure
 the boot-time fallback (the empty document) while a stage is held, which would otherwise make an
 empty layout the one the document's first render is drawn with. A document without markup in a
 label and without a box never fetches the chunk (`e2e/rich-text.spec.ts`); offline, it comes from

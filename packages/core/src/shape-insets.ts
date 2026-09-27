@@ -62,16 +62,21 @@ export function contentInsets(shape: ShapeId, labelW: number, labelH: number): I
  * - `rect`, `round`, `cylinder`, `package` and any other shape: the width inside
  *   the padding, since they add no horizontal inset.
  * - `ellipse`: that width over √2.
- * - `diamond`, `hexagon`: half of it. Exact for a diamond; for a hexagon, exact
- *   when the label is taller than wide and conservative otherwise.
+ * - `diamond`: half of it, exactly.
+ * - `hexagon`: the whole of it, `A`, because a hexagon's side insets are
+ *   `min(L, H)/2`, so how wide a label may be depends on how tall it is: it fits
+ *   when `L + min(L, H) ≤ A`. The breaker settles that (`BoxConstraints.hexagon`,
+ *   fix round 1, item 3); `A/2` was the conservative bound, and wrapped a
+ *   one-line title that fits.
  *
  * With it, `label.w + contentInsets(...)` horizontally never exceeds `width` for a
- * label no wider than this (T39), which `shape-insets.test.ts` checks per shape.
+ * label no wider than this (for a hexagon, one that keeps the rule above, T39),
+ * which `label-max-width.test.ts` checks per shape.
  */
 export function labelMaxWidth(shape: ShapeId, width: number, padding?: unknown): number {
   const p = Array.isArray(padding) ? (padding as unknown[]) : [];
   const avail = Math.max(0, width - num(p[1]) - num(p[3]));
-  return shape === 'ellipse' ? avail / Math.SQRT2 : shape === 'diamond' || shape === 'hexagon' ? avail / 2 : avail;
+  return shape === 'ellipse' ? avail / Math.SQRT2 : shape === 'diamond' ? avail / 2 : avail;
 }
 
 function num(v: unknown): number {

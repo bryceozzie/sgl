@@ -95,12 +95,12 @@ describe('CanvasMeasurer with the run faces (DD-11 T28, T60)', () => {
   });
 
   /**
-   * DD-11 §19 item 5, execution plan §2.1 F24 (a human decision, not fixed):
+   * DD-11 §19 item 5, execution plan §2.1 F25 (a human decision, not fixed):
    * the renderer places the first baseline at `0.8 × fontSize`, while the
    * measured `TextLayout` carries Inter's real ascent. This pins the size of
    * the difference, so the finding's numbers stay true until it is decided.
    */
-  it('F24: the measured ascent is a whole em in Chromium (Inter 0.97 em, rounded to whole px), the rendered one 0.8 em', async () => {
+  it('F25: the measured ascent is a whole em in Chromium (Inter 0.97 em, rounded to whole px), the rendered one 0.8 em', async () => {
     const measurer = new CanvasMeasurer();
     const h = await createHarness('a: "Node title"\nb\na -> b: "edge"\ng: { @label: "Group", c }\n', { measurer }, { firstRender: false });
     await vi.waitFor(async () => {
@@ -115,7 +115,7 @@ describe('CanvasMeasurer with the run faces (DD-11 T28, T60)', () => {
       expect(ascent / size).toBeGreaterThan(0.95);
       expect(ascent / size).toBeLessThanOrEqual(1.05);
     }
-    console.log(`[F24] ${rows.join(' | ')}`);
+    console.log(`[F25] ${rows.join(' | ')}`);
     h.dispose();
   });
 });

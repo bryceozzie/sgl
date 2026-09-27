@@ -1,5 +1,5 @@
-import { hardLines, layLine, layoutLines, stack, type Fragment } from './line-model.js';
-import type { LineModel, MeasureRun, RunMetrics, TextStyle } from './types.js';
+import { glyphCount, hardLines, layLine, layoutLines, stack, type Fragment } from './line-model.js';
+import type { BoxConstraints, LineModel, MeasureRun, RunMetrics, StyledRun, TextLayout, TextStyle } from './types.js';
 
 /**
  * `layoutWrapped` (DD-11 §7, T32–T38): `@sgl/text/wrap`, the lazy half of the
@@ -16,14 +16,17 @@ import type { LineModel, MeasureRun, RunMetrics, TextStyle } from './types.js';
  *   start of the next. Whitespace at the **start or end of a hard line** is kept
  *   and measured: it travels with the first or last word.
  * - A word too wide for a line of its own is split at the last unit boundary that
- *   fits, repeatedly, and a line always gets at least one unit (T37, `breakUnits`).
+ *   fits, repeatedly, and a line always gets at least one unit (T37, `breakUnits`),
+ *   unless the box keeps words whole (`keepWords`: a fixed `@size.width` without
+ *   `maxWidth`, human decision H1), when it overflows on a line of its own.
  *   No hyphen, no UAX #14, no `Intl.Segmenter` (its rules follow each engine's ICU,
  *   so they are not deterministic across environments).
  *
- * Line widths and `x`s come from `layLine`, the same arithmetic `layoutLines` uses,
- * so a label that fits on its lines is laid out exactly as it is unwrapped. The
- * measurer is memoised per call, so each fit test measures only the fragment that
- * grew.
+ * Fit tests add each piece's own width to a running total per line, so the
+ * breaker is linear. The lines it keeps are laid out by `layLine`, the same
+ * arithmetic `layoutLines` uses, each fragment measured whole, so a label that
+ * fits on its lines is laid out exactly as it is unwrapped. The two can differ
+ * only by kerning across a piece boundary, which is sub-pixel and deterministic.
  */
 
 const BREAK = /[ \t\u200b]/;
@@ -73,9 +76,24 @@ interface Piece {
 }
 
 export const layoutWrapped: LineModel = (measureRun, runs, box) => {
-  const maxWidth = box.maxWidth;
-  if (maxWidth === undefined) return layoutLines(measureRun, runs, box);
+  const A = box.maxWidth;
+  if (A === undefined) return layoutLines(measureRun, runs, box);
   const measure = memoise(measureRun);
+  if (!box.hexagon) return breakAt(measure, runs, box, A);
+  // A hexagon (fix round 1, item 3): a label L wide and H tall fits when
+  // L + min(L, H) <= A. Start from one line's height; each miss means the label
+  // is taller than assumed, so narrow to A - H and break again. H only grows
+  // and the width only shrinks, down to A/2, where the rule always holds.
+  const style = runs[0]?.style;
+  let width = Math.max(A / 2, A - (style === undefined ? 0 : style.fontSize * style.lineHeight));
+  for (;;) {
+    const layout = breakAt(measure, runs, box, width);
+    if (width <= A / 2 || layout.width + Math.min(layout.width, layout.height) <= A) return layout;
+    width = Math.max(A / 2, A - layout.height);
+  }
+};
+
+function breakAt(measure: MeasureRun, runs: readonly StyledRun[], box: BoxConstraints, maxWidth: number): TextLayout {
   const laid: ReturnType<typeof layLine>[] = [];
   for (const fragments of hardLines(runs)) {
     const lineOf = (pieces: readonly Piece[]): Fragment[] => {
@@ -91,8 +109,28 @@ export const layoutWrapped: LineModel = (measureRun, runs, box) => {
       }
       return out;
     };
-    const width = (pieces: readonly Piece[]): number => layLine(measure, lineOf(pieces)).width;
-    const emit = (pieces: readonly Piece[]): void => void laid.push(layLine(measure, lineOf(pieces)));
+    // Fit tests keep a running total per line (fix round 1, item 1): each piece is
+    // measured once, on its own, in its own face, and added. Re-measuring the
+    // line so far on every test made the breaker quadratic. The line that is
+    // kept is then laid out by `layLine`, each fragment measured whole (T32),
+    // exactly as `layoutLines` measures it.
+    const ls = fragments[0]?.style.letterSpacing ?? 0;
+    interface Span {
+      readonly pieces: Piece[];
+      w: number;
+      g: number;
+    }
+    const spanOf = (pieces: Piece[]): Span => {
+      let w = 0;
+      let g = 0;
+      for (const p of pieces) {
+        w += measure(p.text, (fragments[p.f] as Fragment).style).width;
+        g += glyphCount(p.text);
+      }
+      return { pieces, w, g };
+    };
+    const fits = (w: number, g: number): boolean => w + ls * Math.max(0, g - 1) <= maxWidth;
+    const emit = (line: Span): void => void laid.push(layLine(measure, lineOf(line.pieces)));
 
     if (fragments.length === 1 && fragments[0]!.text === '') {
       laid.push(layLine(measure, fragments));
@@ -125,34 +163,41 @@ export const layoutWrapped: LineModel = (measureRun, runs, box) => {
       if (seps.length === words.length) words[words.length - 1] = [...(words[words.length - 1] as Piece[]), ...(seps.pop() as Piece[])];
     }
 
-    let line: Piece[] = [];
-    words.forEach((word, i) => {
-      if (line.length > 0) {
-        const candidate = [...line, ...(seps[i - 1] as Piece[]), ...word];
-        if (width(candidate) <= maxWidth) {
-          line = candidate;
+    let line: Span = { pieces: [], w: 0, g: 0 };
+    const append = (to: Span, more: Span): void => {
+      for (const p of more.pieces) to.pieces.push(p);
+      to.w += more.w;
+      to.g += more.g;
+    };
+    words.forEach((pieces, i) => {
+      const word = spanOf(pieces);
+      if (line.pieces.length > 0) {
+        const sep = spanOf(seps[i - 1] as Piece[]);
+        if (fits(line.w + sep.w + word.w, line.g + sep.g + word.g)) {
+          append(line, sep);
+          append(line, word);
           return;
         }
         emit(line);
       }
-      if (width(word) <= maxWidth) {
+      if (box.keepWords || fits(word.w, word.g)) {
         line = word;
         return;
       }
       // Too wide for a line of its own: split at unit boundaries (T37).
-      line = [];
-      for (const unit of unitsOf(word)) {
-        const candidate = [...line, ...unit];
-        if (line.length > 0 && width(candidate) > maxWidth) {
+      line = { pieces: [], w: 0, g: 0 };
+      for (const unit of unitsOf(pieces)) {
+        const u = spanOf(unit);
+        if (line.pieces.length > 0 && !fits(line.w + u.w, line.g + u.g)) {
           emit(line);
-          line = unit;
-        } else line = candidate;
+          line = u;
+        } else append(line, u);
       }
     });
     emit(line);
   }
   return stack(laid, runs[0]?.style);
-};
+}
 
 /** A word's `breakUnits`, each as the pieces it takes from the word's fragments. */
 function unitsOf(word: readonly Piece[]): Piece[][] {

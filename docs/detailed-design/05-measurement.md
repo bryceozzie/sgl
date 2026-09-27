@@ -60,9 +60,9 @@ interface Measurer {
 }
 ```
 
-The key for caching and for the table is `hashRuns(runs, box)` = `fnv1a64` over `text\x1f family\x1f size\x1f weight\x1f style\x1f lh\x1f ls` per run, then — **only for a run with marks** (A18, DD-11 T29) — `\x1f` and the letters `s`, `e`, `c` it carries, in that order; runs joined by `\x1e`, then `\x1d` and `maxWidth` as a numeral, or `*`. A plain run's key is exactly the MVP's.
+The key for caching and for the table is `hashRuns(runs, box)` = `fnv1a64` over `text\x1f family\x1f size\x1f weight\x1f style\x1f lh\x1f ls` per run, then — **only for a run with marks** (A18, DD-11 T29) — `\x1f` and the letters `s`, `e`, `c` it carries, in that order; runs joined by `\x1e`, then `\x1d` and `maxWidth` as a numeral, or `*`, then `\x1fk` for a box that keeps words whole (`keepWords`, H1) and `\x1fh` for a hexagon's (whose breaker keeps `L + min(L, H)` within `maxWidth`). A plain run's key is exactly the MVP's.
 
-A label's key is **`labelRunKey(styled, labelId)` = `hashRuns(labelRuns(…), labelBox(…))`**: its runs in their faces, and its box. `labelBox` is `{ maxWidth: labelMaxWidth(shape, w, padding) }` for a node title whose node has a finite positive `@size.maxWidth` or `@size.width` (the smaller), and `{}` otherwise (DD-11 T35, T36). `premeasure`, the app's label-size join, the worker's lookup and the test pipelines all use it; `render-svg/test/wrap-pipeline.test.ts` and `apps/web/test/rich-text.test.ts` check, end to end, that the measured box is the size the layout gives the node.
+A label's key is **`labelRunKey(styled, labelId)` = `hashRuns(labelRuns(…), labelBox(…))`**: its runs in their faces, and its box. `labelBox` is `{ maxWidth: labelMaxWidth(shape, w, padding) }` for a node title whose node has a finite positive `@size.maxWidth` or `@size.width` (the smaller), plus `keepWords: true` when there is no `maxWidth` (a fixed width breaks only at spaces, H1), and `{}` otherwise (DD-11 T35, T36). `premeasure`, the app's label-size join, the worker's lookup and the test pipelines all use it; `render-svg/test/wrap-pipeline.test.ts` and `apps/web/test/rich-text.test.ts` check, end to end, that the measured box is the size the layout gives the node.
 
 ---
 

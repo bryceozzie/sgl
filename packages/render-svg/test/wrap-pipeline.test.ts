@@ -68,6 +68,42 @@ describe('wrapped labels lay out at their wrapped size (DD-11 T35, T39, T40)', (
     expect(measured.width).toBeLessThanOrEqual(100);
   });
 
+  it('a fixed @size.width never splits a word: "Checkout" at width 60 and a small diamond\'s "Ok?" stay one line (H1)', async () => {
+    const { styled, table } = await runPipeline('a: { @label: "Checkout", @size: { width: 60 } }\nd: { @shape: diamond, @label: "Ok?", @size: { width: 40, height: 40 } }\n');
+    for (const id of ['l:a', 'l:d']) expect(table[labelRunKey(styled, id as LabelId)]!.lines, id).toHaveLength(1);
+  });
+
+  it('a 200-wide hexagon keeps "Order fulfilment" on one line, and a long label still fits its width (fix round 1, item 3)', async () => {
+    for (const engine of ENGINES) {
+      const src = `h: { @shape: hexagon, @label: "Order fulfilment", @size: { maxWidth: 200 } }\nk: { @shape: hexagon, @label: "${LONG} ${LONG}", @size: { maxWidth: 200 } }\n`;
+      const { styled, table, result } = await runPipeline(src, undefined, engine);
+      expect(table[labelRunKey(styled, 'l:h' as LabelId)]!.lines, engine.id).toHaveLength(1);
+      const k = table[labelRunKey(styled, 'l:k' as LabelId)]!;
+      expect(k.lines.length).toBeGreaterThan(2);
+      // The hexagon's own inset rule, min(L, H)/2 a side, within the width inside the padding.
+      expect(k.width + Math.min(k.width, k.height)).toBeLessThanOrEqual(176 + 1e-9);
+      expect(result.nodes[asNodeId('k')]!.frame.w, engine.id).toBeLessThanOrEqual(200 + 1 / 64);
+    }
+  });
+
+  it('@size.maxWidth still splits an overlong word (T37, H1)', async () => {
+    const { styled, table } = await runPipeline('a: { @label: "Supercalifragilisticexpialidocious", @size: { maxWidth: 100 } }\nb: { @label: "Supercalifragilisticexpialidocious", @size: { maxWidth: 100, width: 300 } }\n');
+    for (const id of ['l:a', 'l:b']) expect(table[labelRunKey(styled, id as LabelId)]!.lines.length, id).toBeGreaterThan(1);
+  });
+
+  it("a class with @size.maxWidth wraps its nodes' labels, end to end, and structureHash sees it (H2)", async () => {
+    for (const engine of ENGINES) {
+      const src = `@classes: { Card: { @size: { maxWidth: 150 } } }\na: { @type: Card, @label: "${LONG}" }\nb: { @type: Card, @label: "${LONG} two" }\n`;
+      const { styled, table, result, rendered } = await runPipeline(src, undefined, engine);
+      for (const id of ['a', 'b']) {
+        expect(table[labelRunKey(styled, `l:${id}` as LabelId)]!.lines.length, id).toBeGreaterThan(1);
+        expect(result.nodes[asNodeId(id)]!.frame.w, `${engine.id} ${id}`).toBeLessThanOrEqual(150 + 1 / 64);
+      }
+      const plain = await runPipeline(src.replace('@size: { maxWidth: 150 }', ''), undefined, engine);
+      expect(plain.rendered.structureHash).not.toBe(rendered.structureHash);
+    }
+  });
+
   it('a container\'s title band grows with its line count, pushing its children down (T40)', async () => {
     for (const engine of ENGINES) {
       const one = await runPipeline('box: { @label: "Title", a }\n', undefined, engine);

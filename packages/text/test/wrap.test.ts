@@ -1,6 +1,5 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { staticRunMetrics } from '../../measure/src/static-measurer.js';
 import { layoutLines } from '../src/line-model.js';
 import { UNCONSTRAINED } from '../src/run-key.js';
 import type { MeasureRun, StyledRun, TextLayout, TextStyle } from '../src/types.js';
@@ -24,6 +23,11 @@ const stub: MeasureRun = (text, style) => ({
   ascent: 8,
 });
 
+/** Fractional, face-dependent advances, as real metrics have. */
+const fractional: MeasureRun = (text, style) => ({
+  width: [...text].reduce((w, ch) => w + ((ch.codePointAt(0) ?? 0) % 11) * 0.37 + 4.1, 0) * (style.fontWeight >= 700 ? 1.08 : 1),
+  ascent: style.fontSize * 0.72,
+});
 const plain = (text: string, style: TextStyle = BASE): StyledRun => ({ text, style });
 const lines = (layout: TextLayout): string[] => layout.lines.map((l) => l.runs.map((r) => r.text).join(''));
 const wrap = (runs: readonly StyledRun[], maxWidth: number, m: MeasureRun = stub): TextLayout => layoutWrapped(m, runs, { maxWidth });
@@ -160,6 +164,41 @@ describe('words that are too long, and text without spaces (T37)', () => {
   });
 });
 
+describe('keepWords: a fixed @size.width breaks only at spaces (human decision H1)', () => {
+  const keep = (runs: readonly StyledRun[], maxWidth: number): TextLayout => layoutWrapped(stub, runs, { maxWidth, keepWords: true });
+  it('an overlong word overflows on a line of its own, never split', () => {
+    expect(lines(keep([plain('abcdefgh')], 30))).toEqual(['abcdefgh']);
+    expect(lines(keep([plain('aa abcdefgh bb')], 30))).toEqual(['aa', 'abcdefgh', 'bb']);
+    expect(lines(keep([plain('\u6771\u4eac\u90fd\u6e2f')], 15))).toEqual(['\u6771\u4eac\u90fd\u6e2f']);
+  });
+  it('still breaks at spaces', () => {
+    expect(lines(keep([plain('aa bb cc dd')], 50))).toEqual(['aa bb', 'cc dd']);
+  });
+});
+
+describe('the hexagon rule (fix round 1, item 3)', () => {
+  // A hexagon's side insets are min(L, H)/2 each (DD-07 §4 solved for the label),
+  // so a label L wide and H tall fits a width A when L + min(L, H) <= A. The box
+  // carries A and `hexagon`; the breaker starts at max(A/2, A - one line) and
+  // narrows until the rule holds, so a one-line label is never over-wrapped.
+  const hex = (runs: readonly StyledRun[], maxWidth: number): TextLayout => layoutWrapped(stub, runs, { maxWidth, hexagon: true });
+  it('one line fits up to A minus one line height, not A/2', () => {
+    // A = 176, one line is 15 high: "Order fulfilment" (160) fits on one line.
+    expect(lines(hex([plain('Order fulfilment')], 176))).toEqual(['Order fulfilment']);
+    expect(lines(hex([plain('Order fulfilmentX')], 176)).length).toBeGreaterThan(1);
+  });
+  it('holds for random text and widths, unless a line is one unit', () => {
+    const unitArb = fc.constantFrom('a', 'bb', 'ccc', ' ', ' ', '\n');
+    fc.assert(
+      fc.property(fc.array(unitArb, { maxLength: 40 }).map((a) => a.join('')), fc.integer({ min: 20, max: 400 }), (text, A) => {
+        const layout = hex([plain(text)], A);
+        const oneUnit = layout.lines.some((l) => breakUnits(l.runs.map((r) => r.text).join('')).length <= 1 && l.width > A / 2);
+        if (!oneUnit) expect(layout.width + Math.min(layout.width, layout.height), JSON.stringify(text)).toBeLessThanOrEqual(A + 1e-9);
+      }),
+    );
+  });
+});
+
 describe('properties, for random text and widths', () => {
   const unit = fc.constantFrom('a', 'b', 'W', ' ', ' ', '\t', '\u200b', '\u00a0', '\n', '\u6771', '\u{1f642}', 'e\u0301', '\u{1f469}\u200d\u{1f4bb}', '\u{1f1ef}\u{1f1f5}', '-');
   const runsArb = fc.array(fc.record({ text: fc.array(unit, { maxLength: 12 }).map((a) => a.join('')), bold: fc.boolean() }), { minLength: 1, maxLength: 4 }).map((spec) =>
@@ -213,8 +252,31 @@ describe('properties, for random text and widths', () => {
   it('is deterministic: two runs over the same input give byte-identical JSON (DD-00 §3)', () => {
     fc.assert(
       fc.property(runsArb, fc.integer({ min: 0, max: 120 }), (runs, maxWidth) => {
-        expect(JSON.stringify(layoutWrapped(staticRunMetrics, runs, { maxWidth }))).toBe(JSON.stringify(layoutWrapped(staticRunMetrics, runs, { maxWidth })));
+        expect(JSON.stringify(layoutWrapped(fractional, runs, { maxWidth }))).toBe(JSON.stringify(layoutWrapped(fractional, runs, { maxWidth })));
       }),
     );
   });
+});
+
+describe('the breaker is linear (fix round 1, item 1)', () => {
+  // Each fit test used to re-measure the whole line so far and memoise every
+  // prefix: 8 000 words took ~10 s at a width that never breaks. A running total
+  // per line makes it linear; the drawn line is still measured whole (T32).
+  const words = Array.from({ length: 8000 }, (_, i) => `w${i % 97}`).join(' ');
+  const glyphs = 'x'.repeat(8000);
+  const rich: StyledRun[] = Array.from({ length: 800 }, (_, i) =>
+    i % 2 === 0 ? plain(`${'word '.repeat(9)}word `) : { text: `${'bold '.repeat(9)}bold `, style: BOLD, marks: { strong: true } },
+  );
+  const timed = (runs: readonly StyledRun[], maxWidth: number): number => {
+    const t = performance.now();
+    layoutWrapped(fractional, runs, { maxWidth });
+    return performance.now() - t;
+  };
+  for (const maxWidth of [1e9, 39990, 120]) {
+    it(`8 000 words, 8 000 characters without spaces and 8 000 words in 800 rich runs, each well under 100 ms (maxWidth ${maxWidth})`, () => {
+      expect(timed([plain(words)], maxWidth), 'words').toBeLessThan(100);
+      expect(timed([plain(glyphs)], maxWidth), 'no spaces').toBeLessThan(100);
+      expect(timed(rich, maxWidth), 'rich').toBeLessThan(100);
+    });
+  }
 });

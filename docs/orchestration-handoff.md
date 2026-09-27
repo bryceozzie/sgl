@@ -99,6 +99,10 @@ here from branch 3 by the brief). For the reviewer:
 - DD-11 §19 items 1, 2, 6, 7 fixed; 3, 5, 8 remain (render branch's), 9 found and fixed, 10 and 11
   found (10 open).
 - Next: `feat/a18-render` (T42–T50, fonts, T57), from `main` once this merges.
+- **Fix round 1 done** (2026-09-26): H1, H2 and fixes 1–10, each its own commit; see 07 §2. Core
+  181.47 kB, so **the render branch has 0.53 kB**, less than the ~0.6 kB planned: a budget
+  question for the human if branch 3 does not fit. Only `text/wrap.sgl`'s two rich layout goldens
+  changed (the hexagon fix).
 
 **A18 part 3 (`feat/a18-render`): complete and pushed; awaiting orchestrator verification; not merged**
 (2026-09-26, from `feat/a18-text` at `24e5638`, so it merges with branch 2; merge `origin/feat/a18-text`
@@ -114,7 +118,7 @@ hard lines). Scope as briefed: T42–T50, the fonts (T26, T49), T56–T57, rende
   hard lines by construction; no hashing on render); the app renders with the table its landed
   layout was sized from; `r-code`'s family is `CODE_FONT_FAMILY` verbatim (spaces after commas);
   `structureHash`'s marks are an extra length-framed field. T60's Firefox half not run (no Firefox here).
-- **For the human:** execution plan §2.1 **F24** (the rendered ascent 0.8 em vs measured 1 em in
+- **For the human:** execution plan §2.1 **F25** (the rendered ascent 0.8 em vs measured 1 em in
   Chromium: labels 2.4–2.6 px higher than measurement's baseline; fixing it re-baselines every render
   golden). F9: `n2000-rich` theme switch 48/54 ms (reported, not gated; budget 50).
 - **Size:** **181.71 kB** of 182 (+0.49 kB: the renderer 0.46; the seven run faces are registered by

@@ -166,11 +166,14 @@ calc: "2*3*4 and snake_case"               // literal: no markup here
 ```
 
 **Wrapping.** A node title wraps to fit the node when the node sets `@size.maxWidth` or a fixed
-`@size.width` (the narrower of the two): lines break at spaces, a word too long for a line is split
-between characters, and text without spaces (CJK) breaks between any two characters. The node's
-padding and its shape are allowed for, so an ellipse or a diamond wraps narrower than a rectangle
-of the same width. A label with neither key never wraps, and an edge label breaks only where it
-has a line break.
+`@size.width` (the narrower of the two): lines break at spaces. With `@size.maxWidth`, a word too
+long for a line is also split between characters, and text without spaces (CJK) breaks between
+any two characters; with only a fixed `@size.width`, a word is never split and a word too long
+for the node overflows it, as it always has. The node's
+padding and its shape are allowed for, so an ellipse, a diamond or a tall hexagon wraps narrower
+than a rectangle of the same width. A label with neither key never wraps, and an edge label breaks only where it
+has a line break. If the app cannot load its markdown support (a broken install), labels are
+drawn as plain text and do not wrap, with one `SGL6002` warning.
 
 ### Scoping and references
 
@@ -295,7 +298,7 @@ gives every expanded edge that label and that style. There is no way to tell, do
 | `@tooltip`, `@link` | node, edge | `@link` restricted to `https:` and `mailto:`; anything else, including in-document `#path`, is dropped with `SGL6001` (DD-07 §8) |
 | `@style.*` | any | Paint overrides: `fill`, `stroke`, `strokeWidth`, `strokeDash`, `opacity`, `font*`, `radius`, `shadow` |
 | `@layout.*` | any | Engine hints. `@layout.engine`, plus free-form engine-specific keys |
-| `@size.*` | node | `width`, `height`, `minWidth`, `minHeight`, `maxWidth`, `aspectRatio` (any other key: `SGL2010`, and no effect). `maxWidth`, or a fixed `width`, wraps the node's title (§3, Markdown in labels) |
+| `@size.*` | node, class | A node's, not a container's (on a container: `SGL2012`, ignored). `width`, `height`, `minWidth`, `minHeight`, `maxWidth`, `aspectRatio` (any other key: `SGL2010`, and no effect). A class's `@size` applies to its nodes (§6). `maxWidth`, or a fixed `width`, wraps the node's title (§3, Markdown in labels) |
 | `@pin` | node | `{ x, y }` — absolute position auto-layout must respect |
 | `@ports` | node | Named anchors |
 | `@direction` | container | Sugar for `@layout.direction`: `down` `up` `left` `right` |
@@ -393,9 +396,9 @@ Classes may extend other classes (`@extends`). Class application order is the de
 
 1. Theme role defaults for the resolved `@shape`
 2. Theme rules matching the node's classes
-3. `@classes` definitions, in `@type` order
+3. `@classes` definitions, in `@type` order: a class's `@style`, and its `@size` (a node's size keys; a later class wins per key)
 4. Selector rules (§7), in declaration order
-5. Inline `@style` / `@size` on the element itself
+5. Inline `@style` / `@size` on the element itself (its own `@size` overrides its classes' per key)
 6. **Theme force** — a theme may *force* paint properties (fill, stroke, text colour, plate, shadow) over everything above, including inline `@style`. Only the built-in `print` theme uses it (every fill white, every stroke and text black, no shadow). Force never touches geometry: a forced geometry key is ignored with a warning. (Human decision, 2026-09-25; DD-04 §4 step 7.)
 
 `@token` references (`"@accent"`, `"@surface.raised"`) resolve against the active theme, so a class written once works in light, dark, and print.

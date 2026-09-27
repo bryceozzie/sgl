@@ -247,6 +247,10 @@ importers:
       '@sgl/theme':
         specifier: workspace:*
         version: link:../theme
+    devDependencies:
+      fast-check:
+        specifier: ^4.3.0
+        version: 4.10.0
 
   packages/theme:
     dependencies:

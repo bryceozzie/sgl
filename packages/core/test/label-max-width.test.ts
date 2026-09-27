@@ -5,7 +5,7 @@ describe('labelMaxWidth, the inverse of contentInsets (DD-11 T4, T35, T39)', () 
   const SHAPES = ['rect', 'round', 'ellipse', 'diamond', 'hexagon', 'cylinder', 'package', 'made-up-shape'];
   const PADDINGS: readonly (readonly number[] | undefined)[] = [[8, 12, 8, 12], [0, 0, 0, 0], [4, 30, 4, 2], undefined];
 
-  it('the closed forms: padding off, then ellipse /√2, diamond and hexagon /2', () => {
+  it('the closed forms: padding off, then ellipse /√2 and diamond /2; a hexagon gets the whole width, which the breaker narrows (fix round 1, item 3)', () => {
     const p = [8, 12, 8, 12];
     expect(labelMaxWidth('rect', 124, p)).toBe(100);
     expect(labelMaxWidth('round', 124, p)).toBe(100);
@@ -13,7 +13,7 @@ describe('labelMaxWidth, the inverse of contentInsets (DD-11 T4, T35, T39)', () 
     expect(labelMaxWidth('package', 124, p)).toBe(100);
     expect(labelMaxWidth('ellipse', 124, p)).toBeCloseTo(100 / Math.SQRT2, 12);
     expect(labelMaxWidth('diamond', 124, p)).toBe(50);
-    expect(labelMaxWidth('hexagon', 124, p)).toBe(50);
+    expect(labelMaxWidth('hexagon', 124, p)).toBe(100);
     expect(labelMaxWidth('rect', 20, p)).toBe(0);
     expect(labelMaxWidth('rect', 50)).toBe(50);
     expect(labelMaxWidth('rect', 50, 'not insets')).toBe(50);
@@ -31,6 +31,8 @@ describe('labelMaxWidth, the inverse of contentInsets (DD-11 T4, T35, T39)', () 
           for (const f of [0, 0.25, 0.5, 0.999, 1]) {
             for (const labelH of [1, 16.9, 60, 400]) {
               const labelW = wrap * f;
+              // A hexagon's labels are held to L + min(L, H) <= A by the breaker.
+              if (shape === 'hexagon' && labelW + Math.min(labelW, labelH) > wrap) continue;
               const inset = contentInsets(shape, labelW, labelH);
               const intrinsic = labelW + inset[1] + inset[3] + (padding?.[1] ?? 0) + (padding?.[3] ?? 0);
               expect(intrinsic, `${shape} ${width} ${labelW}x${labelH}`).toBeLessThanOrEqual(width + 1e-9);
@@ -39,7 +41,7 @@ describe('labelMaxWidth, the inverse of contentInsets (DD-11 T4, T35, T39)', () 
           }
         }
       }
-      expect(checked).toBe(320);
+      expect(checked).toBeGreaterThan(shape === 'hexagon' ? 100 : 319);
     });
   }
 

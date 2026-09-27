@@ -53,28 +53,32 @@ export function labelRuns(styled: StyledGraph, labelId: LabelId): readonly Style
   const spec = styled.graph.labels[labelId];
   if (spec === undefined) return [];
   const base = textStyleOf(styled.labelStyles[labelId]);
-  return spec.runs.map((run: TextRun) => {
-    if (!run.strong && !run.em && !run.code) return { text: run.text, style: base };
-    const marks = { ...(run.strong && { strong: true as const }), ...(run.em && { em: true as const }), ...(run.code && { code: true as const }) };
-    return { text: run.text, style: runStyle(base, marks), marks };
-  });
+  // A canonical run's keys other than `text` are its flags, each `true` (T21).
+  return spec.runs.map(({ text, ...marks }: TextRun) => (Object.keys(marks).length === 0 ? { text, style: base } : { text, style: runStyle(base, marks), marks }));
 }
 
 /**
  * The label's box (T29, T35, T36): `{ maxWidth }` for a node title whose node has a
  * finite positive `@size.maxWidth` or `@size.width` (the smaller wins), as the
  * cascade resolved it into `styles[node].geometry`, turned into the widest label
- * that still fits the node by `labelMaxWidth`. Otherwise unconstrained: edge
- * labels have no `@size`, so they break only at `\n`.
+ * that still fits the node by `labelMaxWidth`. With `width` and no `maxWidth` the
+ * box keeps words whole (`keepWords`, human decision H1): a word too wide
+ * overflows as before A18, and only `maxWidth` asks for words to be split.
+ * Otherwise unconstrained: edge labels have no `@size`, so they break only at `\n`.
  */
 export function labelBox(styled: StyledGraph, labelId: LabelId): BoxConstraints {
   const owner = styled.graph.labels[labelId]?.owner;
   if (owner?.kind !== 'node') return UNCONSTRAINED;
   const g = styled.styles[owner.id]?.geometry;
-  let width = Infinity;
-  for (const v of [g?.['maxWidth'], g?.['width']]) if (typeof v === 'number' && v > 0 && v < width) width = v;
+  const positive = (v: unknown): number => (typeof v === 'number' && v > 0 ? v : Infinity);
+  const max = positive(g?.['maxWidth']);
+  const width = Math.min(max, positive(g?.['width']));
   const node = styled.graph.nodes[owner.id];
-  return width === Infinity || node === undefined ? UNCONSTRAINED : { maxWidth: labelMaxWidth(node.shape, width, g?.['padding']) };
+  if (width === Infinity || node === undefined) return UNCONSTRAINED;
+  const maxWidth = labelMaxWidth(node.shape, width, g?.['padding']);
+  // Only an author's maxWidth asks for words to be split (human decision H1); a
+  // hexagon's width depends on the label's height, which the breaker settles.
+  return { maxWidth, ...(max === Infinity && { keepWords: true as const }), ...(node.shape === 'hexagon' && { hexagon: true as const }) };
 }
 
 /** Keys already computed, per `StyledGraph` object (DD-11 T56): a `StyledGraph`
