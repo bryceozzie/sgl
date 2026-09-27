@@ -2039,6 +2039,26 @@ Tests: `resolve.test.ts` (each non-object form, and an object plus a dotted key)
 computed dasharray is `6 3`). DD-02 §7's row and paragraph are rewritten. Core bundle **176.88 kB
 of 182** (+5 B).
 
+**Help branch 2, `feat/help-content`** (Stage L, E19, DD-13 §13 branch 2; branched from `main` at
+`b1692bb`; no golden changed; no new dependency). **The build-time compiler**
+(`apps/web/build/help-content.ts`, `compileHelp`) turns the Markdown in `apps/web/help/` into the
+typed tree of `src/help/content.ts`: inline runs are `parseInline`'s as is, and it adds headings,
+paragraphs, two-level lists, pipe tables, notes, fenced code with build-time `sgl` highlighting,
+`example`/`snippet` fences and `#help/<id>` links. Raw HTML, images and external or bare URLs fail
+the build. **`virtual:sgl-help-content`** (`build/help-plugin.ts`, in `vite.config.ts`) serves it,
+and compiles it at `buildStart` against the reference's ids, so bad content fails `vite build`
+although nothing imports the module until branch 4. **`joinHelp`** (`src/help/join.ts`) joins it to
+`buildReference`'s facts by id, the quick start first, and resolves `key/style.<p>` to `style/<p>`.
+**Content:** the quick start and every key fact (33, `@pin` included), 62 examples, 3 snippets.
+Tests: `help-content.test.ts` (the compiler and each build failure), `help-drift.test.ts` (the join,
+and each drift check failing on made-up content before passing on the real content; enforced kind
+`key`), `help-examples.test.ts` (every example through the app's pipeline under its engine and four
+themes; the harness now runs `elk` too), and `reference-boot.test.ts` plus
+`check-core-chunks.mjs` (no help content at boot or in the worker). Core bundle **176.96 kB of 182**
+(unchanged). Deviations are in DD-13 §13 branch 2. Found while writing: a root `@layout` option and
+`@direction` do not reach the engine yet (Options does; `fix/root-layout-options`), and spec §9's
+container `@layout: { engine: grid }` is `SGL4010` under `elk`; the help says so.
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
