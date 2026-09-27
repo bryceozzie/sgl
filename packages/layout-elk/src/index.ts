@@ -34,7 +34,8 @@ export const elkEngine: LayoutEngine = {
   ...elkDescriptor,
 
   async layout(input: LayoutInput, ctx: LayoutContext): Promise<LayoutResult> {
-    const graph = toElkGraph(input, normalizeElkOptions(ctx.options), ctx.metrics);
+    const options = normalizeElkOptions(ctx.options);
+    const graph = toElkGraph(input, options, ctx.metrics);
     const elk = await loadElk();
     // Fix round 1, item 7: the first request pays elkjs's import, which can
     // outlast an abort. ELK itself cannot be interrupted (it is synchronous
@@ -47,7 +48,8 @@ export const elkEngine: LayoutEngine = {
     // (and GWT bookkeeping) into the graph it is given, but `graph` is built
     // fresh above for this call alone and nothing reads it afterwards.
     const out = await elk.layout(graph);
-    return fromElkGraph(input, out);
+    // F16's title detours need vertices: not under SPLINES (DD-06 §6.2).
+    return fromElkGraph(input, out, options.edgeRouting === 'SPLINES' ? undefined : ctx.metrics.arrowSize);
   },
 };
 

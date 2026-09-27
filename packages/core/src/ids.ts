@@ -35,6 +35,12 @@ export const DRAWABLE_SHAPES: ReadonlySet<string> = new Set<ShapeId>([
   'package',
 ]);
 
+/** The shape a node gets when neither it nor any of its classes sets `@shape`,
+ *  and the fallback for `SGL3001`/`SGL3006` (DD-03 §4). One definition, which
+ *  `compile.ts`, `@sgl/render-svg`'s `resolveShape` and the help reference
+ *  (DD-13 P5, P7) all read. */
+export const DEFAULT_SHAPE = 'rect' satisfies ShapeId;
+
 export const asNodeId = (s: string): NodeId => s as NodeId;
 export const asEdgeId = (s: string): EdgeId => s as EdgeId;
 export const asLabelId = (s: string): LabelId => s as LabelId;

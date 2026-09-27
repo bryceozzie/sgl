@@ -251,6 +251,9 @@ Because the grammar reads JSON directly, `fromJson` is not a separate parser and
 ## 7. Config key registry
 
 `packages/core/src/config-registry.ts`. One table drives validation here, autocomplete (**⟶ E6**), documentation, and `toJson` ordering.
+Documentation is DD-13's `buildReference` (`apps/web/src/reference/build.ts`), which reads this
+table, exported as `CONFIG_REGISTRY`, together with DD-13 P5's constants: `STRUCTURAL_KEYS`
+(`@extends`, `@edges`, which have no row here), `DEFAULT_SHAPE` and `PORT_SIDES`.
 
 ```ts
 interface ConfigKeySpec {

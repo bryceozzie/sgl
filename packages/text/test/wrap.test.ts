@@ -267,16 +267,23 @@ describe('the breaker is linear (fix round 1, item 1)', () => {
   const rich: StyledRun[] = Array.from({ length: 800 }, (_, i) =>
     i % 2 === 0 ? plain(`${'word '.repeat(9)}word `) : { text: `${'bold '.repeat(9)}bold `, style: BOLD, marks: { strong: true } },
   );
+  // Best of three, so JIT warm-up and a busy machine (parallel test workers)
+  // do not fail a linear breaker. Linear takes ~12-29 ms here; the quadratic
+  // one took 982-6 720 ms on these inputs, so 400 ms still catches it.
   const timed = (runs: readonly StyledRun[], maxWidth: number): number => {
-    const t = performance.now();
-    layoutWrapped(fractional, runs, { maxWidth });
-    return performance.now() - t;
+    let best = Infinity;
+    for (let i = 0; i < 3; i++) {
+      const t = performance.now();
+      layoutWrapped(fractional, runs, { maxWidth });
+      best = Math.min(best, performance.now() - t);
+    }
+    return best;
   };
   for (const maxWidth of [1e9, 39990, 120]) {
-    it(`8 000 words, 8 000 characters without spaces and 8 000 words in 800 rich runs, each well under 100 ms (maxWidth ${maxWidth})`, () => {
-      expect(timed([plain(words)], maxWidth), 'words').toBeLessThan(100);
-      expect(timed([plain(glyphs)], maxWidth), 'no spaces').toBeLessThan(100);
-      expect(timed(rich, maxWidth), 'rich').toBeLessThan(100);
+    it(`8 000 words, 8 000 characters without spaces and 8 000 words in 800 rich runs, each well under 400 ms (maxWidth ${maxWidth})`, () => {
+      expect(timed([plain(words)], maxWidth), 'words').toBeLessThan(400);
+      expect(timed([plain(glyphs)], maxWidth), 'no spaces').toBeLessThan(400);
+      expect(timed(rich, maxWidth), 'rich').toBeLessThan(400);
     });
   }
 });

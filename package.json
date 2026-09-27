@@ -18,6 +18,8 @@
     "lint": "eslint .",
     "build": "pnpm --filter \"./packages/*\" build && pnpm --filter \"./apps/*\" build",
     "dev": "pnpm --filter @sgl/web dev",
+    "cf:dev": "pnpm build && pnpm --filter @sgl/web cf:dev",
+    "cf:deploy": "pnpm build && pnpm --filter @sgl/web cf:deploy",
     "test": "pnpm generate:corpus && pnpm generate:bench-fixtures && pnpm generate:grid-fixture && vitest run --project unit --project browser",
     "test:unit": "pnpm generate:corpus && vitest run --project unit",
     "test:browser": "pnpm generate:corpus && pnpm generate:bench-fixtures && pnpm generate:grid-fixture && vitest run --project browser",

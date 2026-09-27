@@ -16,6 +16,8 @@ export const REGISTERED_ENGINES = [elkDescriptor, gridDescriptor].map((e) => ({
   id: e.id,
   name: e.name,
   determinism: e.capabilities.determinism,
+  // The help reference lists them (DD-13 P4, `reference/build.ts`).
+  capabilities: e.capabilities,
   // What SGL4010 checks `@layout` keys against (fix round 1, item 23).
   ...(e.optionsSchema !== undefined && { optionsSchema: e.optionsSchema }),
   ...(e.hintsSchema !== undefined && { hintsSchema: e.hintsSchema }),
