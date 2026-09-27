@@ -80,6 +80,20 @@ test('markup in a label loads the chunk, and each mark is drawn in its own face:
   expect(loaded).toEqual(expect.arrayContaining(['IBM Plex Mono normal 400', 'Inter italic 400', 'Inter normal 700']));
 });
 
+test('code is never italic, as the browser computes it: `b` inside *a `b`* is upright Plex (DD-11 T25, T44)', async ({ page }) => {
+  await page.goto('/');
+  await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+  await setSource(page, 'a: "*a `b`*"\n');
+  await waitForExactNodeCount(page, 1);
+  const code = renderedSvg(page).locator('g[id="n-a"] tspan.r-code');
+  await expect(code).toHaveText('b');
+  expect(await code.getAttribute('class')).toBe('r-em r-code');
+  const style = await code.evaluate((el) => ({ style: getComputedStyle(el).fontStyle, family: getComputedStyle(el).fontFamily }));
+  expect(style.style).toBe('normal');
+  expect(style.family).toMatch(/^"IBM Plex Mono"/);
+  expect(await renderedSvg(page).locator('g[id="n-a"] tspan.r-em:not(.r-code)').evaluate((el) => getComputedStyle(el).fontStyle)).toBe('italic');
+});
+
 test('typing **x** gives a tspan with computed font-weight 700 (DD-11 T60)', async ({ page }) => {
   await page.goto('/');
   await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
