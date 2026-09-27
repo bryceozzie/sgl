@@ -1,7 +1,7 @@
 import type { LabelId, Size } from '@sgl/core';
 import { compile, parse, resolve } from '@sgl/core';
 import { buildLayoutInput, type LayoutInput, type ResolvedThemeMetricsView, type StyledGraphInput } from '@sgl/layout-api';
-import { runConformance, type ConformanceCase } from '@sgl/layout-api/conformance';
+import { runConformance, siblingOverlaps, type ConformanceCase } from '@sgl/layout-api/conformance';
 import { labelRunKey, premeasure, StaticMetricsMeasurer } from '@sgl/measure';
 import { layoutWrapped } from '@sgl/text/wrap';
 import { BUILT_IN, neutralLight, resolveTheme, styleGraph, type StyledGraph } from '@sgl/theme';
@@ -64,9 +64,18 @@ it('grid passes all five conformance checks over the corpus and the 1 000-node g
  * `fixed` packed itself must overlap nothing. Check 1 fails on errors only, so
  * `pin-negative.sgl`'s SGL4003 warning passes, and is asserted here.
  */
+/** Fix round 1, item 5 (mutation M6): pinned siblings the author put on top
+ *  of each other, at the root and inside a container, beside unpinned ones
+ *  `fixed` packs. Check 3's F28 exemption must be what lets this pass. */
+const OVERLAP = 'overlapping pins (fix round 1, item 5)';
+const OVERLAP_SOURCE =
+  'a: { @label: "A", @pin: { x: 0, y: 0 } }\nb: { @label: "B", @pin: { x: 10, y: 10 } }\nc: "C"\n' +
+  'box: {\n  @pin: { x: 300, y: 0 }\n  p: { @label: "P", @pin: { x: 0, y: 0 } }\n  q: { @label: "Q", @pin: { x: 5, y: 5 } }\n  r: "R"\n}\na -> b\n';
+
 it('fixed passes all six conformance checks over the corpus and the 1 000-node graph', async () => {
   const cases: ConformanceCase[] = [
     ...listCorpusDocs().map((name) => ({ name, input: inputOf(corpusStyledGraph(name).styled) })),
+    { name: OVERLAP, input: inputForSource(OVERLAP_SOURCE) },
     { name: N1000, input: inputForSource(scaleDocument(1000) as string) },
   ];
   const report = await runConformance(fixedEngine, cases, { metrics: METRICS, now: () => performance.now(), timedCase: N1000 });
@@ -77,4 +86,10 @@ it('fixed passes all six conformance checks over the corpus and the 1 000-node g
   expect(report.cases.every((c) => c.deterministic === true)).toBe(true);
   const warned = report.cases.filter((c) => c.validation.length > 0).map((c) => [c.name, c.validation.map((d) => d.code)]);
   expect(warned).toEqual([['layout/pin-negative.sgl', ['SGL4003']]]);
+  // The overlap case really overlaps: without the exemption, check 3 would fail it.
+  const overlap = report.cases.find((c) => c.name === OVERLAP)!;
+  expect(siblingOverlaps(cases.find((c) => c.name === OVERLAP)!.input.graph, overlap.result)).toEqual([
+    ['a', 'b'],
+    ['box.p', 'box.q'],
+  ]);
 }, 120_000);
