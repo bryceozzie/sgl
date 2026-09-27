@@ -313,12 +313,26 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
 export const MAX_ENGINE_NOTES = 100;
 
 /**
+ * Text from the worker, made fit for a catalogue template (fix round 1, item
+ * 3): backticks, line breaks and every other control character become
+ * spaces, so it cannot close the template's code span or start a new line,
+ * and it is cut to 120 characters, the last an ellipsis, never splitting a
+ * surrogate pair.
+ */
+export function workerText(text: string): string {
+  // eslint-disable-next-line no-control-regex -- matching control characters is the point.
+  const s = text.replace(/[`\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, ' ');
+  return s.length <= 120 ? s : `${s.slice(0, 119).replace(/[\ud800-\udbff]$/, '')}…`;
+}
+
+/**
  * An engine's `LayoutResult.notes` as diagnostics (DD-12 N20). The worker is
  * untrusted (B17), so each note is checked field by field: a `LAYOUT_CATALOGUE`
  * code whose row is not an error (an engine that fails throws, which is
  * `SGL4011`), a span of two non-negative integers with `from <= to`
  * (copied), and, for each of the
- * template's own placeholders only, a string or finite-number parameter. The
+ * template's own placeholders only, a finite number or a string (through
+ * `workerText`). The
  * message is the catalogue's, never the engine's. Anything else is dropped
  * without a word. Only the first `MAX_ENGINE_NOTES` entries are read, so a
  * huge or sparse array costs nothing (fix round 1, item 1).
@@ -340,7 +354,8 @@ export function engineNotes(notes: unknown): Diagnostic[] {
     const params: Record<string, string | number> = {};
     for (const [, k] of row.template.matchAll(/\{(\w+)\}/g)) {
       const v = typeof note?.params === 'object' && note.params !== null && Object.hasOwn(note.params, k!) ? note.params[k!] : undefined;
-      if (typeof v === 'string' || Number.isFinite(v)) params[k!] = v as string | number;
+      if (typeof v === 'string') params[k!] = workerText(v);
+      else if (Number.isFinite(v)) params[k!] = v as number;
     }
     out.push(layoutDiagnostic(code as LayoutDiagnosticCode, { from: from as number, to: to as number }, params));
   }

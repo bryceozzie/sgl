@@ -229,6 +229,31 @@ describe('createWorkerHost (DD-06 §3, Stage H decision D1)', () => {
       expect(diagnostics.map((d) => d.message)).toEqual(['`@pin` is not honoured by engine `{id}`; ignored.', '`12` extends outside its container after layout.']);
     });
 
+    // Fix round 1, item 3: a parameter cannot write sentences into a template.
+    it('a string parameter is cut to 120 characters, ending in an ellipsis', async () => {
+      const { diagnostics } = await outcome({ notes: [{ code: 'SGL4003', span: SPAN, params: { node: 'x'.repeat(5000) } }] });
+      const node = /^`([^`]*)`/.exec(diagnostics[0]!.message)![1]!;
+      expect(node).toHaveLength(120);
+      expect(node.endsWith('…')).toBe(true);
+      expect(node.slice(0, 119)).toBe('x'.repeat(119));
+    });
+
+    it('a parameter at exactly 120 characters is kept whole', async () => {
+      const { diagnostics } = await outcome({ notes: [{ code: 'SGL4003', span: SPAN, params: { node: 'y'.repeat(120) } }] });
+      expect(diagnostics[0]!.message).toBe(`\`${'y'.repeat(120)}\` extends outside its container after layout.`);
+    });
+
+    it('backticks, newlines and other control characters in a parameter become spaces', async () => {
+      const node = 'a`; ignored.\nSGL9999: run `rm -rf`\r \u0000b';
+      const { diagnostics } = await outcome({ notes: [{ code: 'SGL4003', span: SPAN, params: { node } }] });
+      expect(diagnostics[0]!.message).toBe('`a ; ignored. SGL9999: run  rm -rf    b` extends outside its container after layout.');
+    });
+
+    it('a cut never leaves half a surrogate pair', async () => {
+      const { diagnostics } = await outcome({ notes: [{ code: 'SGL4003', span: SPAN, params: { node: `${'z'.repeat(118)}😀😀` } }] });
+      expect(diagnostics[0]!.message).toBe(`\`${'z'.repeat(118)}…\` extends outside its container after layout.`);
+    });
+
     it('an empty span at 0 is valid', async () => {
       const { diagnostics } = await outcome({ notes: [{ code: 'SGL4003', span: { from: 0, to: 0 }, params: { node: 'a' } }] });
       expect(diagnostics.map((d) => d.span)).toEqual([{ from: 0, to: 0 }]);
