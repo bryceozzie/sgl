@@ -8,7 +8,7 @@ import { corpusPath, corpusSource, INLINE, renderCorpusDoc, runPipeline, type Re
 /**
  * The injection suite (DD-07 §11, DD-09 §3.3 invariant 6): parse the rendered
  * SVG as XML and assert no `<script>` element, no `on*` attribute, and every
- * `href` on the allowlist —  * against every corpus/injection/*.sgl document, one
+ * `href` on the allowlist — against every corpus/injection/*.sgl document, one
  * hostile string per markup context. A18 (DD-11 T47): each document is also
  * rendered through the rich pipeline, which draws marked runs as nested
  * `<tspan class="r-…">`s; `markdown-in-label.sgl` puts hostile text inside
