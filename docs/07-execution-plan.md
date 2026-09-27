@@ -1922,6 +1922,25 @@ unbuilt, and DD-00's DD-11 row was stale. Next is the plan in DD-12 §13: `feat/
 `feat/b5-fixed` → `fix/root-layout-options` → `feat/b5-tree` → `feat/b5-radial`. The estimated boot
 cost is ~3.2 kB of the 6.01 kB left.
 
+**Help branch 1, `feat/help-reference`** (Stage L, E19, DD-13 §13 branch 1; branched from `main` at
+`ca9956e`; no golden changed). **DD-13 P5's exports**, each now the value the code uses in place of
+its literal: `@sgl/core` exports `CONFIG_REGISTRY` and `LANGUAGE_SHAPES`; `DEFAULT_SHAPE` (`ids.ts`)
+replaces `compile.ts`'s three `'rect'` fallbacks, and `@sgl/render-svg`'s `DEFAULT_SHAPE` is now a
+re-export of it; `PORT_SIDES` (`compile.ts`, SGL3007's set) is exported; `STRUCTURAL_KEYS`
+(`@extends` in a class, `@edges` at the root or in a container) lives in a new
+`structural-keys.ts` beside the registry, whose `EXTENDS_KEY`/`EDGES_KEY` `resolve.ts` now matches
+on; `A11Y_KEYS` drives the renderer's `a11yLabel`/`a11yDescription`. `REGISTERED_ENGINES` carries
+each descriptor's `capabilities`. **`buildReference(engines)`** (`apps/web/src/reference/`, with its
+types) builds DD-13 P6's `Reference`, deeply frozen, from those tables plus the style registry,
+`DASH_PATTERNS`, `BUILT_IN` through `resolveTheme`, `CATALOGUE` and `IMPORT_CATALOGUE`. Nothing
+imports it yet; `apps/web/test/reference-boot.test.ts` fails if `main.tsx` or the layout worker
+reaches `src/reference/` by static imports. Tests: `reference.test.ts` (representative entries,
+completeness by iterating each source table, canonical order, determinism, freezing) and the two
+`reference-constants.test.ts` (each constant against the behaviour it names). Core bundle **176.05 kB
+of 182** (+54 B). Deviations are listed in DD-13 §13 branch 1: `@edges`' scope includes the root,
+`STRUCTURAL_KEYS` has its own module, and four gaps were filled (`hint/` ids, `engineId`,
+`key/layout.engine`, `@style`'s sub-keys are the `style/` ids).
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
