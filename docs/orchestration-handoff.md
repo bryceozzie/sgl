@@ -123,6 +123,9 @@ hard lines). Scope as briefed: T42–T50, the fonts (T26, T49), T56–T57, rende
   golden). F9: `n2000-rich` theme switch 48/54 ms (reported, not gated; budget 50).
 - **Size:** **181.71 kB** of 182 (+0.49 kB: the renderer 0.46; the seven run faces are registered by
   the lazy `rich-text` chunk via the Font Loading API, not the boot CSS, and no CSP change); 0.29 kB left.
+- **Merged with `feat/a18-text`** (`dfb7a59`, by the orchestrator) and **fix round 1 done** (10 items,
+  07 §2): **181 970 B, 30 B under 182 kB**. T57 control: `n2000-labelled` 31.3 / 32.7 ms vs
+  `n2000-rich` 44.9 / 43.7 ms. The ascent finding is **F25** (branch 2's F24 is the canvas cache).
 
 ### A18 markdown labels: branch `design/a18-text` at `8ca91c9` (design only, not merged)
 
