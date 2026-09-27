@@ -81,18 +81,11 @@ export function labelBox(styled: StyledGraph, labelId: LabelId): BoxConstraints 
   return { maxWidth, ...(max === Infinity && { keepWords: true as const }), ...(node.shape === 'hexagon' && { hexagon: true as const }) };
 }
 
-/** Keys already computed, per `StyledGraph` object (DD-11 T56): a `StyledGraph`
- *  is immutable, so `render()`'s per-label lookup after `premeasure` rehashes
- *  nothing. */
-const KEYS = new WeakMap<StyledGraph, Map<LabelId, string>>();
-
-/** The `MeasureTable` key for a label: `hashRuns(labelRuns(…), labelBox(…))`. */
+/** The `MeasureTable` key for a label: `hashRuns(labelRuns(…), labelBox(…))`.
+ *  Not memoised (fix round 1): `render()` looks up only labels with a box
+ *  (DD-11 T42), and a memo cost boot bytes the table seam needed. */
 export function labelRunKey(styled: StyledGraph, labelId: LabelId): string {
-  let keys = KEYS.get(styled);
-  if (!keys) KEYS.set(styled, (keys = new Map()));
-  let key = keys.get(labelId);
-  if (key === undefined) keys.set(labelId, (key = hashRuns(labelRuns(styled, labelId), labelBox(styled, labelId))));
-  return key;
+  return hashRuns(labelRuns(styled, labelId), labelBox(styled, labelId));
 }
 
 /** The wrap gate (T53): true when some label has a box, so its measurement needs

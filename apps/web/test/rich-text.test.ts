@@ -153,11 +153,69 @@ describe('the rich-text chunk (DD-11 T53)', () => {
     await h.settle();
     const good = h.pipeline.lastGood.value!;
     const measured = h.pipeline.table.value[labelRunKey(good.styled, 'l:a' as LabelId)]!;
+    // Settled, the landed layout was sized from the latest table: one object.
     expect(good.paintPlan.text).toBe(h.pipeline.table.value);
     const text = /<g id="n-a"[^]*?<text [^>]*>([^]*?)<\/text>/.exec(good.svg)![1]!;
     const lines = [...text.matchAll(/<tspan x="[^"]*" dy="[^"]*">([^<]*)<\/tspan>/g)].map((m) => m[1]);
     expect(lines).toEqual(measured.lines.map((l) => l.runs.map((r) => r.text).join('')));
     expect(lines.length).toBeGreaterThan(1);
+    h.dispose();
+  });
+
+  /**
+   * Fix round 1, item 1 (the orchestrator's decision): between an edit's
+   * pre-measure and its layout, a render draws a label found in the table the
+   * landed layout was sized from from that table, and a label missing there
+   * (the edited one) from the latest table, never on one unwrapped line. The
+   * measurer halves the wrap width after the first pre-measure, so the two
+   * tables hold different lines for the same key and the test can tell which
+   * one a label was drawn from. The layout debounce is never fired: the edit's
+   * layout stays pending while the theme switch renders.
+   */
+  it('before an edit\'s layout lands: an unchanged label draws from the landed layout\'s table, an edited one from the latest table', async () => {
+    const lazy = lazyRichText();
+    lazy.release();
+    const measurer = new (class extends StaticMetricsMeasurer {
+      narrow = false;
+      async ready(): Promise<void> {}
+      layoutRuns(runs: Parameters<StaticMetricsMeasurer['layoutRuns']>[0], box: Parameters<StaticMetricsMeasurer['layoutRuns']>[1]) {
+        return super.layoutRuns(runs, this.narrow && box.maxWidth !== undefined ? { maxWidth: box.maxWidth / 2 } : box);
+      }
+    })();
+    const DOC = 'a: { @label: "alpha beta gamma delta epsilon zeta", @size: { maxWidth: 200 } }\nb: { @label: "one two three four five six seven", @size: { maxWidth: 200 } }\na -> b\n';
+    const h = await createHarness(DOC, { loadRichText: lazy.loadRichText, measurer, defaultThemeId: 'neutral-light' }, { firstRender: false });
+    await h.settle();
+    await lazy.loadRichText.mock.results[0]!.value;
+    await h.settle();
+    const landed = h.pipeline.table.value;
+    expect(h.pipeline.lastGood.value).not.toBeNull();
+    const linesOf = (svg: string, id: string): string[] => {
+      const text = new RegExp(`<g id="n-${id}"[^]*?<text [^>]*>([^]*?)</text>`).exec(svg)![1]!;
+      return [...text.matchAll(/<tspan x="[^"]*" dy="[^"]*">([^<]*)<\/tspan>/g)].map((m) => m[1]!);
+    };
+    const tableLines = (table: typeof landed, styled: Parameters<typeof labelRunKey>[0], id: string): string[] =>
+      table[labelRunKey(styled, `l:${id}` as LabelId)]!.lines.map((l) => l.runs.map((r) => r.text).join(''));
+
+    measurer.narrow = true;
+    h.setSource(DOC.replace('seven', 'seven eight nine'));
+    // The pre-measure lands (its `ready()` resolves on a microtask); the layout
+    // debounce is left pending, so `layout` is still the landed one.
+    for (let i = 0; i < 5; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
+    const latest = h.pipeline.table.value;
+    expect(latest).not.toBe(landed);
+    h.pipeline.themeId.value = 'neutral-dark';
+    for (let i = 0; i < 3; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const good = h.pipeline.lastGood.value!;
+    expect(good.styled.themeId).toBe('neutral-dark');
+    expect(good.styled.graph.labels['l:b' as LabelId]!.runs[0]!.text).toContain('nine');
+    // The unchanged label: the landed table's lines, not the latest table's (narrower) ones.
+    expect(tableLines(landed, good.styled, 'a')).not.toEqual(tableLines(latest, good.styled, 'a'));
+    expect(linesOf(good.svg, 'a')).toEqual(tableLines(landed, good.styled, 'a'));
+    // The edited label is not in the landed table: the latest table's lines, not one long line.
+    expect(landed[labelRunKey(good.styled, 'l:b' as LabelId)]).toBeUndefined();
+    expect(linesOf(good.svg, 'b')).toEqual(tableLines(latest, good.styled, 'b'));
+    expect(linesOf(good.svg, 'b').length).toBeGreaterThan(1);
     h.dispose();
   });
 

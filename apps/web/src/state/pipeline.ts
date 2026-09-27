@@ -449,11 +449,22 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   // (`structureHash` includes it): it is kept only as a cheap early exit
   // that skips hashing the structure when the geometry has visibly changed.
   //
-  // A18 (DD-11 T42): the render is drawn with the measure table the layout
-  // was sized from, `layoutTable`, which the layout effect sets together with
-  // `layout` — so a label is drawn on exactly the lines that sized its node,
-  // never on a newer table's breaks inside older frames. A theme switch keeps
-  // both objects, so the paint-only guard (`paintPlan.text`) holds.
+  // A18 (DD-11 T42): a label is drawn from the measure table the layout was
+  // sized from, `layoutTable` (set together with `layout`), so it sits on
+  // exactly the lines that sized its node, never on a newer table's breaks
+  // inside older frames. A label missing there — edited since, its layout not
+  // landed yet — is drawn from the latest `table` (fix round 1, item 1: text
+  // overflowing its old box vertically for a moment reads better than one
+  // long line spilling sideways), so the render also follows `table`. The
+  // merged view is one object per pair of tables, and simply the table
+  // itself once the layout has caught up, so a theme switch keeps it and the
+  // paint-only guard (`paintPlan.text`) holds.
+  let drawn: readonly [MeasureTable | undefined, MeasureTable, MeasureTable] | undefined;
+  const drawTable = (latest: MeasureTable): MeasureTable | undefined => {
+    if (layoutTable === undefined || layoutTable === latest) return layoutTable;
+    if (drawn?.[0] !== layoutTable || drawn[1] !== latest) drawn = [layoutTable, latest, { ...latest, ...layoutTable }];
+    return drawn[2];
+  };
   let lastRendered: Rendered | null = null;
   const svgOutcome = guardedStage<Rendered | null>(
     [styledOutcome, themeOutcome],
@@ -462,13 +473,17 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
       if (layoutValue === null) return null;
       const styledValue = styled.value.value;
       const resolvedTheme = theme.value.value;
+      // Only a document with a box can have a label to draw from the latest
+      // table, so only it re-renders when a new table lands (no extra render
+      // on an edit elsewhere).
+      const text = drawTable(needsWrap(styledValue) ? table.value : table.peek());
       inject('render');
       const previous = lastRendered;
       const paintOnly =
         previous !== null && previous.layout === layoutValue && previous.styled.graph === styledValue.graph && previous.styled.geometryHash === styledValue.geometryHash
-          ? renderPaintOnly(previous.result, styledValue, layoutValue, layoutTable)
+          ? renderPaintOnly(previous.result, styledValue, layoutValue, text)
           : null;
-      const rendered: Rendered = { result: paintOnly ?? render(styledValue, layoutValue, resolvedTheme, layoutTable), styled: styledValue, layout: layoutValue };
+      const rendered: Rendered = { result: paintOnly ?? render(styledValue, layoutValue, resolvedTheme, text), styled: styledValue, layout: layoutValue };
       lastRendered = rendered;
       return rendered;
     },
