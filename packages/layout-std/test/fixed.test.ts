@@ -1,5 +1,6 @@
 import { asNodeId, type NodeId, type Rect } from '@sgl/core';
 import {
+  DEFAULT_ENGINE_TIMEOUT_MS,
   engineNotes,
   validateResult,
   type LayoutContext,
@@ -265,6 +266,8 @@ describe('fixed: the descriptor (DD-12 N17, N18, N19)', () => {
       optionsSchema: { type: 'object', additionalProperties: false, properties: { gap: { type: 'number', minimum: 0, default: 24 } } },
       hintsSchema: { type: 'object', properties: {} },
     });
+    // The host's timeout for it, as for grid (N19).
+    expect(DEFAULT_ENGINE_TIMEOUT_MS['sgl.fixed']).toBe(2_000);
   });
 });
 

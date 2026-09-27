@@ -1,5 +1,5 @@
 import { ELK_DIRECTIONS, ELK_EDGE_ROUTINGS, ELK_ENGINE_ID, ELK_NODE_PLACEMENTS } from '@sgl/layout-elk/descriptor';
-import { COLUMNS_MAX, engineOptionRules, GAP_MAX, GRID_ENGINE_ID, SPACING_MAX, type OptionValue } from './engine-options.js';
+import { COLUMNS_MAX, engineOptionRules, FIXED_ENGINE_ID, GAP_MAX, GRID_ENGINE_ID, SPACING_MAX, type OptionValue } from './engine-options.js';
 
 /**
  * F11 (DD-08 §10): the per-engine options form, as DOM-free data and pure
@@ -79,6 +79,12 @@ const FIELDS: Readonly<Record<string, { readonly title: string; readonly fields:
       { kind: 'number', key: 'gap', label: 'Gap', min: 0, max: GAP_MAX, step: 1 },
       { kind: 'select', key: 'align', label: 'Align', choices: [{ value: 'center', label: 'Center' }, { value: 'start', label: 'Start' }] },
     ],
+  },
+  // DD-12 N19: one field, the gap between the nodes `fixed` packs below the
+  // pinned ones; grid's range.
+  [FIXED_ENGINE_ID]: {
+    title: 'Fixed options',
+    fields: [{ kind: 'number', key: 'gap', label: 'Gap', min: 0, max: GAP_MAX, step: 1 }],
   },
 };
 

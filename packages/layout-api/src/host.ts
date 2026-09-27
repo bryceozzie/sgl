@@ -17,6 +17,8 @@ export const ABORT_ESCALATION_MS = 250;
  *  caller can override any of these without having to repeat the rest. */
 export const DEFAULT_ENGINE_TIMEOUT_MS: Readonly<Record<string, number>> = {
   'sgl.grid': 2_000,
+  // DD-12 N19: `fixed` does grid's arithmetic and less.
+  'sgl.fixed': 2_000,
 };
 
 /** The MVP's seed for `ctx.random` (DD-00 §3, ADR-0004). `LayoutHost.run()` is a

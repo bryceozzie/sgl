@@ -101,15 +101,18 @@ if (!existsSync(`${DIST}index.html`)) {
   // alone; only the worker runs `gridEngine.layout()`. The worker's copy must
   // carry the packing code (else this signature, one of its error messages, no
   // longer matches the minified output and the check would pass vacuously).
-  const GRID_LAYOUT_SIGNATURE = 'grid: unknown scope';
-  for (const file of seen) {
-    if (readFileSync(`${DIST}assets/${file}`, 'utf8').includes(GRID_LAYOUT_SIGNATURE)) fail(`${file} (reachable at boot) contains the grid engine's layout code; the page needs only @sgl/layout-std/descriptor.`);
-  }
+  // feat/b5-fixed: the same for `fixed` (DD-12 H9: static in the worker).
+  const LAYOUT_SIGNATURES = { grid: 'grid: unknown scope', fixed: 'fixed: unknown scope' };
   const workerFiles = assets.filter((f) => /^layout\.worker-[\w-]+\.js$/.test(f));
-  if (!workerFiles.some((f) => readFileSync(`${DIST}assets/${f}`, 'utf8').includes(GRID_LAYOUT_SIGNATURE))) {
-    fail(`no layout worker chunk contains '${GRID_LAYOUT_SIGNATURE}'; update GRID_LAYOUT_SIGNATURE for this minifier output.`);
+  for (const [engine, signature] of Object.entries(LAYOUT_SIGNATURES)) {
+    for (const file of seen) {
+      if (readFileSync(`${DIST}assets/${file}`, 'utf8').includes(signature)) fail(`${file} (reachable at boot) contains the ${engine} engine's layout code; the page needs only @sgl/layout-std/descriptor.`);
+    }
+    if (!workerFiles.some((f) => readFileSync(`${DIST}assets/${f}`, 'utf8').includes(signature))) {
+      fail(`no layout worker chunk contains '${signature}'; update LAYOUT_SIGNATURES for this minifier output.`);
+    }
   }
-  if (process.exitCode !== 1) console.log('check-core-chunks: the grid layout code is in the worker only.');
+  if (process.exitCode !== 1) console.log('check-core-chunks: the grid and fixed layout code is in the worker only.');
 
   // A8 follow-up, then feat/b5-pin fix round 1 (item 4): the layout worker
   // builds no diagnostic at all. It posts an engine's failure as a plain

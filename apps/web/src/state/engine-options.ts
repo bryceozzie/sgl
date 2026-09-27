@@ -21,6 +21,8 @@ import { ELK_DEFAULT_OPTIONS, ELK_ENGINE_ID, normalizeElkOptions } from '@sgl/la
  */
 
 export const GRID_ENGINE_ID = 'sgl.grid';
+/** DD-12 §4 (feat/b5-fixed). */
+export const FIXED_ENGINE_ID = 'sgl.fixed';
 
 export type OptionValue = string | number;
 
@@ -43,6 +45,12 @@ export interface EngineOptionRules {
  *  number (24)`, `align: start|center (center)` — the values `grid.ts` reads. */
 const GRID_DEFAULTS: Readonly<Record<string, OptionValue>> = { columns: 'auto', gap: 24, align: 'center' };
 
+/** DD-12 N19: `gap: number (24)`, the loose-node packing gap, grid's field. */
+const FIXED_DEFAULTS: Readonly<Record<string, OptionValue>> = { gap: 24 };
+
+const validGap = (gap: unknown, fallback: number): number =>
+  typeof gap === 'number' && Number.isFinite(gap) && gap >= 0 && gap <= GAP_MAX ? gap : fallback;
+
 const RULES: Readonly<Record<string, EngineOptionRules>> = {
   [ELK_ENGINE_ID]: {
     defaults: { ...ELK_DEFAULT_OPTIONS },
@@ -64,10 +72,14 @@ const RULES: Readonly<Record<string, EngineOptionRules>> = {
       const gap = bag['gap'];
       return {
         columns: typeof columns === 'number' && Number.isInteger(columns) && columns >= 1 && columns <= COLUMNS_MAX ? columns : 'auto',
-        gap: typeof gap === 'number' && Number.isFinite(gap) && gap >= 0 && gap <= GAP_MAX ? gap : (GRID_DEFAULTS['gap'] as number),
+        gap: validGap(gap, GRID_DEFAULTS['gap'] as number),
         align: bag['align'] === 'start' ? 'start' : 'center',
       };
     },
+  },
+  [FIXED_ENGINE_ID]: {
+    defaults: FIXED_DEFAULTS,
+    normalize: (bag) => ({ gap: validGap(bag['gap'], FIXED_DEFAULTS['gap'] as number) }),
   },
 };
 
