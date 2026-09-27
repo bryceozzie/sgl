@@ -8,8 +8,11 @@ compiler, the previews), with small exports from `@sgl/core`, `@sgl/theme` and `
 module that E6 (autocomplete) can reuse later.
 
 **Status: design only (2026-09-27), from `main` at `4432974`. No code is changed by this document.**
+**Human decisions (2026-09-27): every §14 recommendation was accepted, HD1–HD6.** The human also
+settled §17: `@style` with a value that is not an object warns `SGL2011` (branch 0,
+`fix/style-shorthand`, §13), and the spec and 01 were corrected to match the code on this branch.
 The decisions are numbered **P1–P47**. Each has a recommendation and a one-line reason in italics.
-Decisions marked **⚑** are for the human; §14 gives each one's options. Decisions D1–D4 below are
+Decisions marked **⚑** went to the human; §14 gives each one's options and the decision. Decisions D1–D4 below are
 the human's and are binding. Where this document changes another document, the change is listed in
 §16 and made by the branch that implements it. The exceptions are the new rows in 01 and 04, the
 DD-00 index row and §15's factual fix, all made on this branch.
@@ -79,8 +82,9 @@ is **no CSP change** and **no new dependency**.
 - **A18's inline parser** (`@sgl/core/inline`, `parseInline`) reads `**bold**`, `*italic*`,
   `` `code` `` and line breaks, and nothing else. Help prose needs headings, paragraphs, lists,
   fenced code, tables and internal links too (P12).
-- **Several spec examples do not do what they say** (§17). The worst: `@style: dashed` is accepted
-  and silently ignored. It is in the app's own first-run example.
+- **Several spec examples did not do what they said** (§17). The worst: `@style: dashed` is accepted
+  and silently ignored. It is in the app's own first-run example. By human decision it becomes
+  `SGL2011` (§13, branch 0), and the spec examples are corrected on this branch.
 
 ---
 
@@ -332,7 +336,7 @@ the same functions the app runs.
   add engines. Whichever of help or B5 merges second writes the missing entries: P17 fails until
   it does. *That is the guarantee working.*
 - **P22. What the tests cannot prove.** That a preview shows what the prose claims.
-  `@style: dashed` renders cleanly and draws a solid line (§17 item 1). An example whose point
+  Until branch 0, `@style: dashed` rendered cleanly and drew a solid line (§17 item 1). An example whose point
   is a visual effect should carry `contains=` (for example `contains="stroke-dasharray"`), and
   reviewers check the rest.
 
@@ -649,6 +653,24 @@ are lazy.
 
 Reviewable branches, in order. Each is one reviewer's work, and each passes the full clean check.
 
+0. **`fix/style-shorthand`** (human decision 2026-09-27, §17 item 1). Small, and independent of
+   the rest.
+   - `CONFIG_REGISTRY`'s `style` row: type `any` → `object`. A `@style` that is not an object (a
+     bareword, a string, a number, an array, or a `$var` holding one) is then `SGL2011`
+     ("`@style` expects object; ignored.") and is dropped. Dotted keys (`@style.fill: …`) are
+     unchanged. The comment in `config-registry.ts` that calls `dashed` a valid shorthand is
+     rewritten.
+   - `corpus/checkout.sgl`, `corpus/chains.sgl` and `apps/web/src/examples/checkout.sgl`:
+     `@style: dashed` → `@style: { strokeDash: "6 3" }` (`6 3` is `DASH_PATTERNS.dashed`).
+   - A corpus fixture that emits `SGL2011` for `@style: dashed`, so the code has a document that
+     reaches it (Gate 1's rule).
+   - Goldens: the `checkout` and `chains` render goldens are **re-baselined** under all four
+     themes, because those edges now draw dashed, as intended. Their AST, resolve and compile
+     goldens change only where the source text changed. No other golden may move.
+   - An e2e check that the first-run example shows no diagnostics and that its `async` edge has
+     a `stroke-dasharray`.
+   - DD-02 §7: the `style` row's type, and the paragraph that calls `dashed` a bareword
+     shorthand.
 1. **`feat/help-reference`.**
    - The P5 exports and constants, each used by the code that held the literal. No behaviour
      changes, and no golden moves.
@@ -665,7 +687,7 @@ Reviewable branches, in order. Each is one reviewer's work, and each passes the 
 
    The drift test's enforced kinds start as `key`.
 3. **`feat/help-content-2`.**
-   - Content for `style`, `shape`, `engine` and `option`, `theme`, and `diag` (per ⚑4); all the
+   - Content for `style`, `shape`, `engine` and `option`, `theme`, and `diag` (per HD4); all the
      topics.
    - The enforced kinds become all of them.
 
@@ -675,7 +697,7 @@ Reviewable branches, in order. Each is one reviewer's work, and each passes the 
      and queue, Copy, Open as new document.
    - `.size-limit.js`, `check-core-chunks.mjs`.
    - `help-search.test.ts`, `help-preview.browser.test.ts`, e2e 1–5, the CSP and offline cases.
-   - ⚑3's diagnostics-row link and ⚑6's first visit, if accepted.
+   - HD3's diagnostics-row link and HD6's first visit.
 5. **`feat/help-page`.**
    - The `#help` route and the page view, deep links, Back, print CSS, and the `#help/keys` and
      `#help/diagnostics` indexes.
@@ -689,9 +711,10 @@ B5's branches and these can interleave. Whichever merges second writes the missi
 
 ---
 
-## 14. ⚑ Decisions for the human
+## 14. ⚑ Decisions for the human (all accepted, 2026-09-27: HD1–HD6)
 
-Only choices D1–D4 did not settle.
+Only choices D1–D4 did not settle. Every recommendation was accepted; each item records the
+decision.
 
 - **⚑1. What the help page is.**
   - (a) A view inside the SPA at `#help/<kind>/<name>` (**recommended**).
@@ -699,12 +722,16 @@ Only choices D1–D4 did not settle.
 
   *(a) shares the pipeline, the precache and the Open path, and keeps "Open as new document" in
   the same tab. The URL format becomes a promise: links into help should keep working.*
+
+  **HD1. Human decision 2026-09-27:** (a), an in-app view at `#help/<kind>/<name>`.
 - **⚑2. "Insert".**
   - (a) No; offer Copy instead (**recommended**, P32).
   - (b) Yes: insert at the cursor as one undoable transaction.
 
   *An example is a whole document, so inserting its root keys mid-document causes warnings and
   merges. Insert is also editor integration, which D1 excluded.*
+
+  **HD2. Human decision 2026-09-27:** (a), Copy, not Insert.
 - **⚑3. A "Help" link on each diagnostics-panel row** (`#help/diag/<code>`), opening the drawer
   at that code.
   - (a) Yes (**recommended**).
@@ -712,6 +739,8 @@ Only choices D1–D4 did not settle.
 
   *It is the moment a user most needs help. It is a link in the panel, not an editor hover, and
   costs ~0.05 kB at boot.*
+
+  **HD3. Human decision 2026-09-27:** (a), a Help link on each diagnostics row.
 - **⚑4. How much each diagnostic gets.**
   - (a) Required prose for every code: what it means and how to fix it. For every code a
     document can cause, an example that is proved to cause it (**recommended**, P19).
@@ -719,6 +748,8 @@ Only choices D1–D4 did not settle.
 
   *(a) is about 60 short entries of work. The message templates already say what happened, but
   rarely what to do next.*
+
+  **HD4. Human decision 2026-09-27:** (a), prose for every diagnostic code, plus a proved example for each code a document can cause.
 - **⚑5. A keyboard shortcut to open help.**
   - (a) None in v1.0; the Help button is in the tab order (**recommended**).
   - (b) F1, which Chrome and Firefox bind to their own help and which cannot be reliably
@@ -727,6 +758,8 @@ Only choices D1–D4 did not settle.
 
   *Every free chord collides with a browser, an OS or CodeMirror somewhere. Add one when users
   ask for it.*
+
+  **HD5. Human decision 2026-09-27:** (a), no keyboard shortcut.
 - **⚑6. First visit.**
   - (a) On a first visit only (no stored documents), open the drawer at Quick start without
     moving focus, and remember that it was shown (**recommended**).
@@ -735,12 +768,28 @@ Only choices D1–D4 did not settle.
   *Lee, the casual user, meets the language first. Focus stays where the page put it, so nothing
   is stolen. It costs ~0.03 kB at boot and one lazy load on first visit only.*
 
+  **HD6. Human decision 2026-09-27:** (a), a first visit opens the drawer at Quick start without moving focus.
+
 ---
 
 ## 15. Factual fixes made in other documents on this branch
 
 1. **DD-08 §12, "What the list above names, concretely":** "Both themes and the example
    document" now reads "The four built-in themes and the example document". C5 made it four.
+
+**Spec and 01 corrections, by human decision 2026-09-27 (§17 items 1–7).** Made on this branch:
+
+2. **Spec §3 and §9:**
+   - every `@style: dashed` → `@style: { strokeDash: "6 3" }`;
+   - §3's edge `@width: 2` → `strokeWidth: 2` inside that `@style`;
+   - §9's canonical `"strokeDash": "4 3"` → `"6 3"`.
+3. **Spec §4, the `@style.*` row:** a `@style` that is not an object is `SGL2011` and ignored.
+   The row also names the dash keywords.
+4. **Spec §6:** `"@surface.raised"` → `"@surface"`, a token every built-in theme has.
+5. **Spec §4, "Applies to":** follows the registry for `@hidden`, `@a11y.*`, `@meta.*`, `@label`,
+   `@shape`, `@ports` and `@layout.*`. A new sentence says the column follows the registry.
+6. **Spec §4:** `@a11y.role` and `@icon` are marked **not in v1.0**.
+7. **01:** FR-Y8's `layered` → `elk`. §6 criterion 1 now says five built-in engines.
 
 ---
 
@@ -757,12 +806,17 @@ Only choices D1–D4 did not settle.
   - §1.1: one row. Help content and previews add no capability beyond the canvas's.
   - §2 core bundle row: the four help files join the list of lazy chunks.
 - **DD-10 §2:** the lazy help chunks and the `virtual:sgl-help-content` plugin.
-- **DD-02 §7:** "documentation" now names DD-13's `buildReference`, and the P5 constants.
+- **DD-02 §7:** "documentation" now names DD-13's `buildReference`, and the P5 constants. Branch 0
+  changes the `style` row's type to `object` and drops the paragraph calling `dashed` a
+  shorthand.
 - **07:** a Stage L row for E19, with branches as §13; the orchestrator's to add.
 
 ---
 
 ## 17. Contradictions found while designing this
+
+**The human resolved all of them on 2026-09-27.** Items 1–7 are fixed in the spec and 01 on this
+branch (§15). Item 1's code, corpus, example and goldens are branch 0 (§13).
 
 1. **`@style: <keyword>` does nothing.**
    - These treat `@style: dashed` as valid: spec §3 (`api -> db: { …, @style: dashed, … }`),
@@ -777,6 +831,8 @@ Only choices D1–D4 did not settle.
    - **For the human (spec):** either (a) make `@style: <dash keyword>` mean
      `@style.strokeDash: <keyword>`, or (b) warn with `SGL2011` and fix the spec, the corpus and
      the example. Until then, help documents only the object form.
+   - **Human decision 2026-09-27: (b), warn and fix the docs.** A `@style` that is not an object
+     is `SGL2011` and ignored, and every example becomes `@style: { strokeDash: "6 3" }`.
 2. **Spec §3, `@width: 2` on an edge,** is not a key: it is `SGL2010`. It should be
    `@style.strokeWidth`.
 3. **Spec §6 uses the token `"@surface.raised"`.** No built-in theme defines it: it gives
@@ -796,8 +852,8 @@ Only choices D1–D4 did not settle.
 6. **Spec §4 lists `@icon`** ("see backlog"; C10 is a Should) as a key. The registry has no row,
    so it is `SGL2010`. Help leaves it out (P2).
 7. **01 FR-Y8 still names `layered`,** which H7 renamed `elk`. **01 §6 criterion 1** still says
-   "all six built-in engines", although `force` is cut (B22). Neither is fixed here: FR-Y8's
-   engine list is the human's to reword.
+   "all six built-in engines", although `force` is cut (B22). **Fixed on this branch (human
+   decision 2026-09-27).**
 8. **DD-02 §7 says the registry drives "documentation",** but it has no defaults, sub-keys or
    descriptions. P5 and P7 say where each of those comes from. This is not a conflict, only a gap
    that this document fills.
