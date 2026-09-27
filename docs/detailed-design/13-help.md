@@ -8,6 +8,7 @@ compiler, the previews), with small exports from `@sgl/core`, `@sgl/theme` and `
 module that E6 (autocomplete) can reuse later.
 
 **Status: design only (2026-09-27), from `main` at `4432974`. No code is changed by this document.**
+**Implementation:** branch 1, `feat/help-reference`, is implemented (§13, with its deviations).
 **Human decisions (2026-09-27): every §14 recommendation was accepted, HD1–HD6.** The human also
 settled §17: `@style` with a value that is not an object warns `SGL2011` (branch 0,
 `fix/style-shorthand`, §13), and the spec and 01 were corrected to match the code on this branch.
@@ -677,6 +678,34 @@ Reviewable branches, in order. Each is one reviewer's work, and each passes the 
    - `apps/web/src/reference/` (`buildReference`, types).
    - `reference.test.ts`.
    - Boot delta measured (~0.03 kB).
+
+   **Implemented** on `feat/help-reference` (from `main` at `ca9956e`). No golden moved; boot
+   +54 B gzipped (176.05 kB of 182). The builder is imported by nothing yet;
+   `apps/web/test/reference-boot.test.ts` fails if the entry or the layout worker reaches
+   `src/reference/` by static imports, until branch 4 names `reference-*.js` in `.size-limit.js`
+   and `check-core-chunks.mjs` takes over. `reference.test.ts` covers P20, plus a test that
+   building never freezes the source tables. Deviations and gaps filled:
+   - **`STRUCTURAL_KEYS` is its own module**, `packages/core/src/structural-keys.ts`, not rows in
+     `config-registry.ts`, so B5's registry rows cannot conflict with it. `resolve.ts` matches on
+     its `EXTENDS_KEY` and `EDGES_KEY`.
+   - **`@edges`' scope is `['root', 'node']`,** not `['node']`: the resolver accepts it at the root,
+     where `toJson` writes the root's edges.
+   - **`DEFAULT_SHAPE` lives in `ids.ts`** beside `DRAWABLE_SHAPES`; `@sgl/render-svg` already had
+     one, which is now a re-export of core's rather than a second copy.
+   - **`REGISTERED_ENGINES` gains `capabilities`** (P4 names them; the list lacked them).
+   - **An `EngineFact`'s `id` is the help id** (`engine/elk`), like every other fact's; the engine id
+     is `engineId` (`sgl.elk`).
+   - **Hints have ids `hint/<engine>.<name>`,** a kind P3 lacks: `grid` has `columns` both as an
+     option and as a hint. Hints need no prose (P17), so the drift test can ignore the kind.
+   - **`key/layout.engine` is a sub-key fact** whose values are the registered engine ids, the one
+     `@layout` key the app reads itself. When `feat/b5-pin` makes bare names valid there, its
+     values should follow.
+   - **`@style`'s `subKeys` are the `style/<name>` ids.** P6's second id, `key/style.fill`, is an
+     alias for `joinHelp` (branch 2) to resolve, not a second fact.
+   - **Additions to P6's types:** `written` (`@size.maxWidth`) on keys, styles, options and tokens;
+     `parent`, `structural` and `canonicalOnly` on keys; `default` flags on the default shape and
+     theme; `@theme`'s values are the built-in theme ids; style facts carry the default theme's
+     values per role (P7) as `defaults`; options carry `types`, `values`, `minimum` and `default`.
 2. **`feat/help-content`.**
    - The compiler (`apps/web/build/help-content.ts`) and the `virtual:sgl-help-content` Vite
      plugin.
