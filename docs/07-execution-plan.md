@@ -2110,6 +2110,14 @@ root options, and no other document in them has any. Tests: `layout-config`, app
 `engine-options` and `engine-options-form.browser`, render-svg `pipeline`, `elk`, and
 `e2e/root-layout-options.spec.ts` (checkout's six edges run left to right under `elk`). Docs: DD-12
 §13, DD-08 §10, DD-06 §2 and §7. Size: core **179.50 kB** of 182, +0.31 kB.
+**Merged `main` after `feat/help-content`** (`9f47545`; no conflicts, 07 §2 keeps both sides) and,
+merging second, made DD-13 P21's help update: `key/layout`, `key/direction` and the quick start
+now say that root options and `@direction` reach the engine and override Options ▾ for that
+document ("(set by document)"), that an undeclared key is `SGL4010` and an invalid value
+`SGL2011`, and that `@layout.direction` wins over `@direction`. Seven new examples, two with a
+`contains=` on the left-to-right viewBox (P22). The help harness runs `createPipeline`, so it needed
+no change. No golden differs from `main` but `checkout.sgl`'s two `elk` goldens. Core **179.50 kB**
+after the merge (help adds nothing at boot).
 
 **Help branch 1, `feat/help-reference`** (Stage L, E19, DD-13 §13 branch 1; branched from `main` at
 `ca9956e`; no golden changed). **DD-13 P5's exports**, each now the value the code uses in place of
