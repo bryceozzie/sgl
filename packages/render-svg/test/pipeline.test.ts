@@ -77,14 +77,17 @@ const DOWNSTREAM_EXTRA: Readonly<Record<string, readonly DiagnosticCode[]>> = {
   // Items 65 to 256 are over the 64-document cap before the item cap (A9
   // fix round 1): one SGL2028.
   'imports/too-many-items.sgl': ['SGL2028'],
-  // DD-12 N6: SGL4021 is one per pinned node under an engine without pins
-  // (grid, here). The `fixed` fixtures' own codes arrive with `fixed`
-  // (feat/b5-fixed); until then their pins are all SGL4021. (A pin the
-  // resolver dropped, `pin-malformed.sgl`, is SGL2011 alone: fix round 1.)
-  'layout/pin-full.sgl': ['SGL4021', 'SGL4021'],
-  'layout/pin-half.sgl': ['SGL4021'],
-  'layout/pin-nested.sgl': ['SGL4021', 'SGL4021'],
-  'layout/pin-negative.sgl': ['SGL4021'],
+  // DD-12 N9, H1: under `fixed` (which the document names, and the harness
+  // honours), one SGL4020 per unpinned node: `c` and `d`. `pin-full`,
+  // `pin-nested` and `forty-three-pinned` have no extra: every node is
+  // pinned.
+  'layout/pin-half.sgl': ['SGL4020'],
+  // Fix round 1, item 3: 150 unpinned nodes, of which the host shows the
+  // first 100 SGL4020 notes; its own SGL4022 is the header's.
+  'layout/pin-many-loose.sgl': new Array<DiagnosticCode>(100).fill('SGL4020'),
+  // Fix round 1, item 1: `box.c` has no pin; it packs inside the box (from
+  // x = 0, not from `box.a`'s negative pin), so it is no SGL4003.
+  'layout/pin-negative.sgl': ['SGL4020'],
   // The unterminated string swallows the rest of the line looking for its
   // closing quote, which the parser then recovers from as a second, unrelated
   // syntax error one token later.

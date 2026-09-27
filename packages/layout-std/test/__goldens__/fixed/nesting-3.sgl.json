@@ -1,0 +1,441 @@
+{
+  "bounds": {
+    "x": 0,
+    "y": 0,
+    "w": 650.375,
+    "h": 175.203125
+  },
+  "nodes": {
+    "external": {
+      "frame": {
+        "x": 16,
+        "y": 16,
+        "w": 104,
+        "h": 89.59375
+      },
+      "contentFrame": {
+        "x": 32,
+        "y": 53.59375,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "external.cdn": {
+      "frame": {
+        "x": 32,
+        "y": 53.59375,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform": {
+      "frame": {
+        "x": 144,
+        "y": 16,
+        "w": 490.375,
+        "h": 143.203125
+      },
+      "contentFrame": {
+        "x": 160,
+        "y": 53.59375,
+        "w": 458.375,
+        "h": 89.59375
+      }
+    },
+    "platform.ingress": {
+      "frame": {
+        "x": 160,
+        "y": 53.59375,
+        "w": 234.375,
+        "h": 89.59375
+      },
+      "contentFrame": {
+        "x": 176,
+        "y": 91.203125,
+        "w": 202.375,
+        "h": 36
+      }
+    },
+    "platform.ingress.lb": {
+      "frame": {
+        "x": 176,
+        "y": 91.203125,
+        "w": 106.375,
+        "h": 36
+      }
+    },
+    "platform.ingress.waf": {
+      "frame": {
+        "x": 306.375,
+        "y": 91.203125,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform.services": {
+      "frame": {
+        "x": 418.375,
+        "y": 53.59375,
+        "w": 200,
+        "h": 89.59375
+      },
+      "contentFrame": {
+        "x": 434.375,
+        "y": 91.203125,
+        "w": 168,
+        "h": 36
+      }
+    },
+    "platform.services.api": {
+      "frame": {
+        "x": 434.375,
+        "y": 91.203125,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform.services.worker": {
+      "frame": {
+        "x": 530.375,
+        "y": 91.203125,
+        "w": 72,
+        "h": 36
+      }
+    }
+  },
+  "edges": {
+    "e-aa8a579440c55bf8": {
+      "start": {
+        "x": 530.375,
+        "y": 106.484375
+      },
+      "end": {
+        "x": 111.984375,
+        "y": 74.921875
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 111.984375,
+            "y": 74.921875
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0.9971661712131042,
+        "y": 0.07523049240964787
+      },
+      "endNormal": {
+        "x": -0.9971661712131042,
+        "y": -0.07523049240964787
+      },
+      "clip": "none"
+    },
+    "e-8053b7646e964a44": {
+      "start": {
+        "x": 282.375,
+        "y": 109.203125
+      },
+      "end": {
+        "x": 426.375,
+        "y": 109.203125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 426.375,
+            "y": 109.203125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "clip": "none"
+    },
+    "e-8312902bb75b3f5b": {
+      "start": {
+        "x": 306.375,
+        "y": 109.203125
+      },
+      "end": {
+        "x": 290.375,
+        "y": 109.203125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 290.375,
+            "y": 109.203125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "clip": "none"
+    },
+    "e-838a69e88cc4c5f7": {
+      "start": {
+        "x": 506.375,
+        "y": 109.203125
+      },
+      "end": {
+        "x": 522.375,
+        "y": 109.203125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 522.375,
+            "y": 109.203125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "clip": "none"
+    },
+    "e-727e23be260ac34e": {
+      "start": {
+        "x": 434.375,
+        "y": 109.203125
+      },
+      "end": {
+        "x": 290.375,
+        "y": 109.203125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 290.375,
+            "y": 109.203125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "clip": "none"
+    }
+  },
+  "labels": [
+    {
+      "labelId": "l:external",
+      "frame": {
+        "x": 32,
+        "y": 32,
+        "w": 46.09375,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:external.cdn",
+      "frame": {
+        "x": 57.515625,
+        "y": 63.15625,
+        "w": 20.953125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform",
+      "frame": {
+        "x": 160,
+        "y": 32,
+        "w": 48.25,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:platform.ingress",
+      "frame": {
+        "x": 176,
+        "y": 69.59375,
+        "w": 42.5,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:platform.ingress.lb",
+      "frame": {
+        "x": 188,
+        "y": 100.75,
+        "w": 82.375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform.ingress.waf",
+      "frame": {
+        "x": 332.265625,
+        "y": 100.75,
+        "w": 20.234375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform.services",
+      "frame": {
+        "x": 434.375,
+        "y": 69.59375,
+        "w": 47.53125,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:platform.services.api",
+      "frame": {
+        "x": 461.703125,
+        "y": 100.75,
+        "w": 17.34375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform.services.worker",
+      "frame": {
+        "x": 546.875,
+        "y": 100.75,
+        "w": 39,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    }
+  ],
+  "notes": [
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 75,
+        "to": 98
+      },
+      "params": {
+        "node": "external"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 89,
+        "to": 96
+      },
+      "params": {
+        "node": "external.cdn"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 100,
+        "to": 355
+      },
+      "params": {
+        "node": "platform"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 136,
+        "to": 234
+      },
+      "params": {
+        "node": "platform.ingress"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 173,
+        "to": 204
+      },
+      "params": {
+        "node": "platform.ingress.lb"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 209,
+        "to": 216
+      },
+      "params": {
+        "node": "platform.ingress.waf"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 238,
+        "to": 323
+      },
+      "params": {
+        "node": "platform.services"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 254,
+        "to": 261
+      },
+      "params": {
+        "node": "platform.services.api"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 266,
+        "to": 276
+      },
+      "params": {
+        "node": "platform.services.worker"
+      }
+    }
+  ]
+}

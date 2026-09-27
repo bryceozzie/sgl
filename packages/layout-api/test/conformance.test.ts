@@ -122,6 +122,15 @@ describe('siblingLeafOverlaps and missingLabelPlacements', () => {
     expect(siblingLeafOverlaps(g, overlapping)).toEqual([['p', 'q']]);
   });
 
+  it('F28: skips a pair only when both siblings are exempt (placed by their author)', () => {
+    const g = graph();
+    const moved = layoutOf(g);
+    const overlapping: LayoutResult = { ...moved, nodes: { ...moved.nodes, [asNodeId('y')]: { frame: { x: 10, y: 10, w: 20, h: 20 } } } };
+    expect(siblingLeafOverlaps(g, overlapping, (id) => id === 'x' || id === 'y')).toEqual([]);
+    expect(siblingLeafOverlaps(g, overlapping, (id) => id === 'x')).toEqual([['x', 'y']]);
+    expect(siblingLeafOverlaps(g, overlapping, () => false)).toEqual([['x', 'y']]);
+  });
+
   it('lists every visible label without a placement', () => {
     const id = asLabelId('l:xy');
     const spec: LabelSpec = { id, owner: { kind: 'edge', id: asEdgeId('xy') }, role: 'edge', runs: [{ text: 'q' }] };
@@ -186,6 +195,41 @@ describe('runConformance (DD-06 §8)', () => {
     expect(report.failures).toEqual([]);
     expect(report.crossingCounts).toEqual({ g: 1 });
     expect(report.cases[0]).toMatchObject({ deterministic: true, withinTimeout: true });
+  });
+
+  describe('F28: check 3 exempts nodes an engine with pins placed at their pin', () => {
+    /** `x` and `y` overlap; `pinned` says which of them carry a `@pin`. */
+    function pinnedGraph(pinned: readonly string[]): SemanticGraph {
+      const g = graph();
+      const nodes = { ...g.nodes };
+      for (const id of pinned) nodes[asNodeId(id)] = { ...nodes[asNodeId(id)]!, config: { pin: { x: 0, y: 0 } } };
+      return { ...g, nodes };
+    }
+    const overlapping = (g: SemanticGraph): LayoutResult => {
+      const r = layoutOf(g);
+      return { ...r, nodes: { ...r.nodes, [asNodeId('y')]: { frame: { x: 10, y: 10, w: 20, h: 20 } } } };
+    };
+    const pinning = (g: SemanticGraph, pins: boolean): LayoutEngine => {
+      const base = engineWith(() => Promise.resolve(overlapping(g)));
+      return { ...base, capabilities: { ...base.capabilities, pins } };
+    };
+    const check3 = async (engine: LayoutEngine, g: SemanticGraph) =>
+      (await runConformance(engine, [{ name: 'g', input: input(g) }], { metrics: METRICS, now: () => 0 })).failures.filter((f) => f.includes('check 3'));
+
+    it('two pinned siblings may overlap under an engine that declares pins', async () => {
+      const g = pinnedGraph(['x', 'y']);
+      expect(await check3(pinning(g, true), g)).toEqual([]);
+    });
+
+    it('the same overlap fails under an engine without pins', async () => {
+      const g = pinnedGraph(['x', 'y']);
+      expect(await check3(pinning(g, false), g)).toEqual(["g: check 3 (siblings 'x' and 'y' overlap)"]);
+    });
+
+    it('a pinned node overlapping an unpinned one still fails', async () => {
+      const g = pinnedGraph(['x']);
+      expect(await check3(pinning(g, true), g)).toEqual(["g: check 3 (siblings 'x' and 'y' overlap)"]);
+    });
   });
 
   it('fails checks 1, 2, 4 and 5 when an engine breaks each', async () => {

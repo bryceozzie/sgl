@@ -1,0 +1,362 @@
+{
+  "bounds": {
+    "x": 0,
+    "y": 0,
+    "w": 584,
+    "h": 175.203125
+  },
+  "nodes": {
+    "platform": {
+      "frame": {
+        "x": 16,
+        "y": 16,
+        "w": 456,
+        "h": 143.203125
+      },
+      "contentFrame": {
+        "x": 32,
+        "y": 53.59375,
+        "w": 424,
+        "h": 89.59375
+      }
+    },
+    "platform.web": {
+      "frame": {
+        "x": 32,
+        "y": 53.59375,
+        "w": 200,
+        "h": 89.59375
+      },
+      "contentFrame": {
+        "x": 48,
+        "y": 91.203125,
+        "w": 168,
+        "h": 36
+      }
+    },
+    "platform.web.ui": {
+      "frame": {
+        "x": 48,
+        "y": 91.203125,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform.web.cdn": {
+      "frame": {
+        "x": 144,
+        "y": 91.203125,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform.data": {
+      "frame": {
+        "x": 256,
+        "y": 53.59375,
+        "w": 200,
+        "h": 89.59375
+      },
+      "contentFrame": {
+        "x": 272,
+        "y": 91.203125,
+        "w": 168,
+        "h": 36
+      }
+    },
+    "platform.data.db": {
+      "frame": {
+        "x": 272,
+        "y": 91.203125,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform.data.cache": {
+      "frame": {
+        "x": 368,
+        "y": 91.203125,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "client": {
+      "frame": {
+        "x": 496,
+        "y": 16,
+        "w": 72,
+        "h": 36
+      }
+    }
+  },
+  "edges": {
+    "e-be334112e524c233": {
+      "start": {
+        "x": 496,
+        "y": 40.046875
+      },
+      "end": {
+        "x": 127.890625,
+        "y": 101.828125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 127.890625,
+            "y": 101.828125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0.986202875729261,
+        "y": -0.16554119699741165
+      },
+      "endNormal": {
+        "x": -0.986202875729261,
+        "y": 0.16554119699741165
+      },
+      "clip": "none"
+    },
+    "e-69689b04ba39061f": {
+      "start": {
+        "x": 120,
+        "y": 109.203125
+      },
+      "end": {
+        "x": 264,
+        "y": 109.203125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 264,
+            "y": 109.203125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "clip": "none"
+    },
+    "e-66a7798fce94a874": {
+      "start": {
+        "x": 216,
+        "y": 109.203125
+      },
+      "end": {
+        "x": 360,
+        "y": 109.203125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 360,
+            "y": 109.203125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "clip": "none"
+    }
+  },
+  "labels": [
+    {
+      "labelId": "l:client",
+      "frame": {
+        "x": 515.390625,
+        "y": 25.546875,
+        "w": 33.234375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:e-69689b04ba39061f",
+      "frame": {
+        "x": 178.25,
+        "y": 113.203125,
+        "w": 27.515625,
+        "h": 14.296875
+      },
+      "align": "middle",
+      "baseline": "middle",
+      "occlusion": "plate"
+    },
+    {
+      "labelId": "l:platform",
+      "frame": {
+        "x": 32,
+        "y": 32,
+        "w": 48.25,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:platform.data",
+      "frame": {
+        "x": 272,
+        "y": 69.59375,
+        "w": 27.375,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:platform.data.cache",
+      "frame": {
+        "x": 385.21875,
+        "y": 100.75,
+        "w": 37.5625,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform.data.db",
+      "frame": {
+        "x": 298.96875,
+        "y": 100.75,
+        "w": 18.0625,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform.web",
+      "frame": {
+        "x": 48,
+        "y": 69.59375,
+        "w": 26.640625,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:platform.web.cdn",
+      "frame": {
+        "x": 165.921875,
+        "y": 100.75,
+        "w": 28.15625,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform.web.ui",
+      "frame": {
+        "x": 77.5,
+        "y": 100.75,
+        "w": 13,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    }
+  ],
+  "notes": [
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 322,
+        "to": 536
+      },
+      "params": {
+        "node": "platform"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 358,
+        "to": 414
+      },
+      "params": {
+        "node": "platform.web"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 387,
+        "to": 395
+      },
+      "params": {
+        "node": "platform.web.ui"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 400,
+        "to": 410
+      },
+      "params": {
+        "node": "platform.web.cdn"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 418,
+        "to": 480
+      },
+      "params": {
+        "node": "platform.data"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 449,
+        "to": 457
+      },
+      "params": {
+        "node": "platform.data.db"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 462,
+        "to": 476
+      },
+      "params": {
+        "node": "platform.data.cache"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 538,
+        "to": 554
+      },
+      "params": {
+        "node": "client"
+      }
+    }
+  ]
+}

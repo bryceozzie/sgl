@@ -1,6 +1,7 @@
 import type { GraphNode, NodeId, Rect, SemanticGraph, Size } from '@sgl/core';
 import type { LayoutContext, LayoutEngine, LayoutInput, LayoutResult, NodeLayout, NodeSizing } from '@sgl/layout-api';
 import { gridDescriptor } from './descriptor.js';
+import { packCells } from './pack.js';
 
 /**
  * Deterministic row/column packing. The second engine exists to prove that two
@@ -128,56 +129,24 @@ function pack(id: NodeId | null, input: LayoutInput, options: GridOptions, cache
           : options.columns,
     ),
   );
-  const rows = Math.ceil(n / cols);
   const gap = options.gap;
-
-  const colW = new Array<number>(cols).fill(0);
-  const rowH = new Array<number>(rows).fill(0);
-  for (let k = 0; k < n; k += 1) {
-    const col = k % cols;
-    const row = Math.floor(k / cols);
-    const size = itemSizes[k];
-    if (size === undefined) continue;
-    if (size.w > (colW[col] ?? 0)) colW[col] = size.w;
-    if (size.h > (rowH[row] ?? 0)) rowH[row] = size.h;
-  }
-
-  const colX = new Array<number>(cols);
-  let x = padding[3];
-  for (let j = 0; j < cols; j += 1) {
-    colX[j] = x;
-    x += (colW[j] ?? 0) + gap;
-  }
-  const rowY = new Array<number>(rows);
-  let y = padding[0];
-  for (let i = 0; i < rows; i += 1) {
-    rowY[i] = y;
-    y += (rowH[i] ?? 0) + gap;
-  }
+  // DD-12 N10: the packing itself is `packCells`, shared with `fixed`. It
+  // starts at the padding, as this function always did, so the sums are the
+  // same and so are the goldens.
+  const packed = packCells(itemSizes, cols, gap, options.align, padding[3], padding[0]);
 
   const items: PackedItem[] = [];
   for (let k = 0; k < n; k += 1) {
     const cid = childIds[k];
     const size = itemSizes[k];
-    if (cid === undefined || size === undefined) continue;
-    const col = k % cols;
-    const row = Math.floor(k / cols);
-    const cellW = colW[col] ?? 0;
-    const cellH = rowH[row] ?? 0;
-    const cellX = colX[col] ?? padding[3];
-    const cellY = rowY[row] ?? padding[0];
-    const rel =
-      options.align === 'center'
-        ? { x: cellX + (cellW - size.w) / 2, y: cellY + (cellH - size.h) / 2 }
-        : { x: cellX, y: cellY };
+    const rel = packed.positions[k];
+    if (cid === undefined || size === undefined || rel === undefined) continue;
     items.push({ id: cid, rel, size });
   }
 
-  const sumColW = colW.reduce((a, b) => a + b, 0);
-  const sumRowH = rowH.reduce((a, b) => a + b, 0);
   const size: Size = {
-    w: Math.max(min?.w ?? 0, sumColW + gap * (cols - 1) + padding[3] + padding[1]),
-    h: Math.max(min?.h ?? 0, sumRowH + gap * (rows - 1) + padding[0] + padding[2]),
+    w: Math.max(min?.w ?? 0, packed.w + padding[3] + padding[1]),
+    h: Math.max(min?.h ?? 0, packed.h + padding[0] + padding[2]),
   };
 
   const result: PackedContainer = { size, items };

@@ -1,6 +1,6 @@
 import { elkDescriptor } from '@sgl/layout-elk/descriptor';
 import type { LayoutEngine } from '@sgl/layout-api';
-import { gridDescriptor } from '@sgl/layout-std/descriptor';
+import { fixedDescriptor, gridDescriptor } from '@sgl/layout-std/descriptor';
 import { BUILT_IN, DEFAULT_THEME_ID } from '@sgl/theme';
 import EXAMPLE_SOURCE from '../examples/checkout.sgl?raw';
 import { bootDocument, fallbackBoot, newDocumentId, type BootResult, type IdSource, type ShareImportDeps } from '../state/boot.js';
@@ -28,13 +28,13 @@ export function registeredEngine(e: Pick<LayoutEngine, 'id' | 'name' | 'capabili
   };
 }
 
-/** The engines actually registered in `apps/web/src/layout.worker.ts`: `elk`
- *  and `grid`. Read from the same objects the worker registers — `elk`'s
+/** The engines actually registered in `apps/web/src/layout.worker.ts`: `elk`,
+ *  `grid` and `fixed` (feat/b5-fixed, DD-12 H9: static, like `grid`). Read from the same objects the worker registers — `elk`'s
  *  descriptor entry, which carries everything but `layout()` and so none of
  *  elkjs (Stage K, K1), and `grid`'s, which leaves its packing code to the
  *  worker (F20) — rather than duplicated by hand, so the picker cannot list
  *  something the worker does not actually run. */
-export const REGISTERED_ENGINES = [elkDescriptor, gridDescriptor].map(registeredEngine);
+export const REGISTERED_ENGINES = [elkDescriptor, gridDescriptor, fixedDescriptor].map(registeredEngine);
 
 /** ADR-0005: `elk` is the default engine (Stage K undoes Stage I's interim
  *  `grid` default, decision I1). A stored document keeps its own `engineId`. */

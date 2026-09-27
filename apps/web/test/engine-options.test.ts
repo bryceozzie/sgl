@@ -1,5 +1,5 @@
 import { elkDescriptor } from '@sgl/layout-elk/descriptor';
-import { gridEngine } from '@sgl/layout-std';
+import { fixedEngine, gridEngine } from '@sgl/layout-std';
 import { describe, expect, it } from 'vitest';
 import { editOption, engineForm, formValues, withOption } from '../src/state/engine-form.js';
 import { defaultOptionsFor, optionsForEngine } from '../src/state/engine-options.js';
@@ -35,8 +35,20 @@ describe('engine options form (F11)', () => {
     expect(defaultOptionsFor(gridEngine.id)).toEqual({ columns: 'auto', gap: 24, align: 'center' });
   });
 
+  it('fixed: one field, Gap, 0–200 px, default 24 (DD-12 N19)', () => {
+    const form = engineForm(fixedEngine.id)!;
+    expect(form.title).toBe('Fixed options');
+    expect(form.fields).toEqual([{ kind: 'number', key: 'gap', label: 'Gap', min: 0, max: 200, step: 1 }]);
+    expect(defaultOptionsFor(fixedEngine.id)).toEqual({ gap: 24 });
+    expect(formValues('sgl.fixed', { gap: 12, columns: 3 })).toEqual({ gap: 12 });
+    for (const gap of [-1, 201, 'x', Number.NaN]) expect(formValues('sgl.fixed', { gap })).toEqual({ gap: 24 });
+    expect(optionsForEngine('sgl.fixed', { gap: 500, align: 'start' })).toEqual({ gap: 24 });
+    expect(editOption('sgl.fixed', { gap: 30 }, 'gap', '250')).toEqual({ bag: { gap: 30 }, rejected: 'Gap must be a number from 0 to 200. Using 30.' });
+    expect(withOption('sgl.fixed', {}, 'gap', '0')).toEqual({ gap: 0 });
+  });
+
   it("every select choice and default is one the engine's optionsSchema allows", () => {
-    for (const engine of [elkDescriptor, gridEngine]) {
+    for (const engine of [elkDescriptor, gridEngine, fixedEngine]) {
       const props = (engine.optionsSchema as { properties: Record<string, { enum?: readonly string[]; default?: unknown }> }).properties;
       const form = engineForm(engine.id)!;
       for (const field of form.fields) {

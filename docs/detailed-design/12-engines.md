@@ -5,8 +5,8 @@
 `@sgl/core` (the `@pin` registry row), `apps/web` (registration, pickers, options forms, the build).
 **Inputs:** `LayoutInput` (DD-06 §2). **Outputs:** `LayoutResult`.
 
-**Status: design (2026-09-27), from `main` at `755bfd0`. Branch 1 (`feat/b5-pin`) is implemented
-(§13); branches 2–5 are not.**
+**Status: design (2026-09-27), from `main` at `755bfd0`. Branches 1 (`feat/b5-pin`) and 2
+(`feat/b5-fixed`) are implemented (§13); branches 3–5 are not.**
 **Human decisions (2026-09-27): every §15 recommendation was accepted, H1–H9.** The documents they
 change (language spec §4 and §9, the backlog, ADR-0004, Architecture §4.5, 01, 06, 07) are updated
 on this branch (§18). The orchestrator also decided that bare engine names are accepted (N22), as a
@@ -91,6 +91,12 @@ These facts shape the design. Each is also in §17 where it contradicts a docume
     there.
   - *The root is relative already.* The host re-origins every result (§2 item 6), so an "absolute"
     pin at the root means "relative to the other root pins" in any case.
+
+  **Root pins (human decision, 2026-09-27, `feat/b5-fixed` fix round 1, item 2):** root-level pins
+  fix the nodes' positions *relative to each other*; the drawing is framed to fit its content (the
+  host re-origins it, DD-06 §5). A node pinned at a negative offset, or a self-loop's teardrop,
+  moves the canvas, and the pinned nodes keep their exact offsets. Spec §4's `@pin` row says so;
+  `fixed.test.ts` pins it through the host sequence.
 - **N3. Pins survive the host's translation as offsets.** A diagram whose pins all start at `(500,
   500)` renders exactly as one starting at `(0, 0)`. E15 (Could) will need the translation to write a
   dragged position back. `quantize` computes it (`x0`, `y0`) and discards it. E15 should add it to
@@ -103,6 +109,10 @@ These facts shape the design. Each is also in §17 where it contradicts a docume
   `1e308` would make `SGL4002` reject the whole result) and keeps PNG export's 16 384 px cap
   meaningful. A class-level pin would put every member at the same place, so classes are
   excluded.* Variables work (`@pin: $origin`), because resolution runs first.
+  **The bound is per pin; nested pins add up** (`feat/b5-fixed` fix round 1, item 4, orchestrator
+  decision): three nested containers each pinned at 100 000 put a leaf past 300 000. No warning is
+  added; the numbers stay finite, so the host accepts the result and frames the drawing to fit
+  (`fixed.test.ts`, with a bounds golden, `__goldens__/fixed/nested-pins-past-bound.json`).
 - **N5. A container may be pinned (N12).** The registry's `node` scope already covers containers.
   `@size` on a container stays `SGL2012`, so a container's size is always derived (N12).
 - **N6. ⚑ Under an engine that does not honour pins, a `@pin` is a warning at the key: proposed
@@ -117,7 +127,8 @@ These facts shape the design. Each is also in §17 where it contradicts a docume
 **Proposed spec text (for the human; not applied).** Language spec §4, the `@pin` row:
 
 > `@pin` | node | `{ x, y }`, in px: where the top-left of the node's frame goes, relative to the
-> top-left of its parent container's content box (the root's: the diagram's origin). The `fixed`
+> top-left of its parent container's content box (the root's: the diagram's origin; *superseded:
+> root pins are relative to each other, see N2*). The `fixed`
 > engine places the node there; other engines ignore it with a warning (`SGL40xx`). Both numbers
 > are required, each within ±100 000.
 
@@ -138,7 +149,8 @@ layoutContainer(c):                      // c = null for the root
   for k in pinned:  rel[k] = (pin.x, pin.y);  size[k] = sizeOf(k)       // container: recursive
   // N9: the loose ones, packed as grid packs them, below the pinned ones
   top     = pinned empty ? 0 : max over pinned (rel.y + size.h) + gap
-  left    = pinned empty ? 0 : min over pinned rel.x
+  left    = pinned empty ? 0 : max(0, min over pinned rel.x)   // fix round 1: never outside
+  top     = max(0, top)
   pack(loose, columns = ceil(sqrt(n)), gap, align = start) at (left, top)
   // N12: the content box runs from (0,0) to the far edge of every child
   contentW = max(0, max over kids (rel.x + size.w));  contentH likewise
@@ -156,7 +168,10 @@ sizeOf(leaf) = fixed ?? clamp(intrinsic, min, max)        // the rule grid and e
   "`{node}` has no `@pin`; `fixed` placed it below the pinned nodes."** Its span is the node's.
   Loose siblings are packed as `grid` packs them (⌈√n⌉ columns, the `gap` option, aligned to the
   start), starting one `gap` below the lowest pinned sibling. With no pinned siblings, they start at
-  the content origin. *A diagram that is half pinned still draws, and every loose node is flagged at
+  the content origin. **They never start left of or above the content origin** (`feat/b5-fixed` fix
+  round 1, item 1, orchestrator decision): the packing starts at `max(0, leftmost pin x)` and
+  `max(0, lowest pinned bottom + gap)`, so only a node its author pinned outside its container is
+  outside it (N12). *A diagram that is half pinned still draws, and every loose node is flagged at
   its own line.* Architecture §4.5 says `fixed` "errors on unpinned nodes"; §15 ⚑1 weighs that option.
   - **(a) An error.** The whole result is refused, and the previous layout stays. Adding one node
     to a pinned diagram then shows nothing new until it has a pin: a bad loop for the escape hatch
@@ -229,10 +244,11 @@ hintsSchema:   { type: 'object', properties: {} }
 
 ### 4.6 Diagnostics
 
-| Code (proposed, **not allocated**) | Severity | Message | Emitted by |
+| Code (both allocated: `SGL4021` in `feat/b5-pin`, `SGL4020` in `feat/b5-fixed`) | Severity | Message | Emitted by |
 |---|---|---|---|
 | `SGL4020` | warning | `{node}` has no `@pin`; `fixed` placed it below the pinned nodes. | `fixed`, in `LayoutResult.diagnostics` (§5) |
 | `SGL4021` | warning | `@pin` is not honoured by engine `{id}`; ignored. | `layoutConfigDiagnostics`, main thread (N6) |
+| `SGL4022` | info | `{count}` more layout warnings not shown. | the host (`engineNotes`), past `MAX_ENGINE_NOTES`; never an engine (`feat/b5-fixed` fix round 1, item 3, human decision 2026-09-27) |
 
 Existing codes cover the rest: `SGL2010`/`SGL2011`/`SGL2012` for a malformed or misplaced `@pin`
 (N4), and `SGL4003` for a child pinned outside its container (N12). Pinned nodes may overlap. They
@@ -604,8 +620,12 @@ begins.
      no layout, so there is nothing for its notes to describe.
    - **How a note is checked (fix round 1, items 1–3).** N20's check, tightened:
      - Only the first 100 entries of `notes` are read (`MAX_ENGINE_NOTES`), by index, so a
-       sparse or huge array costs nothing. The cap is silent: no catalogue row says how many
-       were dropped.
+       sparse or huge array costs nothing. The cap was silent here; since `feat/b5-fixed` fix
+       round 1, item 3 (human decision 2026-09-27) the host adds one **`SGL4022`** (info,
+       "`{count}` more layout warnings not shown.") at the document start, `count` being the
+       entries past the cap. It is the host's alone: an engine's `SGL4022` note is dropped.
+       Fixture: `corpus/layout/pin-many-loose.sgl` (150 unpinned nodes under `fixed`: 100
+       `SGL4020` and one `SGL4022` with 50).
      - A span must be two non-negative integers with `from <= to`.
      - Parameters are read only for the template's own placeholders, and must be finite numbers
        or strings. `workerText()` makes each string safe: backticks, line breaks and other
@@ -626,13 +646,59 @@ begins.
      render goldens did not change. Root options still do not reach the engine (H6).
    - Size: core **176.96 kB**, +0.08 kB over `main` at `b3171e6` (176.88). Before fix round 1 it was
      +0.38 kB; removing the catalogue rows from the worker more than paid for the round.
-2. **`feat/b5-fixed`**.
+2. **`feat/b5-fixed`**. **Implemented** on `feat/b5-fixed` (2026-09-27); the deviations are below
+   the list.
    - `pack.ts` (N10), with `grid`'s goldens unchanged, as its own first commit.
    - `fixed.ts`, `ports.ts` and `SGL4020`.
    - Registration; the F11 rules and form.
    - Goldens, conformance, the browser double run, the criterion-1 case with the pinned fixture, and
      e2e.
    - DD-06 gets a §7a.
+
+   **As built, and its deviations:**
+   - **`packCells` takes an origin: `packCells(sizes, cols, gap, align, x0, y0)`.** N10's signature
+     has none. `grid` starts its column and row sums at the padding, and floating-point addition is
+     not associative, so packing at 0 and adding the padding afterwards would move `grid`'s last
+     bits. With the origin passed in, every `grid` layout and render golden is byte-identical.
+     `fixed` passes the leftmost pin and one gap below the lowest.
+   - **`pinOf(config)` is in `@sgl/layout-api`** (`pin.ts`): `fixed` and the conformance suite both
+     read a pin through it. Anything but two finite numbers is no pin (the resolver already drops a
+     malformed one, N4).
+   - **F28 is settled in the suite, not left to B18.** §17 item 9 kept check 3 as it was because
+     the corpus had no pins. It has now (`layout/pin-*.sgl`, `forty-three-pinned.sgl`), so
+     `runConformance` exempts a pair of siblings when the engine declares `pins` and both have a
+     pin. A pinned node overlapping one the engine placed still fails, as does any overlap under
+     an engine without `pins`.
+   - **The render-svg corpus harness honours the document's engine when it has it** (`grid` or
+     `fixed`; `render-svg/test/pipeline.ts`'s `harnessEngine`). The four `fixed` fixtures name
+     `engine: fixed`, and their codes can only come from `fixed`. A document naming `elk`
+     (`checkout.sgl`, `pin-under-elk.sgl`) still runs under `grid`, as every render golden was taken.
+   - **The fixtures' headers:** `pin-full` and `pin-nested` have none; `pin-half` is `SGL4020`
+     (the second one in `DOWNSTREAM_EXTRA`); `pin-negative` is `SGL4003`. **`pin-negative.sgl`
+     also pins `box`** (at `(0, 0)`): unpinned, `box` itself was an `SGL4020` beside the
+     `SGL4003` the fixture exists for. Their CST/AST pins changed for the text alone.
+   - **`SGL4003` and `SGL4020` move to the render-svg half of the coverage gate.** Both now come
+     from a real layout of a corpus document; `SGL4003` leaves core's "not yet reachable" list.
+   - **No catalogue row reaches the worker.** Since `feat/b5-pin` fix round 1 the host builds every
+     diagnostic, so `fixed` posts `{ code: 'SGL4020', span, params: { node } }` (the node's id) and
+     the row is on the page only. §11's worker line for the rows does not apply.
+   - **A container whose children are all hidden** is sized as a leaf, with no `contentFrame`, as
+     in `elk`. The host still places its title as a container's (top-left), because
+     `placeLabels` asks `children.length`, as it does under `elk`.
+   - **`corpus/layout/forty-three-pinned.sgl` names `engine: fixed`**, so the criterion-1 case
+     loads it under `fixed`, switches to `elk` (40 `SGL4021`) and back to `fixed` (no diagnostic),
+     and compares the last two. It is written once by `bench/generate-pinned-fixture.js`, whose
+     pure half (`bench/pinned-fixture.js`) `layout-std/test/pinned-fixture.test.ts` re-runs to
+     fail on drift.
+   - **Goldens** (`layout-std/test/__goldens__/fixed/`) cover §12's set: `CLEAN_DOCS` plus the pin
+     documents. The bitwise double run (raw and quantized) and conformance cover every corpus
+     document.
+   - **The browser double run** reuses `bench/grid-fixture.json`: `generate-grid-fixture.js` also
+     writes three `fixed` cases (`forty-three-pinned`, `pin-half`, `ports`), and
+     `fixed.browser.test.ts` has its own worker entry, as `grid`'s does.
+   - Size: core **178.04 kB** of 182, +1.08 kB over `main` (176.96): +0.05 for `packCells`, +0.03
+     for the `SGL4020` row, +1.00 for `fixed` in the worker and its descriptor on the page. §11
+     estimated ~1.45 kB (0.45 page, 1.00 worker).
 3. **`fix/root-layout-options`** (small; H6). `checkout.sgl`'s `elk` goldens may be regenerated here. Root `@layout` options reach the
    engine (N40). A pipeline test and an e2e case (`checkout.sgl` goes right under `elk`). Best merged
    before `tree`, whose main option is `direction`.
@@ -673,7 +739,7 @@ The items marked *(done)* were made on this branch after H1–H9 (§18).
 - *(done)* **04**: B5 split; `force` is B22, Could.
 - **07**:
   - §2 and §5 Stage L rows;
-  - §2.1 F6 (reachable under `fixed` too);
+  - §2.1 F6 (reachable under `fixed` too) *(done, `feat/b5-fixed`; F28 too)*;
   - §2.1 F10 (the owner) *(done)*; F6, F26–F28 *(done)*.
 
 ---

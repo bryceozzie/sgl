@@ -392,7 +392,7 @@ IndexedDB `sgl`, version 1, via `idb`:
 ## 10. Engine and theme pickers
 
 - **Engine ▾** lists registered engines with name and `determinism` badge (ADR-0004). Selecting sets `engineId`, resets `engineOptions` to the engine's defaults.
-- **Engine options** panel: MVP is a hand-built form per engine — `elk`: direction, node spacing, rank spacing, edge routing, node placement; `grid`: columns, gap, align. **⟶ B7** generates this from `optionsSchema`; the form values already round-trip through `engineOptions` so nothing else changes.
+- **Engine options** panel: MVP is a hand-built form per engine — `elk`: direction, node spacing, rank spacing, edge routing, node placement; `grid`: columns, gap, align; `fixed` (`feat/b5-fixed`, DD-12 N19): gap alone, 0–200 px (`GAP_MAX`), default 24. **⟶ B7** generates this from `optionsSchema`; the form values already round-trip through `engineOptions` so nothing else changes.
 - **Theme ▾** lists the four built-in themes (DD-04 §7: `high-contrast`, `neutral-dark`, `neutral-light`, `print`, sorted by id) with a 24 px swatch of `bg/surface/ink/accent` (C5: `high-contrast`'s is white, white, black and its deep blue; `print`'s white, white, black, black). **It is a view preference** (human decision, 2026-09-24; F9 P1): picking sets `themeId`, which the document record persists (§9) and a share link carries as `t=` (§8), and leaves the source alone — unless the document sets `@theme` itself, in which case that entry is edited in place (below). The `themeId` write and that edit are one signal `batch`, so a pick is one style → render → paint (P2). Because every built-in theme shares `neutral-light`'s geometry, layout is skipped (§3's layout-effect skip), and with no `@theme` the render is a `<style>`-text swap (§3, §6).
 - `@layout.engine` / `@theme` in the document **override** the pickers; the picker shows "(set by document)" and editing it writes into the document's root config via a transaction — the document stays the source of truth. Engine ▾ writes `@layout.engine` whether or not the document set it; Theme ▾ edits `@theme` only where the document already sets it, and never adds one. **Bare engine names** (`feat/b5-pin`, DD-12 N22): the document's `@layout.engine: grid` means `sgl.grid` when `grid` itself is not a registered id and `sgl.grid` is (`documentEngineOverride`, given the registered ids). Anything else is passed through, so an unknown name is `SGL4011`. Engine ▾ still writes the full id.
 
@@ -443,7 +443,10 @@ Since A8 fix round 2 the form is split for the bundle (DD-10 §2): `state/engine
 an outside pointer-down close it, every input has a `<label>`. Values go through the existing
 `engineOptions` signal, persisted on the document record (Stage J). `elk`: direction, node
 spacing, rank spacing, edge routing, node placement. `grid`: columns (an empty box is `auto`),
-gap, align. `e2e/engine-options.spec.ts` covers it end to end (fix round 1, items 3, 13, 22):
+gap, align. `fixed` (`feat/b5-fixed`): gap, the space between the nodes it packs below the pinned
+ones; a stored bag is normalised to `{ gap }`. The worker registers `fixed` statically and
+`REGISTERED_ENGINES` lists `fixedDescriptor`, so Engine ▾ shows "Fixed" (`bitwise`) and a
+document's `engine: fixed` selects it. `e2e/engine-options.spec.ts` covers it end to end (fix round 1, items 3, 13, 22):
 Direction → Right re-lays out and persists across a reload, an engine switch resets the form,
 a stored bag grid cannot use still renders, and a refused value is flagged. **⟶ B7** still
 generates the form from `optionsSchema`. Left as is: when

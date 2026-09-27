@@ -106,6 +106,10 @@
     "Inter normal 400",
     "Inter normal 500"
   ],
+  "layout/forty-three-pinned.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
   "layout/nested-engine.sgl": [
     "Inter normal 500",
     "Inter normal 600"
@@ -120,6 +124,9 @@
     "Inter normal 500"
   ],
   "layout/pin-malformed.sgl": [
+    "Inter normal 500"
+  ],
+  "layout/pin-many-loose.sgl": [
     "Inter normal 500"
   ],
   "layout/pin-negative.sgl": [
