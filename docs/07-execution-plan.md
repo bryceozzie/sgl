@@ -625,6 +625,17 @@ Verified in Chromium only (Firefox and WebKit are not available here). Each test
   accepts the update and reopens its own document. Tab B, before the fix, stayed on v1 and could not open
   Share offline; now it reloads onto v2 with its document and edit. Tab C, with no IndexedDB, is not
   reloaded, keeps its text and shows the toast, with no chip.
+- **Fix round 1** (`af1e9b6`, `ae67a5e`, `397da81`; `main` merged in at `3e78875`; `e802151` fixes a lint
+  error `main` itself had, in the wrangler stub `src/index.ts`). Each test shown failing first. (1) "Safe to reload"
+  was true for a document never stored: every failed store write now goes through autosave, which keeps a failed
+  record pending. (2) A tab that was not reloaded could not Save: `file-actions` is preloaded when the tab's work may
+  live only in the page, and a failed chunk load toasts and is retried (`state/lazy.ts`). (3) `flush()` writes what is
+  typed during it, including an edit whose timer queued it behind a slow put (found by the new slow-disk e2e), and
+  the accepting tab saves again after activation. (4) The accepting tab has its own wording. (5) Errors come first
+  among the three toasts; held errors are counted and named. (6) Pasted links wait for the switch, and the hash is
+  cleared before the import. (7) `controllerchange` is handled once per controller. (8) A switch awaits its flush
+  and is refused if the open document could not be saved. `e2e/sw-update.spec.ts` now has four tabs: B on a slow
+  disk, C in memory and D whose writes fail; C and D save an `.sgl` offline. Core bundle 176.49 → **177.07 kB**.
 - **F13(b)**: criterion 5 cannot be falsified in Firefox. This is recorded as a known limitation (DD-08
   §14, §2.1 F13); there is no code change.
 - **Size**: core bundle 175.99 → 176.12 kB (c) → 176.21 (a) → **176.49 kB** (176 494 B of 182 kB, +500 B;
