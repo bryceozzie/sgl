@@ -230,6 +230,19 @@ describe('the rich-text chunk (DD-11 T53)', () => {
     h.dispose();
   });
 
+  it('an edit that changes no boxed label costs one render, not a second one when its table lands', async () => {
+    const lazy = lazyRichText();
+    lazy.release();
+    const h = await createHarness(WRAPPED, { loadRichText: lazy.loadRichText }, { firstRender: false });
+    await lazy.loadRichText.mock.results[0]!.value;
+    await h.settle();
+    const before = h.lastGoodWrites();
+    h.setSource(`// a comment\n${WRAPPED}`);
+    await h.settle();
+    expect(h.lastGoodWrites() - before).toBe(1);
+    h.dispose();
+  });
+
   it('a theme switch on a rich document keeps the element tree: paint only, exactly a full render (T57)', async () => {
     const lazy = lazyRichText();
     lazy.release();

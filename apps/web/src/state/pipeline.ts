@@ -18,7 +18,7 @@ import {
 } from '@sgl/core';
 import { buildLayoutInput, layoutConfigDiagnostics, type LayoutInput, type LayoutResult } from '@sgl/layout-api';
 import { labelRunKey, premeasure, type MeasureTable } from '@sgl/measure';
-import { layoutLines, needsWrap, UNCONSTRAINED } from '@sgl/text';
+import { labelBox, layoutLines, needsWrap, UNCONSTRAINED } from '@sgl/text';
 import { BUILT_IN, DEFAULT_THEME_ID, resolveTheme, styleGraph, type ResolvedTheme, type StyledGraph } from '@sgl/theme';
 import { render, renderPaintOnly, type RenderResult } from '@sgl/render-svg';
 import { boundsChangedSignificantly, type Extent } from '../canvas/viewport.js';
@@ -458,14 +458,19 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   // inside older frames. A label missing there — edited since, its layout not
   // landed yet — is drawn from the latest `table` (fix round 1, item 1: text
   // overflowing its old box vertically for a moment reads better than one
-  // long line spilling sideways), so the render also follows `table`. The
-  // merged view is one object per pair of tables, and simply the table
-  // itself once the layout has caught up, so a theme switch keeps it and the
-  // paint-only guard (`paintPlan.text`) holds.
+  // long line spilling sideways). Only then does the render follow `table`:
+  // while some label with a box misses the landed table (only those are looked
+  // up), so an edit that changes no boxed label — a `@theme` line, say — costs
+  // no second render when its table lands. The merged view is one object per
+  // pair of tables, and simply the table itself once the layout has caught
+  // up, so a theme switch keeps it and the paint-only guard (`paintPlan.text`)
+  // holds.
   let drawn: readonly [MeasureTable | undefined, MeasureTable, MeasureTable] | undefined;
-  const drawTable = (latest: MeasureTable): MeasureTable | undefined => {
-    if (layoutTable === undefined || layoutTable === latest) return layoutTable;
-    if (drawn?.[0] !== layoutTable || drawn[1] !== latest) drawn = [layoutTable, latest, { ...latest, ...layoutTable }];
+  const drawTable = (s: StyledGraph): MeasureTable | undefined => {
+    const landed = layoutTable;
+    if (landed === undefined || landed === table.peek() || !Object.keys(s.graph.labels).some((id) => labelBox(s, id as LabelId).maxWidth !== undefined && !(labelRunKey(s, id as LabelId) in landed))) return landed;
+    const latest = table.value;
+    if (drawn?.[0] !== landed || drawn[1] !== latest) drawn = [landed, latest, { ...latest, ...landed }];
     return drawn[2];
   };
   let lastRendered: Rendered | null = null;
@@ -479,7 +484,7 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
       // Only a document with a box can have a label to draw from the latest
       // table, so only it re-renders when a new table lands (no extra render
       // on an edit elsewhere).
-      const text = drawTable(needsWrap(styledValue) ? table.value : table.peek());
+      const text = drawTable(styledValue);
       inject('render');
       const previous = lastRendered;
       const paintOnly =
