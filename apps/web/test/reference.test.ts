@@ -63,8 +63,8 @@ describe('buildReference: representative entries (DD-13 P6)', () => {
     expect(key('style').subKeys).toEqual(REGISTRY.map((p) => `style/${p.name}`));
   });
 
-  it('@layout.engine takes the registered engine ids; @theme the built-in theme ids', () => {
-    expect(key('layout.engine')).toMatchObject({ type: 'string', values: ['sgl.elk', 'sgl.grid', 'sgl.fixed'], parent: 'key/layout' });
+  it('@layout.engine takes the registered engines\' bare names (DD-12 N22); @theme the built-in theme ids', () => {
+    expect(key('layout.engine')).toMatchObject({ type: 'string', values: ['elk', 'grid', 'fixed'], parent: 'key/layout' });
     expect(key('layout').subKeys).toEqual(['key/layout.engine']);
     expect(key('theme').values).toEqual(['high-contrast', 'neutral-dark', 'neutral-light', 'print']);
     expect(key('theme').default).toBe(DEFAULT_THEME_ID);
@@ -322,7 +322,7 @@ describe('buildReference: determinism and immutability', () => {
     expect(only.engines).toEqual([
       expect.objectContaining({ id: 'engine/x.custom', engineId: 'x.custom', bareName: 'x.custom', options: [], hints: [] }),
     ]);
-    expect(key('layout.engine').values).toEqual(REGISTERED_ENGINES.map((e) => e.id));
+    expect(key('layout.engine').values).toEqual(REGISTERED_ENGINES.map((e) => bareName(e.id)));
     expect(only.keys.find((k) => k.id === 'key/layout.engine')?.values).toEqual(['x.custom']);
   });
 });

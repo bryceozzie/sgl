@@ -8,7 +8,7 @@ compiler, the previews), with small exports from `@sgl/core`, `@sgl/theme` and `
 module that E6 (autocomplete) can reuse later.
 
 **Status: design only (2026-09-27), from `main` at `4432974`. No code is changed by this document.**
-**Implementation:** branch 1, `feat/help-reference`, is implemented (§13, with its deviations).
+**Implementation:** branches 1, `feat/help-reference`, and 2, `feat/help-content`, are implemented (§13, with their deviations).
 **Human decisions (2026-09-27): every §14 recommendation was accepted, HD1–HD6.** The human also
 settled §17: `@style` with a value that is not an object warns `SGL2011` (branch 0,
 `fix/style-shorthand`, §13), and the spec and 01 were corrected to match the code on this branch.
@@ -732,6 +732,56 @@ Reviewable branches, in order. Each is one reviewer's work, and each passes the 
    - Content for `key`, and the quick start.
 
    The drift test's enforced kinds start as `key`.
+
+   **Implemented** on `feat/help-content` (from `main` at `b1692bb`). No golden moved; the core
+   bundle is unchanged (176.96 kB of 182, the same boot chunks). Content: the quick start and all
+   33 key facts (`@pin` included), in 23 files, with 65 examples and 3 snippets. Files:
+   `build/help-content.ts` (`compileHelp`), `build/help-plugin.ts` (the plugin, `readHelpDir`,
+   `compileHelpDir`), `src/help/content.ts` (the tree's types), `src/help/join.ts` (`joinHelp`,
+   `referenceIds`), `test/help-check.ts` (the checks as pure functions), and the three test files.
+   `reference-boot.test.ts` now also fails if the entry or the worker statically reaches
+   `src/help/`, `virtual:sgl-help-content` or `apps/web/help/`, and `check-core-chunks.mjs` fails
+   if a boot or worker chunk holds the quick start's heading or summary (P46, early). Deviations
+   and gaps filled:
+   - **An entry's body ends at the next heading with an id, of any level.** P10's "same or a
+     higher level" would put each sub-key's prose inside its parent's too. A heading without an
+     id stays in the body.
+   - **The quick start is `topic/quickstart`**, since P3 has no kind for it; `joinHelp` puts it
+     first.
+   - **The tree** (P13) also carries each entry's `file`, `name` and `diagnostics` (the
+     `Diagnostics:` line). The summary is kept apart from `blocks`, not repeated in them. A table
+     is `head` plus `rows`; a list item has an optional second-level `sub`; an example has `mode`
+     (`example` or `snippet`) and its id counts both.
+   - **Fences** are `sgl`, `json` or `text`; an `sgl` fence must say `example` or `snippet`, and
+     `expect` separates codes with commas. A snippet takes only `title`.
+   - **The build checks ids itself.** The plugin builds the reference from `HELP_ENGINES` (the
+     worker's descriptors: the build cannot import `io/app-boot.ts`, which imports a `?raw` file),
+     and a test holds that list to `REGISTERED_ENGINES`. A link, a `See also:` target, or an entry
+     of a generated kind naming no fact fails `vite build`.
+   - **P19 is applied strictly:** each code on a key's `Diagnostics:` line must be in the `expect`
+     of one of that entry's own examples, which `help-examples.test.ts` then proves; the corpus
+     table is not consulted. The HD4 check (`diagProofProblems`) is written and tested on made-up
+     entries; it applies once `diag` is enforced (branch 3), with a provisional list of codes no
+     document can cause (`NOT_DOCUMENT_REACHABLE`) for branch 3 to confirm.
+   - **`preview=false` must really not render**, not only carry an `expect`.
+   - **The harness** runs every worker engine in process (`HARNESS_ENGINES`: `elk`, `grid`,
+     `fixed`), and turns an engine's notes into diagnostics through the host's own `engineNotes`,
+     so `SGL4020` and `SGL4022` appear as in the app.
+   - **After merging `feat/b5-fixed`** (P21: help merged second): `fixed` joined `HARNESS_ENGINES`
+     and `HELP_ENGINES`, whose tests against `REGISTERED_ENGINES` failed until it did.
+     `key/layout.engine`'s values are now the bare names (`elk`, `grid`, `fixed`), as help branch
+     1's note asked. `@pin`'s prose and examples show `fixed` honouring pins (root pins relative to
+     each other, nested pins, `SGL4020` for an unpinned node), and keep one `SGL4021` under `elk`.
+     Root `@layout` options are still described as checked but not yet applied: whichever of this
+     and `fix/root-layout-options` merges second updates that.
+   - `build/node-modules.d.ts` declares the three Node functions the plugin uses; this app has no
+     `@types/node`.
+   - **Found while writing the prose (help follows the build, P2):** a root `@layout` option and
+     `@direction` are checked (`SGL4010`) but do not reach the engine yet: the toolbar's Options
+     do (H6's `fix/root-layout-options` is not merged). A container's `@layout: { engine: grid }`,
+     as in spec §9's worked example, is `SGL4010` twice under `elk`. `@order`, `@tooltip` and
+     `@size.aspectRatio` are kept but nothing uses them. An unknown `@theme` name falls back to
+     the default theme with no warning, and `@sgl`'s value is not checked.
 3. **`feat/help-content-2`.**
    - Content for `style`, `shape`, `engine` and `option`, `theme`, and `diag` (per HD4); all the
      topics.

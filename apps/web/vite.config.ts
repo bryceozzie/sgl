@@ -2,6 +2,7 @@ import preact from '@preact/preset-vite';
 import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { HEADERS_FILE, META_CSP, headersFor, parseHeadersFile } from './build/headers.js';
+import { helpContentPlugin } from './build/help-plugin.js';
 import { sglMinify } from './build/minify.js';
 
 /**
@@ -101,6 +102,9 @@ export default defineConfig({
       },
     }),
     sglHeaders(),
+    // DD-13 P13: `virtual:sgl-help-content`, the help Markdown compiled at
+    // build time; a problem in it fails the build (`build/help-plugin.ts`).
+    helpContentPlugin(),
     // F20: terser, not esbuild, minifies the JS (`build/minify.ts`), so
     // `build.minify` is off below; the worker build takes the same plugin.
     sglMinify(),

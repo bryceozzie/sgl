@@ -2152,6 +2152,28 @@ Tests: `resolve.test.ts` (each non-object form, and an object plus a dotted key)
 computed dasharray is `6 3`). DD-02 §7's row and paragraph are rewritten. Core bundle **176.88 kB
 of 182** (+5 B).
 
+**Help branch 2, `feat/help-content`** (Stage L, E19, DD-13 §13 branch 2; branched from `main` at
+`b1692bb`; no golden changed; no new dependency). **The build-time compiler**
+(`apps/web/build/help-content.ts`, `compileHelp`) turns the Markdown in `apps/web/help/` into the
+typed tree of `src/help/content.ts`: inline runs are `parseInline`'s as is, and it adds headings,
+paragraphs, two-level lists, pipe tables, notes, fenced code with build-time `sgl` highlighting,
+`example`/`snippet` fences and `#help/<id>` links. Raw HTML, images and external or bare URLs fail
+the build. **`virtual:sgl-help-content`** (`build/help-plugin.ts`, in `vite.config.ts`) serves it,
+and compiles it at `buildStart` against the reference's ids, so bad content fails `vite build`
+although nothing imports the module until branch 4. **`joinHelp`** (`src/help/join.ts`) joins it to
+`buildReference`'s facts by id, the quick start first, and resolves `key/style.<p>` to `style/<p>`.
+**Content:** the quick start and every key fact (33, `@pin` included), 65 examples, 3 snippets.
+Tests: `help-content.test.ts` (the compiler and each build failure), `help-drift.test.ts` (the join,
+and each drift check failing on made-up content before passing on the real content; enforced kind
+`key`), `help-examples.test.ts` (every example through the app's pipeline under its engine and four
+themes; the harness now runs every worker engine and the host's `engineNotes`), and
+`reference-boot.test.ts` plus `check-core-chunks.mjs` (no help content at boot or in the worker).
+Merged `main` after `feat/b5-fixed` (P21): `fixed` joined the harness and the build's engine list,
+`key/layout.engine` lists bare names, and `@pin`'s examples run under `fixed`. Core bundle **179.19 kB
+of 182**, the same as `main` (this branch adds nothing to the boot path). Deviations are in DD-13 §13 branch 2. Found while writing: a root `@layout` option and
+`@direction` do not reach the engine yet (Options does; `fix/root-layout-options`), and spec §9's
+container `@layout: { engine: grid }` is `SGL4010` under `elk`; the help says so.
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
@@ -2172,6 +2194,9 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F25** | **The renderer's first baseline is `0.8 × fontSize`; measurement's ascent is the font's own** (DD-11 §19 item 5; found by DD-11's design, measured by `feat/a18-render`). DD-07 §5 once said `y = frame.y + layout.ascent` from the measured `TextLayout`; `render()` was never given one and has always drawn `0.8 × fontSize`, which A18 kept (T42) so no golden moved. `CanvasMeasurer`'s ascent is `fontBoundingBoxAscent`, which Chromium rounds to whole pixels: Inter's 0.969 em comes out as **13 px** for a 13 px node title against the rendered **10.4 px** (label drawn **2.6 px** higher than measurement's baseline), 12 px against 9.6 for a container title (2.4 px). Adopting the measured ascent would move every label by about 2–2.6 px and re-baseline every render golden under every theme; the label boxes and layout are unaffected (heights use `lineHeight`). `apps/web/test/rich-measure.browser.test.ts` pins the numbers. **A human decision:** keep `0.8 em` (DD-07 §5 now says so), or adopt the measured (or a fixed 0.97 em, deterministic across browsers) ascent in one golden re-baseline. | **Deferred: human decision 2026-09-27, leave it for now** (it cannot overflow a box); fold it into the next re-baseline of the render goldens made for another reason, by whoever next touches DD-07 §5 |
 | **F26** | **E15 (drag to pin) cannot write a dragged position back yet: the host throws away the translation it applies.** `quantize` (DD-06 §5, F14) moves every result so that its content box, plus the margin, starts at `(0, 0)`, and discards the offset (`x0`, `y0`). A pin is relative to its parent's content box, and root pins are relative to each other, the drawing framed to fit its content (DD-12 H2; human decision 2026-09-27), so a canvas position cannot be turned back into a root pin without that offset. Proposed remedy (DD-12 N3): an optional `origin` on `LayoutResult`. B5 does not need it. | E15 (Could), when built |
 | **F28** | **DD-06 §8's conformance check 3 (no two sibling frames overlap) assumes the engine chooses every position.** Under `fixed`, nodes the author pinned may overlap on purpose. **Settled in the suite by `feat/b5-fixed`:** the corpus now has pins, so `runConformance`'s check 3 skips a pair of siblings that both have a `@pin` when the engine declares `pins` (`pinOf`); a pinned node against one the engine placed is still checked (`layout-api/test/conformance.test.ts`, both halves). What remains is the SDK's published conformance guide, which must say the same before third parties rely on it. | Stage M (B18), the guide's text only |
+| **F29** | **Spec §9's worked example puts `@layout: { engine: grid }` on a container, which this build does not support** (per-container engines are B8). Under `elk` it gives two `SGL4010` warnings. Found by help branch 2 (2026-09-27). **Human decision 2026-09-27: keep the example and build B8 (per-container engines) sooner.** | Whoever builds B8 (prioritised in Stage L) |
+| **F30** | **Three keys are accepted and kept, but nothing uses them:** `@order`, `@tooltip` and `@size.aspectRatio`. The help says so. Each needs either an implementation or `SGL2010` ("no effect in this version") so authors are not misled. Found by help branch 2 (2026-09-27). | Orchestrator triage (small code fix per key) |
+| **F31** | **An unknown `@theme` name falls back to the default theme with no warning.** A typo silently changes the look. Found by help branch 2 (2026-09-27). **Human decision 2026-09-27: a new theme-catalogue warning ("Unknown theme 'X'; using the default.") at the key, with a fixture, is approved.** | Orchestrator (a small code fix) |
 
 ---
 
