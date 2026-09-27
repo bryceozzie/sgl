@@ -552,6 +552,15 @@ describe('document overrides (DD-08 §10)', () => {
 describe('@pin under the registered engines (DD-12 N6, H4)', () => {
   const registered = { engineSchemas: (id: string) => REGISTERED_ENGINES.find((e) => e.id === id) };
 
+  it('fixed is registered and honours pins: no SGL4021 under it, by id or bare name (feat/b5-fixed)', () => {
+    expect(REGISTERED_ENGINES.find((e) => e.id === 'sgl.fixed')?.pins).toBe(true);
+    const env = setup('a: { @pin: { x: 10, y: 20 } }\nb: "B"\n', { ...registered, defaultEngineId: 'sgl.fixed' });
+    expect(env.pipeline.diags.value).toEqual([]);
+    const bare = setup('@layout: { engine: fixed }\na: { @pin: { x: 10, y: 20 } }\n', { ...registered, defaultEngineId: 'sgl.elk' });
+    expect(bare.pipeline.effectiveEngineId.value).toBe('sgl.fixed');
+    expect(bare.pipeline.diags.value).toEqual([]);
+  });
+
   it.each(['sgl.grid', 'sgl.elk'])('neither grid nor elk honours pins: SGL4021 at the key under %s', (id) => {
     const source = 'a: { @pin: { x: 10, y: 20 } }\nb: "B"\n';
     const env = setup(source, { ...registered, defaultEngineId: id });

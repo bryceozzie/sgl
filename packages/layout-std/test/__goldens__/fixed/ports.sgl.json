@@ -1,0 +1,365 @@
+{
+  "bounds": {
+    "x": 0,
+    "y": 0,
+    "w": 304,
+    "h": 136
+  },
+  "nodes": {
+    "router": {
+      "frame": {
+        "x": 24,
+        "y": 24,
+        "w": 72,
+        "h": 36
+      },
+      "ports": {
+        "mgmt": {
+          "point": {
+            "x": 60,
+            "y": 24
+          },
+          "normal": {
+            "x": 0,
+            "y": -1
+          }
+        },
+        "drain": {
+          "point": {
+            "x": 60,
+            "y": 60
+          },
+          "normal": {
+            "x": 0,
+            "y": 1
+          }
+        },
+        "out": {
+          "point": {
+            "x": 96,
+            "y": 42
+          },
+          "normal": {
+            "x": 1,
+            "y": 0
+          }
+        },
+        "in": {
+          "point": {
+            "x": 24,
+            "y": 42
+          },
+          "normal": {
+            "x": -1,
+            "y": 0
+          }
+        }
+      }
+    },
+    "switch": {
+      "frame": {
+        "x": 120,
+        "y": 24,
+        "w": 72,
+        "h": 36
+      },
+      "ports": {
+        "down": {
+          "point": {
+            "x": 192,
+            "y": 42
+          },
+          "normal": {
+            "x": 1,
+            "y": 0
+          }
+        },
+        "uplink": {
+          "point": {
+            "x": 120,
+            "y": 42
+          },
+          "normal": {
+            "x": -1,
+            "y": 0
+          }
+        }
+      }
+    },
+    "client": {
+      "frame": {
+        "x": 216,
+        "y": 24,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "server": {
+      "frame": {
+        "x": 24,
+        "y": 84,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "console": {
+      "frame": {
+        "x": 120,
+        "y": 84,
+        "w": 72,
+        "h": 36
+      }
+    }
+  },
+  "edges": {
+    "e-fe56bf3c070deb64": {
+      "start": {
+        "x": 216,
+        "y": 42
+      },
+      "end": {
+        "x": 16,
+        "y": 42
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 16,
+            "y": 42
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "clip": "none"
+    },
+    "e-2add81bdced6c5bd": {
+      "start": {
+        "x": 96,
+        "y": 42
+      },
+      "end": {
+        "x": 112,
+        "y": 42
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 112,
+            "y": 42
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "clip": "none"
+    },
+    "e-7da7ff22733c2d24": {
+      "start": {
+        "x": 192,
+        "y": 42
+      },
+      "end": {
+        "x": 103.28125,
+        "y": 82.328125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 103.28125,
+            "y": 82.328125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": -0.9103664774626047,
+        "y": 0.413802944301184
+      },
+      "clip": "none"
+    },
+    "e-dcc0effb40c10f5e": {
+      "start": {
+        "x": 133.84375,
+        "y": 84
+      },
+      "end": {
+        "x": 60,
+        "y": 16
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 60,
+            "y": 16
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0.7761140001162654,
+        "y": 0.6305926250944658
+      },
+      "endNormal": {
+        "x": 0,
+        "y": 1
+      },
+      "clip": "none"
+    },
+    "e-75caf3b8ae7e05d7": {
+      "start": {
+        "x": 60,
+        "y": 60
+      },
+      "end": {
+        "x": 60,
+        "y": 76
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 60,
+            "y": 76
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0,
+        "y": 1
+      },
+      "endNormal": {
+        "x": 0,
+        "y": 1
+      },
+      "clip": "none"
+    }
+  },
+  "labels": [
+    {
+      "labelId": "l:client",
+      "frame": {
+        "x": 236.828125,
+        "y": 33.546875,
+        "w": 30.34375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:console",
+      "frame": {
+        "x": 133.59375,
+        "y": 93.546875,
+        "w": 44.796875,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:router",
+      "frame": {
+        "x": 43.015625,
+        "y": 33.546875,
+        "w": 33.953125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:server",
+      "frame": {
+        "x": 41.9375,
+        "y": 93.546875,
+        "w": 36.109375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:switch",
+      "frame": {
+        "x": 137.9375,
+        "y": 33.546875,
+        "w": 36.109375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    }
+  ],
+  "notes": [
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 39,
+        "to": 111
+      },
+      "params": {
+        "node": "router"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 113,
+        "to": 163
+      },
+      "params": {
+        "node": "switch"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 165,
+        "to": 171
+      },
+      "params": {
+        "node": "client"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 172,
+        "to": 178
+      },
+      "params": {
+        "node": "server"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 179,
+        "to": 186
+      },
+      "params": {
+        "node": "console"
+      }
+    }
+  ]
+}

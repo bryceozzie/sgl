@@ -219,7 +219,7 @@ test.describe('DD-08 §14 test 6: invalid links toast and open the last document
 });
 
 test.describe('a share link pasted into an already-open tab (a same-document hash change)', () => {
-  test('imports it as a new document, after saving the current one', async ({ page }) => {
+  test('imports it as a new document in place, after saving the current one (F13: no reload)', async ({ page }) => {
     await page.goto('/');
     await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
     await expect.poll(async () => (await readStorage(page)).documents.length).toBe(1);
@@ -227,12 +227,23 @@ test.describe('a share link pasted into an already-open tab (a same-document has
     // An edit still inside autosave's 500 ms when the link arrives.
     await setSource(page, SMALL_SOURCE);
     await waitForExactNodeCount(page, visibleNodeCount(SMALL_SOURCE));
+    // Gone if the page reloads.
+    await page.evaluate(() => Object.assign(window, { sglSamePage: true }));
 
     await page.evaluate((hash) => {
       window.location.hash = hash;
     }, nodeBuiltHash(SHARED, '&e=sgl.grid&t=neutral-dark'));
 
     await waitForExactNodeCount(page, visibleNodeCount(SHARED));
+    expect(await editorText(page)).toBe(SHARED);
+    expect(await page.evaluate(() => (window as { sglSamePage?: boolean }).sglSamePage)).toBe(true);
+    // The link's engine and theme, as boot applies them.
+    await expect(page.locator('.engine-picker select')).toHaveValue('sgl.grid');
+    await waitForTheme(page, 'neutral-dark');
+    // Undo as after Open: a fresh history, which never reaches back into
+    // the previous document.
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('Control+z');
     expect(await editorText(page)).toBe(SHARED);
     await expect(toastMessages(page)).toContainText(['Opened the shared diagram']);
     expect(new URL(page.url()).hash).toBe('');
@@ -241,6 +252,32 @@ test.describe('a share link pasted into an already-open tab (a same-document has
     expect(after.documents.find((d) => d.id === mine.id)?.source).toBe(SMALL_SOURCE); // flushed first, not lost
     expect(after.lastOpenDocId).not.toBe(mine.id);
     expect(after.documents.find((d) => d.id === after.lastOpenDocId)?.source).toBe(SHARED);
+  });
+
+  test('with IndexedDB unavailable (the in-memory store), the tab keeps its documents', async ({ page }) => {
+    // `openIdbStore` rejects, so boot falls back to the in-memory store
+    // (DD-08 §9): the tab's documents live only in this page.
+    await page.addInitScript(() => Object.defineProperty(window, 'indexedDB', { value: undefined }));
+    await page.goto('/');
+    await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+    await expect(toastMessages(page)).toContainText(["This browser's storage is unavailable"]);
+    await setSource(page, SMALL_SOURCE);
+    await waitForExactNodeCount(page, visibleNodeCount(SMALL_SOURCE));
+
+    await page.evaluate((hash) => {
+      window.location.hash = hash;
+    }, nodeBuiltHash(SHARED));
+    await waitForExactNodeCount(page, visibleNodeCount(SHARED));
+    expect(await editorText(page)).toBe(SHARED);
+
+    // Both documents are still here: Documents ▾ lists them, and the first
+    // opens with the edit made just before the link arrived.
+    await page.locator('.docs-menu > summary').click();
+    const items = page.locator('.docs-menu .docs-item');
+    await expect(items).toHaveCount(2);
+    await items.filter({ hasText: 'checkout' }).click();
+    await waitForExactNodeCount(page, visibleNodeCount(SMALL_SOURCE));
+    expect(await editorText(page)).toBe(SMALL_SOURCE);
   });
 
   test('an invalid one toasts and leaves the open document alone', async ({ page }) => {

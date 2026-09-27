@@ -43,6 +43,9 @@ export interface SettingRecord {
 
 /** The store is a keyed list from day one (E17's drawer is UI only). */
 export interface DocumentStore {
+  /** Outlives the page (IndexedDB), unlike the in-memory store: whether a
+   *  reload keeps what this store holds (F12, `io/pwa.ts`). */
+  readonly persistent?: boolean;
   getDocument(id: string): Promise<DocumentRecord | undefined>;
   /** Writes land in the order they are issued, even when a caller does not
    *  wait for one to settle before issuing the next (autosave's flush on

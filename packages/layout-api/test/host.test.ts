@@ -294,15 +294,25 @@ describe('createWorkerHost (DD-06 §3, Stage H decision D1)', () => {
 
     it('a sparse array of length 1e9 is read in under 50 ms', () => {
       expect(elapsedMs(() => engineNotes(new Array(1e9)))).toBeLessThan(50);
-      expect(engineNotes(new Array(2 ** 32 - 1))).toEqual([]);
+      // Holes are not notes; past the cap, the count is one SGL4022 (fix round 1, item 3).
+      expect(engineNotes(new Array(100))).toEqual([]);
+      expect(engineNotes(new Array(2 ** 32 - 1)).map((d) => [d.code, d.message])).toEqual([['SGL4022', '4294967195 more layout warnings not shown.']]);
     });
 
-    it(`1 000 valid notes give at most ${MAX_ENGINE_NOTES} diagnostics (a silent cap: no catalogue row says how many were dropped)`, async () => {
+    it(`past ${MAX_ENGINE_NOTES} notes, the rest are one SGL4022 (info) at the document start saying how many (fix round 1, item 3)`, async () => {
       expect(MAX_ENGINE_NOTES).toBe(100);
-      const notes = Array.from({ length: 1000 }, (_, i) => ({ code: 'SGL4003', span: { from: i, to: i + 1 }, params: { node: `n${i}` } }));
+      const notes = Array.from({ length: 150 }, (_, i) => ({ code: 'SGL4020', span: { from: i, to: i + 1 }, params: { node: `n${i}` } }));
       const { diagnostics } = await outcome({ notes });
-      expect(diagnostics).toHaveLength(100);
-      expect(diagnostics[99]!.message).toBe('`n99` extends outside its container after layout.');
+      expect(diagnostics).toHaveLength(101);
+      expect(diagnostics.slice(0, 100).every((d) => d.code === 'SGL4020')).toBe(true);
+      expect(diagnostics[99]!.message).toBe('`n99` has no `@pin`; `fixed` placed it below the pinned nodes.');
+      expect(diagnostics[100]).toEqual({ code: 'SGL4022', severity: 'info', message: '50 more layout warnings not shown.', span: { from: 0, to: 0 } });
+      // Exactly at the cap, nothing is dropped and there is no SGL4022.
+      expect(engineNotes(notes.slice(0, 100)).map((d) => d.code)).not.toContain('SGL4022');
+    });
+
+    it('SGL4022 is the host\'s: an engine\'s own SGL4022 note is dropped', () => {
+      expect(engineNotes([{ code: 'SGL4022', span: SPAN, params: { count: 7 } }])).toEqual([]);
     });
 
     it('a params object with a million keys costs no more than its placeholders', () => {

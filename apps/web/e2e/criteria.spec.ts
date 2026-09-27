@@ -23,7 +23,7 @@ import {
   waitForTheme,
 } from './helpers.js';
 
-/** MVP acceptance criteria (06 §3): 1 (both engines, Stage K), 2 and 3. */
+/** MVP acceptance criteria (06 §3): 1 (elk and grid, Stage K; fixed, feat/b5-fixed), 2 and 3. */
 test.describe('MVP acceptance', () => {
   test('criterion 2: switching theme changes paint only — geometry and viewBox untouched', async ({ page }) => {
     await page.goto('/');
@@ -142,5 +142,43 @@ test.describe('MVP acceptance', () => {
     // the pipeline's hash does not see would still fail here …
     expect(underGrid.renderedPaint).toBe(underElk.renderedPaint);
     expect(underGrid.geometry).not.toBe(underElk.geometry); // … different geometry.
+  });
+
+  /** Criterion 1 under `fixed` (DD-12 §12 item 5, feat/b5-fixed): the same
+   *  40-node document with every node pinned from its grid layout
+   *  (`corpus/layout/forty-three-pinned.sgl`, which names `fixed`). Under
+   *  elk the pins are ignored (one SGL4021 each); switching to `fixed` keeps
+   *  identity and paint, changes geometry, and leaves no diagnostic at all. */
+  test('criterion 1 under fixed: the pinned 40-node document, elk → fixed, changes only geometry, with no diagnostics', async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.goto('/');
+    await setSource(page, corpusDoc('layout/forty-three-pinned.sgl'));
+    await waitForExactNodeCount(page, 40);
+    await expect(page.locator('.engine-picker select')).toHaveValue('sgl.fixed'); // the document names it
+    await expect(page.locator('.diagnostics-panel')).toHaveCount(0);
+
+    await switchEngine(page, 'sgl.elk', await layoutGeometryHash(page));
+    await waitForExactNodeCount(page, 40);
+    await expect.poll(() => diagnosticCodes(page)).toEqual(new Array<string>(40).fill('SGL4021'));
+    const underElk = {
+      identity: await renderedIdentity(page),
+      paint: await paintHash(page),
+      renderedPaint: await renderedPaintHash(page),
+      geometry: await layoutGeometryHash(page),
+    };
+
+    await switchEngine(page, 'sgl.fixed', underElk.geometry);
+    await waitForExactNodeCount(page, 40);
+    await expect(page.locator('.diagnostics-panel')).toHaveCount(0);
+    const underFixed = {
+      identity: await renderedIdentity(page),
+      paint: await paintHash(page),
+      renderedPaint: await renderedPaintHash(page),
+      geometry: await layoutGeometryHash(page),
+    };
+    expect(underFixed.identity).toEqual(underElk.identity);
+    expect(underFixed.paint).toBe(underElk.paint);
+    expect(underFixed.renderedPaint).toBe(underElk.renderedPaint);
+    expect(underFixed.geometry).not.toBe(underElk.geometry);
   });
 });

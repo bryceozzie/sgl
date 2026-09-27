@@ -17,6 +17,8 @@ export const ABORT_ESCALATION_MS = 250;
  *  caller can override any of these without having to repeat the rest. */
 export const DEFAULT_ENGINE_TIMEOUT_MS: Readonly<Record<string, number>> = {
   'sgl.grid': 2_000,
+  // DD-12 N19: `fixed` does grid's arithmetic and less.
+  'sgl.fixed': 2_000,
 };
 
 /** The MVP's seed for `ctx.random` (DD-00 §3, ADR-0004). `LayoutHost.run()` is a
@@ -347,6 +349,11 @@ export function workerText(text: string): string {
  * message is the catalogue's, never the engine's. Anything else is dropped
  * without a word. Only the first `MAX_ENGINE_NOTES` entries are read, so a
  * huge or sparse array costs nothing (fix round 1, item 1).
+ *
+ * Past the cap, the host adds one `SGL4022` (info, human decision
+ * 2026-09-27; `feat/b5-fixed` fix round 1, item 3) at the document start,
+ * `{count}` being the entries it did not read. `SGL4022` is the host's
+ * alone: a note with that code from an engine is dropped.
  */
 export function engineNotes(notes: unknown): Diagnostic[] {
   const out: Diagnostic[] = [];
@@ -357,7 +364,7 @@ export function engineNotes(notes: unknown): Diagnostic[] {
     const code = note?.code;
     const from = note?.span?.from;
     const to = note?.span?.to;
-    if (typeof code !== 'string' || !Object.hasOwn(LAYOUT_CATALOGUE, code)) continue;
+    if (typeof code !== 'string' || !Object.hasOwn(LAYOUT_CATALOGUE, code) || code === 'SGL4022') continue;
     const row = LAYOUT_CATALOGUE[code as LayoutDiagnosticCode];
     if (row.severity === 'error') continue;
     // Non-negative integers, from <= to (fix round 1, item 2).
@@ -370,6 +377,7 @@ export function engineNotes(notes: unknown): Diagnostic[] {
     }
     out.push(layoutDiagnostic(code as LayoutDiagnosticCode, { from: from as number, to: to as number }, params));
   }
+  if (notes.length > MAX_ENGINE_NOTES) out.push(layoutDiagnostic('SGL4022', { from: 0, to: 0 }, { count: notes.length - MAX_ENGINE_NOTES }));
   return out;
 }
 

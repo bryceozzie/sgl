@@ -1,5 +1,5 @@
 import { expect, test, type BrowserContext, type Page, type Response } from '@playwright/test';
-import { EXAMPLE_NODE_COUNT, layoutGeometryHash, nodeGeometry, openFile, pngSize, renderedSvg, saveAs, savePng, storedOpenDocument, switchEngine, toastMessages, waitForExactNodeCount, waitForNodeCount, waitForTheme } from './helpers.js';
+import { diagnosticCodes, EXAMPLE_NODE_COUNT, layoutGeometryHash, nodeGeometry, openFile, pngSize, renderedSvg, saveAs, savePng, storedOpenDocument, switchEngine, toastMessages, waitForExactNodeCount, waitForNodeCount, waitForTheme } from './helpers.js';
 import { serveDist, type StaticServer } from './static-server.js';
 
 /**
@@ -78,10 +78,14 @@ async function exerciseOffline(page: Page, online: Record<string, string>): Prom
   expect(await nodeGeometry(page)).toEqual(online); // fonts too: same label metrics
   await expect(page.locator('.engine-picker select')).toHaveValue('sgl.elk');
 
-  // Both engines, offline (K8): elk → grid → elk, each a real render.
+  // Every engine, offline (K8; fixed since feat/b5-fixed, static in the
+  // worker, H9): elk → grid → fixed → elk, each a real render.
   const elkGeometry = await layoutGeometryHash(page);
   await switchEngine(page, 'sgl.grid', elkGeometry);
   await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
+  await switchEngine(page, 'sgl.fixed', await layoutGeometryHash(page));
+  await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
+  await expect.poll(() => diagnosticCodes(page)).toEqual(new Array<string>(EXAMPLE_NODE_COUNT).fill('SGL4020'));
   await switchEngine(page, 'sgl.elk', await layoutGeometryHash(page));
   expect(await layoutGeometryHash(page)).toBe(elkGeometry);
 
@@ -155,7 +159,10 @@ test('offline, the lazy share chunk comes from the precache: Share makes a link,
     await page.locator('.share-open').click();
     const link = await page.locator('.share-link').inputValue();
     expect(link).toMatch(/#s=[A-Za-z0-9_-]+&e=/);
-    // Opening it: a navigation with the hash, which boot imports.
+    // Opening it: a fresh load with the hash, which boot imports. (From `/`
+    // itself this is a same-document hash change, which since F13 imports
+    // in place with the chunk already loaded, so leave the page first.)
+    await page.goto('about:blank');
     await page.goto(`/${new URL(link).hash}`);
     await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
     await expect(toastMessages(page)).toContainText(['Opened the shared diagram']);

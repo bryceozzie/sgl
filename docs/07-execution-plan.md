@@ -598,6 +598,50 @@ bundle's 181 970 B broken down by source module (marginal gzip; `@codemirror/vie
   needed by some first render).
 - **Docs**: DD-06 §7, DD-08 (Stage K's engines paragraph), DD-10 §2.
 
+**F12 and F13, the app's multi-tab update, pasted links and toasts** (Stage L, `fix/f12-f13-app`,
+from `main` at `755bfd0`; **not merged**). No CSP, dependency, golden or Workbox-option change.
+Verified in Chromium only (Firefox and WebKit are not available here). Each test shown failing first:
+- **F13(c) toasts** (`82a5956`). At most three show (`VISIBLE_TOASTS`), the newest. Older ones are held, not
+  dropped, since an error toast stays until closed. A "N more" line with **Dismiss all** sits in the polite
+  region. Info toasts keep their 8 s time to live. Tests: `test/toasts.test.ts` (4) and `e2e/toasts.spec.ts`,
+  where a fourth error toast showed before the fix.
+- **F13(a) a pasted share link switches in place** (`4be1acc`). Before, it flushed autosave and reloaded.
+  Now `watchShareLinks` decodes the link, and `importShare` stores it. That is boot's own path, moved into
+  the lazy `share` chunk, with boot's `create`/`safeId` exported for it. `App.tsx` then switches to the new
+  record as Open does: flush, a fresh undo history, a fit and the toast. The hash is cleared after. Tests:
+  `e2e/share.spec.ts` checks that a page marker survives (it failed: the page reloaded) and that, with
+  `indexedDB` removed, Documents ▾ still lists both documents (it listed 1). `boot.test.ts` has 2
+  `importShare` cases. `offline.spec.ts`'s share case now leaves the page before opening the link, because
+  a same-page hash change no longer reloads.
+- **F12 other tabs follow an accepted update** (`ef87e84`). On `controllerchange` not caused by this tab,
+  `followUpdate` (`io/pwa.ts`) flushes autosave. If the tab's documents are all stored (IndexedDB:
+  `DocumentStore.persistent`; the last write succeeded: `autosave.saved()`), it notes its open document in
+  `sessionStorage` and reloads. Boot's new `reopenId` then reopens that document ahead of `lastOpenDocId`.
+  Otherwise it does not reload, and shows an error toast asking the user to save and reload. A tab on the
+  in-memory store is never offered the update chip, and the accepting tab takes the same steps. Rejected:
+  keeping the old precache alive, which needs `injectManifest` and a hand-written worker (DD-08 §12).
+  Tests: `pwa.test.ts` (2), `autosave.test.ts` (1), `boot.test.ts` (1). `e2e/sw-update.spec.ts` builds the
+  app a second time with every page chunk renamed `*-v2-*` (DD-10 §4) and serves v1, then v2. Tab A
+  accepts the update and reopens its own document. Tab B, before the fix, stayed on v1 and could not open
+  Share offline; now it reloads onto v2 with its document and edit. Tab C, with no IndexedDB, is not
+  reloaded, keeps its text and shows the toast, with no chip.
+- **Fix round 1** (`af1e9b6`, `ae67a5e`, `397da81`, `fe1f1ab`; `main` merged in at `3e78875`; `e802151` fixes a lint
+  error `main` itself had, in the wrangler stub `src/index.ts`). Each test shown failing first. (1) "Safe to reload"
+  was true for a document never stored: every failed store write now goes through autosave, which keeps a failed
+  record pending. (2) A tab that was not reloaded could not Save: `file-actions` is preloaded when the tab's work may
+  live only in the page, and a failed chunk load toasts and is retried (`state/lazy.ts`). (3) `flush()` writes what is
+  typed during it, including an edit whose timer queued it behind a slow put (found by the new slow-disk e2e), and
+  the accepting tab saves again after activation. (4) The accepting tab has its own wording. (5) Errors come first
+  among the three toasts; held errors are counted and named. (6) Pasted links wait for the switch, and the hash is
+  cleared before the import. (7) `controllerchange` is handled once per controller. (8) A switch awaits its flush
+  and is refused if the open document could not be saved. `e2e/sw-update.spec.ts` now has four tabs: B on a slow
+  disk, C in memory and D whose writes fail; C and D save an `.sgl` offline. The first clean run found three more bugs, fixed in `fe1f1ab`: two info toasts showed as one, the "N more" line was read as the newest toast, and the flush livelocked on an import cycle whose every write re-renders it (bounded to three rounds). Core bundle 176.49 → **177.07 kB**; after merging `main` at `2e5cedb` (176.96 kB) it is **178.03 kB**, +1.07 kB over `main`, accepted by the orchestrator (the update path stays on the boot path, DD-08 §12; the 182 kB limit holds).
+- **F13(b)**: criterion 5 cannot be falsified in Firefox. This is recorded as a known limitation (DD-08
+  §14, §2.1 F13); there is no code change.
+- **Size**: core bundle 175.99 → 176.12 kB (c) → 176.21 (a) → **176.49 kB** (176 494 B of 182 kB, +500 B;
+  `importShare` is in the lazy `share` chunk). **Docs**: DD-08 §8, §9, §11, §12, §14, §15; DD-10 §2 and §4;
+  DD-11 (the F12 note); this paragraph and §2.1.
+
 **F16, mostly fixed** (Stage L, `fix/f16-title-crossings`, from `main` at `755bfd0`, `main` merged in
 at `c6859f7`; **not merged**). Under `elk`, 13 edges in six documents entered a container through its
 own title. **Root cause:** the title is not sent to ELK (DD-06 §6.1 note 2); it sits in the band
@@ -1998,6 +2042,60 @@ cost is ~3.2 kB of the 6.01 kB left.
 
   Size: core **176.96 kB**, +0.08 kB over `main` (176.88).
 
+**B5 branch 2, `feat/b5-fixed`** (from `main` at `74dcb45`; not merged). This is DD-12 §13's branch 2.
+- **`packCells`** (`layout-std/src/pack.ts`, N10), its own first commit: `grid`'s row/column
+  packing, shared with `fixed`. It takes an origin, so `grid`'s sums keep their order and every
+  `grid` layout and render golden is byte-identical.
+- **`fixed`** (`sgl.fixed`, bare name `fixed`; `fixed.ts`, `ports.ts`, `fixedDescriptor`). Pinned
+  nodes at their pin, relative to the parent's content box (H2). Unpinned nodes are packed below
+  the pinned ones with `packCells`, one **`SGL4020`** warning each, through `LayoutResult.notes`
+  (H1). Containers are sized from their children and their title; a negative pin is `SGL4003`
+  from validation. Ports are spread on the frame. Edges and labels are the host's. `bitwise`,
+  `pins: true`, one option (`gap`, 24), no hints. DD-06 §7a.
+- **`SGL4020`** is allocated: a `LAYOUT_CATALOGUE` row, emitted by `layout/pin-half.sgl`.
+  `SGL4020` and `SGL4003` move to the render-svg coverage gate, which now reaches both.
+- **Registration.** Static in the worker (H9); `REGISTERED_ENGINES` lists its descriptor; host
+  timeout 2 000 ms; F11 form: Gap, 0–200 px. `check-core-chunks.mjs` keeps its layout code out
+  of the page.
+- **F28** is settled in the suite: `runConformance`'s check 3 skips two siblings that both have
+  a `@pin` under an engine declaring `pins` (`pinOf`, `@sgl/layout-api`).
+- **Fixtures.** The render-svg harness lays a document out under the engine it names, when it is
+  `grid` or `fixed`. The four `fixed` fixtures' headers: `pin-full` and `pin-nested` none,
+  `pin-half` `SGL4020`, `pin-negative` `SGL4003` (its `box` is now pinned too, else it was also
+  an `SGL4020`). New: `layout/forty-three-pinned.sgl`, written once by
+  `bench/generate-pinned-fixture.js` from `forty-three-level.sgl`'s `grid` layout.
+- **Goldens.** New: `layout-std/test/__goldens__/fixed/` (`CLEAN_DOCS` and the pin documents),
+  and the new fixture's CST/AST pins. Changed: the four fixtures' CST/AST pins (their header text,
+  and `pin-negative`'s pin), and one new entry in `render-svg`'s `fonts/corpus-faces.json`. No
+  `grid` or `elk` layout or render golden changed.
+- **Tests:** `pack.test.ts`, `pin.test.ts`, `conformance.test.ts` (F28, both halves; `fixed` over
+  the corpus and n1000), `fixed.test.ts`, `pinned-fixture.test.ts`,
+  `fixed.browser.test.ts` (a Chromium worker equals Node byte for byte, twice),
+  apps/web `engine-options`, `pipeline` and `reference` tests, and e2e: `fixed.spec.ts`,
+  criterion 1 under `fixed` (`criteria.spec.ts`), and `fixed` offline (`offline.spec.ts`).
+- **Size:** core **178.04 kB** of 182, +1.08 kB over `main`.
+- **Docs:** DD-12 §13 (as built, with deviations), DD-06 §3, §7, §7a, §8, §9, DD-08 §10, the
+  corpus and bench READMEs.
+- **Fix round 1** (after merging `main` at `281c173`; no blocker, 14 of 14 mutations killed). Five
+  items; each test failed first, or, for behaviour that already held, was shown to fail against a
+  mutant.
+  1. Unpinned nodes pack from `max(0, leftmost pin)` and `max(0, lowest bottom + gap)`, so only a
+     node its author pinned outside its container is outside it (orchestrator decision).
+     `pin-negative.sgl` gains an unpinned `c`: still only `SGL4003` for `box.a`.
+  2. Root pins are relative to each other, and the drawing is framed to fit (human decision). The
+     spec §4 `@pin` row says so; a host-sequence test pins it (a negative sibling and a self-loop
+     move the canvas, and the offsets stay exact).
+  3. **`SGL4022`** (info, human decision): past `MAX_ENGINE_NOTES`, the host adds one "`N` more
+     layout warnings not shown." at the document start. An engine cannot emit it. Fixture:
+     `layout/pin-many-loose.sgl` (150 unpinned nodes: 100 `SGL4020`, one `SGL4022` with 50).
+  4. The ±100 000 bound is per pin, and nested pins add up. This is in the spec and DD-12 N4, with a
+     bounds golden. There is no new warning.
+  5. `fixed`'s conformance run has pinned siblings that overlap, so check 3's exemption is
+     exercised by behaviour (mutation M6).
+
+  After the merge, `fixed`'s `checkout.sgl` golden was regenerated: `main`'s `@style` rewrite
+  shifts its note spans. Size: core **179.19 kB** of 182, +1.16 kB over `main` (178.03).
+
 **Help branch 1, `feat/help-reference`** (Stage L, E19, DD-13 §13 branch 1; branched from `main` at
 `ca9956e`; no golden changed). **DD-13 P5's exports**, each now the value the code uses in place of
 its literal: `@sgl/core` exports `CONFIG_REGISTRY` and `LANGUAGE_SHAPES`; `DEFAULT_SHAPE` (`ids.ts`)
@@ -2068,18 +2166,17 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 
 | # | Finding | Owner |
 |---|---|---|
-| **F6** | `renderNode`'s port-circle template (DD-07 §3) is live, correctly `aria-hidden`, and unit-tested directly — but unreachable through the real pipeline: `grid` declares `capabilities.ports: false` and no host fallback places ports (DD-06 §4 covers labels and routing, not ports), so `LayoutResult.nodes[id].ports` is never populated end to end. Found during Stage F's accessibility pass. **Since Stage K the port circles are reachable under `elk`**, which declares `ports: true` and fills `NodeLayout.ports`; still not under `grid`. DD-12 N15 gives `fixed` a `placePorts` helper (ports spread evenly on the frame's side), which `grid` could adopt, changing `ports.sgl`'s `grid` goldens; left for a follow-up after `feat/b5-fixed`. | `feat/b5-fixed` makes them reachable under `fixed`; `grid`'s half is unassigned (a follow-up adopting DD-12's `placePorts`) |
+| **F6** | `renderNode`'s port-circle template (DD-07 §3) is live, correctly `aria-hidden`, and unit-tested directly — but unreachable through the real pipeline: `grid` declares `capabilities.ports: false` and no host fallback places ports (DD-06 §4 covers labels and routing, not ports), so `LayoutResult.nodes[id].ports` is never populated end to end. Found during Stage F's accessibility pass. **Since Stage K the port circles are reachable under `elk`**, which declares `ports: true` and fills `NodeLayout.ports`; still not under `grid`. DD-12 N15 gives `fixed` a `placePorts` helper (ports spread evenly on the frame's side), which `grid` could adopt, changing `ports.sgl`'s `grid` goldens; left for a follow-up after `feat/b5-fixed`. **Since `feat/b5-fixed` they are reachable under `fixed` too** (`layout-std/src/ports.ts`; `fixed.test.ts`, and `ports.sgl` in `fixed.browser.test.ts`). Still not under `grid`. | `grid`'s half is unassigned (a follow-up adopting `placePorts`) |
 | **F9** | **The paint-only theme-switch budget is met on a quiet machine, marginally.** Budget (DD-09 §2, kept by human decision 2026-09-23): `< 16 ms` up to 500 nodes, `< 50 ms` at 2 000, Chromium; hard ceilings 50 / 100 ms. Measured end to end by `pnpm bench:theme` on the ordinary path, a Theme ▾ pick on a document with no `@theme` (`feat/theme-fast-path`, §2: the pick sets `themeId`; `styleGraph` once per cascade signature; `renderPaintOnly` and a `<style>`-text swap; no re-parse, no re-measure, no layout). Slower-pick median `work`, ms: orchestrator's three runs on a quiet machine n500 13.2 / 12.8 / 13.0, n2000 48.9 / 44.3 / 44.8; this branch's fix round 1, one run of the three-sample gate on a quiet machine (load average 0.29 at the start, 0.50 at the end; 4 cores; nothing else running) n50 2.6 / 2.5 / 2.6, n500 13.9 / 14.8 / 13.0, n2000 47.6 / 47.0 / 48.6 (best 47.0, median 47.6; the `@theme` case n2000 265.6 / 266.6 first / repeat). A reviewer running alongside another test suite (load ≈ 6) saw n2000 50–56 and one n500 at 17.5. **Where the time goes at n2000:** ~3–4 ms of script; the rest is Chromium's style recalculation for the new `<style>` text, ~40 ms, which is the floor (replacing even one rule's text costs ~24 ms at that size, and replacing the `<style>` element instead of its text measured the same), so the headroom is a few ms and within machine noise. **Not gated:** a document that sets its own `@theme` is edited by the pick and re-parsed and re-rendered in full, ~250–275 ms at n2000 (~65–70 ms at n500): the document's own text changing. **Gate policy (fix round 1; DD-09 §3.1 "perf: nightly + release"):** the bench is not part of `check` or CI; run on demand on a quiet machine; three samples per point in one run, the best of the three slower-pick medians under the budget and the median of the three under the hard ceiling; all three reported. **A18 (`feat/a18-render`, DD-11 T57), reported and not gated:** `n2000-rich`, every label marked up as nested run tspans and every tenth wrapped, takes the paint-only path at 48.0 / 54.1 ms median `work` (first / repeat pick), ~5 ms script and the rest style recalculation over the extra elements — a few ms over 50 on the slower pick, under the 100 ms ceiling. The gated n50/n500/n2000 hold no markup (same run: 2.2 / 10.9 / 37.3 ms). If this matters, the response is DD-09 §2's second column, not a change to the markup. **Control (fix round 1, item 9):** `n2000-labelled`, the same labels and boxes without markup, measured in the same run as `n2000-rich`: 31.3 / 32.7 ms against 44.9 / 43.7 ms, so about 12 ms is the run tspans and the rest is what any fully labelled 2 000-node document costs. | watch; re-measure before Gate 4 |
 | **F10** | `ctx.random`'s seed (`host.ts`'s `SEED = 1`) is one fixed constant, shared by every request for every document — `LayoutHost.run()`'s frozen signature has no per-call seed parameter, so Stage H could not add one unilaterally (DD-06 §3). Where a per-document seed should come from — a new `run()` parameter, or something content-addressed from a graph hash so the same document always seeds the same way without threading a value through every call site — is undecided, and is an orchestrator/design decision to make, not Stage H's to settle unilaterally. No engine shipped so far reads `ctx.random` at all (`grid` is fully deterministic; `elk`, built in Stage K, pins its own seed with `elk.randomSeed: '1'` instead), so nothing depends on the answer yet. DD-12 (B5) proposes that `fixed`, `tree` and `radial` read none either, so this row's owner has become `force` (DD-12 N50, H3). | `force` (backlog B22, Could since 2026-09-27) — no v1.0 engine reads `ctx.random` (DD-12 N50) |
-| **F12** | After a service-worker update is accepted in one tab, other open tabs keep running the old JS while `cleanupOutdatedCaches` has already removed the old precache, so a lazy chunk the old code has not yet loaded (from Stage K, `elk`) can fail to load offline in those tabs. Found in Stage J's review; `pwa.ts` has no cross-tab coordination (e.g. reloading other clients on `controllerchange`). | Stage L |
-| **F13** | A share link pasted into an already-open tab (Stage J fix round 1, item 14) imports by flushing autosave and **reloading**, not by switching in place like Open and Documents ▾ (fix round 2). That loses undo history, and when IndexedDB is unavailable (memory-store fallback) the reload loses the tab's documents outright. Also: criterion 5's offline test is falsifiable against the HTTP cache in Chromium and WebKit but not in Firefox, which has neither mechanism the spec uses; and error toasts persist until closed with no cap on how many pile up. | Stage L (E17, alongside the rest of the Documents UI) |
+| **F13** | **Known limitation, recorded (F13(b)).** Criterion 5's offline test (`e2e/offline.spec.ts`) is falsifiable against the HTTP cache in Chromium (CDP cache clear and `fromServiceWorker()`) and WebKit (its own `no-store` server), but not in Firefox, which has neither mechanism: there it can pass with the HTTP cache answering, so a missing precache entry would go unseen in Firefox alone (DD-08 §14). No code change while no Firefox run is available. F13(a), a pasted share link reloading, and F13(c), toasts piling up, are fixed (§2, `fix/f12-f13-app`), and so is F12. | whoever next runs the suite in Firefox (CI's `test:e2e:all-browsers`) |
 | **F15** | `elk` misses DD-09 §2's performance budget as measured in Node by Stage K's review: `elkEngine.layout` alone takes 0.5–0.8 s warm / 1.4 s cold at n500 (budget: 400 ms for the whole pipeline) and ~1.9 s warm / 3.8 s cold at n2000 (budget 3 s). Gate 3 is not timed. **Decision (human, 2026-09-23): record it and measure in the browser before Gate 4; the budget is not reopened.** That browser measurement should also take F24's wrapped-label numbers (pre-measure and the canvas cache) at n2000. | Stage L, before Gate 4 (the Gate 4 bench) |
 | **F16** | Under `elk`, 4 edges in `wildcards` still enter a container through its own title (`lane2` 3, `fan2` 1; pinned in `packages/layout-elk/test/elk.test.ts`). `fromElkGraph` detours such runs round the title (DD-06 §6.2), but here ELK runs other edges into the same container 0.4–20 px right of the title, so any detour would cross them, and a detour is never made at that price. Also open: the fix costs +823 B on the worker's boot path, over the branch's +600 B budget (the side-entry shape is about 100 B of it). | Stage L; the size needs a decision |
 | **F23** | **A document that imports many nodes `as:` costs what that many nodes cost, on every keystroke** (A9 fix round 1). Eight 1 500-node libraries imported `as:` graft 12 000 nodes, and a keystroke is ~250 ms in Node: `resolveImports` 39 ms (the imports themselves are cached; the graft is cheaper than resolving the same nodes written in the document, 53 ms) and `compileImports` 221 ms (`compile()` of the same nodes, 214 ms). The keystroke budget (DD-09 §2) is for 50 nodes; this is a 12 000-node document. Candidates: an incremental compile, or a graft kept across keystrokes when the imports are unchanged. Measured by `packages/core/test/imports-keystroke.test.ts` (DD-02 §10.8). | Stage L, with the next performance work on large documents |
 | **F24** | **Wrapping re-measures every wrapped label on each keystroke, and `CanvasMeasurer`'s cache thrashes past ~7 000 of them** (A18 fix round 1, item 5). Measured in Node (static metrics, 7-run medians; long labels on the n2000 document): `premeasure` 11.7 ms unwrapped, **20.5 ms with every node wrapped** at 90 px (30.8 ms with the branch's first, quadratic breaker; the review measured 17 → 87–98 ms on its own document with it). Through `CanvasMeasurer` with a counting fake canvas, three `premeasure` passes over the same graph (what three keystrokes do) make 5 746 / 0 / 0 canvas calls at 2 000 wrapped labels and 17 174 / 0 / 0 at 6 000, but **20 068 / 20 053 / 20 051 at 7 000** and 29 375 / 28 846 / 28 938 at 10 000: past the 20 000-entry cache (about three entries per wrapped label: its words, separators and laid fragments) every pass misses. With the quadratic breaker it thrashed from ~5 000 (24 027 / 24 006 / 24 006 at 6 000). **An LRU does not help** (tried: 19 016 per repeat pass at 7 000, 28 479 at 10 000; a cyclic scan larger than the cache defeats any recency policy), so the clear-all cache stays. The remedy is for `premeasure` to reuse the previous table's entry for an unchanged key (DD-05 §5 already describes the app keeping its previous table), dropping the table when the measurer's line model changes (the rich-text chunk loading, or its degraded model); or a larger cap. **Notes:** measure it in the browser, with real `measureText`, together with F15's browser measurement before Gate 4 (the n2000-rich variant of DD-11 T56 is not built yet). | Stage L, before Gate 4, with F15 |
 | **F25** | **The renderer's first baseline is `0.8 × fontSize`; measurement's ascent is the font's own** (DD-11 §19 item 5; found by DD-11's design, measured by `feat/a18-render`). DD-07 §5 once said `y = frame.y + layout.ascent` from the measured `TextLayout`; `render()` was never given one and has always drawn `0.8 × fontSize`, which A18 kept (T42) so no golden moved. `CanvasMeasurer`'s ascent is `fontBoundingBoxAscent`, which Chromium rounds to whole pixels: Inter's 0.969 em comes out as **13 px** for a 13 px node title against the rendered **10.4 px** (label drawn **2.6 px** higher than measurement's baseline), 12 px against 9.6 for a container title (2.4 px). Adopting the measured ascent would move every label by about 2–2.6 px and re-baseline every render golden under every theme; the label boxes and layout are unaffected (heights use `lineHeight`). `apps/web/test/rich-measure.browser.test.ts` pins the numbers. **A human decision:** keep `0.8 em` (DD-07 §5 now says so), or adopt the measured (or a fixed 0.97 em, deterministic across browsers) ascent in one golden re-baseline. | **Deferred: human decision 2026-09-27, leave it for now** (it cannot overflow a box); fold it into the next re-baseline of the render goldens made for another reason, by whoever next touches DD-07 §5 |
-| **F26** | **E15 (drag to pin) cannot write a dragged position back yet: the host throws away the translation it applies.** `quantize` (DD-06 §5, F14) moves every result so that its content box, plus the margin, starts at `(0, 0)`, and discards the offset (`x0`, `y0`). A pin is relative to its parent's content box, and at the root to the diagram's origin (DD-12 H2), so a canvas position cannot be turned back into a root pin without that offset. Proposed remedy (DD-12 N3): an optional `origin` on `LayoutResult`. B5 does not need it. | E15 (Could), when built |
-| **F28** | **DD-06 §8's conformance check 3 (no two sibling frames overlap) assumes the engine chooses every position.** Under `fixed`, nodes the author pinned may overlap on purpose. Today's suite passes, because the corpus has no pins, and `fixed`'s own tests cover pinned overlap (DD-12 §12). The SDK's published conformance guide must exempt nodes placed by the author before third parties rely on it. | Stage M (B18) |
+| **F26** | **E15 (drag to pin) cannot write a dragged position back yet: the host throws away the translation it applies.** `quantize` (DD-06 §5, F14) moves every result so that its content box, plus the margin, starts at `(0, 0)`, and discards the offset (`x0`, `y0`). A pin is relative to its parent's content box, and root pins are relative to each other, the drawing framed to fit its content (DD-12 H2; human decision 2026-09-27), so a canvas position cannot be turned back into a root pin without that offset. Proposed remedy (DD-12 N3): an optional `origin` on `LayoutResult`. B5 does not need it. | E15 (Could), when built |
+| **F28** | **DD-06 §8's conformance check 3 (no two sibling frames overlap) assumes the engine chooses every position.** Under `fixed`, nodes the author pinned may overlap on purpose. **Settled in the suite by `feat/b5-fixed`:** the corpus now has pins, so `runConformance`'s check 3 skips a pair of siblings that both have a `@pin` when the engine declares `pins` (`pinOf`); a pinned node against one the engine placed is still checked (`layout-api/test/conformance.test.ts`, both halves). What remains is the SDK's published conformance guide, which must say the same before third parties rely on it. | Stage M (B18), the guide's text only |
 
 ---
 

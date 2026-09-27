@@ -1,0 +1,131 @@
+{
+  "bounds": {
+    "x": 0,
+    "y": 0,
+    "w": 200,
+    "h": 128
+  },
+  "nodes": {
+    "visible": {
+      "frame": {
+        "x": 16,
+        "y": 16,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "other": {
+      "frame": {
+        "x": 112,
+        "y": 16,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "another": {
+      "frame": {
+        "x": 16,
+        "y": 76,
+        "w": 72,
+        "h": 36
+      }
+    }
+  },
+  "edges": {
+    "e-5353c6cb522d2c65": {
+      "start": {
+        "x": 88,
+        "y": 34
+      },
+      "end": {
+        "x": 104,
+        "y": 34
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 104,
+            "y": 34
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "clip": "none"
+    }
+  },
+  "labels": [
+    {
+      "labelId": "l:another",
+      "frame": {
+        "x": 29.953125,
+        "y": 85.546875,
+        "w": 44.078125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:other",
+      "frame": {
+        "x": 133.1875,
+        "y": 25.546875,
+        "w": 29.625,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:visible",
+      "frame": {
+        "x": 33.9375,
+        "y": 25.546875,
+        "w": 36.109375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    }
+  ],
+  "notes": [
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 80,
+        "to": 87
+      },
+      "params": {
+        "node": "visible"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 113,
+        "to": 118
+      },
+      "params": {
+        "node": "other"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 119,
+        "to": 126
+      },
+      "params": {
+        "node": "another"
+      }
+    }
+  ]
+}

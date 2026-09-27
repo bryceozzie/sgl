@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { DocumentSession } from '../state/document-session.js';
 import type { Pipeline } from '../state/pipeline.js';
+import { lazyChunk } from '../state/lazy.js';
 import { OPEN_ACCEPT } from '../state/title.js';
 import type { Toasts } from '../state/toasts.js';
 import { useDisclosure } from './disclosure.js';
@@ -23,16 +24,14 @@ const SAVE_ITEMS: readonly { readonly kind: SaveKind; readonly label: string }[]
 ];
 
 type FileActions = typeof import('./file-actions.js');
-let actions: Promise<FileActions> | undefined;
 
 /** The lazy `files` chunk (`file-actions.tsx` with `state/files.ts` and
  *  `state/filename.ts`), imported once, on first use of Open, Save ▾, Share
  *  or the launch queue. Off the first paint; precached like every chunk, so it
- *  works offline (`e2e/offline.spec.ts`). */
-export function loadFileActions(): Promise<FileActions> {
-  actions ??= import('./file-actions.js');
-  return actions;
-}
+ *  works offline (`e2e/offline.spec.ts`). A failed load is reported and
+ *  retried (`state/lazy.ts`); a tab that may have to save without the
+ *  network loads it early (`App.tsx`, F12 round 1). */
+export const loadFileActions: () => Promise<FileActions> = lazyChunk(() => import('./file-actions.js'));
 
 /** DD-08 §2's `Open · Save ▾ · Share`, with §7's file handling and §8's
  *  share dialog. This is the part the first paint needs: the buttons, the

@@ -36,8 +36,8 @@ const corpusDir = fileURLToPath(new URL('../corpus/', import.meta.url));
 const outFile = fileURLToPath(new URL('./grid-fixture.json', import.meta.url));
 
 const { compile, parse, resolve } = await import('../packages/core/dist/index.js');
-const { buildLayoutInput, placeLabels, quantize, routeStraight } = await import('../packages/layout-api/dist/index.js');
-const { gridEngine } = await import('../packages/layout-std/dist/index.js');
+const { applyHostFallbacks, buildLayoutInput, placeLabels, quantize, routeStraight } = await import('../packages/layout-api/dist/index.js');
+const { fixedEngine, gridEngine } = await import('../packages/layout-std/dist/index.js');
 const { labelRunKey, premeasure, StaticMetricsMeasurer } = await import('../packages/measure/dist/index.js');
 const { BUILT_IN, neutralLight, resolveTheme, styleGraph } = await import('../packages/theme/dist/index.js');
 
@@ -91,6 +91,36 @@ const CTX = {
   },
 };
 
+function inputFor(name) {
+  const source = readFileSync(`${corpusDir}${name}`, 'utf8');
+  const { model } = resolve(parse(source).ast);
+  const { graph } = compile(model);
+  const { value: theme } = resolveTheme(neutralLight, (id) => BUILT_IN[id]);
+  const { value: styled } = styleGraph(graph, theme, model.classes);
+  const table = premeasure(styled, new StaticMetricsMeasurer());
+  const labelSizes = {};
+  for (const labelId of Object.keys(styled.graph.labels).sort()) {
+    const layout = table[labelRunKey(styled, labelId)];
+    labelSizes[labelId] = layout === undefined ? { w: 0, h: 0 } : { w: layout.width, h: layout.height };
+  }
+  return buildLayoutInput(styled, labelSizes);
+}
+
+/** B5 branch 2 (DD-12 §12 item 3): `fixed` through a real Worker, for
+ *  `fixed.browser.test.ts` — every node pinned, containers and edges
+ *  (`forty-three-pinned`), half pinned with SGL4020 notes (`pin-half`), and
+ *  ports on the frame (`ports`). The sequence is `worker-runtime.ts`'s
+ *  (`applyHostFallbacks`) then `host.ts`'s `quantize(…, 64)`. */
+async function fixedCases() {
+  const out = {};
+  for (const name of ['layout/forty-three-pinned.sgl', 'layout/pin-half.sgl', 'ports.sgl']) {
+    const input = inputFor(name);
+    const raw = await fixedEngine.layout(input, { ...CTX, random: seededRandom(SEED) });
+    out[name] = { input, expected: quantize(applyHostFallbacks(input, raw, fixedEngine.capabilities, METRICS), 64) };
+  }
+  return out;
+}
+
 async function main() {
   // n50 — the smallest generated scale fixture. This test is proving the
   // worker/protocol plumbing works for the real engine, not re-proving grid's
@@ -115,7 +145,7 @@ async function main() {
   const withLabels = gridEngine.capabilities.labelPlacement ? routed : placeLabels(input, routed, METRICS);
   const expected = quantize(withLabels, 64);
 
-  writeFileSync(outFile, JSON.stringify({ input, metrics: METRICS, expected }), 'utf8');
+  writeFileSync(outFile, JSON.stringify({ input, metrics: METRICS, expected, fixed: await fixedCases() }), 'utf8');
   console.log('bench/generate-grid-fixture.js: wrote bench/grid-fixture.json');
 }
 

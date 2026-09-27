@@ -1,0 +1,275 @@
+{
+  "bounds": {
+    "x": 0,
+    "y": 0,
+    "w": 449.484375,
+    "h": 181.59375
+  },
+  "nodes": {
+    "api": {
+      "frame": {
+        "x": 16,
+        "y": 16,
+        "w": 117.921875,
+        "h": 36
+      }
+    },
+    "payments": {
+      "frame": {
+        "x": 157.921875,
+        "y": 16,
+        "w": 275.5625,
+        "h": 89.59375
+      },
+      "contentFrame": {
+        "x": 173.921875,
+        "y": 53.59375,
+        "w": 243.5625,
+        "h": 36
+      }
+    },
+    "payments.ledger": {
+      "frame": {
+        "x": 173.921875,
+        "y": 53.59375,
+        "w": 147.5625,
+        "h": 36
+      }
+    },
+    "payments.outbox": {
+      "frame": {
+        "x": 345.484375,
+        "y": 53.59375,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "alerts": {
+      "frame": {
+        "x": 16,
+        "y": 129.59375,
+        "w": 72,
+        "h": 36
+      }
+    }
+  },
+  "edges": {
+    "e-cc06ad2b5c7e9903": {
+      "start": {
+        "x": 133.921875,
+        "y": 46.828125
+      },
+      "end": {
+        "x": 166.109375,
+        "y": 53.84375
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 166.109375,
+            "y": 53.84375
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -0.9771214516091887,
+        "y": -0.2126820838837912
+      },
+      "endNormal": {
+        "x": 0.9771214516091887,
+        "y": 0.2126820838837912
+      },
+      "clip": "none"
+    },
+    "e-2a99b033c332697c": {
+      "start": {
+        "x": 345.484375,
+        "y": 79.90625
+      },
+      "end": {
+        "x": 95.796875,
+        "y": 137.5
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 95.796875,
+            "y": 137.5
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0.9744146165428234,
+        "y": -0.22475799222208429
+      },
+      "endNormal": {
+        "x": -0.9744146165428234,
+        "y": 0.22475799222208429
+      },
+      "clip": "none"
+    },
+    "e-18e821ab4535867d": {
+      "start": {
+        "x": 321.484375,
+        "y": 71.59375
+      },
+      "end": {
+        "x": 337.484375,
+        "y": 71.59375
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 337.484375,
+            "y": 71.59375
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "clip": "none"
+    }
+  },
+  "labels": [
+    {
+      "labelId": "l:alerts",
+      "frame": {
+        "x": 35.390625,
+        "y": 139.15625,
+        "w": 33.234375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:api",
+      "frame": {
+        "x": 28,
+        "y": 25.546875,
+        "w": 93.921875,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:e-18e821ab4535867d",
+      "frame": {
+        "x": 307.484375,
+        "y": 75.59375,
+        "w": 44.015625,
+        "h": 14.296875
+      },
+      "align": "middle",
+      "baseline": "middle",
+      "occlusion": "plate"
+    },
+    {
+      "labelId": "l:e-cc06ad2b5c7e9903",
+      "frame": {
+        "x": 81.921875,
+        "y": 54.078125,
+        "w": 131.4375,
+        "h": 14.296875
+      },
+      "align": "middle",
+      "baseline": "middle",
+      "occlusion": "plate"
+    },
+    {
+      "labelId": "l:payments",
+      "frame": {
+        "x": 173.921875,
+        "y": 32,
+        "w": 57.625,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:payments.ledger",
+      "frame": {
+        "x": 185.921875,
+        "y": 63.15625,
+        "w": 123.5625,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:payments.outbox",
+      "frame": {
+        "x": 360.53125,
+        "y": 63.15625,
+        "w": 41.90625,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    }
+  ],
+  "notes": [
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 538,
+        "to": 616
+      },
+      "params": {
+        "node": "api"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 618,
+        "to": 866
+      },
+      "params": {
+        "node": "payments"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 722,
+        "to": 778
+      },
+      "params": {
+        "node": "payments.ledger"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 781,
+        "to": 825
+      },
+      "params": {
+        "node": "payments.outbox"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 868,
+        "to": 917
+      },
+      "params": {
+        "node": "alerts"
+      }
+    }
+  ]
+}

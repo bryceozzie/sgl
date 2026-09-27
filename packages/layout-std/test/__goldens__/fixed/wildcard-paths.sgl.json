@@ -1,0 +1,1619 @@
+{
+  "bounds": {
+    "x": 0,
+    "y": 0,
+    "w": 1160,
+    "h": 522.40625
+  },
+  "nodes": {
+    "payments": {
+      "frame": {
+        "x": 16,
+        "y": 16,
+        "w": 104,
+        "h": 89.59375
+      },
+      "contentFrame": {
+        "x": 32,
+        "y": 53.59375,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "payments.api": {
+      "frame": {
+        "x": 32,
+        "y": 53.59375,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "bus": {
+      "frame": {
+        "x": 528,
+        "y": 16,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "store1": {
+      "frame": {
+        "x": 944,
+        "y": 16,
+        "w": 200,
+        "h": 149.59375
+      },
+      "contentFrame": {
+        "x": 960,
+        "y": 53.59375,
+        "w": 168,
+        "h": 96
+      }
+    },
+    "store1.api": {
+      "frame": {
+        "x": 960,
+        "y": 53.59375,
+        "w": 72,
+        "h": 36
+      },
+      "ports": {
+        "out": {
+          "point": {
+            "x": 1032,
+            "y": 71.59375
+          },
+          "normal": {
+            "x": 1,
+            "y": 0
+          }
+        }
+      }
+    },
+    "store1.apiV2": {
+      "frame": {
+        "x": 1056,
+        "y": 53.59375,
+        "w": 72,
+        "h": 36
+      },
+      "ports": {
+        "out": {
+          "point": {
+            "x": 1128,
+            "y": 71.59375
+          },
+          "normal": {
+            "x": 1,
+            "y": 0
+          }
+        }
+      }
+    },
+    "store1.db": {
+      "frame": {
+        "x": 960,
+        "y": 113.59375,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "store2": {
+      "frame": {
+        "x": 16,
+        "y": 189.59375,
+        "w": 202.578125,
+        "h": 89.59375
+      },
+      "contentFrame": {
+        "x": 32,
+        "y": 227.203125,
+        "w": 170.578125,
+        "h": 36
+      }
+    },
+    "store2.api-edge": {
+      "frame": {
+        "x": 32,
+        "y": 227.203125,
+        "w": 74.578125,
+        "h": 36
+      },
+      "ports": {
+        "out": {
+          "point": {
+            "x": 106.578125,
+            "y": 245.203125
+          },
+          "normal": {
+            "x": 1,
+            "y": 0
+          }
+        }
+      }
+    },
+    "store2.cache": {
+      "frame": {
+        "x": 130.578125,
+        "y": 227.203125,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "store3": {
+      "frame": {
+        "x": 528,
+        "y": 189.59375,
+        "w": 104,
+        "h": 89.59375
+      },
+      "contentFrame": {
+        "x": 544,
+        "y": 227.203125,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "store3.db": {
+      "frame": {
+        "x": 544,
+        "y": 227.203125,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "stored": {
+      "frame": {
+        "x": 944,
+        "y": 189.59375,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform": {
+      "frame": {
+        "x": 16,
+        "y": 303.203125,
+        "w": 488,
+        "h": 203.203125
+      },
+      "contentFrame": {
+        "x": 32,
+        "y": 340.796875,
+        "w": 456,
+        "h": 149.59375
+      }
+    },
+    "platform.auth": {
+      "frame": {
+        "x": 32,
+        "y": 340.796875,
+        "w": 104,
+        "h": 89.59375
+      },
+      "contentFrame": {
+        "x": 48,
+        "y": 378.40625,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform.auth.handler": {
+      "frame": {
+        "x": 48,
+        "y": 378.40625,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform.billing": {
+      "frame": {
+        "x": 160,
+        "y": 340.796875,
+        "w": 200,
+        "h": 89.59375
+      },
+      "contentFrame": {
+        "x": 176,
+        "y": 378.40625,
+        "w": 168,
+        "h": 36
+      }
+    },
+    "platform.billing.handler": {
+      "frame": {
+        "x": 176,
+        "y": 378.40625,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform.billing.worker": {
+      "frame": {
+        "x": 272,
+        "y": 378.40625,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform.docs": {
+      "frame": {
+        "x": 384,
+        "y": 340.796875,
+        "w": 104,
+        "h": 89.59375
+      },
+      "contentFrame": {
+        "x": 400,
+        "y": 378.40625,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform.docs.site": {
+      "frame": {
+        "x": 400,
+        "y": 378.40625,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform.inner": {
+      "frame": {
+        "x": 32,
+        "y": 454.40625,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform.gateway": {
+      "frame": {
+        "x": 160,
+        "y": 454.40625,
+        "w": 72.40625,
+        "h": 36
+      }
+    },
+    "lanes": {
+      "frame": {
+        "x": 528,
+        "y": 303.203125,
+        "w": 392,
+        "h": 196.796875
+      },
+      "contentFrame": {
+        "x": 544,
+        "y": 340.796875,
+        "w": 360,
+        "h": 143.203125
+      }
+    },
+    "lanes.lane1": {
+      "frame": {
+        "x": 544,
+        "y": 340.796875,
+        "w": 200,
+        "h": 89.59375
+      },
+      "contentFrame": {
+        "x": 560,
+        "y": 378.40625,
+        "w": 168,
+        "h": 36
+      }
+    },
+    "lanes.lane1.cam1": {
+      "frame": {
+        "x": 560,
+        "y": 378.40625,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "lanes.lane1.cam2": {
+      "frame": {
+        "x": 656,
+        "y": 378.40625,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "lanes.lane2": {
+      "frame": {
+        "x": 768,
+        "y": 340.796875,
+        "w": 136,
+        "h": 143.203125
+      },
+      "contentFrame": {
+        "x": 784,
+        "y": 378.40625,
+        "w": 104,
+        "h": 89.59375
+      }
+    },
+    "lanes.lane2.camA": {
+      "frame": {
+        "x": 784,
+        "y": 378.40625,
+        "w": 104,
+        "h": 89.59375
+      },
+      "contentFrame": {
+        "x": 800,
+        "y": 416,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "lanes.lane2.camA.lens": {
+      "frame": {
+        "x": 800,
+        "y": 416,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "switch": {
+      "frame": {
+        "x": 944,
+        "y": 303.203125,
+        "w": 72,
+        "h": 36
+      }
+    }
+  },
+  "edges": {
+    "e-b88d62fed4c10b18": {
+      "start": {
+        "x": 960,
+        "y": 71.59375
+      },
+      "end": {
+        "x": 112,
+        "y": 71.59375
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 112,
+            "y": 71.59375
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "clip": "none"
+    },
+    "e-593c33cc85b979d4": {
+      "start": {
+        "x": 1056,
+        "y": 71.59375
+      },
+      "end": {
+        "x": 112,
+        "y": 71.59375
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 112,
+            "y": 71.59375
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "clip": "none"
+    },
+    "e-4013c5118f03ab65": {
+      "start": {
+        "x": 69.15625,
+        "y": 227.203125
+      },
+      "end": {
+        "x": 68.1875,
+        "y": 97.59375
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 68.1875,
+            "y": 97.59375
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0.007439310262359099,
+        "y": 0.999972327948539
+      },
+      "endNormal": {
+        "x": -0.007439310262359099,
+        "y": -0.999972327948539
+      },
+      "clip": "none"
+    },
+    "e-732147fe5e342317": {
+      "start": {
+        "x": 1032,
+        "y": 71.59375
+      },
+      "end": {
+        "x": 607.96875,
+        "y": 37.53125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 607.96875,
+            "y": 37.53125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": -0.9967881318124202,
+        "y": -0.08008383281227993
+      },
+      "clip": "none"
+    },
+    "e-cc4fb08237fd807b": {
+      "start": {
+        "x": 1128,
+        "y": 71.59375
+      },
+      "end": {
+        "x": 607.984375,
+        "y": 36.9375
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 607.984375,
+            "y": 36.9375
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": -0.9977851578566089,
+        "y": -0.06651901052377393
+      },
+      "clip": "none"
+    },
+    "e-34e82cea56a0615e": {
+      "start": {
+        "x": 106.578125,
+        "y": 245.203125
+      },
+      "end": {
+        "x": 520.734375,
+        "y": 53.96875
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 520.734375,
+            "y": 53.96875
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": 0.9078955882812416,
+        "y": -0.4191963749598248
+      },
+      "clip": "none"
+    },
+    "e-f0b55fd14a3c1561": {
+      "start": {
+        "x": 632,
+        "y": 389.34375
+      },
+      "end": {
+        "x": 936.15625,
+        "y": 329.78125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 936.15625,
+            "y": 329.78125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -0.9813591388140631,
+        "y": 0.1921828313510874
+      },
+      "endNormal": {
+        "x": 0.9813591388140631,
+        "y": -0.1921828313510874
+      },
+      "clip": "none"
+    },
+    "e-14e3a19fd5aa805a": {
+      "start": {
+        "x": 728,
+        "y": 387
+      },
+      "end": {
+        "x": 936.265625,
+        "y": 332.625
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 936.265625,
+            "y": 332.625
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -0.9675601644592253,
+        "y": 0.25264070960879764
+      },
+      "endNormal": {
+        "x": 0.9675601644592253,
+        "y": -0.25264070960879764
+      },
+      "clip": "none"
+    },
+    "e-41e78964b9e1e4b0": {
+      "start": {
+        "x": 888,
+        "y": 386.359375
+      },
+      "end": {
+        "x": 948.0625,
+        "y": 343.828125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 948.0625,
+            "y": 343.828125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -0.816024481101655,
+        "y": 0.578017340780339
+      },
+      "endNormal": {
+        "x": 0.816024481101655,
+        "y": -0.578017340780339
+      },
+      "clip": "none"
+    },
+    "e-7ec8fc76cadbc206": {
+      "start": {
+        "x": 858.984375,
+        "y": 416
+      },
+      "end": {
+        "x": 950.71875,
+        "y": 344.140625
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 950.71875,
+            "y": 344.140625
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -0.7872280535289882,
+        "y": 0.6166619752643748
+      },
+      "endNormal": {
+        "x": 0.7872280535289882,
+        "y": -0.6166619752643748
+      },
+      "clip": "none"
+    },
+    "e-144249b1075d819e": {
+      "start": {
+        "x": 632,
+        "y": 396.40625
+      },
+      "end": {
+        "x": 648,
+        "y": 396.40625
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 648,
+            "y": 396.40625
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "clip": "none"
+    },
+    "e-3447644a50e83cf8": {
+      "start": {
+        "x": 632,
+        "y": 400.421875
+      },
+      "end": {
+        "x": 776.046875,
+        "y": 416.5
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 776.046875,
+            "y": 416.5
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -0.9938229860703122,
+        "y": -0.11097690011118501
+      },
+      "endNormal": {
+        "x": 0.9938229860703122,
+        "y": 0.11097690011118501
+      },
+      "clip": "none"
+    },
+    "e-062b1185994b3b5a": {
+      "start": {
+        "x": 656,
+        "y": 396.40625
+      },
+      "end": {
+        "x": 640,
+        "y": 396.40625
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 640,
+            "y": 396.40625
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "clip": "none"
+    },
+    "e-2aff5633dec3800f": {
+      "start": {
+        "x": 728,
+        "y": 403.09375
+      },
+      "end": {
+        "x": 776.140625,
+        "y": 412.0625
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 776.140625,
+            "y": 412.0625
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -0.9831186272428286,
+        "y": -0.18296930007019302
+      },
+      "endNormal": {
+        "x": 0.9831186272428286,
+        "y": 0.18296930007019302
+      },
+      "clip": "none"
+    },
+    "e-2b9dd4e66192fdd4": {
+      "start": {
+        "x": 784,
+        "y": 417.390625
+      },
+      "end": {
+        "x": 639.953125,
+        "y": 401.3125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 639.953125,
+            "y": 401.3125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0.9938229860703122,
+        "y": 0.11097690011118501
+      },
+      "endNormal": {
+        "x": -0.9938229860703122,
+        "y": -0.11097690011118501
+      },
+      "clip": "none"
+    },
+    "e-ab093edd8c52a203": {
+      "start": {
+        "x": 784,
+        "y": 413.515625
+      },
+      "end": {
+        "x": 735.859375,
+        "y": 404.5625
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 735.859375,
+            "y": 404.5625
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0.9831186272428286,
+        "y": 0.18296930007019302
+      },
+      "endNormal": {
+        "x": -0.9831186272428286,
+        "y": -0.18296930007019302
+      },
+      "clip": "none"
+    },
+    "e-98852831e39de168": {
+      "start": {
+        "x": 107.84375,
+        "y": 378.40625
+      },
+      "end": {
+        "x": 533.78125,
+        "y": 56.828125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 533.78125,
+            "y": 56.828125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -0.7980805303485672,
+        "y": 0.6025508004131683
+      },
+      "endNormal": {
+        "x": 0.7980805303485672,
+        "y": -0.6025508004131683
+      },
+      "clip": "none"
+    },
+    "e-af287e8cc92f5175": {
+      "start": {
+        "x": 229.484375,
+        "y": 378.40625
+      },
+      "end": {
+        "x": 540.9375,
+        "y": 57.734375
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 540.9375,
+            "y": 57.734375
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -0.696739128884943,
+        "y": 0.7173246031474527
+      },
+      "endNormal": {
+        "x": 0.696739128884943,
+        "y": -0.7173246031474527
+      },
+      "clip": "none"
+    },
+    "e-6c4a142ad3fb4c0a": {
+      "start": {
+        "x": 176,
+        "y": 396.40625
+      },
+      "end": {
+        "x": 128,
+        "y": 396.40625
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 128,
+            "y": 396.40625
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "clip": "none"
+    },
+    "e-2b8c1c911f9b945e": {
+      "start": {
+        "x": 272,
+        "y": 396.40625
+      },
+      "end": {
+        "x": 128,
+        "y": 396.40625
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 128,
+            "y": 396.40625
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "clip": "none"
+    }
+  },
+  "labels": [
+    {
+      "labelId": "l:bus",
+      "frame": {
+        "x": 552.796875,
+        "y": 25.546875,
+        "w": 22.40625,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:e-34e82cea56a0615e",
+      "frame": {
+        "x": 292.78125,
+        "y": 132.3125,
+        "w": 32.40625,
+        "h": 14.296875
+      },
+      "align": "middle",
+      "baseline": "middle",
+      "occlusion": "plate"
+    },
+    {
+      "labelId": "l:e-732147fe5e342317",
+      "frame": {
+        "x": 804.671875,
+        "y": 36.296875,
+        "w": 32.40625,
+        "h": 14.296875
+      },
+      "align": "middle",
+      "baseline": "middle",
+      "occlusion": "plate"
+    },
+    {
+      "labelId": "l:e-cc4fb08237fd807b",
+      "frame": {
+        "x": 852.53125,
+        "y": 35.984375,
+        "w": 32.40625,
+        "h": 14.296875
+      },
+      "align": "middle",
+      "baseline": "middle",
+      "occlusion": "plate"
+    },
+    {
+      "labelId": "l:lanes",
+      "frame": {
+        "x": 544,
+        "y": 319.203125,
+        "w": 35.296875,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:lanes.lane1",
+      "frame": {
+        "x": 560,
+        "y": 356.796875,
+        "w": 31.703125,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:lanes.lane1.cam1",
+      "frame": {
+        "x": 580.109375,
+        "y": 387.953125,
+        "w": 31.78125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:lanes.lane1.cam2",
+      "frame": {
+        "x": 676.109375,
+        "y": 387.953125,
+        "w": 31.78125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:lanes.lane2",
+      "frame": {
+        "x": 784,
+        "y": 356.796875,
+        "w": 31.703125,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:lanes.lane2.camA",
+      "frame": {
+        "x": 800,
+        "y": 394.40625,
+        "w": 33.125,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:lanes.lane2.camA.lens",
+      "frame": {
+        "x": 824.078125,
+        "y": 425.546875,
+        "w": 23.84375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:payments",
+      "frame": {
+        "x": 32,
+        "y": 32,
+        "w": 57.625,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:payments.api",
+      "frame": {
+        "x": 59.328125,
+        "y": 63.15625,
+        "w": 17.34375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform",
+      "frame": {
+        "x": 32,
+        "y": 319.203125,
+        "w": 48.25,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:platform.auth",
+      "frame": {
+        "x": 48,
+        "y": 356.796875,
+        "w": 25.21875,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:platform.auth.handler",
+      "frame": {
+        "x": 62.328125,
+        "y": 387.953125,
+        "w": 43.359375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform.billing",
+      "frame": {
+        "x": 176,
+        "y": 356.796875,
+        "w": 33.125,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:platform.billing.handler",
+      "frame": {
+        "x": 190.328125,
+        "y": 387.953125,
+        "w": 43.359375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform.billing.worker",
+      "frame": {
+        "x": 288.5,
+        "y": 387.953125,
+        "w": 39,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform.docs",
+      "frame": {
+        "x": 400,
+        "y": 356.796875,
+        "w": 27.375,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:platform.docs.site",
+      "frame": {
+        "x": 425.890625,
+        "y": 387.953125,
+        "w": 20.234375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform.gateway",
+      "frame": {
+        "x": 172,
+        "y": 463.953125,
+        "w": 48.40625,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform.inner",
+      "frame": {
+        "x": 53.546875,
+        "y": 463.953125,
+        "w": 28.90625,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:store1",
+      "frame": {
+        "x": 960,
+        "y": 32,
+        "w": 41.78125,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:store1.api",
+      "frame": {
+        "x": 987.328125,
+        "y": 63.15625,
+        "w": 17.34375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:store1.apiV2",
+      "frame": {
+        "x": 1075.375,
+        "y": 63.15625,
+        "w": 33.234375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:store1.db",
+      "frame": {
+        "x": 988.765625,
+        "y": 123.15625,
+        "w": 14.453125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:store2",
+      "frame": {
+        "x": 32,
+        "y": 205.59375,
+        "w": 41.78125,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:store2.api-edge",
+      "frame": {
+        "x": 44,
+        "y": 236.75,
+        "w": 50.578125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:store2.cache",
+      "frame": {
+        "x": 149.234375,
+        "y": 236.75,
+        "w": 34.6875,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:store3",
+      "frame": {
+        "x": 544,
+        "y": 205.59375,
+        "w": 41.78125,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:store3.db",
+      "frame": {
+        "x": 572.765625,
+        "y": 236.75,
+        "w": 14.453125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:stored",
+      "frame": {
+        "x": 960.84375,
+        "y": 199.15625,
+        "w": 38.296875,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:switch",
+      "frame": {
+        "x": 960.859375,
+        "y": 312.75,
+        "w": 38.28125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    }
+  ],
+  "notes": [
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 244,
+        "to": 288
+      },
+      "params": {
+        "node": "payments"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 279,
+        "to": 286
+      },
+      "params": {
+        "node": "payments.api"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 290,
+        "to": 312
+      },
+      "params": {
+        "node": "bus"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 314,
+        "to": 466
+      },
+      "params": {
+        "node": "store1"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 346,
+        "to": 376
+      },
+      "params": {
+        "node": "store1.api"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 379,
+        "to": 411
+      },
+      "params": {
+        "node": "store1.apiV2"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 414,
+        "to": 420
+      },
+      "params": {
+        "node": "store1.db"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 468,
+        "to": 549
+      },
+      "params": {
+        "node": "store2"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 500,
+        "to": 535
+      },
+      "params": {
+        "node": "store2.api-edge"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 538,
+        "to": 547
+      },
+      "params": {
+        "node": "store2.cache"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 551,
+        "to": 678
+      },
+      "params": {
+        "node": "store3"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 583,
+        "to": 589
+      },
+      "params": {
+        "node": "store3.db"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 680,
+        "to": 708
+      },
+      "params": {
+        "node": "stored"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 1138,
+        "to": 1547
+      },
+      "params": {
+        "node": "platform"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 1173,
+        "to": 1194
+      },
+      "params": {
+        "node": "platform.auth"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 1181,
+        "to": 1192
+      },
+      "params": {
+        "node": "platform.auth.handler"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 1197,
+        "to": 1232
+      },
+      "params": {
+        "node": "platform.billing"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 1208,
+        "to": 1219
+      },
+      "params": {
+        "node": "platform.billing.handler"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 1220,
+        "to": 1230
+      },
+      "params": {
+        "node": "platform.billing.worker"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 1235,
+        "to": 1253
+      },
+      "params": {
+        "node": "platform.docs"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 1243,
+        "to": 1251
+      },
+      "params": {
+        "node": "platform.docs.site"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 1314,
+        "to": 1412
+      },
+      "params": {
+        "node": "platform.inner"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 1497,
+        "to": 1545
+      },
+      "params": {
+        "node": "platform.gateway"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 1667,
+        "to": 1758
+      },
+      "params": {
+        "node": "lanes"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 1696,
+        "to": 1724
+      },
+      "params": {
+        "node": "lanes.lane1"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 1705,
+        "to": 1713
+      },
+      "params": {
+        "node": "lanes.lane1.cam1"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 1714,
+        "to": 1722
+      },
+      "params": {
+        "node": "lanes.lane1.cam2"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 1727,
+        "to": 1756
+      },
+      "params": {
+        "node": "lanes.lane2"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 1736,
+        "to": 1754
+      },
+      "params": {
+        "node": "lanes.lane2.camA"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 1744,
+        "to": 1752
+      },
+      "params": {
+        "node": "lanes.lane2.camA.lens"
+      }
+    },
+    {
+      "code": "SGL4020",
+      "span": {
+        "from": 1759,
+        "to": 1787
+      },
+      "params": {
+        "node": "switch"
+      }
+    }
+  ]
+}
