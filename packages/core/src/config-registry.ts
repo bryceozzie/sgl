@@ -40,11 +40,17 @@ export const CONFIG_REGISTRY: readonly ConfigKeySpec[] = [
   // Sugar for `@layout.direction`: valid wherever `@layout` itself is (root's
   // document-level block, language spec §4, as well as a node's own).
   { key: 'direction', scope: ['root', 'node'], type: 'enum', enum: ['down', 'up', 'left', 'right'], order: 8 },
-  // Real validation of a style value is DD-04's job (theme cascade); a
-  // bareword like `dashed` is a valid shorthand the corpus actually uses
-  // (`checkout.sgl`, `chains.sgl`), so the resolver never rejects `@style`.
-  { key: 'style', scope: ['node', 'edge', 'class'], type: 'any', order: 9 },
+  // `@style` is always an object (language spec §4; human decision
+  // 2026-09-27, DD-13 §13 branch 0): a bareword such as `dashed`, a string,
+  // a number, an array, or a variable holding one is SGL2011 and dropped. It
+  // is not a shorthand; a dashed line is `@style: { strokeDash: "6 3" }`.
+  // Dotted keys (`@style.fill`) merge into the object before validation.
+  // Checking each property's value stays DD-04's job (theme cascade).
+  { key: 'style', scope: ['node', 'edge', 'class'], type: 'object', order: 9 },
   { key: 'size', scope: ['node', 'class'], type: 'object', order: 10 },
+  // `@pin` (DD-12 N4): a node's or container's own position, so not a class's
+  // (every member would land on the same spot), an edge's or the root's.
+  { key: 'pin', scope: ['node'], type: 'object', order: 10 },
   { key: 'ports', scope: ['node', 'class'], type: 'object', order: 11 },
   { key: 'order', scope: ['node', 'edge'], type: 'number', order: 12 },
   { key: 'hidden', scope: ['node', 'edge'], type: 'boolean', order: 13 },
@@ -63,6 +69,15 @@ export const CONFIG_REGISTRY: readonly ConfigKeySpec[] = [
  *  re-baseline — `@size.fill` used to paint, behind the cascade signature's
  *  back, DD-07 §6). */
 export const SIZE_KEYS: ReadonlySet<string> = new Set(['width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'aspectRatio']);
+
+/** `@pin`'s sub-keys (DD-12 N4); any other is `SGL2010`, kept, like `@size`'s. */
+export const PIN_KEYS: ReadonlySet<string> = new Set(['x', 'y']);
+
+/** `@pin` is `{ x, y }`, both numbers within ±100 000 (DD-12 N4): the bound
+ *  keeps a frame finite after padding is added, and PNG export's cap
+ *  meaningful. Anything else drops the whole pin with `SGL2011`. */
+export const isPin = (v: unknown): boolean =>
+  typeof v === 'object' && v !== null && [(v as Record<string, unknown>).x, (v as Record<string, unknown>).y].every((n) => typeof n === 'number' && Math.abs(n) <= 1e5);
 
 /** The language's full twelve-shape vocabulary (language spec §4), derived from
  *  the `shape` row's `enum` so it has exactly one definition in the codebase.

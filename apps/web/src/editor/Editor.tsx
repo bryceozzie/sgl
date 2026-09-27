@@ -38,7 +38,7 @@ export function Editor({ pipeline, onView }: EditorProps) {
     // change" — severity and span already line up 1:1 with CodeMirror's shape.
     const disposeDiagsEffect = effect(() => {
       const diags = pipeline.diags.value;
-      view.dispatch(setDiagnostics(view.state, diags.map(toCmDiagnostic)));
+      view.dispatch(setDiagnostics(view.state, diags.map((d) => toCmDiagnostic(d, view.state.doc.length))));
     });
 
     return () => {

@@ -178,6 +178,42 @@ describe('createWorkerHost + createWorkerRuntime, wired through an async in-memo
     }
   });
 
+  it('DD-12 N20: an engine\'s notes cross the real protocol and come out of run() as catalogue diagnostics', async () => {
+    // The whole seam: engine -> worker runtime (fallbacks, postMessage) ->
+    // host (validation) -> run(). A dropped `notes` field anywhere on the way
+    // (a fallback that rebuilds the result, the host ignoring it) fails here.
+    const noting: LayoutEngine = {
+      id: 'test.noting',
+      name: 'test.noting',
+      version: '0.0.0',
+      apiVersion: LAYOUT_API_VERSION,
+      capabilities: capabilities(),
+      layout: (_input, ctx) => {
+        ctx.log('warn', 'a developer message, never a diagnostic (N21)');
+        return Promise.resolve({
+          bounds: { x: 0, y: 0, w: 1, h: 1 },
+          nodes: {},
+          edges: {},
+          labels: [],
+          notes: [
+            { code: 'SGL4021', span: { from: 4, to: 8 }, params: { id: 'test.noting' } },
+            { code: 'SGL4011', span: { from: 0, to: 1 }, params: { id: 'x', message: 'forged failure' } },
+          ],
+        });
+      },
+    };
+    const host = createWorkerHost(spawnFor(makeRegistry(noting)));
+    try {
+      const outcome = await run(host, 'test.noting', OK_INPUT);
+      expect(outcome.value).not.toBeNull();
+      expect(outcome.diagnostics).toEqual([
+        { code: 'SGL4021', severity: 'warning', message: '`@pin` is not honoured by engine `test.noting`; ignored.', span: { from: 4, to: 8 } },
+      ]);
+    } finally {
+      host.dispose();
+    }
+  });
+
   it('fix round 2, item 2: an engine resolving undefined gives SGL4002 (not SGL4011), and the host serves the next request', async () => {
     // Through the real worker, not a fake one that skips the fallbacks
     // entirely: `routeStraight`/`placeLabels` assume `result.edges` etc.

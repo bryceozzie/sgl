@@ -1,4 +1,5 @@
 import { elkDescriptor } from '@sgl/layout-elk/descriptor';
+import type { LayoutEngine } from '@sgl/layout-api';
 import { gridDescriptor } from '@sgl/layout-std/descriptor';
 import { BUILT_IN, DEFAULT_THEME_ID } from '@sgl/theme';
 import EXAMPLE_SOURCE from '../examples/checkout.sgl?raw';
@@ -9,20 +10,31 @@ import { createShareLinkQueue } from '../state/share-links.js';
 import { createMemoryStore, type DocumentStore } from '../state/storage.js';
 import { openIdbStore } from '../state/storage-idb.js';
 
+/** What the app keeps of an engine's descriptor: the picker's, the help
+ *  reference's and the `@layout` checks' view of it. Exported so a test can
+ *  list a stub engine the way the real ones are listed (fix round 1, item 5). */
+export function registeredEngine(e: Pick<LayoutEngine, 'id' | 'name' | 'capabilities' | 'optionsSchema' | 'hintsSchema'>) {
+  return {
+    id: e.id,
+    name: e.name,
+    determinism: e.capabilities.determinism,
+    // The help reference lists them (DD-13 P4, `reference/build.ts`).
+    capabilities: e.capabilities,
+    // What SGL4010 checks `@layout` keys against (fix round 1, item 23).
+    ...(e.optionsSchema !== undefined && { optionsSchema: e.optionsSchema }),
+    ...(e.hintsSchema !== undefined && { hintsSchema: e.hintsSchema }),
+    // SGL4021 (DD-12 N6): an engine that does not honour `@pin` warns at it.
+    ...(e.capabilities.pins === true && { pins: true }),
+  };
+}
+
 /** The engines actually registered in `apps/web/src/layout.worker.ts`: `elk`
  *  and `grid`. Read from the same objects the worker registers — `elk`'s
  *  descriptor entry, which carries everything but `layout()` and so none of
  *  elkjs (Stage K, K1), and `grid`'s, which leaves its packing code to the
  *  worker (F20) — rather than duplicated by hand, so the picker cannot list
  *  something the worker does not actually run. */
-export const REGISTERED_ENGINES = [elkDescriptor, gridDescriptor].map((e) => ({
-  id: e.id,
-  name: e.name,
-  determinism: e.capabilities.determinism,
-  // What SGL4010 checks `@layout` keys against (fix round 1, item 23).
-  ...(e.optionsSchema !== undefined && { optionsSchema: e.optionsSchema }),
-  ...(e.hintsSchema !== undefined && { hintsSchema: e.hintsSchema }),
-}));
+export const REGISTERED_ENGINES = [elkDescriptor, gridDescriptor].map(registeredEngine);
 
 /** ADR-0005: `elk` is the default engine (Stage K undoes Stage I's interim
  *  `grid` default, decision I1). A stored document keeps its own `engineId`. */

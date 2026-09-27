@@ -1,0 +1,61 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
+
+/**
+ * DD-13 P4, P46 (help branch 1): the reference builder is lazy. Only the help
+ * chunks import it, dynamically, so it must never be statically reachable
+ * from the page's entry (`main.tsx`) or from the layout worker's, which
+ * together are the core bundle. The branch that first imports it
+ * (`feat/help-drawer`) adds `reference-*.js` to `.size-limit.js`'s lazy list,
+ * where `check-core-chunks.mjs` checks the built chunks; until then no chunk
+ * is emitted, so this walks the sources.
+ *
+ * Static imports and re-exports only: `import('./x.js')` is how a lazy chunk
+ * is loaded and is not followed; `import type` is erased and is not followed.
+ */
+
+const SRC = fileURLToPath(new URL('../src/', import.meta.url));
+const ENTRIES = ['main.tsx', 'layout.worker.ts'];
+const REFERENCE_DIR = 'reference/';
+
+const STATIC =
+  /(?:^|[\n;])\s*(?:import|export)\s+(?!type\s)(?:[\w$*{}\s,]+?\s+from\s+)?['"](\.{1,2}\/[^'"?]+)(?:\?[^'"]*)?['"]/g;
+
+function resolveSource(from: string, spec: string): string | undefined {
+  const base = resolve(dirname(from), spec);
+  const candidates = [base, base.replace(/\.js$/, '.ts'), base.replace(/\.js$/, '.tsx'), `${base}.ts`, `${base}.tsx`];
+  return candidates.find((c) => /\.tsx?$/.test(c) && existsSync(c));
+}
+
+/** Every source file under `src/` the entries reach by static imports. */
+function staticGraph(entries: readonly string[]): ReadonlySet<string> {
+  const seen = new Set<string>();
+  const queue = entries.map((e) => resolve(SRC, e));
+  while (queue.length > 0) {
+    const file = queue.shift()!;
+    if (seen.has(file)) continue;
+    seen.add(file);
+    for (const m of readFileSync(file, 'utf8').matchAll(STATIC)) {
+      const next = resolveSource(file, m[1]!);
+      if (next !== undefined && !seen.has(next)) queue.push(next);
+    }
+  }
+  return new Set([...seen].map((f) => relative(SRC, f).split('\\').join('/')));
+}
+
+describe('the reference builder stays out of the core bundle (DD-13 P46)', () => {
+  const reached = staticGraph(ENTRIES);
+
+  it('the walk sees the boot path (not vacuous)', () => {
+    for (const f of ['App.tsx', 'io/app-boot.ts', 'state/pipeline.ts', 'toolbar/EnginePicker.tsx']) expect(reached).toContain(f);
+    // `share.ts` is lazy (`import('./share.js')`): proof dynamic imports are not followed.
+    expect(reached).not.toContain('state/share.ts');
+    expect(existsSync(resolve(SRC, REFERENCE_DIR, 'build.ts'))).toBe(true);
+  });
+
+  it('no file in src/reference/ is statically reachable from main.tsx or the layout worker', () => {
+    expect([...reached].filter((f) => f.startsWith(REFERENCE_DIR))).toEqual([]);
+  });
+});

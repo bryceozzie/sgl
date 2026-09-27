@@ -251,6 +251,9 @@ Because the grammar reads JSON directly, `fromJson` is not a separate parser and
 ## 7. Config key registry
 
 `packages/core/src/config-registry.ts`. One table drives validation here, autocomplete (**⟶ E6**), documentation, and `toJson` ordering.
+Documentation is DD-13's `buildReference` (`apps/web/src/reference/build.ts`), which reads this
+table, exported as `CONFIG_REGISTRY`, together with DD-13 P5's constants: `STRUCTURAL_KEYS`
+(`@extends`, `@edges`, which have no row here), `DEFAULT_SHAPE` and `PORT_SIDES`.
 
 ```ts
 interface ConfigKeySpec {
@@ -277,8 +280,9 @@ MVP registry (order = row order):
 | `type` | node, edge | array of string |
 | `shape` | node, class | enum — DD-07 §4 list |
 | `direction` | root, node (containers) | enum `down up left right` — sugar, folded into `layout.direction` |
-| `style` | node, edge, class | any — properties from DD-04 registry |
+| `style` | node, edge, class | object — properties from DD-04 registry. Anything else (`@style: dashed`, a string, a number, an array, a `$var` holding one) is `SGL2011` and dropped (human decision 2026-09-27, DD-13 §13 branch 0) |
 | `size` | node, class | object `width height minWidth minHeight maxWidth aspectRatio`: exactly `SIZE_KEYS` (`config-registry.ts`) and language spec §4. There is no `maxHeight` (A18 corrected this row, DD-11 §19 item 6). A class's `@size` sizes its nodes: DD-04 §4 merges it at step 4, in `@type` order, and a node's own `@size` overrides it per key (human decision H2, 2026-09-26). On a container (a node with children from any of its declarations) `@size` is `SGL2012` and dropped (fix round 1, item 10) |
+| `pin` | node (containers too) | object `x y` (DD-12 N4, `feat/b5-pin`): both numbers required, each within ±100 000, else `SGL2011` ("`@pin` expects `{ x, y }` numbers within ±100 000; ignored.") and the whole pin dropped, whatever the value was. Any other sub-key is `SGL2010`, kept (`PIN_KEYS`, as `SIZE_KEYS`). On an edge, a class or the root it is `SGL2012`. The resolver keeps it as written: the top-left of the node's frame, relative to the top-left of its parent's content box (the root's: the diagram's origin; DD-12 H2). It reaches the engine unchanged in `GraphNode.config.pin`. An engine without the `pins` capability ignores it, and `layoutConfigDiagnostics` says so (`SGL4021`, DD-06 §9) |
 | `ports` | node, class | object name → `north south east west` |
 | `order` | node, edge | number |
 | `hidden` | node, edge | boolean |
@@ -294,10 +298,16 @@ Validation outcomes: unknown top-level `@key` → `SGL2010` warning, key kept (f
 never rejects a value against the list. Whether a shape name is one of the
 seven the MVP renderer draws is `SGL3001` (DD-03/DD-07), a rendering fallback,
 not a resolution error, and enforcing it twice would just race the two
-diagnostics. `style` is typed `any` for the same kind of reason, but for a
-concrete case the corpus exercises: `@style: dashed` (`chains.sgl`,
-`checkout.sgl`) is a bareword shorthand, not the object this table originally
-required, and real validation of a style value is DD-04's job regardless.
+diagnostics. `style` is typed `object`, and the resolver does reject a
+value against it. It was once typed `any` on the belief that `@style: dashed`
+(then in `chains.sgl`, `checkout.sgl` and the first-run example) was a bareword
+shorthand. It never was: DD-04's cascade ignores a `@style` that is not an
+object, so the edge drew solid and nothing said why (DD-13 §17 item 1). By
+human decision (2026-09-27) a non-object `@style` is `SGL2011` and ignored,
+and a dashed line is `@style: { strokeDash: "6 3" }` (or the keyword,
+`strokeDash: dashed`). Dotted keys (`@style.fill: …`) merge into the object
+before validation, so they are unaffected. Checking each property's value is
+still DD-04's job.
 
 `direction`'s scope includes `root`: it is sugar for `@layout.direction`, and
 root carries its own `@layout` block (language spec §4's document-level
@@ -319,7 +329,7 @@ validate and then reach no consumer — a decision for whichever stage adds
 class-derived fallback for other keys, not one to make by relaxing a scope
 list ahead of it.
 
-**⟶ v1.0** adds `pin` (`vars` landed with A8, `imports` with A9); **⟶ v1.x** adds `icon`, `rules`.
+`pin` landed with `feat/b5-pin` (DD-12), `vars` with A8, `imports` with A9; **⟶ v1.x** adds `icon`, `rules`.
 
 ---
 

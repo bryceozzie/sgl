@@ -20,7 +20,8 @@ export * from './parse.js';
 export { hasImports, resolve, type ImportSeam, type ResolveResult } from './resolve.js';
 export * from './shape-insets.js';
 export * from './span.js';
-export { SIZE_KEYS } from './config-registry.js';
+export { CONFIG_REGISTRY, LANGUAGE_SHAPES, SIZE_KEYS } from './config-registry.js';
+export { STRUCTURAL_KEYS, type StructuralKeySpec } from './structural-keys.js';
 
 /** The language version this build implements. Independent of package versions (NFR-6). */
 export const SGL_LANGUAGE_VERSION = '1.0' as const;

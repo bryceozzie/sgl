@@ -96,7 +96,7 @@ Node LTS pinned in `.nvmrc`; browsers from Playwright's pinned set.
 
 ```toml
 # apps/web/wrangler.toml
-name = "sgl"
+name = "sgl-worker"
 compatibility_date = "2026-09-01"
 [assets]
 directory = "./dist"
@@ -118,7 +118,7 @@ not_found_handling = "single-page-application"
   Cache-Control: no-cache
 ```
 
-**Implemented (Stage J)**: `vite build` writes this file into `apps/web/dist/` from `apps/web/build/headers.ts` (held to the block above by `apps/web/test/headers.test.ts`), and `vite preview` serves the build with the headers it declares, so the e2e suite runs under them. **`wrangler.toml` is in place** (`apps/web/wrangler.toml`, the block above verbatim; `apps/web/test/headers.test.ts` holds it there too). The deploy itself is still a human step (decision J4): `wrangler login` once, then `pnpm cf:deploy` from the root, which builds the workspace and runs `wrangler deploy` in `apps/web`. `pnpm cf:dev` serves the same build under `wrangler dev` (workerd, `_headers` and the SPA fallback as deployed) on `http://localhost:8787`. **wrangler is not a workspace dependency**: 4.x declares Node `>=22`, and the workspace runs Node 20.19.0 (`.nvmrc`) with `engine-strict=true`, so a devDependency would fail `pnpm install` in CI. The `cf:*` scripts run it with `pnpm dlx`, pinned to an exact version (`apps/web/package.json`), and so need Node 22+ on the machine that deploys; CI and the lockfile are untouched. The CI steps in the pipeline below are not set up yet.
+**Implemented (Stage J)**: `vite build` writes this file into `apps/web/dist/` from `apps/web/build/headers.ts` (held to the block above by `apps/web/test/headers.test.ts`), and `vite preview` serves the build with the headers it declares, so the e2e suite runs under them. **`wrangler.toml` is in place** (`apps/web/wrangler.toml`, the block above verbatim; `apps/web/test/headers.test.ts` holds it there too). The deploy itself is still a human step (decision J4): `wrangler login` once, then `pnpm cf:deploy` from the root, which builds the workspace and runs `wrangler deploy` in `apps/web`. `pnpm cf:dev` serves the same build under `wrangler dev` (workerd, `_headers` and the SPA fallback as deployed) on `http://localhost:8787`. **wrangler is not a workspace dependency**: 4.x declares Node `>=22`, and the workspace runs Node 20.19.0 (`.nvmrc`) with `engine-strict=true`, so a devDependency would fail `pnpm install` in CI. The `cf:*` scripts run it with `pnpm dlx`, pinned to an exact version (`apps/web/package.json`), and so need Node 22+ on the machine that deploys; CI and the lockfile are untouched. `.github/workflows/main.yml` is the production half of the pipeline below: it runs when CI completes green on `main` (or by hand), builds, and runs `pnpm --filter @sgl/web cf:deploy` with the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets. The pull-request preview (`wrangler versions upload`) is not set up.
 
 Pipeline: `main` → CI green → `wrangler deploy` to production. Pull requests → `wrangler versions upload` preview URL posted on the PR. No server-side code exists in MVP, so there is no second deployment unit; **⟶ G5** adds routes to the same Worker.
 

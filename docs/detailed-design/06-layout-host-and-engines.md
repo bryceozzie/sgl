@@ -54,6 +54,25 @@ The interfaces from [Architecture §4](../03-architecture.md#4-layout-engine-plu
 > the effective engine's descriptor, beside `buildLayoutInput`; so does
 > `render-svg/test/pipeline.ts`. Fixtures: `corpus/layout/*.sgl`.
 
+> **Amended by `feat/b5-pin` (DD-12 N6, N20, N22).** Three additions, all optional
+> and so additive: `apiVersion` stays 1.
+> - **`EngineCapabilities.pins?: boolean`.** It says whether the engine places a node
+>   where its `@pin` says. Absent means `false`. `layoutConfigDiagnostics` takes it as
+>   `EngineSchemas.pins`. Under an engine without it, a node's `@pin` is `SGL4021`
+>   (§9): once per node, at its first pin key, and ignored. Neither `grid` nor `elk`
+>   declares it. The pin itself reaches every engine unchanged in
+>   `GraphNode.config.pin`: the frame's top-left, relative to the top-left of the
+>   parent's content box (DD-12 H2; DD-02 §7).
+> - **`LayoutResult.notes?: readonly EngineNote[]`**, where an `EngineNote` is
+>   `{ code, span, params? }`. This is how an engine reports a problem in the
+>   document; the host rebuilds each note as a diagnostic (§3, step 3).
+>   `LayoutResult.diagnostics` stays in the type, and the host ignores it: a
+>   message string from a worker is untrusted text.
+> - **Bare engine names.** The app's `documentEngineOverride` maps a root
+>   `@layout.engine` of `x` to `sgl.x` when `x` itself is not registered and `sgl.x`
+>   is. Any other value passes through, so an unknown name is still `SGL4011`, as an
+>   unknown id is. `layered` is not an alias (DD-12 H7).
+
 **`LayoutInput` construction** (`buildLayoutInput(styled, labelSizes, scope?)`, `sizing.ts`):
 
 Both nodes and edges carry their own `hidden` flag (DD-03 §2, §6) — a node's already excludes it from `graph.order`, and an edge's is already "effectively hidden" (its own `@hidden`, or either endpoint's node, computed once in `compile()`). Filtering either kind of element for `LayoutInput` is therefore a single flag test — `!edge.hidden` for edges alongside the node loop below — not a node filter plus a separate "does this edge touch a hidden node" walk:
@@ -114,7 +133,7 @@ One long-lived `Worker` (`layout.worker.ts`), respawned on termination. Engines 
 
 // worker → host
 { t: 'result', id, result: LayoutResult, ms: number }
-{ t: 'error',  id, diagnostic: Diagnostic }
+{ t: 'error',  id, reason: string }      // feat/b5-pin fix round 1, item 4: was `diagnostic`
 { t: 'measure', id, req: number, runs: StyledRun[], box: BoxConstraints }   // table miss
 { t: 'log', id, level, message, nodeId? }
 ```
@@ -132,8 +151,18 @@ All payloads are plain objects; `LayoutInput` and `MeasureTable` are already `st
 2. posts 'layout'
 3. on 'result'  → clear timer → validate (§5) → quantize → resolve { value, diagnostics }
                   (§5's own warnings — e.g. SGL4003 — pass through on a success, not just [])
+                  (then the engine's own `notes` (DD-12 N20, `feat/b5-pin`), on a success
+                   only. At most the first 100 entries are read. A note is kept only if its
+                   code is a LAYOUT_CATALOGUE row that is not an error, and its span is two
+                   non-negative integers with from <= to. Only the template's placeholders
+                   are read from its params: finite numbers, or strings through workerText()
+                   (backticks and control characters become spaces; cut to 120 characters).
+                   The message is rebuilt with layoutDiagnostic(), never the engine's.
+                   `engineNotes()` in host.ts; fix round 1, items 1-3)
                   (or resolve { value: null, diagnostics } if §5 rejects it — SGL4002)
-   on 'error'   → clear timer → resolve { value: null, diagnostics: [diagnostic] }  (SGL4011)
+   on 'error'   → clear timer → resolve { value: null, diagnostics: [SGL4011] }, built by the host
+                  from the engine id it asked for and workerText(reason); nothing else in the
+                  message is read (feat/b5-pin fix round 1, item 4)
    on timer     → worker.terminate(); respawn; resolve { value: null, diagnostics: [SGL4001] }
 4. abort(): post 'abort'; reject *immediately* with AbortError (the caller stops waiting
    without needing the worker's cooperation); separately, if no 'result'/'error' for that
@@ -335,12 +364,20 @@ bounds                  = { 0, 0, root.width, root.height }   (advisory: the hos
 (an edge ELK returns without a section is left out, so routeStraight fills it; an id ELK returns that was never sent throws → SGL4011)
 ```
 
+**Routes round a container's title (F16, `avoidTitle` in `mapping.ts`; fix round 1).** ELK is not given a container's title (§6.1 note 2), so it may run an edge into (or out of) the container straight through it: the title sits in the band `elk.padding.top` reserves, and to ELK that band is empty padding. After every route is mapped, `fromElkGraph` takes each container with a title, outer containers first, and each *run*: a vertical segment (within 1e-6 px) of a route that passes from above the title's text box to below it, where the container is an ancestor of the run's far end (the target, or the source for a run going up, e.g. under `direction: up`). A route through the title of a container that holds neither end is a K4 crossing and is left alone.
+- **Shapes.** Every detour turns right in the strip above the title and passes the title `TITLE_GAP` (4 px) to its right. Then: (a) **turn back** to its own x in the gap below the title, when what is left of the run below the gap is long enough: any length before another bend, or `arrowSize` + 4 px before the route's end (so a deep end, and a port, keep their last segment and arrowhead); otherwise, for a run that ends on its node (not a port) at the band's bottom, (b) **end on the node's top** at the new x, when that x is at least `0.375 × arrowSize` (half the arrowhead) inside the node's right corner, or (c) **enter the node's side**: down to the node's middle at `x = max(new x, node right + arrowSize + 4)` and into its right side, so the last segment is at least `arrowSize` + 4 px long and the arrowhead is clear of the title. (a) and (b) stay in the band, where there is no node; (c) is the only shape that leaves it, into the container's first layer, and is not made if it would meet another child of the container. A port end is never moved.
+- **Stacking.** The runs through one title are sorted right to left. The `m` rightmost are stacked, nested: the rightmost furthest right, turning highest and turning back lowest, each `max(4, 0.75 × arrowSize + 1)` px from the next, so their arrowheads never touch. A detour is not made if any of its new segments meets (touching counts) another route, or another detour already planned; then the whole stack is tried again with one run fewer. The runs left alone are therefore all left of every detour, which never crosses them: a detour never adds a crossing (`elk.test.ts` checks every corpus document against the undetoured mapping).
+- **Left alone.** A band too thin to hold a detour leaves the route as ELK drew it: no room above the title (`padding: 0` puts the title at the container's top edge), or for a turn-back, none below it (`titleGap: 0`); a run whose far end is a port that it cannot turn back before; a run whose detour would meet another route. In the corpus that leaves four, all in `wildcards`: ELK runs three more edges into `lane2` 0.4–20 px right of its title, and one into `fan2` 0.8 px right of its title, so no detour to the right can miss them.
+- **Routing modes.** The engine asks for the detours (`fromElkGraph`'s `arrowSize`) under ORTHOGONAL and POLYLINE, whose points are vertices; not under SPLINES, whose points are control points, where an orthogonal jog would bend the curve. Only vertical runs are detoured; horizontal runs through a title (`direction: left`/`right`) are out of scope.
+
+The added coordinates are on the 1/64 px grid; only those runs change, and the routes stay orthogonal. Source-level fixes were tried first and do not work (07 §2): sending the title as a container label with `[H_LEFT, V_TOP, INSIDE]` or `[H_LEFT, V_TOP, INSIDE, H_PRIORITY]` removes every crossing only because ELK then reserves a left column as wide as the title and moves every child right of it (18 corpus documents' node frames change); `[H_CENTER, V_TOP, INSIDE]` leaves all 13; `elk.hierarchyHandling: SEPARATE_CHILDREN` on containers makes ELK throw on 10 documents. ELK's layered router does not treat a node label, or padding, as an obstacle for an edge entering its own ancestor.
+
 Then the host applies §4.4 (arrow reserve) and §4.5 (self-loops — ELK routes them but with a tight box; the host's teardrop is used when ELK's loop is under 16 px tall). **Implemented (Stage K)** as `finishEngineRoutes` inside `applyHostFallbacks` (§4), in the worker runtime like every engine's fallbacks — not in the adapter. Labels are never touched by the host for `elk` (`labelPlacement: true` skips `placeLabels`), except a replaced self-loop's own label (§4.5).
 
 ### 6.3 Known ELK behaviours to test around (06 §4 pitfall 8)
 
 - Hierarchy-crossing edges with `ORTHOGONAL` occasionally route through a sibling container. The corpus includes this case; the mitigation is the `edgeRouting` option, and the test asserts no route segment intersects an unrelated container's frame — a *warning* in CI, not a failure, until the rate is known. **Stage K (K4):** `hierarchyCrossings` (`@sgl/layout-api/conformance`) counts, per document, the (edge, container) pairs where a route passes through the frame of a container enclosing neither endpoint (the frame shrunk by 0.5 px, curves sampled). It is logged by `elk.test.ts`, never failed. Measured: **0 on every corpus document** under `ORTHOGONAL`, and 0 for `containers-edges.sgl` under both `ORTHOGONAL` and `POLYLINE`.
-- **An edge can cross a container's title** (Stage K, found by inspection; the K4 check does not see it, the container being the endpoint's own ancestor). Fix round 1 (item 2) counts it: `titleCrossings` (`@sgl/layout-api/conformance`) counts route segments through any container's title *text* (its measured size, placed by align/baseline, shrunk 0.5 px), endpoints' ancestors included. Per corpus document, under ORTHOGONAL — with the first-cut centred titles: `checkout` 2, `containers-edges` 1, `forty-three-level` 1, `nesting-3` 2, `wildcards` 1, `n50` 4, `n500` 49, `n2000` 199; with titles top-left (§6.1 note 2): `checkout` 2, `containers-edges` 1, `nesting-3` 1, `wildcards` 4, all others 0. ELK knows nothing of a title it is not given, and none of ELK's own mitigations tried removes the rest: `elk.layered.considerModelOrder.strategy: NODES_AND_EDGES` on containers makes ELK throw on 8 corpus documents; `elk.layered.mergeHierarchyEdges: false` and `elk.spacing.labelNode` change nothing; `FIXED_SIDE` port constraints on containers move the crossings (5 in `wildcard-globs`). They are a pinned, counted warning (`elk.test.ts`), for review.
+- **An edge can cross a container's title** (Stage K, found by inspection; the K4 check does not see it, the container being the endpoint's own ancestor). Fix round 1 (item 2) counts it: `titleCrossings` (`@sgl/layout-api/conformance`) counts route segments through any container's title *text* (its measured size, placed by align/baseline, shrunk 0.5 px), endpoints' ancestors included. Per corpus document, under ORTHOGONAL — with the first-cut centred titles: `checkout` 2, `containers-edges` 1, `forty-three-level` 1, `nesting-3` 2, `wildcards` 1, `n50` 4, `n500` 49, `n2000` 199; with titles top-left (§6.1 note 2): `checkout` 2, `containers-edges` 1, `nesting-3` 1, `wildcards` 4, all others 0. ELK knows nothing of a title it is not given, and none of ELK's own mitigations tried removes the rest: `elk.layered.considerModelOrder.strategy: NODES_AND_EDGES` on containers makes ELK throw on 8 corpus documents; `elk.layered.mergeHierarchyEdges: false` and `elk.spacing.labelNode` change nothing; `FIXED_SIDE` port constraints on containers move the crossings (5 in `wildcard-globs`). They were a pinned, counted warning (`elk.test.ts`) until **F16**: `fromElkGraph` now detours those runs round the title (§6.2), and under ORTHOGONAL `titleCrossings` is **`wildcards` 4, all others 0** (pinned by document and by edge): the four cannot be detoured without meeting another route. The detour applies to vertical runs under ORTHOGONAL and POLYLINE, never under SPLINES.
 - Edge labels on very short edges may overlap the node; the host's plate makes this legible, and a later pass may nudge.
 
 ---
@@ -409,6 +446,11 @@ For each corpus graph (empty, one node, one edge, self-loop, parallel edges, 3-d
 | `SGL4003` | warning | `{node}` extends outside its container after layout. |
 | `SGL4010` | warning | `@layout.{key}` is not an option of engine `{id}`; ignored. — **implemented** (Stage K fix round 1, item 23): a container-level `@layout.engine` naming another engine (B8/B9), and any `@layout` key the effective engine does not declare (§2) |
 | `SGL4011` | error | Layout engine `{id}` failed: {message}. |
+| `SGL4021` | warning | `@pin` is not honoured by engine `{id}`; ignored. **Implemented** (`feat/b5-pin`, DD-12 N6, H4, H5): from `layoutConfigDiagnostics`, on the main thread, at the key. It fires once per node (by path), at its first pin key, when the engine does not declare `capabilities.pins`, and not for a pin the resolver dropped with `SGL2011` (fix round 1). Fixture: `corpus/layout/pin-under-elk.sgl` |
+
+An engine may emit a warning or info row of this table through `LayoutResult.notes`
+(§2, §3). The host drops an `error` row, because an engine that fails throws.
+`SGL4020` (DD-12 N9) is allocated and arrives with `fixed` (`feat/b5-fixed`).
 
 ---
 

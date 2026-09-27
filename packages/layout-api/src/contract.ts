@@ -1,6 +1,7 @@
 import type {
   Diagnostic,
   EdgeId,
+  LayoutDiagnosticCode,
   Insets,
   LabelId,
   NodeId,
@@ -9,6 +10,7 @@ import type {
   Rect,
   SemanticGraph,
   Size,
+  SourceSpan,
   Vec2,
 } from '@sgl/core';
 
@@ -33,6 +35,12 @@ export interface EngineCapabilities {
    * join the cross-environment golden test, and is surfaced in the engine picker.
    */
   readonly determinism: 'bitwise' | 'quantized' | 'best-effort';
+  /**
+   * Places a node where its `@pin` says (DD-12 N6). Optional, so it is
+   * additive and `apiVersion` stays 1; absent means `false`, and a `@pin`
+   * under such an engine is `SGL4021` (`layoutConfigDiagnostics`).
+   */
+  readonly pins?: boolean;
 }
 
 /**
@@ -168,7 +176,22 @@ export interface LayoutResult {
   readonly labels: readonly LabelPlacement[];
   /** Explicit z-order groups. */
   readonly layers?: readonly LayerSpec[];
+  /** Ignored by the host (DD-12 N20): a message from a worker is untrusted
+   *  text. Kept for compatibility; an engine reports through `notes`. */
   readonly diagnostics?: readonly Diagnostic[];
+  /** What an engine has to say about the document, by catalogue code (DD-12
+   *  N20). The host keeps a note only if its code is a `LAYOUT_CATALOGUE`
+   *  row that is not an error and its span is finite, and builds the
+   *  message itself with `layoutDiagnostic()`; anything else is dropped. */
+  readonly notes?: readonly EngineNote[];
+}
+
+export interface EngineNote {
+  readonly code: LayoutDiagnosticCode;
+  readonly span: SourceSpan;
+  /** The template's placeholders; a value that is not a string or a finite
+   *  number is dropped. */
+  readonly params?: Readonly<Record<string, string | number>>;
 }
 
 export interface NodeLayout {

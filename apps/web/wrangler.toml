@@ -1,5 +1,5 @@
 # apps/web/wrangler.toml
-name = "sgl"
+name = "sgl-worker"
 compatibility_date = "2026-09-01"
 [assets]
 directory = "./dist"

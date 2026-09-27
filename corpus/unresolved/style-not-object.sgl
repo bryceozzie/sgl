@@ -1,0 +1,7 @@
+// expects: SGL2011
+// `@style` is always an object (language spec §4; human decision 2026-09-27).
+// A bareword is not a shorthand: it is SGL2011 and ignored, so this edge is
+// drawn solid. A dashed edge is `@style: { strokeDash: "6 3" }`.
+a
+b
+a -> b: { @style: dashed }

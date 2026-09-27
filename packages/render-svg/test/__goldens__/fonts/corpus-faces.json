@@ -110,6 +110,29 @@
     "Inter normal 500",
     "Inter normal 600"
   ],
+  "layout/pin-edge.sgl": [
+    "Inter normal 500"
+  ],
+  "layout/pin-full.sgl": [
+    "Inter normal 500"
+  ],
+  "layout/pin-half.sgl": [
+    "Inter normal 500"
+  ],
+  "layout/pin-malformed.sgl": [
+    "Inter normal 500"
+  ],
+  "layout/pin-negative.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "layout/pin-nested.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "layout/pin-under-elk.sgl": [
+    "Inter normal 500"
+  ],
   "layout/unknown-key.sgl": [
     "Inter normal 500"
   ],
@@ -224,6 +247,9 @@
     "Inter normal 500"
   ],
   "unresolved/shape-not-drawn.sgl": [
+    "Inter normal 500"
+  ],
+  "unresolved/style-not-object.sgl": [
     "Inter normal 500"
   ],
   "unresolved/unknown-class.sgl": [

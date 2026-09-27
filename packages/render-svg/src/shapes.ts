@@ -1,4 +1,4 @@
-import type { Point, Rect } from '@sgl/core';
+import { DEFAULT_SHAPE, type Point, type Rect } from '@sgl/core';
 import { num, nums } from './num.js';
 
 /**
@@ -279,7 +279,9 @@ export const SHAPES: Readonly<Record<string, Shape>> = Object.freeze({
   package: packageShape,
 });
 
-export const DEFAULT_SHAPE = 'rect';
+/** `@sgl/core`'s, so the compiler's default and the renderer's fallback are
+ *  one value (DD-13 P5). */
+export { DEFAULT_SHAPE };
 
 /** Declaration order of `SHAPES`, for tests and for anything that needs to walk
  *  the built-ins without iterating object keys (DD-00 §3). */

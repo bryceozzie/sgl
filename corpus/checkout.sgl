@@ -2,7 +2,7 @@
 @sgl: "1.0"
 @title: "Checkout Flow"
 @theme: "neutral-light"
-@layout: { engine: "layered", direction: right }
+@layout: { engine: "elk", direction: right }
 
 @vars: { hot: "#DC2626" }
 
@@ -32,7 +32,7 @@ payments: {
   outbox:  Store
 
   api -> ledger
-  api -> outbox: { @label: "async", @style: dashed }
+  api -> outbox: { @label: "async", @style: { strokeDash: "6 3" } }
 }
 
 psp: { @label: "Stripe", @type: External }

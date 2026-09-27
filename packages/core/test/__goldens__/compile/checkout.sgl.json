@@ -22,8 +22,8 @@
       },
       "hidden": false,
       "span": {
-        "from": 347,
-        "to": 387
+        "from": 343,
+        "to": 383
       }
     },
     "storefront": {
@@ -46,8 +46,8 @@
       },
       "hidden": false,
       "span": {
-        "from": 389,
-        "to": 511
+        "from": 385,
+        "to": 507
       }
     },
     "storefront.web": {
@@ -72,8 +72,8 @@
       },
       "hidden": false,
       "span": {
-        "from": 429,
-        "to": 442
+        "from": 425,
+        "to": 438
       }
     },
     "storefront.bff": {
@@ -99,8 +99,8 @@
       },
       "hidden": false,
       "span": {
-        "from": 445,
-        "to": 484
+        "from": 441,
+        "to": 480
       }
     },
     "payments": {
@@ -128,8 +128,8 @@
       },
       "hidden": false,
       "span": {
-        "from": 513,
-        "to": 743
+        "from": 509,
+        "to": 754
       }
     },
     "payments.api": {
@@ -157,8 +157,8 @@
       },
       "hidden": false,
       "span": {
-        "from": 589,
-        "to": 637
+        "from": 585,
+        "to": 633
       }
     },
     "payments.ledger": {
@@ -183,8 +183,8 @@
       },
       "hidden": false,
       "span": {
-        "from": 640,
-        "to": 654
+        "from": 636,
+        "to": 650
       }
     },
     "payments.outbox": {
@@ -209,8 +209,8 @@
       },
       "hidden": false,
       "span": {
-        "from": 657,
-        "to": 671
+        "from": 653,
+        "to": 667
       }
     },
     "psp": {
@@ -235,8 +235,8 @@
       },
       "hidden": false,
       "span": {
-        "from": 745,
-        "to": 787
+        "from": 756,
+        "to": 798
       }
     }
   },
@@ -256,8 +256,8 @@
       "declaredIn": null,
       "hidden": false,
       "span": {
-        "from": 789,
-        "to": 811
+        "from": 800,
+        "to": 822
       }
     },
     {
@@ -277,8 +277,8 @@
       "declaredIn": null,
       "hidden": false,
       "span": {
-        "from": 812,
-        "to": 858
+        "from": 823,
+        "to": 869
       }
     },
     {
@@ -298,8 +298,8 @@
       "declaredIn": null,
       "hidden": false,
       "span": {
-        "from": 859,
-        "to": 891
+        "from": 870,
+        "to": 902
       }
     },
     {
@@ -319,8 +319,8 @@
       "declaredIn": "storefront",
       "hidden": false,
       "span": {
-        "from": 488,
-        "to": 509
+        "from": 484,
+        "to": 505
       }
     },
     {
@@ -338,8 +338,8 @@
       "declaredIn": "payments",
       "hidden": false,
       "span": {
-        "from": 675,
-        "to": 688
+        "from": 671,
+        "to": 684
       }
     },
     {
@@ -355,13 +355,15 @@
       "labelId": "l:e-7cfa36e0eac91b9c",
       "config": {
         "label": "async",
-        "style": "dashed"
+        "style": {
+          "strokeDash": "6 3"
+        }
       },
       "declaredIn": "payments",
       "hidden": false,
       "span": {
-        "from": 691,
-        "to": 741
+        "from": 687,
+        "to": 752
       }
     }
   ],

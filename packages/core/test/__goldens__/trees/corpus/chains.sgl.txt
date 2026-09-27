@@ -1,4 +1,4 @@
-Document 0-204
+Document 0-219
   LineComment 0-50
   Entry 51-52
     NodeDecl 51-52
@@ -113,8 +113,8 @@ Document 0-204
       : 115-116
       EdgeValue 117-127
         String 117-127
-  Entry 128-176
-    EdgeStmt 128-176
+  Entry 128-191
+    EdgeStmt 128-191
       Endpoint 128-129
         Path 128-129
           PathStep 128-129
@@ -127,8 +127,8 @@ Document 0-204
             PathSegment 134-135
               Identifier 134-135
       : 135-136
-      EdgeValue 137-176
-        Block 137-176
+      EdgeValue 137-191
+        Block 137-191
           { 137-138
           Entry 139-158
             ConfigEntry 139-158
@@ -136,33 +136,40 @@ Document 0-204
               : 145-146
               Value 147-158
                 String 147-158
-          Entry 160-174
-            ConfigEntry 160-174
+          Entry 160-189
+            ConfigEntry 160-189
               ConfigKey 160-166
               : 166-167
-              Value 168-174
-                Word 168-174
-                  Identifier 168-174
-          } 175-176
-  Entry 177-203
-    EdgeStmt 177-203
-      Endpoint 177-178
-        Path 177-178
-          PathStep 177-178
-            PathSegment 177-178
-              Identifier 177-178
-      EdgeOp 179-181
-      Endpoint 182-183
-        Path 182-183
-          PathStep 182-183
-            PathSegment 182-183
-              Identifier 182-183
-      EdgeOp 184-186
-      Endpoint 187-188
-        Path 187-188
-          PathStep 187-188
-            PathSegment 187-188
-              Identifier 187-188
-      : 188-189
-      EdgeValue 190-203
-        String 190-203
+              Value 168-189
+                Object 168-189
+                  { 168-169
+                  Property 170-187
+                    PropKey 170-180
+                      Identifier 170-180
+                    : 180-181
+                    Value 182-187
+                      String 182-187
+                  } 188-189
+          } 190-191
+  Entry 192-218
+    EdgeStmt 192-218
+      Endpoint 192-193
+        Path 192-193
+          PathStep 192-193
+            PathSegment 192-193
+              Identifier 192-193
+      EdgeOp 194-196
+      Endpoint 197-198
+        Path 197-198
+          PathStep 197-198
+            PathSegment 197-198
+              Identifier 197-198
+      EdgeOp 199-201
+      Endpoint 202-203
+        Path 202-203
+          PathStep 202-203
+            PathSegment 202-203
+              Identifier 202-203
+      : 203-204
+      EdgeValue 205-218
+        String 205-218

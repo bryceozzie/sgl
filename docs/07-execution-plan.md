@@ -642,6 +642,31 @@ Verified in Chromium only (Firefox and WebKit are not available here). Each test
   `importShare` is in the lazy `share` chunk). **Docs**: DD-08 §8, §9, §11, §12, §14, §15; DD-10 §2 and §4;
   DD-11 (the F12 note); this paragraph and §2.1.
 
+**F16, mostly fixed** (Stage L, `fix/f16-title-crossings`, from `main` at `755bfd0`, `main` merged in
+at `c6859f7`; **not merged**). Under `elk`, 13 edges in six documents entered a container through its
+own title. **Root cause:** the title is not sent to ELK (DD-06 §6.1 note 2); it sits in the band
+`elk.padding.top` reserves, which ELK treats as empty padding, so an edge into a child runs straight
+down from the container's top edge, through the title whenever it meets the child under it. **Tried
+at the source first:** the title as a container label `[H_LEFT, V_TOP, INSIDE]` or `…, H_PRIORITY]`
+gives 0 crossings only because ELK then reserves a left column as wide as the title (node frames
+change in 18 documents); `[H_CENTER, V_TOP, INSIDE]` leaves all 13; `SEPARATE_CHILDREN` on
+containers makes ELK throw on 10 documents. **Fix:** `fromElkGraph` detours each vertical run
+through the title of a container holding its far end round the title's right (`avoidTitle`,
+`mapping.ts`; DD-06 §6.2): turn back below the title, end on the node's top, or enter its side; runs
+stacked right to left, and a detour that would meet another route is not made. Only under
+ORTHOGONAL and POLYLINE (the engine passes `arrowSize`), never SPLINES. **Fix round 1** (7 items,
+after review): the last segment into a node is always at least `arrowSize` + 4 px (the round-1
+turn-back left 3 px, and the arrowhead on the title); runs that do not fit are left alone instead of
+being crossed (round 1 skipped them and crossed 5 of them); mixed shapes no longer cross; thin bands
+use a tolerance; the SPLINES gate; the ancestor check restored; horizontal runs out of scope.
+`titleCrossings`: `checkout` 2 → 0, `containers-edges` 1 → 0, `nesting-3` 1 → 0, `text/wrap` 1 → 0,
+`wildcard-paths` 4 → 0, `wildcards` 4 → 4 (ELK runs other edges 0.4–20 px right of those titles,
+so no detour fits: §2.1 F16). K4 hierarchy crossings stay 0; no overlaps, no detached ends; no
+detour adds a meeting of two routes on any corpus document. **Goldens:** only `sgl.elk` layout
+goldens of documents whose routes change: `layout-elk` `result/` checkout, containers-edges,
+nesting-3, wildcard-paths, and `render-svg` `rich/sgl.elk/text__wrap`; `wildcards`' is back to
+`main`'s. **Size:** 175 994 → 176 817 B (+823 B, worker), over the branch's +600 B budget (§2.1 F16).
+
 **Stage K merged to `main` at `0e9ecfc`** (`--no-ff`, 2026-09-23) after a three-lens review and
 one fix round (23 items). `pnpm check`'s steps from clean are green on `main`, run by the
 orchestrator: 2139 Vitest passed (unit + browser project, Chromium only), e2e 55/55 in Chromium,
@@ -1966,6 +1991,98 @@ unbuilt, and DD-00's DD-11 row was stale. Next is the plan in DD-12 §13: `feat/
 `feat/b5-fixed` → `fix/root-layout-options` → `feat/b5-tree` → `feat/b5-radial`. The estimated boot
 cost is ~3.2 kB of the 6.01 kB left.
 
+**B5 branch 1, `feat/b5-pin`** (from `main` at `caa0189`; not merged). This is DD-12 §13's branch 1.
+- **`@pin` has a registry row** (`config-registry.ts`, N4). Its scope is node, containers
+  included. It must be `{ x, y }`, both numbers within ±100 000; otherwise the whole pin is dropped
+  with `SGL2011` ("expects `{ x, y }` numbers within ±100 000"). Any other sub-key is `SGL2010`
+  and kept. On an edge, a class or the root it is `SGL2012`. The pin reaches `LayoutInput`
+  unchanged in `GraphNode.config.pin`, relative to the parent's content box (H2).
+- **Engine notes reach the document (N20;** DD-12 §17 item 3 is resolved). An engine returns
+  `LayoutResult.notes` (`{ code, span, params }`). `host.ts`'s `engineNotes()` keeps a note only
+  if it is a non-error `LAYOUT_CATALOGUE` row with a finite span, and builds its message with
+  `layoutDiagnostic()`. `LayoutResult.diagnostics` and `ctx.log` stay dropped. Notes are added
+  only to an accepted result.
+- **Pins are a capability.** `EngineCapabilities.pins?` is optional, so `apiVersion` stays 1.
+  **`SGL4021`** is allocated (H5): a warning at a node's first `@pin` key, from
+  `layoutConfigDiagnostics`, when the engine lacks `pins`. Neither `grid` nor `elk` has it.
+  `SGL4020` moves to `feat/b5-fixed`, its emitter.
+- **Bare engine names (N22, the orchestrator's bug fix).** `documentEngineOverride` maps
+  `grid` → `sgl.grid` when only the latter is registered. `corpus/checkout.sgl` says `elk` (H7).
+- **Fixtures:** all seven of DD-12 §12's `corpus/layout/pin-*.sgl`. The four `fixed` ones are
+  `SGL4021` per pin under `grid` until `fixed` lands (`DOWNSTREAM_EXTRA`).
+- **Goldens.** New: the fixtures' CST/AST pins and fonts-golden entries. Changed: only
+  `checkout.sgl`'s core resolve, compile, CST and AST goldens, for its source text (the engine
+  string and shifted spans). Its layout and render goldens are byte-identical.
+- **Found:** an elk conformance failure (check 6, an edge starting 12 px from its node) for
+  `root -> box` when `root` is declared after the titled container `box`. It happens without pins.
+  It is reported, not fixed; `pin-nested.sgl` avoids that edge.
+- **Size:** core **176.38 kB** of 182 (+0.39 kB) before fix round 1.
+- **Tests:** `resolve.test.ts` (18 `@pin` cases); `host.test.ts` (notes);
+  `host-runtime.integration.test.ts` (the engine → worker → host → `run()` seam);
+  `layout-config.test.ts` (`SGL4021`); `overrides.test.ts` and apps/web `pipeline.test.ts` (bare
+  names, `SGL4021` under the real registered engines, the pin in `LayoutInput`);
+  `e2e/engine-options.spec.ts` (`engine: grid` lays out, and `SGL4021` is squiggled at `@pin`).
+- **Docs:** DD-02 §7, DD-06 §2, §3 and §9, DD-08 §10, DD-12 §13 (as built, with deviations),
+  and the corpus README.
+- **Fix round 1** (after merging `main` at `b3171e6`). Eight items; each test failed first.
+  1. `engineNotes` reads at most 100 notes, by index. The cap is silent, because no catalogue
+     row can say how many were dropped. Params are read only for the template's placeholders.
+  2. A note's span must be non-negative integers with `from <= to`. The app clamps every span to
+     the document (`clampSpan`) before `setDiagnostics` and `scrollToSpan`.
+  3. `workerText()`: string params lose backticks and control characters, and are cut to 120
+     characters.
+  4. The worker's `'error'` message is `{ t, id, reason }`. The host builds `SGL4011` from its own
+     engine id and `workerText(reason)`, so the worker carries no catalogue row;
+     `check-core-chunks.mjs` now requires that.
+  5. `registeredEngine()` is exported, and a `pins: true` stub silences `SGL4021`. This kills
+     mutation M9.
+  6. and 7. `SGL4021` skips a pin the resolver dropped, so it is reported once, as `SGL2011`.
+     It is once per node path, at the first pin key in source order.
+  8. A blank `@layout.engine` is `SGL2011` and dropped, so the editor's engine applies.
+
+  Size: core **176.96 kB**, +0.08 kB over `main` (176.88).
+
+**Help branch 1, `feat/help-reference`** (Stage L, E19, DD-13 §13 branch 1; branched from `main` at
+`ca9956e`; no golden changed). **DD-13 P5's exports**, each now the value the code uses in place of
+its literal: `@sgl/core` exports `CONFIG_REGISTRY` and `LANGUAGE_SHAPES`; `DEFAULT_SHAPE` (`ids.ts`)
+replaces `compile.ts`'s three `'rect'` fallbacks, and `@sgl/render-svg`'s `DEFAULT_SHAPE` is now a
+re-export of it; `PORT_SIDES` (`compile.ts`, SGL3007's set) is exported; `STRUCTURAL_KEYS`
+(`@extends` in a class, `@edges` at the root or in a container) lives in a new
+`structural-keys.ts` beside the registry, whose `EXTENDS_KEY`/`EDGES_KEY` `resolve.ts` now matches
+on; `A11Y_KEYS` drives the renderer's `a11yLabel`/`a11yDescription`. `REGISTERED_ENGINES` carries
+each descriptor's `capabilities`. **`buildReference(engines)`** (`apps/web/src/reference/`, with its
+types) builds DD-13 P6's `Reference`, deeply frozen, from those tables plus the style registry,
+`DASH_PATTERNS`, `BUILT_IN` through `resolveTheme`, `CATALOGUE` and `IMPORT_CATALOGUE`. Nothing
+imports it yet; `apps/web/test/reference-boot.test.ts` fails if `main.tsx` or the layout worker
+reaches `src/reference/` by static imports. Tests: `reference.test.ts` (representative entries,
+completeness by iterating each source table, canonical order, determinism, freezing) and the two
+`reference-constants.test.ts` (each constant against the behaviour it names). Core bundle **176.05 kB
+of 182** (+54 B). Deviations are listed in DD-13 §13 branch 1: `@edges`' scope includes the root,
+`STRUCTURAL_KEYS` has its own module, and four gaps were filled (`hint/` ids, `engineId`,
+`key/layout.engine`, `@style`'s sub-keys are the `style/` ids).
+
+**Help branch 0, `fix/style-shorthand`** (Stage L, DD-13 §13 branch 0; human decision 2026-09-27;
+branched from `main` at `b3171e6`). `CONFIG_REGISTRY`'s `style` row is now `object`, not `any`.
+A `@style` that is not an object (`@style: dashed`, a string, a number, an array, or a `$var`
+holding one) is therefore `SGL2011` ("`@style` expects object; ignored.") and dropped. Before, the
+cascade ignored it with no diagnostic, and the line drew solid. Dotted keys are unchanged.
+`corpus/checkout.sgl`, `corpus/chains.sgl` and the first-run example now write
+`@style: { strokeDash: "6 3" }`. Only those lines changed, so `feat/b5-pin`'s `engine` edit merges
+cleanly. The new fixture `corpus/unresolved/style-not-object.sgl` emits `SGL2011`.
+
+Goldens:
+- the `checkout` and `chains` render goldens are re-baselined in all four themes, because the
+  edges now carry `stroke-dasharray:6 3`;
+- their AST, CST, resolve and compile goldens, and the example's AST and CST pins, moved only
+  where the text and the spans after it changed;
+- `render-svg`'s fonts pin gains one entry, for the new fixture;
+- no other golden moved.
+
+Tests: `resolve.test.ts` (each non-object form, and an object plus a dotted key) and
+`e2e/style-shorthand.spec.ts` (the first-run example has no diagnostics, and the async edge's
+computed dasharray is `6 3`). DD-02 §7's row and paragraph are rewritten. Core bundle **176.88 kB
+of 182** (+5 B).
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
@@ -1980,7 +2097,7 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F10** | `ctx.random`'s seed (`host.ts`'s `SEED = 1`) is one fixed constant, shared by every request for every document — `LayoutHost.run()`'s frozen signature has no per-call seed parameter, so Stage H could not add one unilaterally (DD-06 §3). Where a per-document seed should come from — a new `run()` parameter, or something content-addressed from a graph hash so the same document always seeds the same way without threading a value through every call site — is undecided, and is an orchestrator/design decision to make, not Stage H's to settle unilaterally. No engine shipped so far reads `ctx.random` at all (`grid` is fully deterministic; `elk`, built in Stage K, pins its own seed with `elk.randomSeed: '1'` instead), so nothing depends on the answer yet. DD-12 (B5) proposes that `fixed`, `tree` and `radial` read none either, so this row's owner has become `force` (DD-12 N50, H3). | `force` (backlog B22, Could since 2026-09-27) — no v1.0 engine reads `ctx.random` (DD-12 N50) |
 | **F13** | **Known limitation, recorded (F13(b)).** Criterion 5's offline test (`e2e/offline.spec.ts`) is falsifiable against the HTTP cache in Chromium (CDP cache clear and `fromServiceWorker()`) and WebKit (its own `no-store` server), but not in Firefox, which has neither mechanism: there it can pass with the HTTP cache answering, so a missing precache entry would go unseen in Firefox alone (DD-08 §14). No code change while no Firefox run is available. F13(a), a pasted share link reloading, and F13(c), toasts piling up, are fixed (§2, `fix/f12-f13-app`), and so is F12. | whoever next runs the suite in Firefox (CI's `test:e2e:all-browsers`) |
 | **F15** | `elk` misses DD-09 §2's performance budget as measured in Node by Stage K's review: `elkEngine.layout` alone takes 0.5–0.8 s warm / 1.4 s cold at n500 (budget: 400 ms for the whole pipeline) and ~1.9 s warm / 3.8 s cold at n2000 (budget 3 s). Gate 3 is not timed. **Decision (human, 2026-09-23): record it and measure in the browser before Gate 4; the budget is not reopened.** That browser measurement should also take F24's wrapped-label numbers (pre-measure and the canvas cache) at n2000. | Stage L, before Gate 4 (the Gate 4 bench) |
-| **F16** | Under `elk`, some edges enter a container through its own title (the endpoint's ancestor, so the K4 hierarchy-crossing check does not count them): `checkout` 2, `containers-edges` 1, `nesting-3` 1, `wildcards` 4, `wildcard-paths` 4 (added 2026-09-24 with the document), pinned by `titleCrossings` in `packages/layout-elk/test/elk.test.ts`. No ELK option tried removes them (`considerModelOrder` crashes ELK on 8 documents; `FIXED_SIDE` moves them). Candidates: a host-side nudge of the final segment, or port placement once ports are real (F6). | Stage L |
+| **F16** | Under `elk`, 4 edges in `wildcards` still enter a container through its own title (`lane2` 3, `fan2` 1; pinned in `packages/layout-elk/test/elk.test.ts`). `fromElkGraph` detours such runs round the title (DD-06 §6.2), but here ELK runs other edges into the same container 0.4–20 px right of the title, so any detour would cross them, and a detour is never made at that price. Also open: the fix costs +823 B on the worker's boot path, over the branch's +600 B budget (the side-entry shape is about 100 B of it). | Stage L; the size needs a decision |
 | **F23** | **A document that imports many nodes `as:` costs what that many nodes cost, on every keystroke** (A9 fix round 1). Eight 1 500-node libraries imported `as:` graft 12 000 nodes, and a keystroke is ~250 ms in Node: `resolveImports` 39 ms (the imports themselves are cached; the graft is cheaper than resolving the same nodes written in the document, 53 ms) and `compileImports` 221 ms (`compile()` of the same nodes, 214 ms). The keystroke budget (DD-09 §2) is for 50 nodes; this is a 12 000-node document. Candidates: an incremental compile, or a graft kept across keystrokes when the imports are unchanged. Measured by `packages/core/test/imports-keystroke.test.ts` (DD-02 §10.8). | Stage L, with the next performance work on large documents |
 | **F24** | **Wrapping re-measures every wrapped label on each keystroke, and `CanvasMeasurer`'s cache thrashes past ~7 000 of them** (A18 fix round 1, item 5). Measured in Node (static metrics, 7-run medians; long labels on the n2000 document): `premeasure` 11.7 ms unwrapped, **20.5 ms with every node wrapped** at 90 px (30.8 ms with the branch's first, quadratic breaker; the review measured 17 → 87–98 ms on its own document with it). Through `CanvasMeasurer` with a counting fake canvas, three `premeasure` passes over the same graph (what three keystrokes do) make 5 746 / 0 / 0 canvas calls at 2 000 wrapped labels and 17 174 / 0 / 0 at 6 000, but **20 068 / 20 053 / 20 051 at 7 000** and 29 375 / 28 846 / 28 938 at 10 000: past the 20 000-entry cache (about three entries per wrapped label: its words, separators and laid fragments) every pass misses. With the quadratic breaker it thrashed from ~5 000 (24 027 / 24 006 / 24 006 at 6 000). **An LRU does not help** (tried: 19 016 per repeat pass at 7 000, 28 479 at 10 000; a cyclic scan larger than the cache defeats any recency policy), so the clear-all cache stays. The remedy is for `premeasure` to reuse the previous table's entry for an unchanged key (DD-05 §5 already describes the app keeping its previous table), dropping the table when the measurer's line model changes (the rich-text chunk loading, or its degraded model); or a larger cap. **Notes:** measure it in the browser, with real `measureText`, together with F15's browser measurement before Gate 4 (the n2000-rich variant of DD-11 T56 is not built yet). | Stage L, before Gate 4, with F15 |
 | **F25** | **The renderer's first baseline is `0.8 × fontSize`; measurement's ascent is the font's own** (DD-11 §19 item 5; found by DD-11's design, measured by `feat/a18-render`). DD-07 §5 once said `y = frame.y + layout.ascent` from the measured `TextLayout`; `render()` was never given one and has always drawn `0.8 × fontSize`, which A18 kept (T42) so no golden moved. `CanvasMeasurer`'s ascent is `fontBoundingBoxAscent`, which Chromium rounds to whole pixels: Inter's 0.969 em comes out as **13 px** for a 13 px node title against the rendered **10.4 px** (label drawn **2.6 px** higher than measurement's baseline), 12 px against 9.6 for a container title (2.4 px). Adopting the measured ascent would move every label by about 2–2.6 px and re-baseline every render golden under every theme; the label boxes and layout are unaffected (heights use `lineHeight`). `apps/web/test/rich-measure.browser.test.ts` pins the numbers. **A human decision:** keep `0.8 em` (DD-07 §5 now says so), or adopt the measured (or a fixed 0.97 em, deterministic across browsers) ascent in one golden re-baseline. | **Deferred: human decision 2026-09-27, leave it for now** (it cannot overflow a box); fold it into the next re-baseline of the render goldens made for another reason, by whoever next touches DD-07 §5 |

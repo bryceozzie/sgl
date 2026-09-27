@@ -21,10 +21,11 @@ import { IMPORT_CATALOGUE } from '../src/imports-catalogue.js';
  * `RENDER_SVG_OWNED_CODES` directly rather than re-deriving the predicate.
  */
 export function isRenderSvgOwned(code: DiagnosticCode): boolean {
-  // SGL4010 (Stage K fix round 1): emitted by `@sgl/layout-api`'s
-  // `layoutConfigDiagnostics` against the effective engine's schemas — out of
-  // core's reach, so the whole-pipeline gate owns it.
-  return code.startsWith('SGL5') || code === 'SGL6001' || code === 'SGL4010';
+  // SGL4010 (Stage K fix round 1) and SGL4021 (DD-12 N6): emitted by
+  // `@sgl/layout-api`'s `layoutConfigDiagnostics` against the effective
+  // engine's schemas and capabilities — out of core's reach, so the
+  // whole-pipeline gate owns them.
+  return code.startsWith('SGL5') || code === 'SGL6001' || code === 'SGL4010' || code === 'SGL4021';
 }
 
 /** Both tables: `CATALOGUE` and A9's `IMPORT_CATALOGUE` (`@sgl/core/imports`,

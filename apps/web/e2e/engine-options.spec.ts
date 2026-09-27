@@ -97,6 +97,22 @@ test('23: a container asking for its own engine under elk gets an SGL4010 warnin
   await waitForExactNodeCount(page, visibleNodeCount(source));
 });
 
+test('DD-12 N22, N6: a bare `engine: grid` selects grid and lays out; a @pin under it is SGL4021 at the key, and the diagram stays', async ({ page }) => {
+  await page.goto('/');
+  await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
+
+  const source = '@layout: { engine: grid }\na: { @label: "A", @pin: { x: 10, y: 20 } }\nb: "B"\na -> b\n';
+  await setSource(page, source);
+  // Before N22 `grid` reached the worker unmapped: SGL4011 and nothing drawn.
+  await waitForExactNodeCount(page, visibleNodeCount(source));
+  await expect(page.locator('.engine-picker select')).toHaveValue('sgl.grid');
+  await expect.poll(() => diagnosticCodes(page)).toEqual(['SGL4021']);
+  await expect(page.locator('.diagnostics-panel')).toContainText('`@pin` is not honoured by engine `sgl.grid`; ignored.');
+  const warned = page.locator('.cm-content .cm-lintRange-warning');
+  await expect(warned).toHaveCount(1);
+  await expect(warned).toHaveText('@pin');
+});
+
 test('22: a refused value is marked invalid, explained, and not left showing', async ({ page }) => {
   await page.goto('/');
   await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);

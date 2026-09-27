@@ -3,7 +3,7 @@
   "@title": "Checkout Flow",
   "@theme": "neutral-light",
   "@layout": {
-    "engine": "layered",
+    "engine": "elk",
     "direction": "right"
   },
   "@vars": {
@@ -89,7 +89,9 @@
         "directed": "forward",
         "ordinal": 0,
         "@label": "async",
-        "@style": "dashed"
+        "@style": {
+          "strokeDash": "6 3"
+        }
       }
     ]
   },
