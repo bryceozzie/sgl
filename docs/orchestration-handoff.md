@@ -85,6 +85,8 @@ After the fix round: re-verify, then merge `--no-ff`. The `wip` commit `544fe6d`
 
 **Update:** `feat/a18-text` fix round 1 verified by the orchestrator at `94f3491` (5232 Vitest, 102/102 e2e, 181.47 kB). `feat/a18-render` at `2047603` (font faces moved to lazy chunk, 181.71 kB). Its merge of `origin/feat/a18-text` was **refused by the permission classifier**; awaiting the human. On merge: text keeps F24 (canvas cache), render's ascent becomes F25. Render fix round 1 (both reviews): table seam (a hit uses `layoutTable`, a miss uses the latest table; m15 survived), PNG real-italic check (m21 survived), code-not-italic behaviour test, the font gate before measuring, faces requested by styles loaded live, a corpus face-selection golden, the edge-label rule test, e2e waits, a T57 all-labelled control, and one nit.
 
+**Update 2:** the human authorised the merge; the orchestrator merged `feat/a18-text` into `feat/a18-render` at `dfb7a59` (pushed; ascent finding renumbered F25). Clean run: **181.97 of 182 kB**; 4 expected golden failures (`rich/render/*/text__wrap.sgl.svg`, the hexagon fix). The render agent has step 0 (regenerate those four goldens) plus the 10-item fix round; item 5 must add nothing to boot or be reported.
+
 ### A18 markdown labels: branch `design/a18-text` at `8ca91c9` (design only, not merged)
 
 **Status 2026-09-26: branch 1, `feat/a18-grammar`, is complete and pushed; awaiting orchestrator
