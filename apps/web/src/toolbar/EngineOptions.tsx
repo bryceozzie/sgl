@@ -1,5 +1,6 @@
 import { useRef, useState } from 'preact/hooks';
 import { engineOptionRules } from '../state/engine-options.js';
+import { lazyChunk } from '../state/lazy.js';
 import type { Pipeline } from '../state/pipeline.js';
 import { useDisclosure } from './disclosure.js';
 
@@ -8,15 +9,12 @@ export interface EngineOptionsProps {
 }
 
 type FormModule = typeof import('./engine-options-form.js');
-let formModule: Promise<FormModule> | undefined;
 
 /** The lazy `engine-options-form` chunk (the form, `state/engine-form.ts`),
  *  imported once, the first time Options ▾ is opened. Off the first paint;
- *  precached like every chunk, so it works offline (`e2e/offline.spec.ts`). */
-function loadForm(): Promise<FormModule> {
-  formModule ??= import('./engine-options-form.js');
-  return formModule;
-}
+ *  precached like every chunk, so it works offline (`e2e/offline.spec.ts`).
+ *  A failed load is reported and retried (`state/lazy.ts`). */
+const loadForm: () => Promise<FormModule> = lazyChunk(() => import('./engine-options-form.js'));
 
 /**
  * F11 (DD-08 §10): Options ▾, beside Engine ▾ (K9). A plain disclosure, the
