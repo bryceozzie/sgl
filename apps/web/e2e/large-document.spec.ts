@@ -1,7 +1,7 @@
 import { deflateRawSync } from 'node:zlib';
 import { expect, test, type Page } from '@playwright/test';
 import { scaleDocument } from '../../../bench/scale-document.js';
-import { diagnosticCodes, EXAMPLE_NODE_COUNT, openFile, renderedSvg, visibleNodeCount, waitForExactNodeCount, waitForNodeCount } from './helpers.js';
+import { diagnosticCodes, EXAMPLE_NODE_COUNT, openFile, renderedSvg, toastMessages, visibleNodeCount, waitForExactNodeCount, waitForNodeCount } from './helpers.js';
 
 /**
  * F19 (execution plan §2.1): a large document must reach the pipeline as a
@@ -79,6 +79,9 @@ test('a share link renders the whole of the largest scale document within the 8 
 test('an edit to a 3 000-node document just after it boots renders the whole of it', async ({ page }) => {
   await start(page);
   await openFile(page, 'n3000.sgl', N3000);
+  // Once it is the open document (the switch awaits the previous one's
+  // flush first, F12/F13 round 1, item 8), not while Open is still running.
+  await expect(toastMessages(page)).toContainText(['Opened n3000.sgl as a new document']);
   // A reload boots it from storage: the editor starts with only its first
   // screen parsed, and parses on in the background.
   await page.reload();

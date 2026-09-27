@@ -19,13 +19,14 @@ const rec = (id: string, updatedAt: number, extra: Partial<DocumentRecord> = {})
   ...extra,
 });
 
-function trackingAutosave(log: string[]): Autosave {
+function trackingAutosave(log: string[], flushed: () => Promise<void> = () => Promise.resolve(), saved = () => true): Autosave {
   return {
-    request: () => undefined,
+    request: (r) => void log.push(`request:${r.id}`),
     flush: () => {
       log.push('flush');
-      return Promise.resolve();
+      return flushed().then(saved);
     },
+    saved,
     dispose: () => undefined,
   };
 }
@@ -39,8 +40,8 @@ describe('switchDocument', () => {
 
     const result = await switchDocument({ store, autosave: trackingAutosave(log), load: (r) => log.push(`load:${r.id}`) }, fresh, { created: true });
 
-    expect(result).toEqual({ ok: true });
-    expect(log).toEqual(['flush', 'load:new']); // flushed immediately before the switch
+    expect(result).toEqual({ ok: true, switched: true });
+    expect(log).toEqual(['flush', 'flush', 'load:new']); // the flush awaited, then anything typed meanwhile, then the switch
     expect(await store.getDocument('new')).toEqual(fresh);
     expect(await store.getSetting('lastOpenDocId')).toBe('new');
     expect(await store.getDocument('old')).toEqual(previous); // untouched
@@ -54,7 +55,7 @@ describe('switchDocument', () => {
     await switchDocument({ store, autosave: trackingAutosave(log), load: (r) => log.push(`load:${r.id}`) }, a, { created: false });
     expect(put).not.toHaveBeenCalled();
     expect(await store.getSetting('lastOpenDocId')).toBe('a');
-    expect(log).toEqual(['flush', 'load:a']);
+    expect(log).toEqual(['flush', 'flush', 'load:a']);
   });
 
   it('storage failing: the switch still happens (in memory), and says so', async () => {
@@ -62,8 +63,37 @@ describe('switchDocument', () => {
     store.failPut = () => new Error('no space');
     const log: string[] = [];
     const result = await switchDocument({ store, autosave: trackingAutosave(log), load: (r) => log.push(`load:${r.id}`) }, rec('n', 1), { created: true });
-    expect(result).toEqual({ ok: false });
-    expect(log).toEqual(['flush', 'load:n']);
+    expect(result).toEqual({ ok: false, switched: true });
+    expect(log).toEqual(['flush', 'flush', 'load:n', 'request:n']); // retried through autosave (round 1, item 1)
+  });
+
+  it('round 1, item 8: the pre-switch flush is awaited before anything is switched', async () => {
+    const store = createMemoryStore({ documents: [rec('old', 1)], settings: { lastOpenDocId: 'old' } });
+    const log: string[] = [];
+    let settle: () => void = () => undefined;
+    let first = true;
+    const flushed = () => (first ? ((first = false), new Promise<void>((resolve) => (settle = resolve))) : Promise.resolve());
+    const switching = switchDocument({ store, autosave: trackingAutosave(log, flushed), load: (r) => log.push(`load:${r.id}`) }, rec('new', 2), { created: true });
+    for (let i = 0; i < 5; i += 1) await Promise.resolve();
+    expect(log).toEqual(['flush']);
+    expect(await store.getDocument('new')).toBeUndefined();
+    settle();
+    await switching;
+    expect(log).toEqual(['flush', 'flush', 'load:new']);
+  });
+
+  it('round 1, item 8: if the open document could not be saved, nothing is switched', async () => {
+    const store = createMemoryStore({ documents: [rec('old', 1)], settings: { lastOpenDocId: 'old' } });
+    const log: string[] = [];
+    const result = await switchDocument(
+      { store, autosave: trackingAutosave(log, undefined, () => false), load: (r) => log.push(`load:${r.id}`) },
+      rec('new', 2),
+      { created: true },
+    );
+    expect(result).toEqual({ ok: false, switched: false });
+    expect(log).toEqual(['flush']);
+    expect(await store.getDocument('new')).toBeUndefined();
+    expect(await store.getSetting('lastOpenDocId')).toBe('old');
   });
 });
 

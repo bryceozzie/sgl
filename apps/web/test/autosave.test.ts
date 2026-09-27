@@ -195,6 +195,94 @@ describe('autosave', () => {
     expect(onQuotaExceeded).toHaveBeenCalledTimes(2);
   });
 
+  it('saved() says whether the last write reached the store (F12: whether a reload would lose anything)', async () => {
+    const clock = createFakeClock();
+    const store = createMemoryStore();
+    const autosave = createAutosave({ store, schedule: clock.schedule, onQuotaExceeded: vi.fn(), onError: vi.fn() });
+    expect(autosave.saved()).toBe(true);
+    store.failPut = () => new Error('disk');
+    autosave.request(record('a'));
+    await autosave.flush();
+    expect(autosave.saved()).toBe(false);
+    store.failPut = null;
+    autosave.request(record('ab'));
+    await autosave.flush();
+    expect(autosave.saved()).toBe(true);
+  });
+
+  it('F12 round 1: flush also writes what was typed while it ran, and saved() is false while anything is pending', async () => {
+    const clock = createFakeClock();
+    const store = createMemoryStore();
+    const real = store.putDocument.bind(store);
+    let release: () => void = () => undefined;
+    let puts = 0;
+    store.putDocument = async (r) => {
+      puts += 1;
+      if (puts === 1) await new Promise<void>((resolve) => (release = resolve)); // the first put hangs
+      return real(r);
+    };
+    const autosave = createAutosave({ store, schedule: clock.schedule, onQuotaExceeded: vi.fn(), onError: vi.fn() });
+    autosave.request(record('a'));
+    let flushed = false;
+    const flushing = autosave.flush().then(() => (flushed = true));
+    expect(autosave.saved()).toBe(false); // a write in flight
+    autosave.request(record('ab')); // typed during the flush
+    expect(autosave.saved()).toBe(false);
+    release();
+    await flushing;
+    expect(flushed).toBe(true);
+    expect(puts).toBe(2); // the edit typed during the flush was written too
+    expect((await store.getDocument('doc-1'))?.source).toBe('ab');
+    expect(autosave.saved()).toBe(true);
+    expect(clock.pendingCount()).toBe(0);
+  });
+
+  it('F12 round 1: an edit whose timer fires while a flush waits on a slow write is still part of that flush', async () => {
+    // Found by e2e/sw-update.spec.ts (a slow disk): the timer took the edit
+    // off `pending` into a queued write, the flush saw nothing pending and
+    // resolved "saved", and the page reloaded before the queued write ran.
+    const clock = createFakeClock();
+    const store = createMemoryStore();
+    const real = store.putDocument.bind(store);
+    let release: () => void = () => undefined;
+    let puts = 0;
+    store.putDocument = async (r) => {
+      puts += 1;
+      if (puts === 1) await new Promise<void>((resolve) => (release = resolve));
+      return real(r);
+    };
+    const autosave = createAutosave({ store, schedule: clock.schedule, onQuotaExceeded: vi.fn(), onError: vi.fn() });
+    autosave.request(record('a'));
+    const flushing = autosave.flush();
+    autosave.request(record('ab'));
+    clock.advance(AUTOSAVE_DELAY_MS); // the edit's own timer write, queued behind the slow one
+    release();
+    expect(await flushing).toBe(true);
+    expect((await store.getDocument('doc-1'))?.source).toBe('ab');
+    expect(autosave.saved()).toBe(true);
+  });
+
+  it('F12 round 1: a write that itself causes a new record (a re-render) cannot keep a flush going forever', async () => {
+    // Found by e2e/imports.spec.ts's import cycle: writing the open document
+    // re-resolves its importers (DD-08 §15, I24), itself included, so every
+    // write produced a new picture and a new record.
+    const clock = createFakeClock();
+    const store = createMemoryStore();
+    const real = store.putDocument.bind(store);
+    const echo: { autosave?: ReturnType<typeof createAutosave> } = {};
+    let n = 0;
+    store.putDocument = async (r) => {
+      await real(r);
+      n += 1;
+      echo.autosave?.request(record(`echo ${n}`));
+    };
+    const autosave = createAutosave({ store, schedule: clock.schedule, onQuotaExceeded: vi.fn(), onError: vi.fn() });
+    echo.autosave = autosave;
+    autosave.request(record('a'));
+    expect(await autosave.flush()).toBe(true); // resolves: nothing failed
+    expect(n).toBeLessThanOrEqual(4);
+  });
+
   it('any other write failure goes to onError', async () => {
     const clock = createFakeClock();
     const store = createMemoryStore();

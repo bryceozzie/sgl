@@ -3,7 +3,10 @@ import type { LayoutEngine } from '@sgl/layout-api';
 import { gridDescriptor } from '@sgl/layout-std/descriptor';
 import { BUILT_IN, DEFAULT_THEME_ID } from '@sgl/theme';
 import EXAMPLE_SOURCE from '../examples/checkout.sgl?raw';
-import { bootDocument, fallbackBoot, newDocumentId, type BootResult, type IdSource } from '../state/boot.js';
+import { bootDocument, fallbackBoot, newDocumentId, type BootResult, type IdSource, type ShareImportDeps } from '../state/boot.js';
+import type { SharePayload } from '../state/share.js';
+import { lazyChunk } from '../state/lazy.js';
+import { createShareLinkQueue } from '../state/share-links.js';
 import { createMemoryStore, type DocumentStore } from '../state/storage.js';
 import { openIdbStore } from '../state/storage-idb.js';
 
@@ -80,10 +83,19 @@ async function bootFromStorage(): Promise<AppBoot> {
     storageFailed = true;
   }
 
-  const result = await bootDocument({
+  const result = await bootDocument({ ...shareImportDeps(store), hash: window.location.hash, exampleSource: EXAMPLE_SOURCE, reopenId: session(REOPEN_KEY) });
+
+  if (result.clearHash) clearHash();
+
+  const notices = storageFailed && !result.notices.includes('storage-failed') ? [...result.notices, 'storage-failed' as const] : result.notices;
+  return { ...result, notices, store };
+}
+
+/** How a new document gets its id, time, engine and theme (DD-08 §8, §9):
+ *  boot's, and a pasted share link's (F13). */
+export function shareImportDeps(store: DocumentStore): ShareImportDeps {
+  return {
     store,
-    hash: window.location.hash,
-    exampleSource: EXAMPLE_SOURCE,
     // `crypto.randomUUID` only exists in a secure context; plain http on a
     // LAN address has only `getRandomValues` (`newDocumentId`).
     newId: () => newDocumentId(globalThis.crypto as IdSource | undefined, () => Date.now()),
@@ -92,12 +104,33 @@ async function bootFromStorage(): Promise<AppBoot> {
     defaultThemeId: DEFAULT_THEME_ID,
     isKnownEngine: (id) => REGISTERED_ENGINES.some((e) => e.id === id),
     isKnownTheme: (id) => BUILT_IN[id] !== undefined,
-  });
+  };
+}
 
-  if (result.clearHash) clearHash();
+/** `sessionStorage` key: the document this tab had open when it reloaded
+ *  for a service-worker update (F12). Per tab and surviving the reload, so
+ *  each tab comes back to its own document, not the last opened anywhere. */
+const REOPEN_KEY = 'sgl-reopen';
 
-  const notices = storageFailed && !result.notices.includes('storage-failed') ? [...result.notices, 'storage-failed' as const] : result.notices;
-  return { ...result, notices, store };
+/** Reads and removes `key` from this tab's `sessionStorage`; with `value`,
+ *  stores it instead. `undefined` where storage is unavailable. */
+function session(key: string, value?: string): string | undefined {
+  try {
+    if (value !== undefined) {
+      sessionStorage.setItem(key, value);
+      return value;
+    }
+    const stored = sessionStorage.getItem(key) ?? undefined;
+    sessionStorage.removeItem(key);
+    return stored;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Before a reload for an update: reopen `docId` after it (F12). */
+export function reopenAfterReload(docId: string): void {
+  session(REOPEN_KEY, docId);
 }
 
 function clearHash(): void {
@@ -105,46 +138,38 @@ function clearHash(): void {
 }
 
 export interface ShareLinkWatch {
-  /** Writes the open document's pending autosave now (DD-08 §9). */
-  readonly flush: () => Promise<void>;
+  /** A valid link: store its documents and switch to the main one in place
+   *  (`importShare`, then Open's switch). Resolves once it is open. */
+  readonly open: (payload: SharePayload, share: typeof import('../state/share.js')) => Promise<void>;
   /** An invalid link: DD-08 §8's toast. */
   readonly onInvalid: () => void;
 }
+
+/** `share.ts`, a lazy chunk (F9 fix round 1), precached like the rest; a
+ *  failed load is reported and retried (`state/lazy.ts`). */
+const loadShare = lazyChunk(() => import('../state/share.js'));
 
 /**
  * DD-08 §8's "decode on load", for a link pasted into a tab that already has
  * SGL open: that is a same-document fragment change, which fires `hashchange`
  * and never reloads, so boot would never see it (fix round 1, item 14).
  *
- * A valid link is imported **exactly as boot does** — by boot itself: the
- * open document's pending edit is flushed, then the page reloads with the
- * hash still in place, and `bootApp` makes the new local document, toasts
- * and clears the hash. One import path, not two that could drift; the cost
- * is a reload, which a pasted link implies anyway. An invalid link toasts,
- * clears the hash and leaves the open document as it is — no reload.
- * Returns the unsubscribe.
+ * A valid link is imported **in place** (F13): `watch.open` stores it with
+ * boot's own `importShare` and switches to it as Open does — the open
+ * document flushed, a fresh undo history, no reload — so a tab on the
+ * in-memory store (IndexedDB unavailable) keeps its documents. One link at a
+ * time, the hash cleared before each is imported (`state/share-links.ts`).
+ * An invalid link toasts, clears the hash and leaves the open document as
+ * it is. Returns the unsubscribe.
  */
 export function watchShareLinks(watch: ShareLinkWatch): () => void {
-  let busy = false;
-  const onHashChange = (): void => {
-    if (busy) return;
-    const hash = window.location.hash;
-    // `share.ts` is a lazy chunk (F9 fix round 1), precached like the rest.
-    void import('../state/share.js').then(({ decodeShareFragment }) => decodeShareFragment(hash)).then(async (share) => {
-      if (share.kind === 'none' || window.location.hash !== hash) return;
-      if (share.kind === 'invalid') {
-        clearHash();
-        watch.onInvalid();
-        return;
-      }
-      busy = true;
-      try {
-        await watch.flush();
-      } finally {
-        window.location.reload();
-      }
-    });
-  };
+  const onHashChange = createShareLinkQueue({
+    hash: () => window.location.hash,
+    clearHash,
+    decode: async (hash) => (await loadShare()).decodeShareFragment(hash),
+    open: async (payload) => watch.open(payload, await loadShare()),
+    onInvalid: watch.onInvalid,
+  });
   window.addEventListener('hashchange', onHashChange);
   return () => window.removeEventListener('hashchange', onHashChange);
 }

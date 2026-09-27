@@ -809,7 +809,7 @@ The decisions:
 
   **Offline:** the chunk is precached like `share`, `file-actions` and `elk`, and
   `e2e/offline.spec.ts` gains a markdown document booted offline. F12 (a stale lazy chunk in a
-  second tab after an update) applies to it as it does to the others.
+  second tab after an update) applied to it as it did to the others; since fixed (DD-08 §12).
 
   Node, the CLI and every test import both modules statically. `.size-limit.js` excludes
   `rich-text-*.js` by name, and `check-core-chunks.mjs` checks that the entry does not import it

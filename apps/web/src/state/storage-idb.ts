@@ -32,6 +32,7 @@ export async function openIdbStore(): Promise<DocumentStore> {
     },
   });
   return {
+    persistent: true,
     getDocument: (id) => db.get('documents', id),
     async putDocument(record) {
       const tx = db.transaction('documents', 'readwrite');
