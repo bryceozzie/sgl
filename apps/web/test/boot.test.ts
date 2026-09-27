@@ -69,6 +69,17 @@ describe('boot without a share link', () => {
     expect(await store.listDocuments()).toHaveLength(2); // nothing created
   });
 
+  it('reopenId (F12: this tab reloading for an update) wins over lastOpenDocId, and changes nothing stored', async () => {
+    const a = stored('doc-a', 'a: "A"\n');
+    const b = stored('doc-b', 'b: "B"\n');
+    const store = createMemoryStore({ documents: [a, b], settings: { lastOpenDocId: 'doc-b' } });
+    const result = await bootDocument(deps(store, { reopenId: 'doc-a' }));
+    expect(result).toEqual({ record: a, created: false, clearHash: false, notices: [] });
+    expect(await store.getSetting('lastOpenDocId')).toBe('doc-b');
+    // Gone since: lastOpenDocId's document instead.
+    expect((await bootDocument(deps(store, { reopenId: 'gone' }))).record).toEqual(b);
+  });
+
   it('lastOpenDocId pointing at nothing (or at a malformed record) falls back to the example', async () => {
     const dangling = await bootDocument(deps(createMemoryStore({ settings: { lastOpenDocId: 'gone' } })));
     expect(dangling.record.source).toBe(EXAMPLE);

@@ -195,6 +195,21 @@ describe('autosave', () => {
     expect(onQuotaExceeded).toHaveBeenCalledTimes(2);
   });
 
+  it('saved() says whether the last write reached the store (F12: whether a reload would lose anything)', async () => {
+    const clock = createFakeClock();
+    const store = createMemoryStore();
+    const autosave = createAutosave({ store, schedule: clock.schedule, onQuotaExceeded: vi.fn(), onError: vi.fn() });
+    expect(autosave.saved()).toBe(true);
+    store.failPut = () => new Error('disk');
+    autosave.request(record('a'));
+    await autosave.flush();
+    expect(autosave.saved()).toBe(false);
+    store.failPut = null;
+    autosave.request(record('ab'));
+    await autosave.flush();
+    expect(autosave.saved()).toBe(true);
+  });
+
   it('any other write failure goes to onError', async () => {
     const clock = createFakeClock();
     const store = createMemoryStore();

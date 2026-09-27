@@ -7,9 +7,9 @@ import { CanvasMeasurer } from '@sgl/measure';
 import { Canvas } from './canvas/Canvas.js';
 import { Editor } from './editor/Editor.js';
 import { loadDocument } from './editor/extensions.js';
-import { DEFAULT_ENGINE_ID, REGISTERED_ENGINES, shareImportDeps, watchShareLinks, type AppBoot } from './io/app-boot.js';
+import { DEFAULT_ENGINE_ID, REGISTERED_ENGINES, reopenAfterReload, shareImportDeps, watchShareLinks, type AppBoot } from './io/app-boot.js';
 import { consumeLaunchQueue } from './io/launch-queue.js';
-import { registerServiceWorker, type ApplyUpdate } from './io/pwa.js';
+import { followUpdate, registerServiceWorker, type ApplyUpdate, type FollowUpdate } from './io/pwa.js';
 import { DiagnosticsPanel } from './panels/DiagnosticsPanel.js';
 import { Toasts } from './panels/Toasts.js';
 import { createAutosave } from './state/autosave.js';
@@ -41,6 +41,9 @@ const NOTICE_TOASTS: Readonly<Record<BootNotice, { readonly message: string; rea
   'storage-failed': { message: "This browser's storage is unavailable, so changes are kept in this tab only.", kind: 'error' },
   'boot-failed': { message: "Something went wrong opening your documents, so the example is open instead. Changes are kept in this tab only.", kind: 'error' },
 };
+
+/** F12: an update this tab cannot follow without losing documents. */
+const STALE_TAB = 'SGL was updated in another tab. This tab could not save everything, so it was not reloaded: save your work (Save ▾), then reload.';
 
 /**
  * The application shell (DD-08 §2's layout: editor left, canvas right).
@@ -217,7 +220,14 @@ export function App({ boot }: { readonly boot: AppBoot }) {
       open: async (payload, share) => shares.deliver(await share.importShare(shareImportDeps(boot.store), payload)),
       onInvalid: () => toasts.push(NOTICE_TOASTS['share-invalid'].message, NOTICE_TOASTS['share-invalid'].kind),
     });
-    registerServiceWorker((apply) => setApplyUpdate(() => apply));
+    // DD-08 §12. A tab whose documents live only in memory is never offered
+    // the update: accepting it reloads the tab (F12).
+    registerServiceWorker(
+      (apply) => {
+        if (boot.store.persistent === true) setApplyUpdate(() => apply);
+      },
+      () => void followUpdate(updateSteps(() => window.location.reload())),
+    );
     consumeLaunchQueue(open);
     return () => {
       window.removeEventListener('pagehide', flush);
@@ -226,11 +236,22 @@ export function App({ boot }: { readonly boot: AppBoot }) {
     };
   }, []);
 
+  /** An update's reload, here or following another tab (F12): the pending
+   *  edit written first, then this tab's document noted so the reload
+   *  reopens it; never when that would lose documents. */
+  function updateSteps(reload: () => void): FollowUpdate {
+    return {
+      flush: () => autosave.flush(),
+      safe: () => boot.store.persistent === true && autosave.saved(),
+      remember: () => reopenAfterReload(session.record.peek().id),
+      reload,
+      stale: () => toasts.push(STALE_TAB, 'error'),
+    };
+  }
+
   function reloadForUpdate(): void {
-    const apply = applyUpdate;
-    if (apply === null) return;
-    // The pending edit is written before the new version takes over.
-    void autosave.flush().then(apply);
+    // The new version takes over (and this page reloads) once saved.
+    if (applyUpdate !== null) void followUpdate(updateSteps(applyUpdate));
   }
 
   return (

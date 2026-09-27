@@ -1,5 +1,45 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createUpdateCheck, UPDATE_CHECK_INTERVAL_MS } from '../src/io/pwa.js';
+import { createUpdateCheck, followUpdate, UPDATE_CHECK_INTERVAL_MS } from '../src/io/pwa.js';
+
+/** F12: another tab accepted an update, so this one runs code whose lazy
+ *  chunks the new service worker no longer precaches. */
+describe('following an update accepted in another tab', () => {
+  function harness(safe: boolean) {
+    const calls: string[] = [];
+    let settle: () => void = () => undefined;
+    const done = followUpdate({
+      flush: () => {
+        calls.push('flush');
+        return new Promise<void>((resolve) => {
+          settle = resolve;
+        });
+      },
+      safe: () => {
+        calls.push('safe?');
+        return safe;
+      },
+      remember: () => calls.push('remember'),
+      reload: () => calls.push('reload'),
+      stale: () => calls.push('stale'),
+    });
+    return { calls, settle: () => settle(), done };
+  }
+
+  it('saves first, then remembers the open document and reloads', async () => {
+    const h = harness(true);
+    expect(h.calls).toEqual(['flush']); // nothing else until the write has settled
+    h.settle();
+    await h.done;
+    expect(h.calls).toEqual(['flush', 'safe?', 'remember', 'reload']);
+  });
+
+  it('does not reload a tab whose documents could not be saved (in memory only): it says so instead', async () => {
+    const h = harness(false);
+    h.settle();
+    await h.done;
+    expect(h.calls).toEqual(['flush', 'safe?', 'stale']);
+  });
+});
 
 /** Fix round 1, item 15: a long-open installed app notices an update. */
 describe('service-worker update check on becoming visible', () => {

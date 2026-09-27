@@ -25,6 +25,9 @@ export interface Autosave {
    *  store call is issued before this returns. Resolves once every write
    *  issued so far has settled. */
   flush(): Promise<void>;
+  /** The last write settled reached the store (true before any write).
+   *  After `flush()`, whether a reload would lose nothing (F12). */
+  saved(): boolean;
   dispose(): void;
 }
 
@@ -103,6 +106,7 @@ export function createAutosave(deps: AutosaveDeps): Autosave {
       }
       return write(true);
     },
+    saved: () => !failing,
     dispose() {
       if (timer !== null) timer();
       timer = null;

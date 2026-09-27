@@ -69,7 +69,7 @@ async function bootFromStorage(): Promise<AppBoot> {
     storageFailed = true;
   }
 
-  const result = await bootDocument({ ...shareImportDeps(store), hash: window.location.hash, exampleSource: EXAMPLE_SOURCE });
+  const result = await bootDocument({ ...shareImportDeps(store), hash: window.location.hash, exampleSource: EXAMPLE_SOURCE, reopenId: session(REOPEN_KEY) });
 
   if (result.clearHash) clearHash();
 
@@ -91,6 +91,32 @@ export function shareImportDeps(store: DocumentStore): ShareImportDeps {
     isKnownEngine: (id) => REGISTERED_ENGINES.some((e) => e.id === id),
     isKnownTheme: (id) => BUILT_IN[id] !== undefined,
   };
+}
+
+/** `sessionStorage` key: the document this tab had open when it reloaded
+ *  for a service-worker update (F12). Per tab and surviving the reload, so
+ *  each tab comes back to its own document, not the last opened anywhere. */
+const REOPEN_KEY = 'sgl-reopen';
+
+/** Reads and removes `key` from this tab's `sessionStorage`; with `value`,
+ *  stores it instead. `undefined` where storage is unavailable. */
+function session(key: string, value?: string): string | undefined {
+  try {
+    if (value !== undefined) {
+      sessionStorage.setItem(key, value);
+      return value;
+    }
+    const stored = sessionStorage.getItem(key) ?? undefined;
+    sessionStorage.removeItem(key);
+    return stored;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Before a reload for an update: reopen `docId` after it (F12). */
+export function reopenAfterReload(docId: string): void {
+  session(REOPEN_KEY, docId);
 }
 
 function clearHash(): void {

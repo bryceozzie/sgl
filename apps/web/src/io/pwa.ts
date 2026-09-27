@@ -34,7 +34,42 @@ export function createUpdateCheck(update: () => Promise<unknown>, now: () => num
 /** Activates the waiting worker; the page reloads once it takes control. */
 export type ApplyUpdate = () => void;
 
-export function registerServiceWorker(onUpdateReady: (apply: ApplyUpdate) => void): void {
+export interface FollowUpdate {
+  /** Writes the open document's pending autosave. */
+  readonly flush: () => Promise<void>;
+  /** After the flush: is everything this tab holds in storage, so a reload
+   *  loses nothing? False on the in-memory store, or when the write failed. */
+  readonly safe: () => boolean;
+  /** Notes the open document for the reload to reopen (`app-boot.ts`). */
+  readonly remember: () => void;
+  readonly reload: () => void;
+  /** Not safe to reload: tell the user. */
+  readonly stale: () => void;
+}
+
+/**
+ * F12: an update accepted in **another** tab activated a new worker, which
+ * now controls this page too (every page of the registration gets
+ * `controllerchange` when a worker activates, `clientsClaim` or not) — and
+ * on activating, Workbox deleted every precache entry the new manifest does
+ * not list, including this page's own lazy chunks (`elk`, `share`,
+ * `file-actions`, …) under their old hashed names. Loaded later, offline,
+ * they fail. So this page follows the update: it saves, then reloads onto
+ * the new version, reopening its own document. A page that cannot save
+ * everything first (the in-memory store; a failing write) is **not**
+ * reloaded, which would lose its documents: it is told to save its work
+ * (`stale`). DOM-free, for the unit test.
+ */
+export async function followUpdate(deps: FollowUpdate): Promise<void> {
+  await deps.flush();
+  if (!deps.safe()) return deps.stale();
+  deps.remember();
+  deps.reload();
+}
+
+/** `onUpdateReady`: an update is waiting (the chip). `onUpdatedElsewhere`:
+ *  another tab accepted one (`followUpdate`). */
+export function registerServiceWorker(onUpdateReady: (apply: ApplyUpdate) => void, onUpdatedElsewhere: () => void): void {
   if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
   const container = navigator.serviceWorker;
   let accepted = false;
@@ -46,10 +81,13 @@ export function registerServiceWorker(onUpdateReady: (apply: ApplyUpdate) => voi
     });
   };
 
-  // Reload only for an update the user accepted — not when the very first
-  // worker installs (it does not claim open pages: `clientsClaim` is off).
+  // This page accepted the update: it has saved already (`App.tsx`), so
+  // reload. Another page did: follow it (F12). Never on the first install:
+  // it does not claim open pages (`clientsClaim` is off), and a page no
+  // worker controls gets no `controllerchange`.
   container.addEventListener('controllerchange', () => {
     if (accepted) window.location.reload();
+    else onUpdatedElsewhere();
   });
 
   const register = async (): Promise<void> => {

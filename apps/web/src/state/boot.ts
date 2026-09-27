@@ -9,7 +9,8 @@ import type { DocumentRecord, DocumentStore } from './storage.js';
  *    current one — and the hash is cleared so a reload does not re-import.
  * 2. An invalid share link gives the toast, the hash is cleared too, and boot
  *    carries on as if there were none.
- * 3. Otherwise `lastOpenDocId`'s document.
+ * 3. Otherwise the document this tab had open before it reloaded for an
+ *    update (`reopenId`, F12), else `lastOpenDocId`'s.
  * 4. Otherwise a new document from the example.
  *
  * Storage failing at any step never stops the boot: the document opens in
@@ -35,6 +36,10 @@ export interface BootDeps {
   readonly isKnownEngine: (id: string) => boolean;
   readonly isKnownTheme: (id: string) => boolean;
   readonly codec?: ShareCodec;
+  /** The document this tab had open before reloading for a service-worker
+   *  update (F12, `io/app-boot.ts`): opened ahead of `lastOpenDocId`, which
+   *  another tab may have moved. */
+  readonly reopenId?: string | undefined;
 }
 
 export interface BootResult {
@@ -188,9 +193,10 @@ export async function bootDocument(deps: BootDeps): Promise<BootResult> {
   if (share.kind === 'invalid') notices.push('share-invalid');
 
   try {
-    const lastId = await deps.store.getSetting('lastOpenDocId');
-    if (typeof lastId === 'string') {
-      const stored: unknown = await deps.store.getDocument(lastId);
+    // A tab reloading for an update reopens its own document (F12), not the
+    // one last opened in any tab.
+    for (const id of [deps.reopenId, await deps.store.getSetting('lastOpenDocId')]) {
+      const stored: unknown = typeof id === 'string' ? await deps.store.getDocument(id) : undefined;
       if (isDocumentRecord(stored)) {
         const record: DocumentRecord = { ...stored, engineId: engineOr(stored.engineId), themeId: themeOr(stored.themeId) };
         return { record, created: false, clearHash, notices };
