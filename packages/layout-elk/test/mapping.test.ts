@@ -427,3 +427,99 @@ describe('fromElkGraph (DD-06 §6.2)', () => {
     expect(() => fromElkGraph(input, bogusEdge)).toThrow(/unknown edge/);
   });
 });
+
+describe('fromElkGraph: a route through its own container\'s title is detoured round it (F16, DD-06 §6.2)', () => {
+  const input = layoutInputForSource('x\nouter: {\n  @label: "A long container title"\n  inner\n}\nx -> outer.inner\nouter.inner -> x\n');
+  const [down, up] = input.graph.edges;
+  const outer = asNodeId('outer');
+  const inner = asNodeId('outer.inner');
+  const top = sizingOf(input, 'outer').padding[0];
+
+  /** `outer` at (100, 100); `inner` at the top of its content, `innerW` wide;
+   *  both edges run straight through the title at `runX` (outer-relative). */
+  function laidOut(innerW: number, runX: number, edges: 'down' | 'up' | 'both' = 'both') {
+    const out: ElkNode = {
+      id: 'root',
+      width: 400,
+      height: 400,
+      children: [
+        { id: asNodeId('x'), x: 100, y: 10, width: 300, height: 30, labels: [{ text: 'l:x', width: 9, height: 13, x: 0, y: 0 }] },
+        {
+          id: outer,
+          x: 100,
+          y: 100,
+          width: 260,
+          height: 200,
+          children: [{ id: inner, x: 16, y: top, width: innerW, height: 36, labels: [{ text: 'l:outer.inner', width: 9, height: 13, x: 0, y: 0 }] }],
+        },
+      ],
+      edges: [
+        ...(edges === 'up' ? [] : [{ id: down!.id, sources: ['x'], targets: [inner], container: 'root', sections: [{ startPoint: { x: 100 + runX, y: 40 }, endPoint: { x: 100 + runX, y: 100 + top } }] }]),
+        ...(edges === 'down' ? [] : [{ id: up!.id, sources: [inner], targets: ['x'], container: 'root', sections: [{ startPoint: { x: 100 + runX + 10, y: 100 + top }, endPoint: { x: 100 + runX + 10, y: 40 } }] }]),
+      ],
+    };
+    const result = fromElkGraph(input, out);
+    const title = result.labels.find((l) => l.labelId === input.graph.nodes[outer]!.labelId)!.frame;
+    const points = (id: EdgeId) => [result.edges[id]!.start, ...result.edges[id]!.route.map((s) => (s as { to: { x: number; y: number } }).to)];
+    return { result, title, points };
+  }
+
+  const through = (pts: readonly { x: number; y: number }[], r: { x: number; y: number; w: number; h: number }): boolean =>
+    pts.some((a, i) => {
+      const b = pts[i + 1];
+      if (b === undefined) return false;
+      return Math.min(a.x, b.x) < r.x + r.w && Math.max(a.x, b.x) > r.x && Math.min(a.y, b.y) < r.y + r.h && Math.max(a.y, b.y) > r.y;
+    });
+  const orthogonal = (pts: readonly { x: number; y: number }[]): boolean => pts.every((a, i) => i === 0 || a.x === pts[i - 1]!.x || a.y === pts[i - 1]!.y);
+
+  it('ends the run on its node, right of the title, when the node reaches that far; an upward run moves its start the same way', () => {
+    const { title, points, result } = laidOut(200, 40);
+    const inside = result.nodes[inner]!.frame;
+    for (const [id, endIdx] of [
+      [down!.id, -1],
+      [up!.id, 0],
+    ] as const) {
+      const pts = points(id);
+      expect(through(pts, title), id).toBe(false);
+      expect(orthogonal(pts), id).toBe(true);
+      expect(pts).toHaveLength(4);
+      const onNode = pts.at(endIdx)!;
+      expect(onNode.y).toBe(inside.y);
+      expect(onNode.x).toBeGreaterThan(title.x + title.w);
+      expect(onNode.x).toBeLessThan(inside.x + inside.w);
+      // Every new point is inside the container's title band.
+      for (const p of pts.slice(1, -1)) expect(p.y > 100 && p.y < 100 + top).toBe(true);
+      // What the detour computes is on the 1/64 px grid (ELK's own y is kept).
+      for (const p of pts.slice(1, -1)) expect(Number.isInteger(p.x * 64) && Number.isInteger(p.y * 64)).toBe(true);
+    }
+    // Two runs through one title never share an x or a turn.
+    const [d, u] = [points(down!.id), points(up!.id)];
+    expect(d[2]!.x).not.toBe(u[1]!.x);
+    expect(d[1]!.y).not.toBe(u[2]!.y);
+  });
+
+  it('turns back to its own x below the title, still in the band, when the node ends under the title', () => {
+    const { title, points } = laidOut(40, 40, 'down');
+    const pts = points(down!.id);
+    expect(through(pts, title)).toBe(false);
+    expect(orthogonal(pts)).toBe(true);
+    expect(pts).toHaveLength(6);
+    expect(pts[0]).toEqual({ x: 140, y: 40 });
+    expect(pts.at(-1)).toEqual({ x: 140, y: 100 + top });
+    const back = pts[4]!;
+    expect(back.x).toBe(140);
+    expect(back.y).toBeGreaterThan(title.y + title.h);
+    expect(back.y).toBeLessThan(100 + top);
+  });
+
+  it('leaves a run that misses the title untouched', () => {
+    const { title, points } = laidOut(240, 0, 'down');
+    const clearX = Math.ceil(title.x + title.w - 100) + 2;
+    const other = laidOut(240, clearX, 'down');
+    expect(other.points(down!.id)).toEqual([
+      { x: 100 + clearX, y: 40 },
+      { x: 100 + clearX, y: 100 + top },
+    ]);
+    expect(points(down!.id)).toHaveLength(2);
+  });
+});

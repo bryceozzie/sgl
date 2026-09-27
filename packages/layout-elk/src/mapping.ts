@@ -343,6 +343,7 @@ export function fromElkGraph(input: LayoutInput, out: ElkNode): LayoutResult {
   const nodes: Record<NodeId, NodeLayout> = {};
   const labels: LabelPlacement[] = [];
   const origin = new Map<string, Point>([[ELK_ROOT_ID, { x: 0, y: 0 }]]);
+  const bands: TitleBand[] = [];
 
   const walk = (elk: ElkNode, parent: Point): void => {
     const id = elk.id as NodeId;
@@ -375,12 +376,9 @@ export function fromElkGraph(input: LayoutInput, out: ElkNode): LayoutResult {
       // left (`elk.padding.top`), inset by `contentInset` — the same place
       // grid's host fallback puts it, align `start`, baseline `top`.
       const size = input.labelSizes[node.labelId] ?? { w: 0, h: 0 };
-      labels.push({
-        labelId: node.labelId,
-        frame: { x: frame.x + sizing.contentInset[3], y: frame.y + sizing.contentInset[0], w: size.w, h: size.h },
-        align: 'start',
-        baseline: 'top',
-      });
+      const title: Rect = { x: frame.x + sizing.contentInset[3], y: frame.y + sizing.contentInset[0], w: size.w, h: size.h };
+      bands.push({ frame, title, bottom: frame.y + sizing.padding[0] });
+      labels.push({ labelId: node.labelId, frame: title, align: 'start', baseline: 'top' });
     }
     const elkLabel = elk.labels?.[0];
     if (node.labelId !== null && !isContainer && elkLabel !== undefined) {
@@ -398,13 +396,13 @@ export function fromElkGraph(input: LayoutInput, out: ElkNode): LayoutResult {
   for (const child of out.children ?? []) walk(child, { x: 0, y: 0 });
 
   const edgeById = new Map<EdgeId, GraphEdge>(graph.edges.map((e) => [e.id, e]));
-  const edges: Record<EdgeId, EdgeLayout> = {};
+  const routes: Route[] = [];
   for (const elkEdge of out.edges ?? []) {
     const edge = edgeById.get(elkEdge.id as EdgeId);
     if (edge === undefined) throw new Error(`elk: ELK returned unknown edge '${elkEdge.id}'.`);
     const offset = origin.get(elkEdge.container ?? ELK_ROOT_ID) ?? { x: 0, y: 0 };
-    const layout = edgeLayout(elkEdge, offset);
-    if (layout !== null) edges[edge.id] = layout;
+    const points = edgePoints(elkEdge, offset);
+    if (points !== null) routes.push({ edge, points });
 
     const elkLabel = elkEdge.labels?.[0];
     if (edge.labelId !== null && elkLabel !== undefined) {
@@ -418,6 +416,11 @@ export function fromElkGraph(input: LayoutInput, out: ElkNode): LayoutResult {
     }
   }
 
+  // F16: after every route is known, outer containers first (DD-06 §6.2).
+  for (const band of bands) avoidTitle(nodes, band, routes);
+  const edges: Record<EdgeId, EdgeLayout> = {};
+  for (const { edge, points } of routes) edges[edge.id] = edgeLayout(points);
+
   return {
     bounds: { x: 0, y: 0, w: out.width ?? 0, h: out.height ?? 0 },
     nodes,
@@ -426,25 +429,102 @@ export function fromElkGraph(input: LayoutInput, out: ElkNode): LayoutResult {
   };
 }
 
-/** `sections[0]`: start, then every bend point and the end point as `L`
- *  segments (DD-06 §6.2). A simple edge has exactly one section; an edge ELK
- *  did not route (no section) is left out, so the host's straight-routing
- *  fallback fills it. */
-function edgeLayout(elkEdge: ElkEdge, offset: Point): EdgeLayout | null {
+/** Every section in order: its start, then every bend point and the end point
+ *  (DD-06 §6.2), dropping a point that repeats the previous one. A simple edge
+ *  has exactly one section; an edge ELK did not route (no section) is `null`,
+ *  left out, so the host's straight-routing fallback fills it. */
+function edgePoints(elkEdge: ElkEdge, offset: Point): Point[] | null {
   const sections = elkEdge.sections ?? [];
-  const first = sections[0];
-  if (first === undefined) return null;
-  const shift = (p: Point): Point => ({ x: offset.x + p.x, y: offset.y + p.y });
+  if (sections.length === 0) return null;
   const points: Point[] = [];
   for (const section of sections) {
-    const pts = [section.startPoint, ...(section.bendPoints ?? []), section.endPoint].map(shift);
-    for (const p of pts) {
+    for (const p of [section.startPoint, ...(section.bendPoints ?? []), section.endPoint]) {
       const last = points[points.length - 1];
-      if (last === undefined || last.x !== p.x || last.y !== p.y) points.push(p);
+      const at = { x: offset.x + p.x, y: offset.y + p.y };
+      if (last === undefined || last.x !== at.x || last.y !== at.y) points.push(at);
     }
   }
-  const start = points[0] ?? shift(first.startPoint);
-  const end = points[points.length - 1] ?? shift(first.endPoint);
+  return points;
+}
+
+interface Route {
+  readonly edge: GraphEdge;
+  points: Point[];
+}
+
+/** A container's frame, its title's text box, and the bottom of the band
+ *  `elk.padding.top` left for the title. */
+interface TitleBand {
+  readonly frame: Rect;
+  readonly title: Rect;
+  readonly bottom: number;
+}
+
+/** Clearance from a title, and between detours round the same title. */
+const TITLE_GAP = 4;
+const q64 = (v: number): number => Math.round(v * 64) / 64;
+
+/**
+ * F16 (DD-06 §6.2). ELK is not given a container's title (§6.1 note 2), so a
+ * route into or out of the container may run straight down (or up) through
+ * it. A vertical run from above the title to below it crosses the container's
+ * top edge, so it enters the container (an endpoint's ancestor; any other
+ * container would be a K4 crossing). Each such run is detoured to the title's
+ * right inside the container's own title band, which holds nothing but the
+ * title: it turns aside above the title, passes it, and then either keeps its
+ * new x to its end — when the run ends on its node (not a port) at the band's
+ * bottom, so the detour never leaves the band, and the new x is still on the
+ * node — or turns back to its own x below the title, still in the band. Runs
+ * through one title are stacked in order of x, each further right and the
+ * rightmost turning highest, so no two detours cross or overlap. Only that run
+ * changes; orthogonal, on the 1/64 px grid, deterministic.
+ */
+function avoidTitle(nodes: Readonly<Record<NodeId, NodeLayout>>, band: TitleBand, routes: readonly Route[]): void {
+  const { frame, title: t, bottom } = band;
+  const below = bottom - t.y - t.h;
+  const runs: { route: Route; pts: Point[]; i: number; reversed: boolean; end: GraphEdge['to'] }[] = [];
+  for (const route of routes) {
+    for (const reversed of [false, true]) {
+      const pts = reversed ? [...route.points].reverse() : route.points;
+      const i = pts.findIndex((a, k) => {
+        const b = pts[k + 1];
+        return b !== undefined && a.x === b.x && a.x > t.x && a.x < t.x + t.w && a.y < t.y && b.y > t.y + t.h;
+      });
+      if (i >= 0) {
+        runs.push({ route, pts, i, reversed, end: reversed ? route.edge.from : route.edge.to });
+        break;
+      }
+    }
+  }
+  // Stable: equal x keeps the edges' order.
+  runs.sort((a, b) => a.pts[a.i]!.x - b.pts[b.i]!.x);
+  const n = runs.length;
+  runs.forEach(({ route, pts, i, reversed, end }, k) => {
+    const a = pts[i]!;
+    const b = pts[i + 1]!;
+    const x = q64(t.x + t.w + TITLE_GAP * (k + 1));
+    const top = Math.max(a.y, frame.y);
+    if (x >= frame.x + frame.w || t.y - top < 1 || below < 1) return;
+    const y = q64(top + ((t.y - top) * (n - k)) / (n + 1));
+    const detour = [
+      { x: a.x, y },
+      { x, y },
+    ];
+    const f = nodes[end.node]?.frame;
+    if (i + 2 === pts.length && end.port === undefined && f !== undefined && b.y < bottom + 0.5 && x <= f.x + f.w - TITLE_GAP / 2) {
+      pts[i + 1] = { x, y: b.y };
+    } else {
+      const back = q64(t.y + t.h + (below * (k + 1)) / (n + 1));
+      detour.push({ x, y: back }, { x: a.x, y: back });
+    }
+    pts.splice(i + 1, 0, ...detour);
+    route.points = reversed ? pts.reverse() : pts;
+  });
+}
+
+function edgeLayout(points: readonly Point[]): EdgeLayout {
+  const start = points[0]!;
+  const end = points[points.length - 1]!;
   const route: PathSeg[] = points.slice(1).map((to) => ({ t: 'L', to }));
   if (route.length === 0) route.push({ t: 'L', to: end });
   const second = points[1] ?? end;

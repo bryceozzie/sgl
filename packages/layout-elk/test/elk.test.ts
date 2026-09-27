@@ -127,20 +127,11 @@ describe('elk over the corpus (DD-06 §6, Stage K gate)', () => {
 const EXPECTED_HIERARCHY_CROSSINGS: Readonly<Record<string, number>> = {};
 
 /** Item 2's baseline: edges through a container's title text, per document
- *  (any container, the endpoints' own ancestors included). Measured after
- *  item 1 moved titles top-left; no ELK option tried removed the rest
- *  (DD-06 §6.3), so they are a pinned, counted warning. */
-const EXPECTED_TITLE_CROSSINGS: Readonly<Record<string, number>> = {
-  'checkout.sgl': 2,
-  'containers-edges.sgl': 1,
-  'nesting-3.sgl': 1,
-  // Added with the document itself (A18: an edge into a container whose title
-  // is two lines, F16's known case).
-  'text/wrap.sgl': 1,
-  // Added with the document itself (wildcards in parent segments, 2026-09-24).
-  'wildcard-paths.sgl': 4,
-  'wildcards.sgl': 4,
-};
+ *  (any container, the endpoints' own ancestors included). Pinned at 13 over
+ *  six documents until F16: ELK routes an edge into a container straight
+ *  through the title band it does not know about, and `fromElkGraph` now
+ *  detours those runs around the title inside the band (DD-06 §6.2). */
+const EXPECTED_TITLE_CROSSINGS: Readonly<Record<string, number>> = {};
 
 describe('the hierarchy-crossing warning (DD-06 §6.3, K4)', () => {
   it('title crossings per corpus document (fix round 1, item 2; logged and pinned, never a layout failure)', async () => {
@@ -153,6 +144,27 @@ describe('the hierarchy-crossing warning (DD-06 §6.3, K4)', () => {
     }
     console.warn(`[K4] title crossings under ORTHOGONAL, per document with any: ${JSON.stringify(counts)}`);
     expect(counts).toEqual(EXPECTED_TITLE_CROSSINGS);
+  }, 60_000);
+
+  it('no edge enters or leaves a container through that container’s own title, over the corpus (F16)', async () => {
+    const offenders: string[] = [];
+    for (const doc of DOCS) {
+      const input = layoutInputFor(doc);
+      const { result } = await runHostSequence(elkEngine, input, {}, METRICS);
+      const ancestors = (id: NodeId): Set<NodeId> => {
+        const out = new Set<NodeId>();
+        for (let at = input.graph.nodes[id]?.parent ?? null; at !== null; at = input.graph.nodes[at]?.parent ?? null) out.add(at);
+        return out;
+      };
+      const byId = new Map(input.graph.edges.map((e) => [e.id, e]));
+      for (const c of titleCrossings(input, result)) {
+        const edge = byId.get(c.edge)!;
+        if (ancestors(edge.from.node).has(c.container) || ancestors(edge.to.node).has(c.container)) {
+          offenders.push(`${doc}: ${edge.from.node} -> ${edge.to.node} through '${c.container}'`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
   }, 60_000);
 
   it('nested-crossing.sgl exercises an edge ELK reports in a non-root container, and it stays attached', async () => {
