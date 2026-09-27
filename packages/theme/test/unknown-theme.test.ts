@@ -13,7 +13,7 @@ import { BUILT_IN } from '../src/themes/index.js';
 function check(source: string): { readonly source: string; readonly diagnostics: readonly Diagnostic[]; readonly resolved: readonly Diagnostic[] } {
   const { ast } = parse(source);
   const { model, diagnostics: resolved } = resolve(ast);
-  return { source, diagnostics: unknownThemeDiagnostics(ast, model), resolved };
+  return { source, diagnostics: unknownThemeDiagnostics(ast, model.root.config['theme']), resolved };
 }
 
 describe('SGL5007: an unknown @theme name (F31)', () => {

@@ -4,6 +4,7 @@ import { asNodeId, diagnostic, NO_SPAN, parse, type Diagnostic, type LabelId } f
 import type { LayoutHost, LayoutInput, LayoutResult, ResolvedThemeMetricsView } from '@sgl/layout-api';
 import type { StageResult } from '@sgl/core';
 import { labelRunKey, StaticMetricsMeasurer } from '@sgl/measure';
+import { DEFAULT_THEME_ID } from '@sgl/theme';
 import { REGISTERED_ENGINES, registeredEngine } from '../src/io/app-boot.js';
 import { createImportsRuntime } from '../src/state/imports.js';
 import { createPipeline } from '../src/state/pipeline.js';
@@ -500,6 +501,39 @@ describe('document overrides (DD-08 §10)', () => {
     const env = setup('a: "A"');
     expect(env.pipeline.documentThemeId.value).toBeUndefined();
     expect(env.pipeline.effectiveThemeId.value).toBe(env.pipeline.themeId.value);
+  });
+
+  // F31 (human decision 2026-09-27): an unknown name is SGL5007 at the key,
+  // and the document still draws in the default theme, whatever the picker.
+  it('an unknown document @theme warns SGL5007 at the key and still draws in the default theme', () => {
+    const source = 'a: "A"\n@theme: "neutral-drak"\n';
+    const env = setup(source);
+    env.pipeline.themeId.value = 'neutral-dark'; // the picker's preference does not rescue a typo
+    expect(env.pipeline.diags.value.map((d) => [d.code, d.severity, d.message, source.slice(d.span.from, d.span.to)])).toEqual([
+      ['SGL5007', 'warning', 'Unknown theme `neutral-drak`; using the default.', '@theme'],
+    ]);
+    expect(env.pipeline.theme.value.value.id).toBe(DEFAULT_THEME_ID);
+
+    // Fixing the typo clears it.
+    const fixed = 'a: "A"\n@theme: "neutral-dark"\n';
+    env.pipeline.setDocument(parse(fixed).tree, fixed);
+    expect(env.pipeline.diags.value).toEqual([]);
+    expect(env.pipeline.theme.value.value.id).toBe('neutral-dark');
+  });
+
+  // What the warning says must be so: a name that is only an Object property
+  // drew a malformed theme (no id, an SGL5004) instead of the default.
+  it.each(['constructor', 'toString', '__proto__'])('@theme: "%s" is unknown too: SGL5007 alone, and the default theme', (name) => {
+    const env = setup(`@theme: "${name}"\na: "A"`);
+    expect(env.pipeline.diags.value.map((d) => d.code)).toEqual(['SGL5007']);
+    expect(env.pipeline.theme.value.value.id).toBe(DEFAULT_THEME_ID);
+  });
+
+  it.each([
+    ['a known @theme', '@theme: "print"\na: "A"'],
+    ['no @theme', 'a: "A"'],
+  ])('%s: no SGL5007', (_, source) => {
+    expect(setup(source).pipeline.diags.value).toEqual([]);
   });
 
   it('a document @layout.engine wins over the picker signal', () => {

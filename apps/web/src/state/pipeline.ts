@@ -19,7 +19,7 @@ import {
 import { buildLayoutInput, layoutConfigDiagnostics, type LayoutInput, type LayoutResult } from '@sgl/layout-api';
 import { labelRunKey, premeasure, type MeasureTable } from '@sgl/measure';
 import { labelBox, layoutLines, needsWrap, UNCONSTRAINED } from '@sgl/text';
-import { BUILT_IN, DEFAULT_THEME_ID, resolveTheme, styleGraph, type ResolvedTheme, type StyledGraph } from '@sgl/theme';
+import { BUILT_IN, DEFAULT_THEME_ID, resolveTheme, styleGraph, unknownThemeDiagnostics, type ResolvedTheme, type StyledGraph } from '@sgl/theme';
 import { render, renderPaintOnly, type RenderResult } from '@sgl/render-svg';
 import { boundsChangedSignificantly, type Extent } from '../canvas/viewport.js';
 import { deriveChipState, type ChipState } from './chip.js';
@@ -558,6 +558,9 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     ...model.value.diagnostics,
     ...graph.value.diagnostics,
     ...layoutConfigDiags.value,
+    // SGL5007 (F31): the document's `@theme` names no built-in theme; the
+    // theme stage above draws the default one, as before.
+    ...unknownThemeDiagnostics(parsed.value.value, documentThemeId.value),
     ...theme.value.diagnostics,
     ...styled.value.diagnostics,
     ...layoutDiags.value,

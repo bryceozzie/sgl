@@ -163,7 +163,7 @@ export async function runPipeline(
   }, d2);
   // SGL5007 (F31), as the app's pipeline emits it: the document's own
   // `@theme` names no built-in theme. The harness draws in `themeDoc` either way.
-  const d3c = unknownThemeDiagnostics(ast, model);
+  const d3c = unknownThemeDiagnostics(ast, model.root.config['theme']);
   const { value: theme, diagnostics: d4 } = resolveTheme(themeDoc, (id) => BUILT_IN[id]);
   const { value: styled, diagnostics: d5 } = styleGraph(graph, theme, model.classes);
   const { input, result, table, diagnostics: d6 } = await layOut(styled, engine, options);
