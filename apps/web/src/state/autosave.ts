@@ -5,6 +5,9 @@ import type { Cancel, Schedule } from './types.js';
  *  `put`, whole record." */
 export const AUTOSAVE_DELAY_MS = 500;
 
+/** How many rounds `flush()` writes what was requested while it ran. */
+const FLUSH_ROUNDS = 3;
+
 export interface AutosaveDeps {
   readonly store: DocumentStore;
   readonly schedule: Schedule;
@@ -118,16 +121,22 @@ export function createAutosave(deps: AutosaveDeps): Autosave {
     },
     // The first write is issued synchronously (the async body runs up to its
     // first `await`); then anything requested while it ran is written too,
-    // until nothing is pending or a write has failed (F12 round 1).
+    // until nothing is pending or queued, or a write has failed (F12 round
+    // 1) — for at most FLUSH_ROUNDS rounds: a write can itself cause a new
+    // record (writing a document in an import cycle re-resolves it, DD-08
+    // §15 I24, and re-renders it), which would otherwise keep the flush
+    // going forever. After the rounds, what is left pending is only such an
+    // echo; it resolves true if nothing failed and nothing is still queued.
     async flush() {
-      do {
+      for (let round = 0; round < FLUSH_ROUNDS; round += 1) {
         if (timer !== null) {
           timer();
           timer = null;
         }
         await write(true);
-      } while ((pending !== null || outstanding > 0) && !failing);
-      return saved();
+        if ((pending === null && outstanding === 0) || failing) break;
+      }
+      return !failing && outstanding === 0;
     },
     saved,
     dispose() {

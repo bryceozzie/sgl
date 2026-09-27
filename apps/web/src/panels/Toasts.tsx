@@ -32,7 +32,7 @@ export function Toasts({ toasts }: { readonly toasts: ToastStore }) {
         {items.filter((t) => t.kind === 'info').map(render)}
         {hidden > 0 ? (
           <div class="toast toast-more">
-            <span class="toast-message">
+            <span class="toast-more-count">
               {hidden} more{errors > 0 ? `, ${errors} of them ${errors === 1 ? 'an error' : 'errors'}` : ''}
             </span>
             <button type="button" class="toast-dismiss-all" onClick={toasts.dismissAll}>

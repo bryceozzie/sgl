@@ -88,6 +88,14 @@ describe('toasts (DD-08 §11)', () => {
       expect(toasts.heldErrors.value).toBe(0);
     });
 
+    it('two info toasts and no errors: both show (found by the e2e: only the last showed)', () => {
+      const toasts = createToasts(createFakeClock().schedule);
+      toasts.push('info 1');
+      toasts.push('info 2');
+      expect(toasts.visible.value.map((t) => t.message)).toEqual(['info 1', 'info 2']);
+      expect(toasts.hidden.value).toBe(0);
+    });
+
     it('dismissAll closes every toast, shown or held, and cancels their timers', () => {
       const clock = createFakeClock();
       const toasts = createToasts(clock.schedule);

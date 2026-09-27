@@ -25,7 +25,7 @@ test('five error toasts: three show, two wait behind "2 more", and come back as 
 
   await expect(errors(page)).toHaveCount(3);
   // The count is announced politely, outside the alert region.
-  await expect(more(page).locator('.toast-message')).toHaveText('2 more, 2 of them errors');
+  await expect(more(page).locator('.toast-more-count')).toHaveText('2 more, 2 of them errors');
   expect(await more(page).evaluate((el) => el.closest('[role="status"]') !== null && el.closest('[role="alert"]') === null)).toBe(true);
 
   // Closing a shown error brings a held one back: nothing was dropped.

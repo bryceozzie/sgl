@@ -56,7 +56,7 @@ export function createToasts(schedule: Schedule, ttlMs: number = TOAST_TTL_MS): 
     const all = items.value;
     const errors = all.filter((t) => t.kind === 'error').slice(-VISIBLE_TOASTS);
     const infos = all.filter((t) => t.kind === 'info');
-    const shown = new Set([...errors, ...infos.slice(infos.length - (VISIBLE_TOASTS - errors.length))]);
+    const shown = new Set([...errors, ...infos.slice(Math.max(0, infos.length - (VISIBLE_TOASTS - errors.length)))]);
     return all.filter((t) => shown.has(t));
   });
   return {

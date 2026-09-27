@@ -262,6 +262,27 @@ describe('autosave', () => {
     expect(autosave.saved()).toBe(true);
   });
 
+  it('F12 round 1: a write that itself causes a new record (a re-render) cannot keep a flush going forever', async () => {
+    // Found by e2e/imports.spec.ts's import cycle: writing the open document
+    // re-resolves its importers (DD-08 §15, I24), itself included, so every
+    // write produced a new picture and a new record.
+    const clock = createFakeClock();
+    const store = createMemoryStore();
+    const real = store.putDocument.bind(store);
+    const echo: { autosave?: ReturnType<typeof createAutosave> } = {};
+    let n = 0;
+    store.putDocument = async (r) => {
+      await real(r);
+      n += 1;
+      echo.autosave?.request(record(`echo ${n}`));
+    };
+    const autosave = createAutosave({ store, schedule: clock.schedule, onQuotaExceeded: vi.fn(), onError: vi.fn() });
+    echo.autosave = autosave;
+    autosave.request(record('a'));
+    expect(await autosave.flush()).toBe(true); // resolves: nothing failed
+    expect(n).toBeLessThanOrEqual(4);
+  });
+
   it('any other write failure goes to onError', async () => {
     const clock = createFakeClock();
     const store = createMemoryStore();
