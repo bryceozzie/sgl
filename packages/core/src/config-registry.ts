@@ -40,10 +40,13 @@ export const CONFIG_REGISTRY: readonly ConfigKeySpec[] = [
   // Sugar for `@layout.direction`: valid wherever `@layout` itself is (root's
   // document-level block, language spec §4, as well as a node's own).
   { key: 'direction', scope: ['root', 'node'], type: 'enum', enum: ['down', 'up', 'left', 'right'], order: 8 },
-  // Real validation of a style value is DD-04's job (theme cascade); a
-  // bareword like `dashed` is a valid shorthand the corpus actually uses
-  // (`checkout.sgl`, `chains.sgl`), so the resolver never rejects `@style`.
-  { key: 'style', scope: ['node', 'edge', 'class'], type: 'any', order: 9 },
+  // `@style` is always an object (language spec §4; human decision
+  // 2026-09-27, DD-13 §13 branch 0): a bareword such as `dashed`, a string,
+  // a number, an array, or a variable holding one is SGL2011 and dropped. It
+  // is not a shorthand; a dashed line is `@style: { strokeDash: "6 3" }`.
+  // Dotted keys (`@style.fill`) merge into the object before validation.
+  // Checking each property's value stays DD-04's job (theme cascade).
+  { key: 'style', scope: ['node', 'edge', 'class'], type: 'object', order: 9 },
   { key: 'size', scope: ['node', 'class'], type: 'object', order: 10 },
   { key: 'ports', scope: ['node', 'class'], type: 'object', order: 11 },
   { key: 'order', scope: ['node', 'edge'], type: 'number', order: 12 },

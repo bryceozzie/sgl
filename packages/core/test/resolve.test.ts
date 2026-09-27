@@ -308,6 +308,34 @@ describe('config-key registry (DD-02 §7)', () => {
     expect(diagnostics.map((d) => d.code)).toEqual(['SGL2011']);
   });
 
+  // DD-13 §13 branch 0 (human decision 2026-09-27): `@style` is always an
+  // object. Anything else (a bareword, a string, a number, an array, or a
+  // variable holding one) is SGL2011 and dropped; dotted keys are unchanged.
+  it.each([
+    ['a bareword on an edge', 'a -> b: { @style: dashed }\n'],
+    ['a string', 'a: { @style: "dashed" }\n'],
+    ['a number', 'a: { @style: 3 }\n'],
+    ['an array', 'a: { @style: [dashed] }\n'],
+    ['a variable holding a string', '@vars: { d: dashed }\na: { @style: $d }\n'],
+    ['a class body', '@classes: { X: { @style: dashed } }\na: X\n'],
+  ])('a non-object @style (%s) is dropped with SGL2011', (_what, src) => {
+    const { model, diagnostics } = resolveSrc(src);
+    expect(diagnostics.map((d) => [d.code, d.message])).toEqual([['SGL2011', '`@style` expects object; ignored.']]);
+    const configs: ConfigBag[] = [
+      ...model.root.children.map((c) => c.config),
+      ...model.root.edges.map((e) => e.config),
+      ...Object.values(model.classes).map((c) => c.config),
+    ];
+    expect(configs.length).toBeGreaterThan(0);
+    expect(configs.every((c) => c.style === undefined)).toBe(true);
+  });
+
+  it('an object @style and dotted @style keys still resolve with no diagnostic', () => {
+    const { model, diagnostics } = resolveSrc('a: { @style: { strokeDash: dashed }, @style.fill: "#eee" }\n');
+    expect(diagnostics).toEqual([]);
+    expect((model.root.children[0] as ContainerModel).config.style).toEqual({ strokeDash: 'dashed', fill: '#eee' });
+  });
+
   it('an out-of-scope key is dropped with SGL2012', () => {
     const { model, diagnostics } = resolveSrc('a: { @classes: { X: {} } }\n');
     const a = model.root.children[0] as ContainerModel;
