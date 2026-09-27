@@ -1,6 +1,6 @@
 import { parse, resolve } from '@sgl/core';
 import { describe, expect, it } from 'vitest';
-import { layoutConfigDiagnostics, type EngineSchemas } from '../src/layout-config.js';
+import { layoutConfigDiagnostics, rootLayoutOptions, type EngineSchemas } from '../src/layout-config.js';
 
 /**
  * SGL4010 (Stage K fix round 1, item 23 — human decision 2026-09-23): a
@@ -50,6 +50,11 @@ describe('layoutConfigDiagnostics (SGL4010)', () => {
     ]);
     // `@direction` is sugar for `@layout.direction` (language spec §4).
     expect(run('@direction: right\na\n', GRID).map((d) => d.message)).toEqual(['`@layout.direction` is not an option of engine `sgl.grid`; ignored.']);
+  });
+
+  it('(b) at the root, a key must be an option: the root has no hints (DD-12 H6)', () => {
+    expect(run('@layout: { priority: 2, span: 2 }\n@layout.rank: same\na\n', ELK).map((d) => d.text)).toEqual(['priority', 'span', '@layout.rank']);
+    expect(run('@layout: { span: 2, columns: 3 }\na\n', GRID).map((d) => d.message)).toEqual(['`@layout.span` is not an option of engine `sgl.grid`; ignored.']);
   });
 
   it('(b) declared options and hints are fine', () => {
@@ -133,5 +138,48 @@ describe('layoutConfigDiagnostics (SGL4021, DD-12 N6)', () => {
 
   it('a document without a pin gets none', () => {
     expect(run('a: { @size: { width: 10 } }\nb: "B"\na -> b\n', ELK)).toEqual([]);
+  });
+});
+
+/**
+ * DD-12 H6 (N40): the root `@layout` keys other than `engine` are options of
+ * the effective engine, and reach it. The resolver's side of the seam: the
+ * resolved root bag in, the options for the host out.
+ */
+describe('rootLayoutOptions (DD-12 H6)', () => {
+  function options(source: string, engine: EngineSchemas) {
+    const { ast } = parse(source);
+    const r = rootLayoutOptions(ast, resolve(ast).model.root.config, engine);
+    return { options: r.options, diagnostics: r.diagnostics.map((d) => [d.code, d.severity, source.slice(d.span.from, d.span.to), d.message]) };
+  }
+
+  it('every root key the engine declares as an option, and not `engine`, in every spelling', () => {
+    expect(options('@layout: { engine: "elk", direction: right }\na\n', ELK)).toEqual({ options: { direction: 'right' }, diagnostics: [] });
+    expect(options('@layout.nodeSpacing: 30\n@direction: up\na\n', ELK).options).toEqual({ direction: 'up', nodeSpacing: 30 });
+    expect(options('@vars: { g: 8 }\n@layout: { columns: 3, gap: $g, align: start }\na\n', GRID).options).toEqual({ align: 'start', columns: 3, gap: 8 });
+  });
+
+  it('a key the engine does not declare is not sent (it is SGL4010), nor is a hint, nor a container key', () => {
+    expect(options('@layout: { columns: 3, priority: 2 }\nbox: {\n  @layout.direction: up\n  a\n}\n', ELK)).toEqual({ options: {}, diagnostics: [] });
+    expect(options('@layout: { direction: right }\na\n', GRID).options).toEqual({});
+  });
+
+  it('an engine without an options schema, or a document without a root @layout, gets none', () => {
+    expect(options('@layout: { anything: 1 }\na\n', { id: 'org.example.x' })).toEqual({ options: {}, diagnostics: [] });
+    expect(options('a\n', ELK)).toEqual({ options: {}, diagnostics: [] });
+  });
+
+  it("a value the engine's `accepts` refuses is SGL2011 at the key that set it, and not sent", () => {
+    const accepts = (key: string, value: unknown) => key !== 'nodeSpacing' || (typeof value === 'number' && value <= 500);
+    const r = options('@layout: { direction: left, nodeSpacing: 900 }\na\n', { ...ELK, accepts });
+    expect(r.options).toEqual({ direction: 'left' });
+    expect(r.diagnostics).toEqual([['SGL2011', 'warning', 'nodeSpacing', '`@layout.nodeSpacing` expects a value engine `sgl.elk` accepts; ignored.']]);
+    // Set twice: the later one wins, so it is the one reported.
+    const src = '@layout.nodeSpacing: 20\n@layout: { nodeSpacing: -1 }\na\n';
+    expect(options(src, { ...ELK, accepts: (_k, v) => typeof v === 'number' && v >= 0 }).diagnostics.map((d) => d[2])).toEqual(['nodeSpacing']);
+  });
+
+  it('keys come out sorted, so the request is the same however the document orders them', () => {
+    expect(Object.keys(options('@layout: { rankSpacing: 9, direction: up, nodeSpacing: 3 }\na\n', ELK).options)).toEqual(['direction', 'nodeSpacing', 'rankSpacing']);
   });
 });
