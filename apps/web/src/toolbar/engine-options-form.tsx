@@ -19,13 +19,18 @@ export interface EngineOptionsFormProps {
  * not written: the field is marked `aria-invalid`, a message beside it says
  * why and which value is in use, and the box goes back to showing that value,
  * so it never shows one the engine is not using.
+ *
+ * A field the document's root `@layout` sets (DD-12 H6) shows the document's
+ * value, is disabled, and says "(set by document)" in its label, as Engine ▾
+ * does: the document is the source of truth, so it is edited there.
  */
 export function EngineOptionsForm({ pipeline }: EngineOptionsFormProps) {
   const [rejected, setRejected] = useState<Readonly<Record<string, string>>>({});
   const engineId = pipeline.effectiveEngineId.value;
   const form = engineForm(engineId);
   if (form === null) return null;
-  const values = formValues(engineId, pipeline.engineOptions.value);
+  const fromDocument = pipeline.documentOptions.value;
+  const values = formValues(engineId, pipeline.engineOptions.value, fromDocument);
 
   function change(key: string, raw: string, control: HTMLInputElement | HTMLSelectElement): void {
     const edit = editOption(engineId, pipeline.engineOptions.peek(), key, raw);
@@ -47,6 +52,7 @@ export function EngineOptionsForm({ pipeline }: EngineOptionsFormProps) {
           engineId={engineId}
           field={field}
           value={values[field.key]}
+          setByDocument={field.key in fromDocument}
           error={rejected[field.key] ?? null}
           onChange={change}
         />
@@ -60,17 +66,19 @@ function Field({
   field,
   value,
   error,
+  setByDocument,
   onChange,
 }: {
   readonly engineId: string;
   readonly field: OptionField;
   readonly value: OptionValue | undefined;
   readonly error: string | null;
+  readonly setByDocument: boolean;
   readonly onChange: (key: string, raw: string, control: HTMLInputElement | HTMLSelectElement) => void;
 }) {
   const id = `opt-${engineId.replace(/\W/g, '-')}-${field.key}`;
   const errorId = `${id}-error`;
-  const invalid = error !== null ? { 'aria-invalid': 'true' as const, 'aria-describedby': errorId } : {};
+  const invalid = { disabled: setByDocument, ...(error !== null && { 'aria-invalid': 'true' as const, 'aria-describedby': errorId }) };
   const handle = (e: Event) => {
     const control = e.currentTarget as HTMLInputElement | HTMLSelectElement;
     onChange(field.key, control.value, control);
@@ -113,7 +121,10 @@ function Field({
   }
   return (
     <div class="options-field">
-      <label for={id}>{field.label}</label>
+      <label for={id}>
+        {field.label}
+        {setByDocument ? ' (set by document)' : ''}
+      </label>
       {control}
       {error !== null ? (
         <p class="options-error" id={errorId} role="alert">
