@@ -72,7 +72,7 @@ Status: draft for review. Nothing here is locked.
 | FR-Y5 | An engine may delegate a subtree to another engine (mixed layouts) | Should |
 | FR-Y6 | Engines declare an options schema that drives both validation and the settings UI | Should |
 | FR-Y7 | Engines are deterministic: any randomness comes from an injected seeded PRNG | Must |
-| FR-Y8 | Ship built-ins: `layered`, `grid`, `tree`, `radial`, `force`, `fixed` | Must |
+| FR-Y8 | Ship built-ins: `layered`, `grid`, `tree`, `radial`, `force`, `fixed` (`force` cut from v1.0 to Could as backlog B22, human decision 2026-09-27, DD-12) | Must |
 | FR-Y9 | Per-container engine selection (`@layout.engine` at any depth) | Should |
 | FR-Y10 | Manual pinning of individual nodes that auto-layout must respect | Should |
 | FR-Y11 | Third-party engines loadable from a URL, local file, or registry | Could |

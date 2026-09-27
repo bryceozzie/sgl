@@ -20,7 +20,8 @@
 | [DD-08](08-application.md) | State, pipeline orchestration, editor, canvas, persistence, files, share, PWA | `apps/web` |
 | [DD-09](09-security-performance-testing.md) | Threat model, budgets and where they are spent, test matrix, corpus | cross-cutting |
 | [DD-10](10-build-and-deploy.md) | Monorepo, package builds, Lezer generation, Cloudflare deploy, CI | cross-cutting |
-| [DD-11](11-text.md) | **⟶ v1.0 (A18)** markdown in labels: the inline subset, `"""` strings, styled runs, run faces, line breaking at `maxWidth`, nested `<tspan>`s. Phase 2: branches 1 (grammar) and 2 (text model) implemented, 3 (render) to come | `@sgl/text` (new), `@sgl/core`, `@sgl/measure`, `@sgl/render-svg`, `apps/web` |
+| [DD-11](11-text.md) | **⟶ v1.0 (A18)** markdown in labels: the inline subset, `"""` strings, styled runs, run faces, line breaking at `maxWidth`, nested `<tspan>`s. Phase 2: all three branches (grammar, text model, render) implemented, merged 2026-09-27 | `@sgl/text` (new), `@sgl/core`, `@sgl/measure`, `@sgl/render-svg`, `apps/web` |
+| [DD-12](12-engines.md) | **⟶ v1.0 (B5)** the remaining engines: `fixed` and `@pin`, `tree`, `radial`; `force` recommended cut. Design only | `@sgl/layout-std`, `@sgl/layout-api`, `@sgl/core`, `apps/web` |
 
 ---
 

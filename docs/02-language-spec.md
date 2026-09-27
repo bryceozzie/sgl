@@ -299,7 +299,7 @@ gives every expanded edge that label and that style. There is no way to tell, do
 | `@style.*` | any | Paint overrides: `fill`, `stroke`, `strokeWidth`, `strokeDash`, `opacity`, `font*`, `radius`, `shadow` |
 | `@layout.*` | any | Engine hints. `@layout.engine`, plus free-form engine-specific keys |
 | `@size.*` | node, class | A node's, not a container's (on a container: `SGL2012`, ignored). `width`, `height`, `minWidth`, `minHeight`, `maxWidth`, `aspectRatio` (any other key: `SGL2010`, and no effect). A class's `@size` applies to its nodes (§6). `maxWidth`, or a fixed `width`, wraps the node's title (§3, Markdown in labels) |
-| `@pin` | node | `{ x, y }` — absolute position auto-layout must respect |
+| `@pin` | node | `{ x, y }`, in px: where the top-left of the node's frame goes, relative to the top-left of its parent container's content box (the root's: the diagram's origin). Both numbers are required, each within ±100 000 (otherwise `SGL2011`, and the pin is dropped). The `fixed` engine places the node there; an engine that does not honour pins ignores it with `SGL4021` (DD-12) |
 | `@ports` | node | Named anchors |
 | `@direction` | container | Sugar for `@layout.direction`: `down` `up` `left` `right` |
 | `@order` | node, edge | Sort hint within a container. **On edges it fixes message order** — required by sequence-style layout engines (I3), where declaration order alone is too fragile |
@@ -322,14 +322,17 @@ applies.
 @title: "Payments Platform"
 @theme: "slate-dark"        // or an inline theme object, or a path
 @layout: {
-  engine: "layered"
+  engine: "elk"
   direction: down
-  spacing: { node: 40, rank: 70 }
+  nodeSpacing: 40
+  rankSpacing: 70
 }
 @classes: { ... }           // §6
 @vars: { ... }              // §5
 @imports: [ ... ]           // §8
 ```
+
+**The root `@layout` block** picks the layout engine and sets its options. `engine` names an engine by its id (`sgl.elk`) or by its bare name (`elk`, `grid`, `fixed`, `tree`, `radial`). Every other key is an option of that engine, and it reaches the engine: for that document it overrides the editor's engine options. A key the engine does not declare is `SGL4010`, and ignored. (Human decision, 2026-09-27; DD-12 N22, N40.)
 
 ---
 
@@ -468,7 +471,7 @@ In a document with `@imports`, a class name containing `.` is reserved for impor
 @sgl: "1.0"
 @title: "Checkout Flow"
 @theme: "neutral-light"
-@layout: { engine: "layered", direction: right }
+@layout: { engine: "elk", direction: right }
 
 @vars: { hot: "#DC2626" }
 
@@ -515,7 +518,7 @@ payments.api -> psp: "authorise"
   "@sgl": "1.0",
   "@title": "Checkout Flow",
   "@theme": "neutral-light",
-  "@layout": { "engine": "layered", "direction": "right" },
+  "@layout": { "engine": "elk", "direction": "right" },
   "@vars": { "hot": "#DC2626" },
   "@classes": {
     "Service": { "@shape": "round" },
