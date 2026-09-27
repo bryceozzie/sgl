@@ -138,7 +138,8 @@ layoutContainer(c):                      // c = null for the root
   for k in pinned:  rel[k] = (pin.x, pin.y);  size[k] = sizeOf(k)       // container: recursive
   // N9: the loose ones, packed as grid packs them, below the pinned ones
   top     = pinned empty ? 0 : max over pinned (rel.y + size.h) + gap
-  left    = pinned empty ? 0 : min over pinned rel.x
+  left    = pinned empty ? 0 : max(0, min over pinned rel.x)   // fix round 1: never outside
+  top     = max(0, top)
   pack(loose, columns = ceil(sqrt(n)), gap, align = start) at (left, top)
   // N12: the content box runs from (0,0) to the far edge of every child
   contentW = max(0, max over kids (rel.x + size.w));  contentH likewise
@@ -156,7 +157,10 @@ sizeOf(leaf) = fixed ?? clamp(intrinsic, min, max)        // the rule grid and e
   "`{node}` has no `@pin`; `fixed` placed it below the pinned nodes."** Its span is the node's.
   Loose siblings are packed as `grid` packs them (⌈√n⌉ columns, the `gap` option, aligned to the
   start), starting one `gap` below the lowest pinned sibling. With no pinned siblings, they start at
-  the content origin. *A diagram that is half pinned still draws, and every loose node is flagged at
+  the content origin. **They never start left of or above the content origin** (`feat/b5-fixed` fix
+  round 1, item 1, orchestrator decision): the packing starts at `max(0, leftmost pin x)` and
+  `max(0, lowest pinned bottom + gap)`, so only a node its author pinned outside its container is
+  outside it (N12). *A diagram that is half pinned still draws, and every loose node is flagged at
   its own line.* Architecture §4.5 says `fixed` "errors on unpinned nodes"; §15 ⚑1 weighs that option.
   - **(a) An error.** The whole result is refused, and the previous layout stays. Adding one node
     to a pinned diagram then shows nothing new until it has a pin: a bad loop for the escape hatch

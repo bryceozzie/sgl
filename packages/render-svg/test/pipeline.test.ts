@@ -79,9 +79,12 @@ const DOWNSTREAM_EXTRA: Readonly<Record<string, readonly DiagnosticCode[]>> = {
   'imports/too-many-items.sgl': ['SGL2028'],
   // DD-12 N9, H1: under `fixed` (which the document names, and the harness
   // honours), one SGL4020 per unpinned node: `c` and `d`. `pin-full`,
-  // `pin-nested`, `pin-negative` (one SGL4003, its own) and
-  // `forty-three-pinned` have no extra: every node is pinned.
+  // `pin-nested` and `forty-three-pinned` have no extra: every node is
+  // pinned.
   'layout/pin-half.sgl': ['SGL4020'],
+  // Fix round 1, item 1: `box.c` has no pin; it packs inside the box (from
+  // x = 0, not from `box.a`'s negative pin), so it is no SGL4003.
+  'layout/pin-negative.sgl': ['SGL4020'],
   // The unterminated string swallows the rest of the line looking for its
   // closing quote, which the parser then recovers from as a second, unrelated
   // syntax error one token later.

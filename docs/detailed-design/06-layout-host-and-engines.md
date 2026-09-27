@@ -439,7 +439,8 @@ placeChildren(c):                        // c = null for the root (no padding, N
   kids = visible children of c, in order; size[k] = container ? placeChildren(k).size : leafSize(k)
   pinned k: content[k] = pinOf(k.config)                 // frame top-left, content-box relative (H2)
   loose  k: content[k] = packCells(loose sizes, ceil(sqrt(n)), gap, 'start',
-                                   x0 = pinned ? min pin.x : 0, y0 = pinned ? max(pin.y + h) + gap : 0)
+                                   x0 = pinned ? max(0, min pin.x) : 0,
+                                   y0 = pinned ? max(0, max(pin.y + h) + gap) : 0)
             and one SGL4020 note { node: id } at the node's span (H1)
   rel[k] = (padding.l + content.x, padding.t + content.y)
   c.size = { w: max(min.w, title.w + contentInset.l + r, padding.l + max(0, content.x + w) + padding.r),
@@ -450,7 +451,7 @@ then pre-order: frame = parent frame + rel; contentFrame = frame inset by paddin
 
 - **Pins** are read by `pinOf` (`@sgl/layout-api`): two finite numbers `x`, `y`, or no pin. A pin places a node and never sizes it; a leaf is `fixed ?? clamp(intrinsic, min, max)`, as under `grid` and `elk`.
 - **Containers** are sized from their children, never by `@size` (`SGL2012`). A child pinned at a negative offset lies outside the content box, and §5's validation reports `SGL4003`. A container whose children are all hidden is a leaf, with no `contentFrame`.
-- **Unpinned nodes** are packed below every pinned sibling, so they never overlap one; one `SGL4020` warning each, in `graph.order`, through `LayoutResult.notes` (§3). Pinned nodes may overlap each other, with no diagnostic.
+- **Unpinned nodes** are packed below every pinned sibling, so they never overlap one, and never from left of or above the content origin (fix round 1, item 1), so only a node its author pinned outside its container is outside it; one `SGL4020` warning each, in `graph.order`, through `LayoutResult.notes` (§3). Pinned nodes may overlap each other, with no diagnostic.
 - **Ports** (`ports.ts`): a side's `k` ports at `(i + 1) / (k + 1)` of its length, in declaration order (north and south left to right, east and west top to bottom), with the side's outward normal. `routeStraight` then starts and ends an edge at the port's point (§4.2).
 - **Edges and labels** are the host's (§4.1, §4.2). No trigonometry, no `ctx.random`: `bitwise`.
 

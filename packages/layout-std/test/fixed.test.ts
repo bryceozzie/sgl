@@ -125,6 +125,26 @@ describe('fixed: containers (DD-12 N12, N13)', () => {
     ]);
   });
 
+  it('fix round 1, item 1: unpinned siblings of a negative pin pack from x = 0, never outside the content box', async () => {
+    // The reviewer's input: before the fix `b` packed from the leftmost pin
+    // (x = -50) and was an SGL4003 too.
+    const input = layoutInputForSource('box: {\n  @pin: { x: 0, y: 0 }\n  a: { @label: "A", @pin: { x: -50, y: -30 } }\n  b: "B"\n}\n');
+    const { raw: r, result } = await runHostSequence(fixedEngine, input, {}, METRICS);
+    const [t, , , l] = input.sizing[n('box')]!.padding;
+    const a = r.nodes[n('box.a')]!.frame;
+    expect(r.nodes[n('box.b')]!.frame.x).toBe(l);
+    expect(r.nodes[n('box.b')]!.frame.y).toBe(t + (-30 + a.h) + 24);
+    expect(validateResult(result, input.graph, fixedEngine.id).map((d) => [d.code, d.message])).toEqual([
+      ['SGL4003', '`box.a` extends outside its container after layout.'],
+    ]);
+    // Nor above it: pinned nodes high above the origin leave the packing at y = 0.
+    const high = await raw(layoutInputForSource('a: { @pin: { x: 10, y: -200 } }\nb\n'));
+    expect([frame(high, 'b').x, frame(high, 'b').y]).toEqual([10, 0]);
+    // A positive leftmost pin still sets where the packing starts.
+    const right = await raw(layoutInputForSource('a: { @pin: { x: 30, y: 0 } }\nb\n'));
+    expect(frame(right, 'b').x).toBe(30);
+  });
+
   it('leaves hidden children out, and lays a container whose children are all hidden out as a leaf', async () => {
     const input = layoutInputForSource('box: {\n  @label: "Box"\n  a: { @hidden: true }\n}\nc: { @pin: { x: 0, y: 0 } }\n');
     const r = await raw(input);

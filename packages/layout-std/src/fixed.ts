@@ -20,7 +20,9 @@ import { placePorts } from './ports.js';
  * H2). A node without one is packed below its pinned siblings, as `grid`
  * packs (`packCells`, N10: ⌈√n⌉ columns, the `gap` option, aligned to the
  * start), starting one `gap` below the lowest and at the leftmost pin, or at
- * the content origin when no sibling is pinned. Each such node is one
+ * the content origin when no sibling is pinned; never left of or above the
+ * content origin (fix round 1, item 1), so only a node its author pinned
+ * there lies outside its container. Each such node is one
  * `SGL4020` warning, through `LayoutResult.notes` (N9, N11, H1).
  *
  * Post-order over containers, like `grid` (N7): a container's children are
@@ -121,8 +123,10 @@ function placeChildren(id: NodeId | null, input: LayoutInput, gap: number, cache
       Math.ceil(Math.sqrt(unpinned.length)),
       gap,
       'start',
-      anyPinned ? left : 0,
-      anyPinned ? bottom + gap : 0,
+      // Fix round 1, item 1: never from outside the content box. Only a
+      // node its author pinned there can be outside it (N12).
+      anyPinned ? Math.max(0, left) : 0,
+      anyPinned ? Math.max(0, bottom + gap) : 0,
     );
     unpinned.forEach((k, i) => {
       content[k] = packed.positions[i]!;
