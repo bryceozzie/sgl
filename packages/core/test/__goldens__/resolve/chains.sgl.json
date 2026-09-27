@@ -61,7 +61,9 @@
       "directed": "both",
       "ordinal": 0,
       "@label": "both ways",
-      "@style": "dashed"
+      "@style": {
+        "strokeDash": "6 3"
+      }
     },
     {
       "from": "a",

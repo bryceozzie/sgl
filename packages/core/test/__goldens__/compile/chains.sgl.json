@@ -264,13 +264,15 @@
       "labelId": "l:e-178f3caf91a99701",
       "config": {
         "label": "both ways",
-        "style": "dashed"
+        "style": {
+          "strokeDash": "6 3"
+        }
       },
       "declaredIn": null,
       "hidden": false,
       "span": {
         "from": 128,
-        "to": 176
+        "to": 191
       }
     },
     {
@@ -290,8 +292,8 @@
       "declaredIn": null,
       "hidden": false,
       "span": {
-        "from": 177,
-        "to": 203
+        "from": 192,
+        "to": 218
       }
     },
     {
@@ -311,8 +313,8 @@
       "declaredIn": null,
       "hidden": false,
       "span": {
-        "from": 177,
-        "to": 203
+        "from": 192,
+        "to": 218
       }
     }
   ],

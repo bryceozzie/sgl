@@ -1,0 +1,131 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 242,
+     "to": 243
+    },
+    "span": {
+     "from": 242,
+     "to": 243
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "b",
+    "keySpan": {
+     "from": 244,
+     "to": 245
+    },
+    "span": {
+     "from": 244,
+     "to": 245
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "a",
+         "span": {
+          "from": 246,
+          "to": 247
+         }
+        }
+       ],
+       "span": {
+        "from": 246,
+        "to": 247
+       }
+      },
+      "span": {
+       "from": 246,
+       "to": 247
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "b",
+         "span": {
+          "from": 251,
+          "to": 252
+         }
+        }
+       ],
+       "span": {
+        "from": 251,
+        "to": 252
+       }
+      },
+      "span": {
+       "from": 251,
+       "to": 252
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "style"
+       ],
+       "value": {
+        "kind": "Word",
+        "value": "dashed",
+        "span": {
+         "from": 264,
+         "to": 270
+        }
+       },
+       "keySpan": {
+        "from": 256,
+        "to": 262
+       },
+       "span": {
+        "from": 256,
+        "to": 270
+       }
+      }
+     ],
+     "span": {
+      "from": 254,
+      "to": 272
+     }
+    },
+    "span": {
+     "from": 246,
+     "to": 272
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 273
+  }
+ },
+ "diagnostics": []
+}

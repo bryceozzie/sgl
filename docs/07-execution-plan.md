@@ -2017,6 +2017,28 @@ of 182** (+54 B). Deviations are listed in DD-13 §13 branch 1: `@edges`' scope 
 `STRUCTURAL_KEYS` has its own module, and four gaps were filled (`hint/` ids, `engineId`,
 `key/layout.engine`, `@style`'s sub-keys are the `style/` ids).
 
+**Help branch 0, `fix/style-shorthand`** (Stage L, DD-13 §13 branch 0; human decision 2026-09-27;
+branched from `main` at `b3171e6`). `CONFIG_REGISTRY`'s `style` row is now `object`, not `any`.
+A `@style` that is not an object (`@style: dashed`, a string, a number, an array, or a `$var`
+holding one) is therefore `SGL2011` ("`@style` expects object; ignored.") and dropped. Before, the
+cascade ignored it with no diagnostic, and the line drew solid. Dotted keys are unchanged.
+`corpus/checkout.sgl`, `corpus/chains.sgl` and the first-run example now write
+`@style: { strokeDash: "6 3" }`. Only those lines changed, so `feat/b5-pin`'s `engine` edit merges
+cleanly. The new fixture `corpus/unresolved/style-not-object.sgl` emits `SGL2011`.
+
+Goldens:
+- the `checkout` and `chains` render goldens are re-baselined in all four themes, because the
+  edges now carry `stroke-dasharray:6 3`;
+- their AST, CST, resolve and compile goldens, and the example's AST and CST pins, moved only
+  where the text and the spans after it changed;
+- `render-svg`'s fonts pin gains one entry, for the new fixture;
+- no other golden moved.
+
+Tests: `resolve.test.ts` (each non-object form, and an object plus a dotted key) and
+`e2e/style-shorthand.spec.ts` (the first-run example has no diagnostics, and the async edge's
+computed dasharray is `6 3`). DD-02 §7's row and paragraph are rewritten. Core bundle **176.88 kB
+of 182** (+5 B).
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
