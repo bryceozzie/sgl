@@ -332,13 +332,17 @@ const SIDE_NORMAL: Readonly<Record<string, Vec2>> = {
  * coordinates (ELK's are parent-relative). Engine output only: DD-06 §6.2's
  * "then the host applies §4.4 and §4.5" is `applyHostFallbacks`' job, in the
  * worker runtime, like every engine's.
+ *
+ * `arrowSize` turns on F16's detours round container titles (`avoidTitle`),
+ * sized for that arrowhead; the engine leaves it out under SPLINES, whose
+ * points are control points, not vertices (DD-06 §6.2).
  */
 /** A coordinate ELK should have written. Missing is `NaN`, never `0`, so
  *  `validateResult` rejects the result (SGL4002) instead of the node quietly
  *  landing at its parent's origin (fix round 1, item 5). */
 const coord = (v: number | undefined): number => v ?? Number.NaN;
 
-export function fromElkGraph(input: LayoutInput, out: ElkNode): LayoutResult {
+export function fromElkGraph(input: LayoutInput, out: ElkNode, arrowSize?: number): LayoutResult {
   const { graph } = input;
   const nodes: Record<NodeId, NodeLayout> = {};
   const labels: LabelPlacement[] = [];
@@ -377,7 +381,7 @@ export function fromElkGraph(input: LayoutInput, out: ElkNode): LayoutResult {
       // grid's host fallback puts it, align `start`, baseline `top`.
       const size = input.labelSizes[node.labelId] ?? { w: 0, h: 0 };
       const title: Rect = { x: frame.x + sizing.contentInset[3], y: frame.y + sizing.contentInset[0], w: size.w, h: size.h };
-      bands.push({ frame, title, bottom: frame.y + sizing.padding[0] });
+      bands.push({ id, frame, title, bottom: frame.y + sizing.padding[0] });
       labels.push({ labelId: node.labelId, frame: title, align: 'start', baseline: 'top' });
     }
     const elkLabel = elk.labels?.[0];
@@ -417,7 +421,7 @@ export function fromElkGraph(input: LayoutInput, out: ElkNode): LayoutResult {
   }
 
   // F16: after every route is known, outer containers first (DD-06 §6.2).
-  for (const band of bands) avoidTitle(nodes, band, routes);
+  if (arrowSize !== undefined) for (const band of bands) avoidTitle(input, nodes, band, routes, arrowSize);
   const edges: Record<EdgeId, EdgeLayout> = {};
   for (const { edge, points } of routes) edges[edge.id] = edgeLayout(points);
 
@@ -452,74 +456,133 @@ interface Route {
   points: Point[];
 }
 
-/** A container's frame, its title's text box, and the bottom of the band
+/** A container, its frame, its title's text box, and the bottom of the band
  *  `elk.padding.top` left for the title. */
 interface TitleBand {
+  readonly id: NodeId;
   readonly frame: Rect;
   readonly title: Rect;
   readonly bottom: number;
 }
 
-/** Clearance from a title, and between detours round the same title. */
+/** Clearance from a title and from an arrowhead's line. */
 const TITLE_GAP = 4;
+/** Tolerance for every comparison of ELK's (and our) floating-point coordinates. */
+const EPS = 1e-6;
 const q64 = (v: number): number => Math.round(v * 64) / 64;
+
+/** Whether the intervals `a–b` and `c–d` meet (touching counts). */
+const span = (a: number, b: number, c: number, d: number): boolean =>
+  Math.max(Math.min(a, b), Math.min(c, d)) <= Math.min(Math.max(a, b), Math.max(c, d)) + EPS;
 
 /**
  * F16 (DD-06 §6.2). ELK is not given a container's title (§6.1 note 2), so a
- * route into or out of the container may run straight down (or up) through
- * it. A vertical run from above the title to below it crosses the container's
- * top edge, so it enters the container (an endpoint's ancestor; any other
- * container would be a K4 crossing). Each such run is detoured to the title's
- * right inside the container's own title band, which holds nothing but the
- * title: it turns aside above the title, passes it, and then either keeps its
- * new x to its end — when the run ends on its node (not a port) at the band's
- * bottom, so the detour never leaves the band, and the new x is still on the
- * node — or turns back to its own x below the title, still in the band. Runs
- * through one title are stacked in order of x, each further right and the
- * rightmost turning highest, so no two detours cross or overlap. Only that run
- * changes; orthogonal, on the 1/64 px grid, deterministic.
+ * route into the container (or out of it, upward) may run straight through
+ * it. Each vertical run that passes the title from above to below, where the
+ * container holds the run's far end, is detoured round the title's right:
+ * it turns back to its own x below the title when what is left below is
+ * long enough (before its end: room for the arrowhead); otherwise, ending on
+ * its node (not a port) at the band's bottom, it ends on the node's top at
+ * the new x, or enters the node's side. The m rightmost runs are stacked,
+ * nested (the rightmost furthest right, turning highest and turning back
+ * lowest); a detour that would meet another route, or another child, is not
+ * made, and then one run fewer is tried, so the runs left alone are all left
+ * of every detour. DD-06 §6.2. Orthogonal, on the 1/64 px grid, deterministic.
  */
-function avoidTitle(nodes: Readonly<Record<NodeId, NodeLayout>>, band: TitleBand, routes: readonly Route[]): void {
-  const { frame, title: t, bottom } = band;
-  const below = bottom - t.y - t.h;
-  const runs: { route: Route; pts: Point[]; i: number; reversed: boolean; end: GraphEdge['to'] }[] = [];
+function avoidTitle(input: LayoutInput, nodes: Readonly<Record<NodeId, NodeLayout>>, band: TitleBand, routes: readonly Route[], arrow: number): void {
+  const { frame, title: t, bottom, id } = band;
+  const under = t.y + t.h;
+  const inside = (node: NodeId): boolean => {
+    for (let at = input.graph.nodes[node]?.parent ?? null; at !== null; at = input.graph.nodes[at]?.parent ?? null) if (at === id) return true;
+    return false;
+  };
+  // [route, its points oriented towards the run's far end, the run's index, that end]
+  const runs: [Route, Point[], number, GraphEdge['to']][] = [];
   for (const route of routes) {
-    for (const reversed of [false, true]) {
-      const pts = reversed ? [...route.points].reverse() : route.points;
+    for (const end of [route.edge.to, route.edge.from]) {
+      const pts = end === route.edge.to ? route.points : [...route.points].reverse();
       const i = pts.findIndex((a, k) => {
         const b = pts[k + 1];
-        return b !== undefined && a.x === b.x && a.x > t.x && a.x < t.x + t.w && a.y < t.y && b.y > t.y + t.h;
+        return b !== undefined && Math.abs(a.x - b.x) < EPS && a.x > t.x + EPS && a.x < t.x + t.w - EPS && a.y < t.y + EPS && b.y > under - EPS;
       });
-      if (i >= 0) {
-        runs.push({ route, pts, i, reversed, end: reversed ? route.edge.from : route.edge.to });
+      if (i >= 0 && inside(end.node)) {
+        runs.push([route, pts, i, end]);
         break;
       }
     }
   }
-  // Stable: equal x keeps the edges' order.
-  runs.sort((a, b) => a.pts[a.i]!.x - b.pts[b.i]!.x);
-  const n = runs.length;
-  runs.forEach(({ route, pts, i, reversed, end }, k) => {
-    const a = pts[i]!;
-    const b = pts[i + 1]!;
-    const x = q64(t.x + t.w + TITLE_GAP * (k + 1));
-    const top = Math.max(a.y, frame.y);
-    if (x >= frame.x + frame.w || t.y - top < 1 || below < 1) return;
-    const y = q64(top + ((t.y - top) * (n - k)) / (n + 1));
-    const detour = [
-      { x: a.x, y },
-      { x, y },
-    ];
-    const f = nodes[end.node]?.frame;
-    if (i + 2 === pts.length && end.port === undefined && f !== undefined && b.y < bottom + 0.5 && x <= f.x + f.w - TITLE_GAP / 2) {
-      pts[i + 1] = { x, y: b.y };
-    } else {
-      const back = q64(t.y + t.h + (below * (k + 1)) / (n + 1));
-      detour.push({ x, y: back }, { x: a.x, y: back });
+  // Rightmost first; stable.
+  runs.sort((p, q) => q[1][q[2]]!.x - p[1][p[2]]!.x);
+  const lane = Math.max(TITLE_GAP, 0.75 * arrow + 1);
+  for (let m = runs.length; m > 0; m--) {
+    const plan = new Map<Route, Point[]>();
+    const fits = runs.slice(0, m).every(([route, pts, i, end], j) => {
+      const a = pts[i]!;
+      const b = pts[i + 1]!;
+      const next = pts[i + 2];
+      const f = nodes[end.node]!.frame;
+      const top = Math.max(a.y, frame.y);
+      const x = q64(t.x + t.w + TITLE_GAP + (m - 1 - j) * lane);
+      const y = q64(top + ((t.y - top) * (j + 1)) / (m + 1));
+      const back = q64(under + ((bottom - under) * (m - j)) / (m + 1));
+      const side = q64(Math.max(x, f.x + f.w + arrow + TITLE_GAP));
+      const mid = f.y + f.h / 2;
+      // Turn back below the title when what is left of the run below it is
+      // long enough: any length before another bend, and room for the
+      // arrowhead and its clearance before the end. Otherwise end on the
+      // node's top, or enter its side.
+      const turn = back > under + EPS && b.y > back + (next === undefined ? arrow + TITLE_GAP - EPS : EPS);
+      const chain = turn
+        ? [
+            { x: a.x, y },
+            { x, y },
+            { x, y: back },
+            { x: a.x, y: back },
+          ]
+        : next === undefined &&
+          end.port === undefined &&
+          b.y < bottom + EPS &&
+          b.y - y >= arrow + TITLE_GAP - EPS &&
+          (x + 0.375 * arrow <= f.x + f.w + EPS
+            ? [
+                { x: a.x, y },
+                { x, y },
+                { x, y: b.y },
+              ]
+            : [
+                { x: a.x, y },
+                { x: side, y },
+                { x: side, y: mid },
+                { x: f.x + f.w, y: mid },
+              ]);
+      const meets = (p: Point, q: Point, r: Point, s: Point): boolean => span(p.x, q.x, r.x, s.x) && span(p.y, q.y, r.y, s.y);
+      if (
+        !chain ||
+        t.y - top < EPS ||
+        chain.some(
+          (p, k) =>
+            p.x > frame.x + frame.w - EPS ||
+            (k > 0 &&
+              (routes.some((r) => r !== route && (plan.get(r) ?? r.points).some((u, v, all) => v > 0 && meets(chain[k - 1]!, p, all[v - 1]!, u))) ||
+                // Only a detour into its node's side leaves the band, into
+                // the container's first layer: no other child may be in the way.
+                input.graph.nodes[id]!.children.some((c) => {
+                  const n = nodes[c]?.frame;
+                  return c !== end.node && n !== undefined && meets(chain[k - 1]!, p, n, { x: n.x + n.w, y: n.y + n.h });
+                }))),
+        )
+      ) {
+        return false;
+      }
+      const done = [...pts.slice(0, i + 1), ...chain, ...(turn ? pts.slice(i + 1) : [])];
+      plan.set(route, end === route.edge.to ? done : done.reverse());
+      return true;
+    });
+    if (fits) {
+      for (const [route, pts] of plan) route.points = pts;
+      return;
     }
-    pts.splice(i + 1, 0, ...detour);
-    route.points = reversed ? pts.reverse() : pts;
-  });
+  }
 }
 
 function edgeLayout(points: readonly Point[]): EdgeLayout {

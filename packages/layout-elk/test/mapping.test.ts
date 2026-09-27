@@ -429,51 +429,84 @@ describe('fromElkGraph (DD-06 §6.2)', () => {
 });
 
 describe('fromElkGraph: a route through its own container\'s title is detoured round it (F16, DD-06 §6.2)', () => {
-  const input = layoutInputForSource('x\nouter: {\n  @label: "A long container title"\n  inner\n}\nx -> outer.inner\nouter.inner -> x\n');
-  const [down, up] = input.graph.edges;
+  const input = layoutInputForSource(
+    'x\ny\nouter: {\n  @label: "A long container title"\n  inner: { @ports: { p: north } }\n}\nx -> outer.inner\nouter.inner -> x\nx -> outer.inner[p]\nx -> y\n',
+  );
+  const [down, up, port, unrelated] = input.graph.edges;
   const outer = asNodeId('outer');
   const inner = asNodeId('outer.inner');
   const top = sizingOf(input, 'outer').padding[0];
+  const ARROW = METRICS.arrowSize;
+  type Run = 'down' | 'up' | 'port' | 'unrelated';
 
-  /** `outer` at (100, 100); `inner` at the top of its content, `innerW` wide;
-   *  both edges run straight through the title at `runX` (outer-relative). */
-  function laidOut(innerW: number, runX: number, edges: 'down' | 'up' | 'both' = 'both') {
+  /** `x` above `outer` at (100, 100), `y` below it; `inner` at the top of
+   *  `outer`'s content, `innerW` wide. Each edge in `runs` runs straight
+   *  through the title at the given x (outer-relative); `dx` offsets a run's
+   *  second point (ELK's floating-point noise). */
+  function laidOut(innerW: number, runs: Partial<Record<Run, number>>, dx = 0) {
+    const at = (x: number) => 100 + x;
+    const edge = (id: EdgeId, sources: string[], targets: string[], x: number, from: number, to: number) => ({
+      id,
+      sources,
+      targets,
+      container: 'root',
+      sections: [{ startPoint: { x: at(x), y: from }, endPoint: { x: at(x) + dx, y: to } }],
+    });
     const out: ElkNode = {
       id: 'root',
       width: 400,
-      height: 400,
+      height: 500,
       children: [
         { id: asNodeId('x'), x: 100, y: 10, width: 300, height: 30, labels: [{ text: 'l:x', width: 9, height: 13, x: 0, y: 0 }] },
+        { id: asNodeId('y'), x: 100, y: 400, width: 300, height: 30, labels: [{ text: 'l:y', width: 9, height: 13, x: 0, y: 0 }] },
         {
           id: outer,
           x: 100,
           y: 100,
           width: 260,
           height: 200,
-          children: [{ id: inner, x: 16, y: top, width: innerW, height: 36, labels: [{ text: 'l:outer.inner', width: 9, height: 13, x: 0, y: 0 }] }],
+          children: [
+            {
+              id: inner,
+              x: 16,
+              y: top,
+              width: innerW,
+              height: 36,
+              labels: [{ text: 'l:outer.inner', width: 9, height: 13, x: 0, y: 0 }],
+              ports: runs.port === undefined ? [] : [{ id: `${inner}#p`, x: runs.port - 16, y: 0, width: 0, height: 0 }],
+            },
+          ],
         },
       ],
       edges: [
-        ...(edges === 'up' ? [] : [{ id: down!.id, sources: ['x'], targets: [inner], container: 'root', sections: [{ startPoint: { x: 100 + runX, y: 40 }, endPoint: { x: 100 + runX, y: 100 + top } }] }]),
-        ...(edges === 'down' ? [] : [{ id: up!.id, sources: [inner], targets: ['x'], container: 'root', sections: [{ startPoint: { x: 100 + runX + 10, y: 100 + top }, endPoint: { x: 100 + runX + 10, y: 40 } }] }]),
+        ...(runs.down === undefined ? [] : [edge(down!.id, ['x'], [inner], runs.down, 40, 100 + top)]),
+        ...(runs.up === undefined ? [] : [edge(up!.id, [inner], ['x'], runs.up, 100 + top, 40)]),
+        ...(runs.port === undefined ? [] : [edge(port!.id, ['x'], [`${inner}#p`], runs.port, 40, 100 + top)]),
+        ...(runs.unrelated === undefined ? [] : [edge(unrelated!.id, ['x'], ['y'], runs.unrelated, 40, 400)]),
       ],
     };
-    const result = fromElkGraph(input, out);
+    const plain = fromElkGraph(input, JSON.parse(JSON.stringify(out)) as ElkNode);
+    const result = fromElkGraph(input, out, ARROW);
     const title = result.labels.find((l) => l.labelId === input.graph.nodes[outer]!.labelId)!.frame;
-    const points = (id: EdgeId) => [result.edges[id]!.start, ...result.edges[id]!.route.map((s) => (s as { to: { x: number; y: number } }).to)];
-    return { result, title, points };
+    const pointsIn = (r: typeof result, id: EdgeId) => [r.edges[id]!.start, ...r.edges[id]!.route.map((s) => (s as { to: { x: number; y: number } }).to)];
+    return { result, plain, title, points: (id: EdgeId) => pointsIn(result, id) };
   }
 
-  const through = (pts: readonly { x: number; y: number }[], r: { x: number; y: number; w: number; h: number }): boolean =>
+  type P = { readonly x: number; readonly y: number };
+  const through = (pts: readonly P[], r: { x: number; y: number; w: number; h: number }): boolean =>
     pts.some((a, i) => {
       const b = pts[i + 1];
       if (b === undefined) return false;
       return Math.min(a.x, b.x) < r.x + r.w && Math.max(a.x, b.x) > r.x && Math.min(a.y, b.y) < r.y + r.h && Math.max(a.y, b.y) > r.y;
     });
-  const orthogonal = (pts: readonly { x: number; y: number }[]): boolean => pts.every((a, i) => i === 0 || a.x === pts[i - 1]!.x || a.y === pts[i - 1]!.y);
+  const orthogonal = (pts: readonly P[]): boolean => pts.every((a, i) => i === 0 || a.x === pts[i - 1]!.x || a.y === pts[i - 1]!.y);
+  const within = (a: number, b: number, c: number, d: number): boolean => Math.max(Math.min(a, b), Math.min(c, d)) <= Math.min(Math.max(a, b), Math.max(c, d));
+  /** Whether two routes meet anywhere but at a point they share at their ends. */
+  const meet = (p: readonly P[], q: readonly P[]): boolean =>
+    p.some((a, i) => i > 0 && q.some((b, j) => j > 0 && within(p[i - 1]!.x, a.x, q[j - 1]!.x, b.x) && within(p[i - 1]!.y, a.y, q[j - 1]!.y, b.y)));
 
-  it('ends the run on its node, right of the title, when the node reaches that far; an upward run moves its start the same way', () => {
-    const { title, points, result } = laidOut(200, 40);
+  it('ends a run on its node, right of the title, when the node reaches that far; an upward run moves its start the same way', () => {
+    const { title, points, result } = laidOut(200, { down: 40, up: 50 });
     const inside = result.nodes[inner]!.frame;
     for (const [id, endIdx] of [
       [down!.id, -1],
@@ -486,40 +519,83 @@ describe('fromElkGraph: a route through its own container\'s title is detoured r
       const onNode = pts.at(endIdx)!;
       expect(onNode.y).toBe(inside.y);
       expect(onNode.x).toBeGreaterThan(title.x + title.w);
-      expect(onNode.x).toBeLessThan(inside.x + inside.w);
+      expect(onNode.x + 0.375 * ARROW).toBeLessThanOrEqual(inside.x + inside.w);
       // Every new point is inside the container's title band.
       for (const p of pts.slice(1, -1)) expect(p.y > 100 && p.y < 100 + top).toBe(true);
       // What the detour computes is on the 1/64 px grid (ELK's own y is kept).
       for (const p of pts.slice(1, -1)) expect(Number.isInteger(p.x * 64) && Number.isInteger(p.y * 64)).toBe(true);
     }
-    // Two runs through one title never share an x or a turn.
+    // Two runs through one title never meet, and their arrowheads (0.75 x
+    // arrowSize wide) are apart.
     const [d, u] = [points(down!.id), points(up!.id)];
-    expect(d[2]!.x).not.toBe(u[1]!.x);
-    expect(d[1]!.y).not.toBe(u[2]!.y);
+    expect(meet(d, u)).toBe(false);
+    expect(Math.abs(d.at(-1)!.x - u[0]!.x)).toBeGreaterThan(0.75 * ARROW);
   });
 
-  it('turns back to its own x below the title, still in the band, when the node ends under the title', () => {
-    const { title, points } = laidOut(40, 40, 'down');
+  it('item 1: enters the node\'s side, the last segment at least arrowSize plus the clearance, when the node lies under the title', () => {
+    const { title, points, result } = laidOut(40, { down: 40 });
     const pts = points(down!.id);
+    const f = result.nodes[inner]!.frame;
     expect(through(pts, title)).toBe(false);
     expect(orthogonal(pts)).toBe(true);
-    expect(pts).toHaveLength(6);
     expect(pts[0]).toEqual({ x: 140, y: 40 });
-    expect(pts.at(-1)).toEqual({ x: 140, y: 100 + top });
-    const back = pts[4]!;
-    expect(back.x).toBe(140);
-    expect(back.y).toBeGreaterThan(title.y + title.h);
-    expect(back.y).toBeLessThan(100 + top);
+    const [before, end] = pts.slice(-2) as [P, P];
+    expect(end).toEqual({ x: f.x + f.w, y: f.y + f.h / 2 });
+    expect(before.y).toBe(end.y);
+    expect(before.x - end.x).toBeGreaterThanOrEqual(ARROW + 4);
+    // The arrowhead, `arrowSize` back from the end, is clear of the title.
+    expect(through([{ x: end.x, y: end.y - 0.375 * ARROW }, { x: end.x + ARROW, y: end.y + 0.375 * ARROW }], title)).toBe(false);
+  });
+
+  it('item 3: a run to a port is never moved, and a detour never crosses it', () => {
+    // The port run right of the other: neither can be detoured without the
+    // other's crossing it, so neither is.
+    const right = laidOut(200, { down: 40, port: 60 });
+    expect(right.points(down!.id)).toEqual([
+      { x: 140, y: 40 },
+      { x: 140, y: 100 + top },
+    ]);
+    expect(right.points(port!.id)).toEqual([
+      { x: 160, y: 40 },
+      { x: 160, y: 100 + top },
+    ]);
+    // The port run left of the other: the other is detoured, clear of it.
+    const left = laidOut(200, { port: 30, down: 50 });
+    expect(left.points(port!.id)).toEqual([
+      { x: 130, y: 40 },
+      { x: 130, y: 100 + top },
+    ]);
+    expect(through(left.points(down!.id), left.title)).toBe(false);
+    expect(meet(left.points(down!.id), left.points(port!.id))).toBe(false);
+  });
+
+  it('item 6: a route through the title of a container that holds neither end is left alone', () => {
+    const { title, points } = laidOut(200, { unrelated: 40 });
+    expect(through(points(unrelated!.id), title)).toBe(true);
+    expect(points(unrelated!.id)).toEqual([
+      { x: 140, y: 40 },
+      { x: 140, y: 400 },
+    ]);
+  });
+
+  it('item 7: a run is vertical within a tolerance (ELK\'s floating point)', () => {
+    const { title, points } = laidOut(200, { down: 40 }, 1e-9);
+    expect(through(points(down!.id), title)).toBe(false);
   });
 
   it('leaves a run that misses the title untouched', () => {
-    const { title, points } = laidOut(240, 0, 'down');
+    const { title, points } = laidOut(240, { down: 0 });
     const clearX = Math.ceil(title.x + title.w - 100) + 2;
-    const other = laidOut(240, clearX, 'down');
+    const other = laidOut(240, { down: clearX });
     expect(other.points(down!.id)).toEqual([
       { x: 100 + clearX, y: 40 },
       { x: 100 + clearX, y: 100 + top },
     ]);
     expect(points(down!.id)).toHaveLength(2);
+  });
+
+  it('does nothing without an arrow size (the engine leaves it out under SPLINES)', () => {
+    const { plain } = laidOut(200, { down: 40 });
+    expect(through([plain.edges[down!.id]!.start, plain.edges[down!.id]!.end], laidOut(200, { down: 40 }).title)).toBe(true);
   });
 });
