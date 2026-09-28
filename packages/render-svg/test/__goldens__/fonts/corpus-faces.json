@@ -140,6 +140,26 @@
   "layout/pin-under-elk.sgl": [
     "Inter normal 500"
   ],
+  "layout/tree-cycle.sgl": [
+    "Inter normal 400",
+    "Inter normal 500"
+  ],
+  "layout/tree-diamond.sgl": [
+    "Inter normal 500"
+  ],
+  "layout/tree-direction.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "layout/tree-forest.sgl": [
+    "Inter normal 500"
+  ],
+  "layout/tree-order.sgl": [
+    "Inter normal 500"
+  ],
+  "layout/tree-root.sgl": [
+    "Inter normal 500"
+  ],
   "layout/unknown-key.sgl": [
     "Inter normal 500"
   ],
