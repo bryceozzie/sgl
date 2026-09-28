@@ -895,12 +895,13 @@ begins.
    - **Hints.** `root` only. A container's `@direction` is `SGL4010` under `radial` (it is not a
      hint of it); `@order` is honoured among siblings, as under `tree`, because the forest is
      shared.
-   - **Conformance check 7 is not on `main`.** DD-14 C35's "honours `scope`" is on the unmerged
-     `feat/b8-compose`. `conformance.test.ts` runs its second half locally for `radial`: for every
-     container of the corpus and of the 1 000-node graph, a scoped run places exactly the
-     container and its visible descendants, the container at (0, 0), each where the
-     whole-document layout puts it. Whichever of B8 and this branch merges second adds `radial`
-     to `runConformance`'s check 7, as B8 did for `tree`.
+   - **Conformance check 7 (DD-14 C35) runs for `radial`** in `runConformance`'s default run
+     (`main` at `707dd0c`, with B8 branch 1, merged in), and `conformance.test.ts` asserts it
+     ran, as `tree`'s suite does: on all 100 containers of the 1 000-node graph, on
+     `checkout.sgl`'s two and on `tree-direction.sgl`'s three, with no failure (with it switched
+     off, the assertions fail). Beyond it, a scoped run on the whole graph is checked to be the
+     document's own layout of that container, moved to (0, 0). `layout-elk/test/compose.test.ts`
+     has a `radial-in-grid` composed golden beside `tree-in-grid`.
    - **The cross-browser test.** Chromium's V8 is Node's engine, so `radial.browser.test.ts`
      proves the worker path and the chunk, not that another engine's arithmetic agrees. That is
      the job of the bit-pattern golden (`__goldens__/trig.txt`, 85 angles), which
@@ -913,15 +914,14 @@ begins.
      containers, titles, `scope`; the host's straight edges and labels; a 2 000-node path and
      star; a bitwise double run, raw and quantized, over the corpus; goldens in
      `__goldens__/radial/` for `CLEAN_DOCS` and the six `layout/tree-*.sgl`);
-     `conformance.test.ts` (checks 1–6 at the default and at 2 px spacings, and check 7's second
-     half); `radial.browser.test.ts` (five cases, raw inside the worker and quantized through
+     `conformance.test.ts` (checks 1–7 at the default and at 2 px spacings); `radial.browser.test.ts` (five cases, raw inside the worker and quantized through
      it); apps/web `engine-options`, `engine-options-radial-defaults` (the form follows the
      descriptor), `pipeline` and `reference` tests; e2e `radial.spec.ts`, criterion 1 under
      `radial`, and `radial` offline in criterion 5.
    - **Help (DD-13 P21, this branch merged second):** `radial` joined `HELP_ENGINES` and
      `HARNESS_ENGINES`, `key/layout.engine`'s values and aliases (with a checked example), the
      hints (`@layout.root`), `@order`, `@direction` and the quick start.
-   - **Size:** core **180.15 kB** of 184 (180 154 B), +120 B over `main` (180 034 B): the
+   - **Size:** core **180.15 kB** of 184 (180 154 B), +120 B over `main` (180 034 B) at `1fd4b22`; after merging `main` at `707dd0c` (B8 branch 1; 180.07 kB), 180.18 kB (180 176 B). The delta is the
      descriptor on the page and in the worker, the F11 rules and the timeout row. §11 estimated
      0.60. The `std-trees` chunk is 4.71 kB gzipped (12.06 kB raw), +1.04 kB for `radial` and
      `trig` (§11: ~1.3), measured with Node's zlib (3.67 kB for `tree` alone by the same

@@ -2326,14 +2326,13 @@ degree 13, which misses §12's 1e-14), with an 85-angle bit-pattern golden check
 Chromium. Its code is in the lazy `std-trees` chunk beside `tree`'s; `check-core-chunks.mjs`'s
 module list adds `radial.ts` and `trig.ts`. Shared helpers moved from `tree.ts` to `forest.ts`,
 unchanged. Tests: `trig.test.ts`, `radial.test.ts` (units, a bitwise double run over the corpus,
-goldens in `__goldens__/radial/`), conformance checks 1–6 at two spacings plus check 7's scope
-half locally (check 7 itself is on the unmerged `feat/b8-compose`: whichever merges second adds
-`radial` to it), `trig.browser.test.ts`, `radial.browser.test.ts` (raw inside the worker), apps/web
+goldens in `__goldens__/radial/`), conformance checks 1–7 at two spacings (check 7 since `main` at
+`707dd0c`, B8 branch 1, was merged in), a `radial-in-grid` composed golden, `trig.browser.test.ts`, `radial.browser.test.ts` (raw inside the worker), apps/web
 form, defaults, pipeline and reference tests, e2e `radial.spec.ts`, criterion 1 under `radial`,
 `radial` offline in criterion 5. Help (P21): `radial` in the engine lists, `@layout.engine`,
 the hints, `@order`, `@direction` and the quick start. **Goldens:** new only
-(`layout-std/test/__goldens__/radial/`, `__goldens__/trig.txt`); no existing golden changed. Core
-**180.15 kB** of 184 (180 154 B), +120 B over `main`; the `std-trees` chunk 4.71 kB gzipped (+1.04
+(`layout-std/test/__goldens__/radial/`, `__goldens__/trig.txt`, `layout-elk/test/__goldens__/composed/radial-in-grid.json`); no existing golden changed. Core
+**180.15 kB** of 184 (180 154 B), +120 B over `main` at `1fd4b22`; 180.18 kB (180 176 B) after merging `main` at `707dd0c` (180.07 kB); the `std-trees` chunk 4.71 kB gzipped (+1.04
 kB). DD-12 §13 branch 5, DD-06 §7c and §8, DD-10 §2, DD-13 §13.
 
 ### 2.1 Open findings

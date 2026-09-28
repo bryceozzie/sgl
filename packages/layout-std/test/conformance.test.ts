@@ -154,21 +154,21 @@ it('radial passes every conformance check over the corpus and the 1 000-node gra
     expect(timed.withinTimeout).toBe(true);
     expect(report.cases.every((c) => c.deterministic === true)).toBe(true);
     expect(report.cases.filter((c) => c.validation.length > 0).map((c) => c.name)).toEqual([]);
+    // Check 7 (DD-14 C35), in the default run: radial honours `scope` on every container.
+    expect(report.cases.find((c) => c.name === N1000)!.scopes).toHaveLength(100);
+    expect(report.cases.find((c) => c.name === 'checkout.sgl')!.scopes).toEqual(['storefront', 'payments']);
+    expect(report.cases.find((c) => c.name === 'layout/tree-direction.sgl')!.scopes).toEqual(['sales', 'sales.emea', 'ops']);
   }
 }, 120_000);
 
 /**
- * DD-14 C35's check 7 ("honours `scope`") is on `feat/b8-compose`, not yet on
- * `main`, so `runConformance` cannot run it here; whichever of the two
- * branches merges second adds `radial` to it, as B8 left `tree` to. Until
- * then, its second half, locally: for every container of every corpus
- * document and of the 1 000-node graph, `radial` with `scope` = that
- * container places exactly the container and its visible descendants, the
- * container at (0, 0), and each of them where the whole-document layout puts
- * it, moved by the container's own offset (radial lays out each container
- * on its own, N45, so a scoped run is the same layout).
+ * Beyond check 7: radial lays out each container on its own (N45), so a
+ * scoped run on the whole graph is the document's layout of that
+ * container, moved to (0, 0). For every container of every corpus document
+ * and of the 1 000-node graph, each node lands where the whole-document
+ * layout puts it, less the container's own offset.
  */
-it('radial honours scope: a container’s layout alone is its layout in the document (check 7’s second half)', async () => {
+it('radial: a container’s layout alone is its layout in the document, moved to (0, 0)', async () => {
   const inputs = [...listCorpusDocs().map((name) => ({ name, input: inputOf(corpusStyledGraph(name).styled) })), { name: N1000, input: inputForSource(scaleDocument(1000) as string) }];
   let checked = 0;
   for (const { name, input } of inputs) {

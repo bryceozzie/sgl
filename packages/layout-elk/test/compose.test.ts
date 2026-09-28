@@ -2,7 +2,7 @@ import { asNodeId, type NodeId } from '@sgl/core';
 import { validateResult, type LayoutEngine, type LayoutInput, type LayoutResult } from '@sgl/layout-api';
 import type { LayoutPlan } from '@sgl/layout-api/compose';
 import { detachedEdges, runConformance, runHostSequence } from '@sgl/layout-api/conformance';
-import { fixedEngine, gridEngine, treeEngine } from '@sgl/layout-std';
+import { fixedEngine, gridEngine, radialEngine, treeEngine } from '@sgl/layout-std';
 import { describe, expect, it } from 'vitest';
 import { scaleDocument } from '../../../bench/scale-document.js';
 import { listCorpusDocs } from '../../theme/test/corpus.js';
@@ -23,7 +23,7 @@ import { documentOptionsFor, layoutInputFor, layoutInputForSource, METRICS } fro
  * in the corpus today they would be laid out by one engine and warn `SGL4010`.
  */
 
-const ENGINES: readonly LayoutEngine[] = [elkEngine, gridEngine, fixedEngine, treeEngine];
+const ENGINES: readonly LayoutEngine[] = [elkEngine, gridEngine, fixedEngine, treeEngine, radialEngine];
 const engineById = (id: string): LayoutEngine | undefined => ENGINES.find((e) => e.id === id);
 const fullId = (name: string): string => (engineById(name) !== undefined ? name : `sgl.${name}`);
 
@@ -147,6 +147,24 @@ org: {
 note -> org.ceo
 `;
 
+const RADIAL_IN_GRID = `@layout: { engine: grid }
+note: "Note"
+hub: {
+  @label: "Hub"
+  @layout: { engine: radial }
+  core: "Core"
+  n: "North"
+  e: "East"
+  s: "South"
+  w: "West"
+  core -> n
+  core -> e
+  core -> s
+  core -> w
+}
+note -> hub.core
+`;
+
 const GRID_IN_TREE = `@layout: { engine: tree }
 root: "Root"
 left: "Left"
@@ -172,6 +190,7 @@ const FIXTURES: readonly Fixture[] = [
   { name: 'grid-in-fixed', root: fixedEngine, input: layoutInputForSource(GRID_IN_FIXED), options: {} },
   { name: 'tree-in-grid', root: gridEngine, input: layoutInputForSource(TREE_IN_GRID), options: {} },
   { name: 'grid-in-tree', root: treeEngine, input: layoutInputForSource(GRID_IN_TREE), options: {} },
+  { name: 'radial-in-grid', root: gridEngine, input: layoutInputForSource(RADIAL_IN_GRID), options: {} },
 ];
 
 const run = (f: Fixture) => runHostSequence(f.root, f.input, f.options, METRICS, { plan: planOf(f.input), engines: engineById });
@@ -190,6 +209,7 @@ describe('composed goldens (DD-14 §10 item 2)', () => {
       'grid-in-fixed': ['cells:sgl.grid:{"columns":2}'],
       'tree-in-grid': ['org:sgl.tree:{}'],
       'grid-in-tree': ['cells:sgl.grid:{"columns":2}'],
+      'radial-in-grid': ['hub:sgl.radial:{}'],
     });
   });
 
@@ -291,6 +311,22 @@ describe('tree, composed (after feat/b5-tree)', () => {
     expect(cells.y).toBeGreaterThan(root.y + root.h);
     expect(frameOf(result, 'cells.c2').y).toBe(frameOf(result, 'cells.c1').y);
     expect(frameOf(result, 'cells.c3').y).toBeGreaterThan(frameOf(result, 'cells.c1').y);
+    expect(result.notes ?? []).toEqual([]);
+  });
+});
+
+describe('radial, composed (after feat/b5-radial)', () => {
+  it('radial-in-grid: the box is a disc (Core at the centre, the four on one ring), with no SGL4013', async () => {
+    const { result } = await run(FIXTURES.find((f) => f.name === 'radial-in-grid')!);
+    const c = (id: string) => {
+      const f = frameOf(result, id);
+      return { x: f.x + f.w / 2, y: f.y + f.h / 2 };
+    };
+    const core = c('hub.core');
+    const radii = ['hub.n', 'hub.e', 'hub.s', 'hub.w'].map((id) => Math.hypot(c(id).x - core.x, c(id).y - core.y));
+    for (const r of radii) expect(r).toBeCloseTo(radii[0]!, 1);
+    expect(c('hub.n').y).toBeLessThan(core.y);
+    expect(c('hub.s').y).toBeGreaterThan(core.y);
     expect(result.notes ?? []).toEqual([]);
   });
 });
