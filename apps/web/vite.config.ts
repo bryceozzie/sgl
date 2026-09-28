@@ -113,6 +113,15 @@ export default defineConfig({
   // (Vite's default worker format is `iife`, which cannot code-split), so
   // that `elkEngine.layout()`'s dynamic `import()` of elkjs becomes a chunk
   // fetched on first use rather than being inlined into the worker (K1).
+  //
+  // B5 branch 4 (DD-12 N52): `tree`'s layout code is the lazy `std-trees`
+  // chunk, named after its module (`@sgl/layout-std`'s `dist/std-trees.js`,
+  // which only `treeEngine.layout()`'s dynamic `import()` reaches), as the
+  // page's lazy chunks are. It gets no `manualChunks` rule: Rollup moves a
+  // manual chunk's static dependencies into it, so `@sgl/layout-api` would
+  // follow and the worker would import the chunk statically (tried: it did).
+  // `check-core-chunks.mjs` holds it to one lazy chunk the worker only
+  // imports dynamically.
   worker: {
     format: 'es',
     plugins: () => [sglMinify()],

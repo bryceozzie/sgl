@@ -1,5 +1,5 @@
 import { elkDescriptor } from '@sgl/layout-elk/descriptor';
-import { fixedEngine, gridEngine } from '@sgl/layout-std';
+import { fixedEngine, gridEngine, treeEngine } from '@sgl/layout-std';
 import { describe, expect, it } from 'vitest';
 import { editOption, engineForm, formValues, withOption } from '../src/state/engine-form.js';
 import { defaultOptionsFor, optionsForEngine } from '../src/state/engine-options.js';
@@ -47,8 +47,41 @@ describe('engine options form (F11)', () => {
     expect(withOption('sgl.fixed', {}, 'gap', '0')).toEqual({ gap: 0 });
   });
 
+  it('tree: direction, node spacing, rank spacing (0–500), edges — elk’s names and defaults (DD-12 N37)', () => {
+    const form = engineForm(treeEngine.id)!;
+    expect(form.title).toBe('Tree options');
+    expect(form.fields).toEqual([
+      { kind: 'select', key: 'direction', label: 'Direction', choices: [
+        { value: 'down', label: 'Down' },
+        { value: 'up', label: 'Up' },
+        { value: 'left', label: 'Left' },
+        { value: 'right', label: 'Right' },
+      ] },
+      { kind: 'number', key: 'nodeSpacing', label: 'Node spacing', min: 0, max: 500, step: 1 },
+      { kind: 'number', key: 'rankSpacing', label: 'Rank spacing', min: 0, max: 500, step: 1 },
+      { kind: 'select', key: 'edgeRouting', label: 'Edges', choices: [
+        { value: 'orthogonal', label: 'Elbows' },
+        { value: 'straight', label: 'Straight' },
+      ] },
+    ]);
+    expect(defaultOptionsFor(treeEngine.id)).toEqual({ direction: 'down', nodeSpacing: 40, rankSpacing: 70, edgeRouting: 'orthogonal' });
+    expect(formValues('sgl.tree', { direction: 'left', nodeSpacing: 0, rankSpacing: 500, edgeRouting: 'straight', gap: 3 })).toEqual({
+      direction: 'left',
+      nodeSpacing: 0,
+      rankSpacing: 500,
+      edgeRouting: 'straight',
+    });
+    expect(formValues('sgl.tree', { direction: 'sideways', nodeSpacing: 501, rankSpacing: -1, edgeRouting: 'ORTHOGONAL' })).toEqual(defaultOptionsFor('sgl.tree'));
+    expect(optionsForEngine('sgl.tree', { direction: 'up', columns: 3 })).toEqual({ ...defaultOptionsFor('sgl.tree'), direction: 'up' });
+    expect(editOption('sgl.tree', { rankSpacing: 30 }, 'rankSpacing', '600')).toEqual({
+      bag: { ...defaultOptionsFor('sgl.tree'), rankSpacing: 30 },
+      rejected: 'Rank spacing must be a number from 0 to 500. Using 30.',
+    });
+    expect(withOption('sgl.tree', {}, 'edgeRouting', 'straight')).toEqual({ ...defaultOptionsFor('sgl.tree'), edgeRouting: 'straight' });
+  });
+
   it("every select choice and default is one the engine's optionsSchema allows", () => {
-    for (const engine of [elkDescriptor, gridEngine, fixedEngine]) {
+    for (const engine of [elkDescriptor, gridEngine, fixedEngine, treeEngine]) {
       const props = (engine.optionsSchema as { properties: Record<string, { enum?: readonly string[]; default?: unknown }> }).properties;
       const form = engineForm(engine.id)!;
       for (const field of form.fields) {

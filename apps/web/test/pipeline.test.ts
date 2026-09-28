@@ -561,6 +561,19 @@ describe('@pin under the registered engines (DD-12 N6, H4)', () => {
     expect(bare.pipeline.diags.value).toEqual([]);
   });
 
+  it('tree is registered, by id and bare name, with its hints: a container @direction and @layout.root are not SGL4010 (feat/b5-tree)', () => {
+    const tree = REGISTERED_ENGINES.find((e) => e.id === 'sgl.tree');
+    expect(tree).toMatchObject({ id: 'sgl.tree', name: 'Tree', determinism: 'bitwise' });
+    expect(tree?.pins).toBeUndefined();
+    const source = '@layout: { engine: tree }\nbox: {\n  @direction: right\n  a\n}\nr: { @layout: { root: true } }\n';
+    const env = setup(source, { ...registered, defaultEngineId: 'sgl.elk' });
+    expect(env.pipeline.effectiveEngineId.value).toBe('sgl.tree');
+    expect(env.pipeline.diags.value).toEqual([]);
+    // Tree does not honour pins (DD-12 N39): SGL4021, as under elk and grid.
+    const pinned = setup('@layout: { engine: tree }\na: { @pin: { x: 1, y: 2 } }\n', { ...registered, defaultEngineId: 'sgl.elk' });
+    expect(pinned.pipeline.diags.value.map((d) => d.code)).toEqual(['SGL4021']);
+  });
+
   it.each(['sgl.grid', 'sgl.elk'])('neither grid nor elk honours pins: SGL4021 at the key under %s', (id) => {
     const source = 'a: { @pin: { x: 10, y: 20 } }\nb: "B"\n';
     const env = setup(source, { ...registered, defaultEngineId: id });

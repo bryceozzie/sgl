@@ -34,6 +34,10 @@
 // `io/run-faces.ts`, A18's seven run faces (DD-11 T26): registered by `rich-text`
 // and listed for export by `file-actions`, which share it, so the bundler gives
 // it a chunk of its own; the boot CSS declares none of them.
+// `std-trees-*.js` is B5's (DD-12 N52, H9): `tree`'s layout code (and
+// `radial`'s, when it lands), imported by the layout worker alone, and only
+// dynamically, on the first request for one of those engines;
+// `check-core-chunks.mjs` also walks the worker's static imports for it.
 //
 // size-limit is pinned to 12.1.0 (fix round 1, item 20): 13+ require Node
 // ≥ 22.18 (14 uses `fs/promises` `glob`), and CI runs Node 20.19.0
@@ -44,7 +48,7 @@
 export default [
   {
     name: 'core (entry + static imports + layout worker), gzip',
-    path: ['apps/web/dist/assets/*.js', 'apps/web/dist/assets/*.css', '!apps/web/dist/assets/elk-*.js', '!apps/web/dist/assets/share-*.js', '!apps/web/dist/assets/file-actions-*.js', '!apps/web/dist/assets/engine-options-form-*.js', '!apps/web/dist/assets/documents-menu-*.js', '!apps/web/dist/assets/imports-*.js', '!apps/web/dist/assets/filename-*.js', '!apps/web/dist/assets/rich-text-*.js', '!apps/web/dist/assets/run-faces-*.js'],
+    path: ['apps/web/dist/assets/*.js', 'apps/web/dist/assets/*.css', '!apps/web/dist/assets/elk-*.js', '!apps/web/dist/assets/share-*.js', '!apps/web/dist/assets/file-actions-*.js', '!apps/web/dist/assets/engine-options-form-*.js', '!apps/web/dist/assets/documents-menu-*.js', '!apps/web/dist/assets/imports-*.js', '!apps/web/dist/assets/filename-*.js', '!apps/web/dist/assets/rich-text-*.js', '!apps/web/dist/assets/run-faces-*.js', '!apps/web/dist/assets/std-trees-*.js'],
     gzip: true,
     limit: '182 kB',
   },

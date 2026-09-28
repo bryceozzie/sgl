@@ -136,6 +136,31 @@ if (!existsSync(`${DIST}index.html`)) {
   }
   if (process.exitCode !== 1) console.log(`check-core-chunks: the layout worker carries no catalogue row (the boot chunks' ${bootRows} match the same pattern).`);
 
+  // B5 branch 4 (DD-12 N52, H9): `tree`'s layout code is the lazy
+  // `std-trees` chunk, which only the worker imports, dynamically, on the
+  // first tree request (`treeEngine`, `@sgl/layout-std/src/lazy.ts`). So:
+  // exactly one such chunk is emitted, and it holds the layout code (its
+  // `tree: unknown scope` error, so this cannot pass vacuously); neither the
+  // page's boot chunks nor the worker's static imports are it or carry that
+  // code; the worker references it (else `tree` could never load); and no
+  // boot chunk references it at all (only the worker may import it).
+  const TREES_SIGNATURE = 'tree: unknown scope';
+  const treesChunks = assets.filter((f) => /^std-trees-[\w-]+\.js$/.test(f));
+  if (treesChunks.length !== 1) fail(`expected one assets/std-trees-*.js chunk, found ${treesChunks.length} (${treesChunks.join(', ')}).`);
+  for (const trees of treesChunks) {
+    if (!readFileSync(`${DIST}assets/${trees}`, 'utf8').includes(TREES_SIGNATURE)) fail(`${trees} does not contain '${TREES_SIGNATURE}'; update TREES_SIGNATURE for this minifier output.`);
+    for (const file of seen) {
+      if (file === trees) fail(`${trees}, the lazy std-trees chunk, is reachable at boot.`);
+      else if (readFileSync(`${DIST}assets/${file}`, 'utf8').includes(trees)) fail(`${file} (reachable at boot) references the lazy std-trees chunk ${trees}; only the layout worker may import it.`);
+    }
+    if (inWorker.has(trees)) fail(`${trees}, the lazy std-trees chunk, is a static import of the layout worker.`);
+    if (!workers.some((w) => readFileSync(`${DIST}assets/${w}`, 'utf8').includes(trees))) fail(`the layout worker does not reference ${trees}; tree could not load its layout code.`);
+  }
+  for (const file of [...seen, ...inWorker]) {
+    if (!treesChunks.includes(file) && readFileSync(`${DIST}assets/${file}`, 'utf8').includes(TREES_SIGNATURE)) fail(`${file} (boot or worker) contains tree's layout code; it belongs to the lazy std-trees chunk.`);
+  }
+  if (process.exitCode !== 1) console.log(`check-core-chunks: tree's layout code is the lazy ${treesChunks.join(', ')}, which only the worker imports, dynamically.`);
+
   // DD-13 P46 (help branch 2): the help content is lazy. Its compiled form
   // reaches the build only through `virtual:sgl-help-content`, which only the
   // lazy help chunks may import (help branch 4). Neither the boot chunks nor

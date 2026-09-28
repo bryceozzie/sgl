@@ -5,7 +5,8 @@ import { serveDist, type StaticServer } from './static-server.js';
 /**
  * MVP acceptance criterion 5 (06 §3) and DD-08 §14 test 7: after the first
  * load, with the network gone, a reload still gives the whole app — shell,
- * editor, fonts, the layout worker and **both engines** — from the service
+ * editor, fonts, the layout worker and **every engine**, `tree`'s lazy
+ * `std-trees` chunk included (feat/b5-tree) — from the service
  * worker's precache (DD-08 §12). Stage K (K8): `elk` is the default, so its
  * lazy chunk loads online at boot; after the offline reload (HTTP cache
  * emptied first) the elk chunk must come from the service worker, and
@@ -62,7 +63,7 @@ async function clearHttpCache(page: Page, context: BrowserContext, browserName: 
 function assertAllFromServiceWorker(responses: readonly Response[], browserName: string): void {
   const urls = responses.map((r) => new URL(r.url()).pathname);
   expect(urls).toContain('/');
-  for (const kind of [/\/assets\/index-.*\.js$/, /\/assets\/editor-.*\.js$/, /\/assets\/grid-.*\.js$/, /\/assets\/elk-.*\.js$/, /\.css$/, /\.woff2$/, /layout\.worker-.*\.js$/]) {
+  for (const kind of [/\/assets\/index-.*\.js$/, /\/assets\/editor-.*\.js$/, /\/assets\/grid-.*\.js$/, /\/assets\/elk-.*\.js$/, /\/assets\/std-trees-.*\.js$/, /\.css$/, /\.woff2$/, /layout\.worker-.*\.js$/]) {
     expect(urls.some((u) => kind.test(u)), `a response matching ${String(kind)}`).toBe(true);
   }
   if (browserName !== 'chromium') return;
@@ -79,13 +80,18 @@ async function exerciseOffline(page: Page, online: Record<string, string>): Prom
   await expect(page.locator('.engine-picker select')).toHaveValue('sgl.elk');
 
   // Every engine, offline (K8; fixed since feat/b5-fixed, static in the
-  // worker, H9): elk → grid → fixed → elk, each a real render.
+  // worker, H9; tree since feat/b5-tree, whose layout code is the lazy
+  // `std-trees` chunk, fetched now, from the precache, N52): elk → grid →
+  // fixed → tree → elk, each a real render.
   const elkGeometry = await layoutGeometryHash(page);
   await switchEngine(page, 'sgl.grid', elkGeometry);
   await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
   await switchEngine(page, 'sgl.fixed', await layoutGeometryHash(page));
   await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
   await expect.poll(() => diagnosticCodes(page)).toEqual(new Array<string>(EXAMPLE_NODE_COUNT).fill('SGL4020'));
+  await switchEngine(page, 'sgl.tree', await layoutGeometryHash(page));
+  await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
+  await expect.poll(() => diagnosticCodes(page)).not.toContain('SGL4011'); // the chunk loaded
   await switchEngine(page, 'sgl.elk', await layoutGeometryHash(page));
   expect(await layoutGeometryHash(page)).toBe(elkGeometry);
 

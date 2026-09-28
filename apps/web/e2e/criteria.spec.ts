@@ -181,4 +181,38 @@ test.describe('MVP acceptance', () => {
     expect(underFixed.renderedPaint).toBe(underElk.renderedPaint);
     expect(underFixed.geometry).not.toBe(underElk.geometry);
   });
+
+  /** Criterion 1 under `tree` (DD-12 §12 item 5, feat/b5-tree): the same
+   *  40-node, three-level document as the first case. Switching from elk to
+   *  tree (whose layout code the worker loads from the lazy `std-trees`
+   *  chunk then) keeps identity and paint, changes geometry, and leaves no
+   *  diagnostic: tree takes nested containers as nested trees. */
+  test('criterion 1 under tree: the 40-node document, elk → tree, changes only geometry, with no diagnostics', async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.goto('/');
+    await setSource(page, corpusDoc('forty-three-level.sgl'));
+    await waitForExactNodeCount(page, 40);
+    await expect(page.locator('.engine-picker select')).toHaveValue('sgl.elk');
+    await expect(page.locator('.diagnostics-panel')).toHaveCount(0);
+    const underElk = {
+      identity: await renderedIdentity(page),
+      paint: await paintHash(page),
+      renderedPaint: await renderedPaintHash(page),
+      geometry: await layoutGeometryHash(page),
+    };
+
+    await switchEngine(page, 'sgl.tree', underElk.geometry);
+    await waitForExactNodeCount(page, 40);
+    await expect(page.locator('.diagnostics-panel')).toHaveCount(0);
+    const underTree = {
+      identity: await renderedIdentity(page),
+      paint: await paintHash(page),
+      renderedPaint: await renderedPaintHash(page),
+      geometry: await layoutGeometryHash(page),
+    };
+    expect(underTree.identity).toEqual(underElk.identity);
+    expect(underTree.paint).toBe(underElk.paint);
+    expect(underTree.renderedPaint).toBe(underElk.renderedPaint);
+    expect(underTree.geometry).not.toBe(underElk.geometry);
+  });
 });

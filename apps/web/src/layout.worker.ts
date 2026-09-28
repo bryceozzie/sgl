@@ -1,6 +1,6 @@
 import { createWorkerRuntime, EngineRegistry, type HostToWorker, type WorkerToHost } from '@sgl/layout-api';
 import { elkEngine } from '@sgl/layout-elk';
-import { fixedEngine, gridEngine } from '@sgl/layout-std';
+import { fixedEngine, gridEngine, treeEngine } from '@sgl/layout-std';
 
 /**
  * The real layout worker entry (Stage H, decision D2). Everything that runs
@@ -25,6 +25,9 @@ registry.register(gridEngine);
 // B5 branch 2 (DD-12 H9): `fixed` is static in the worker, so the escape
 // hatch works on the first request with no fetch.
 registry.register(fixedEngine);
+// B5 branch 4 (DD-12 H9, N52): `tree` is a static descriptor whose
+// `layout()` imports the lazy `std-trees` chunk on the first tree request.
+registry.register(treeEngine);
 
 /** `self` in a module worker is typed as `Window & typeof globalThis` by this
  *  app's own `DOM` lib (needed for `App.tsx`'s use of `window`/`document`) rather

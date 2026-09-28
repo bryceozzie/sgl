@@ -37,7 +37,7 @@ const outFile = fileURLToPath(new URL('./grid-fixture.json', import.meta.url));
 
 const { compile, parse, resolve } = await import('../packages/core/dist/index.js');
 const { applyHostFallbacks, buildLayoutInput, placeLabels, quantize, routeStraight } = await import('../packages/layout-api/dist/index.js');
-const { fixedEngine, gridEngine } = await import('../packages/layout-std/dist/index.js');
+const { fixedEngine, gridEngine, treeEngine } = await import('../packages/layout-std/dist/index.js');
 const { labelRunKey, premeasure, StaticMetricsMeasurer } = await import('../packages/measure/dist/index.js');
 const { BUILT_IN, neutralLight, resolveTheme, styleGraph } = await import('../packages/theme/dist/index.js');
 
@@ -121,6 +121,22 @@ async function fixedCases() {
   return out;
 }
 
+/** B5 branch 4 (DD-12 §12 item 3): `tree` through a real Worker, for
+ *  `tree.browser.test.ts` — nested containers with mixed directions
+ *  (`tree-direction`), a DAG whose second parent is host-routed
+ *  (`tree-diamond`), the 40-node criterion-1 document and `n50`. `bitwise`
+ *  (N33), so the raw result is shipped too: the browser compares its own raw
+ *  run with Node's, as well as the quantized result through the worker. */
+async function treeCases() {
+  const out = {};
+  for (const name of ['layout/tree-direction.sgl', 'layout/tree-diamond.sgl', 'forty-three-level.sgl', 'n50.sgl']) {
+    const input = inputFor(name);
+    const raw = await treeEngine.layout(input, { ...CTX, random: seededRandom(SEED) });
+    out[name] = { input, raw, expected: quantize(applyHostFallbacks(input, raw, treeEngine.capabilities, METRICS), 64) };
+  }
+  return out;
+}
+
 async function main() {
   // n50 — the smallest generated scale fixture. This test is proving the
   // worker/protocol plumbing works for the real engine, not re-proving grid's
@@ -145,7 +161,7 @@ async function main() {
   const withLabels = gridEngine.capabilities.labelPlacement ? routed : placeLabels(input, routed, METRICS);
   const expected = quantize(withLabels, 64);
 
-  writeFileSync(outFile, JSON.stringify({ input, metrics: METRICS, expected, fixed: await fixedCases() }), 'utf8');
+  writeFileSync(outFile, JSON.stringify({ input, metrics: METRICS, expected, fixed: await fixedCases(), tree: await treeCases() }), 'utf8');
   console.log('bench/generate-grid-fixture.js: wrote bench/grid-fixture.json');
 }
 
