@@ -10,8 +10,11 @@ import {
 } from '@sgl/core';
 import { CANVAS_MARGIN, contentExtent } from './bounds.js';
 import type { EdgeLayout, LabelPlacement, LayoutResult, NodeLayout } from './contract.js';
+import { describeShapeError } from './shape.js';
 
-type Missing = (span: SourceSpan, detail: string) => Diagnostic;
+export { describeShapeError };
+
+type Missing = (span: SourceSpan, detail: string) => void;
 
 /**
  * `LabelPlacement.align`/`.baseline`/`.occlusion` are enumerated fields on the
@@ -49,7 +52,25 @@ const VALID_OCCLUSION: ReadonlySet<string> = new Set(['plate', 'none']);
  */
 export function validateResult(result: LayoutResult, graph: SemanticGraph, engineId: string): readonly Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
-  const missing: Missing = (span, detail) => layoutDiagnostic('SGL4002', span, { id: engineId, detail });
+  checkResult(result, graph, (code, span, v) => {
+    diagnostics.push(code === 'SGL4002' ? layoutDiagnostic(code, span, { id: engineId, detail: v }) : layoutDiagnostic(code, span, { node: v }));
+  });
+  return diagnostics;
+}
+
+/** One problem `checkResult` finds: `SGL4002` with its detail, or `SGL4003`
+ *  with the node's id. */
+export type ResultProblem = (code: 'SGL4002' | 'SGL4003', span: SourceSpan, value: string) => void;
+
+/**
+ * `validateResult`'s checks, reporting each problem as a code and a value
+ * instead of a diagnostic, so a caller that only needs to know whether a
+ * result has an error (the composer, DD-14 C28) builds no message and carries
+ * no catalogue row: the layout worker and its lazy chunks carry none (DD-10
+ * §2, `check-core-chunks.mjs`).
+ */
+export function checkResult(result: LayoutResult, graph: SemanticGraph, report: ResultProblem): void {
+  const missing = (span: SourceSpan, detail: string): void => report('SGL4002', span, detail);
 
   // `result`'s static type is the frozen `LayoutResult`, but that is a
   // compile-time guarantee only: a third party writes an engine directly
@@ -64,21 +85,24 @@ export function validateResult(result: LayoutResult, graph: SemanticGraph, engin
   // exactly as much as to a `.sgl` document). One `SGL4002` and an early
   // return, same as any other malformed result.
   const shapeError = describeShapeError(result);
-  if (shapeError !== null) return [missing(NO_SPAN, shapeError)];
+  if (shapeError !== null) {
+    missing(NO_SPAN, shapeError);
+    return;
+  }
 
   for (const id of graph.order) {
     const node = graph.nodes[id];
     if (node === undefined || node.hidden) continue;
     const layout = result.nodes[id];
     if (layout === undefined) {
-      diagnostics.push(missing(node.span, `missing NodeLayout for '${id}'`));
+      missing(node.span, `missing NodeLayout for '${id}'`);
       continue;
     }
-    checkFrame(layout.frame, node.span, `'${id}'`, missing, diagnostics);
+    checkFrame(layout.frame, node.span, `'${id}'`, missing);
     if (node.children.length > 0 && layout.contentFrame !== undefined) {
-      checkFrame(layout.contentFrame, node.span, `'${id}' contentFrame`, missing, diagnostics);
+      checkFrame(layout.contentFrame, node.span, `'${id}' contentFrame`, missing);
       if (!frameInside(layout.contentFrame, layout.frame)) {
-        diagnostics.push(layoutDiagnostic('SGL4003', node.span, { node: id }));
+        report('SGL4003', node.span, id);
       }
       // Not corrected — some engines overflow deliberately (DD-06 §5's own words
       // for the sibling case; applied here too for the same reason).
@@ -87,19 +111,19 @@ export function validateResult(result: LayoutResult, graph: SemanticGraph, engin
         const childLayout = result.nodes[childId];
         if (child === undefined || child.hidden || childLayout === undefined) continue;
         if (!frameInside(childLayout.frame, layout.contentFrame)) {
-          diagnostics.push(layoutDiagnostic('SGL4003', child.span, { node: childId }));
+          report('SGL4003', child.span, childId);
         }
       }
     }
     for (const [portId, port] of Object.entries(layout.ports ?? {}).sort(byKey)) {
       if (!finitePoint(port.point) || !finiteVec(port.normal)) {
-        diagnostics.push(missing(node.span, `non-finite geometry for '${id}' port '${portId}'`));
+        missing(node.span, `non-finite geometry for '${id}' port '${portId}'`);
       }
     }
   }
   for (const id of Object.keys(result.nodes).sort()) {
     if (graph.nodes[asNodeId(id)] === undefined) {
-      diagnostics.push(missing(NO_SPAN, `LayoutResult references unknown node '${id}'`));
+      missing(NO_SPAN, `LayoutResult references unknown node '${id}'`);
     }
   }
 
@@ -108,35 +132,33 @@ export function validateResult(result: LayoutResult, graph: SemanticGraph, engin
     if (edge.hidden) continue;
     const layout = result.edges[edge.id];
     if (layout === undefined) {
-      diagnostics.push(missing(edge.span, `missing EdgeLayout for '${edge.id}'`));
+      missing(edge.span, `missing EdgeLayout for '${edge.id}'`);
       continue;
     }
-    checkEdgeLayout(layout, edge.span, edge.id, missing, diagnostics);
+    checkEdgeLayout(layout, edge.span, edge.id, missing);
   }
   for (const id of Object.keys(result.edges).sort()) {
-    if (!knownEdges.has(id)) diagnostics.push(missing(NO_SPAN, `LayoutResult references unknown edge '${id}'`));
+    if (!knownEdges.has(id)) missing(NO_SPAN, `LayoutResult references unknown edge '${id}'`);
   }
 
   for (const label of result.labels) {
     if (graph.labels[label.labelId] === undefined) {
-      diagnostics.push(missing(NO_SPAN, `LayoutResult label references unknown label '${label.labelId}'`));
+      missing(NO_SPAN, `LayoutResult label references unknown label '${label.labelId}'`);
       continue;
     }
-    checkFrame(label.frame, NO_SPAN, `label '${label.labelId}'`, missing, diagnostics);
+    checkFrame(label.frame, NO_SPAN, `label '${label.labelId}'`, missing);
     if (!VALID_ALIGN.has(label.align)) {
-      diagnostics.push(missing(NO_SPAN, `label '${label.labelId}' has invalid align '${String(label.align)}'`));
+      missing(NO_SPAN, `label '${label.labelId}' has invalid align '${String(label.align)}'`);
     }
     if (!VALID_BASELINE.has(label.baseline)) {
-      diagnostics.push(missing(NO_SPAN, `label '${label.labelId}' has invalid baseline '${String(label.baseline)}'`));
+      missing(NO_SPAN, `label '${label.labelId}' has invalid baseline '${String(label.baseline)}'`);
     }
     if (label.occlusion !== undefined && !VALID_OCCLUSION.has(label.occlusion)) {
-      diagnostics.push(missing(NO_SPAN, `label '${label.labelId}' has invalid occlusion '${String(label.occlusion)}'`));
+      missing(NO_SPAN, `label '${label.labelId}' has invalid occlusion '${String(label.occlusion)}'`);
     }
   }
 
-  checkFrame(result.bounds, NO_SPAN, 'bounds', missing, diagnostics);
-
-  return diagnostics;
+  checkFrame(result.bounds, NO_SPAN, 'bounds', missing);
 }
 
 function checkEdgeLayout(
@@ -144,19 +166,18 @@ function checkEdgeLayout(
   span: SourceSpan,
   edgeId: string,
   missing: Missing,
-  diagnostics: Diagnostic[],
 ): void {
   if (!finitePoint(layout.start) || !finitePoint(layout.end)) {
-    diagnostics.push(missing(span, `non-finite start/end for edge '${edgeId}'`));
+    missing(span, `non-finite start/end for edge '${edgeId}'`);
   }
   for (const seg of layout.route) {
-    if (!finiteSeg(seg)) diagnostics.push(missing(span, `non-finite route segment for edge '${edgeId}'`));
+    if (!finiteSeg(seg)) missing(span, `non-finite route segment for edge '${edgeId}'`);
   }
   if (layout.startNormal !== undefined && !finiteVec(layout.startNormal)) {
-    diagnostics.push(missing(span, `non-finite startNormal for edge '${edgeId}'`));
+    missing(span, `non-finite startNormal for edge '${edgeId}'`);
   }
   if (layout.endNormal !== undefined && !finiteVec(layout.endNormal)) {
-    diagnostics.push(missing(span, `non-finite endNormal for edge '${edgeId}'`));
+    missing(span, `non-finite endNormal for edge '${edgeId}'`);
   }
 }
 
@@ -165,14 +186,13 @@ function checkFrame(
   span: SourceSpan,
   what: string,
   missing: Missing,
-  diagnostics: Diagnostic[],
 ): void {
   if (!isFiniteNum(frame.x) || !isFiniteNum(frame.y) || !isFiniteNum(frame.w) || !isFiniteNum(frame.h)) {
-    diagnostics.push(missing(span, `non-finite frame for ${what}`));
+    missing(span, `non-finite frame for ${what}`);
     return;
   }
   if (frame.w < 0 || frame.h < 0) {
-    diagnostics.push(missing(span, `negative frame size for ${what}`));
+    missing(span, `negative frame size for ${what}`);
   }
 }
 
@@ -212,50 +232,6 @@ function finiteSeg(seg: PathSeg): boolean {
 
 function isFiniteNum(v: number): boolean {
   return Number.isFinite(v);
-}
-
-/**
- * Returns a human-readable description of what's wrong with `result`'s outer
- * shape, or `null` if it is safe to dereference `.nodes`/`.edges`/`.labels`/
- * `.bounds` the way the rest of this function (and `fallbacks.ts`'s
- * `routeStraight`/`placeLabels`) does. Deliberately shallow — it only guards
- * the four top-level accesses that would otherwise throw; the per-node/
- * per-edge/per-label checks below still catch a malformed value *inside* one
- * of these four.
- *
- * Exported (Stage H fix round 2, item 2) so `worker-runtime.ts` can run the
- * same check on an engine's raw output *before* applying the host fallbacks —
- * `routeStraight`/`placeLabels` make exactly the same assumptions this
- * function's callers do (`result.edges`, `.nodes`, `.labels` all exist), so
- * an engine resolving `undefined` reached them unguarded and threw inside the
- * worker's `try`/`catch`, turning what should be host-side `SGL4002` into
- * worker-side `SGL4011` with a raw `TypeError` message instead. One check,
- * reused, rather than a second copy of it in `worker-runtime.ts`.
- *
- * Takes `unknown`, not `LayoutResult`: the whole point is that the static
- * type is a compile-time guarantee only, and this function is precisely what
- * stands between that guarantee and the untrusted runtime value everywhere it
- * is called.
- */
-export function describeShapeError(result: unknown): string | null {
-  const r = result;
-  if (!isPlainObject(r)) return `engine returned ${describeType(r)}, not a LayoutResult object`;
-  if (!isPlainObject(r['nodes'])) return `LayoutResult.nodes is ${describeType(r['nodes'])}, not an object`;
-  if (!isPlainObject(r['edges'])) return `LayoutResult.edges is ${describeType(r['edges'])}, not an object`;
-  if (!Array.isArray(r['labels'])) return `LayoutResult.labels is ${describeType(r['labels'])}, not an array`;
-  if (!isPlainObject(r['bounds'])) return `LayoutResult.bounds is ${describeType(r['bounds'])}, not an object`;
-  return null;
-}
-
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-
-function describeType(v: unknown): string {
-  if (v === null) return 'null';
-  if (v === undefined) return 'undefined';
-  if (Array.isArray(v)) return 'an array';
-  return typeof v;
 }
 
 function byKey<T>(a: readonly [string, T], b: readonly [string, T]): number {

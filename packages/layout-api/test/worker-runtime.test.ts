@@ -404,6 +404,74 @@ describe('createWorkerRuntime (DD-06 §3, Stage H decision D2)', () => {
 
 /** Flush the microtask queue enough times for a chain of `await`s inside the
  *  runtime to settle before assertions run. */
+describe('a request with a plan (DD-14 C23, B8 branch 2)', () => {
+  const box = asNodeId('box');
+  const plan = [{ node: box, engine: 'test.box', options: { gap: 3 } }];
+  const composed: LayoutResult = { ...EMPTY_RESULT, bounds: { x: 0, y: 0, w: 7, h: 7 } };
+
+  it('loads the composer and hands it the root engine, the input, the options, the plan and the registry', async () => {
+    const root = engine('test.engine', () => Promise.reject(new Error("the root engine is the composer's to run")));
+    const inner = engine('test.box', () => Promise.reject(new Error('unused')));
+    const registry = new EngineRegistry();
+    registry.register(root);
+    registry.register(inner);
+    const port = fakePort();
+    const calls: unknown[][] = [];
+    let loads = 0;
+    const runtime = createWorkerRuntime(registry, port, () => {
+      loads += 1;
+      return Promise.resolve(async (...args: unknown[]) => {
+        calls.push(args);
+        return composed;
+      });
+    });
+
+    runtime.receive({ ...layoutMessage(), options: { a: 1 }, plan });
+    await flush();
+
+    expect(loads).toBe(1);
+    expect(calls).toHaveLength(1);
+    const [e, input, options, p, lookup, ctx] = calls[0] as [LayoutEngine, LayoutInput, unknown, unknown, (id: string) => LayoutEngine | undefined, { signal: AbortSignal }];
+    expect(e).toBe(root);
+    expect(input).toBe(INPUT);
+    expect(options).toEqual({ a: 1 });
+    expect(p).toBe(plan);
+    expect(lookup('test.box')).toBe(inner);
+    expect(lookup('test.nope')).toBeUndefined();
+    expect(ctx.signal.aborted).toBe(false);
+    expect(port.sent).toEqual([{ t: 'result', id: 1, result: composed, ms: expect.any(Number) }]);
+  });
+
+  it('never loads the composer for a request without a plan, or with an empty one', async () => {
+    const registry = new EngineRegistry();
+    registry.register(engine('test.engine', () => Promise.resolve(EMPTY_RESULT)));
+    const port = fakePort();
+    let loads = 0;
+    const runtime = createWorkerRuntime(registry, port, () => {
+      loads += 1;
+      return Promise.reject(new Error('not expected'));
+    });
+    runtime.receive(layoutMessage());
+    runtime.receive({ ...layoutMessage({ id: 2 }), plan: [] });
+    await flush();
+    expect(loads).toBe(0);
+    expect(port.sent.map((m) => m.t)).toEqual(['result', 'result']);
+  });
+
+  it("a composer that will not load, or a worker without one, is an error (the host's SGL4011)", async () => {
+    const registry = new EngineRegistry();
+    registry.register(engine('test.engine', () => Promise.resolve(EMPTY_RESULT)));
+    const port = fakePort();
+    createWorkerRuntime(registry, port, () => Promise.reject(new Error('chunk failed'))).receive({ ...layoutMessage(), plan });
+    createWorkerRuntime(registry, port).receive({ ...layoutMessage({ id: 2 }), plan });
+    await flush();
+    expect([...port.sent].sort((a, b) => a.id - b.id)).toEqual([
+      { t: 'error', id: 1, reason: 'chunk failed' },
+      { t: 'error', id: 2, reason: 'per-container engines are not available in this worker' },
+    ]);
+  });
+});
+
 async function flush(): Promise<void> {
   for (let i = 0; i < 5; i += 1) await Promise.resolve();
   await new Promise((resolve) => setTimeout(resolve, 0));

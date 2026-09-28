@@ -20,6 +20,10 @@
     "./compose": {
       "types": "./dist/compose.d.ts",
       "default": "./dist/compose.js"
+    },
+    "./worker": {
+      "types": "./dist/worker.d.ts",
+      "default": "./dist/worker.js"
     }
   },
   "scripts": {

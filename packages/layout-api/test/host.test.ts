@@ -676,3 +676,45 @@ describe('createWorkerHost (DD-06 §3, Stage H decision D1)', () => {
     expect(workers[0]!.posted).toHaveLength(0); // no 'layout' posted
   });
 });
+
+describe('a request with a plan (DD-14 C23, C25, C26; B8 branch 2)', () => {
+  const plan = [{ node: A, engine: 'sgl.elk', options: {} }];
+
+  it("posts the plan with the request, and only when there is one: a request without one is today's message", async () => {
+    const { spawn, workers } = makeSpawn();
+    const host = createWorkerHost(spawn);
+    void host.run('sgl.grid', INPUT, {}, METRICS, {}, new AbortController().signal, plan);
+    const first = workers[0]!.posted[0] as Extract<HostToWorker, { t: 'layout' }>;
+    expect(first.plan).toBe(plan);
+    void host.run('sgl.grid', INPUT, {}, METRICS, {}, new AbortController().signal);
+    void host.run('sgl.grid', INPUT, {}, METRICS, {}, new AbortController().signal, []);
+    const layouts = workers[0]!.posted.filter((m) => m.t === 'layout');
+    expect(layouts.map((m) => 'plan' in m)).toEqual([true, false, false]);
+  });
+
+  it("the clock is the longest of the plan's engines' timeouts, the root's included (C26); SGL4001 names the root engine and that time", async () => {
+    const { spawn } = makeSpawn();
+    const host = createWorkerHost(spawn);
+    // `grid` alone would stop at 2 000 ms; an `elk` box makes it 10 000.
+    const promise = host.run('sgl.grid', INPUT, {}, METRICS, {}, new AbortController().signal, plan);
+    let settled = false;
+    void promise.then(() => (settled = true));
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(8_000);
+    const outcome = await promise;
+    expect(outcome.diagnostics.map((d) => d.message)).toEqual(['Layout engine `sgl.grid` did not finish within 10000 ms and was stopped. Showing the previous layout.']);
+  });
+
+  it('a plan of engines with shorter timeouts than the root keeps the root\'s', async () => {
+    const { spawn } = makeSpawn();
+    const host = createWorkerHost(spawn, { engineTimeoutMs: { 'test.quick': 500 } });
+    const promise = host.run('sgl.fixed', INPUT, {}, METRICS, {}, new AbortController().signal, [{ node: A, engine: 'test.quick', options: {} }]);
+    let settled = false;
+    void promise.then(() => (settled = true));
+    await vi.advanceTimersByTimeAsync(1_999);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect((await promise).diagnostics[0]!.message).toContain('within 2000 ms');
+  });
+});

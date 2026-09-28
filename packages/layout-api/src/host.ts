@@ -1,4 +1,5 @@
 import { LAYOUT_CATALOGUE, layoutDiagnostic, NO_SPAN, type Diagnostic, type LayoutDiagnosticCode, type StageResult } from '@sgl/core';
+import type { LayoutPlan } from './compose.js';
 import type { LayoutInput, LayoutResult, ResolvedThemeMetricsView } from './contract.js';
 import type { HostToWorker, WorkerToHost } from './protocol.js';
 import { quantize, validateResult } from './validate.js';
@@ -68,6 +69,9 @@ export interface LayoutHost {
     metrics: ResolvedThemeMetricsView,
     table: Readonly<Record<string, unknown>>,
     signal: AbortSignal,
+    /** The document's container engines (DD-14 C25): the worker composes
+     *  the layout when it is not empty. */
+    plan?: LayoutPlan,
   ): Promise<StageResult<LayoutResult | null>>;
 
   dispose(): void;
@@ -76,6 +80,7 @@ export interface LayoutHost {
 interface InFlight {
   readonly id: number;
   readonly engineId: string;
+  readonly ms: number;
   readonly input: LayoutInput;
   /** The `'layout'` message as posted, kept so a respawn can post it again. */
   readonly message: Extract<HostToWorker, { t: 'layout' }>;
@@ -261,7 +266,7 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
   }
 
   return {
-    run(engineId, input, options, metrics, table, signal) {
+    run(engineId, input, options, metrics, table, signal, plan) {
       // Calling `run()` on a disposed host is a programming error, not a
       // runtime condition about the input or the engine — §1's "throwing is
       // reserved for a violated invariant." Rejecting a *fresh* `Promise`
@@ -284,6 +289,9 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
       const id = nextId;
       nextId += 1;
 
+      // DD-14 C26: one clock per request, the longest of its engines'.
+      const composed = plan !== undefined && plan.length > 0;
+      const ms = composed ? Math.max(timeoutFor(engineId), ...plan.map((s) => timeoutFor(s.engine))) : timeoutFor(engineId);
       return new Promise((resolve, reject) => {
         const timer = setTimeout(() => {
           const state = takeCurrent(id);
@@ -291,9 +299,9 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
           respawn();
           state.resolve({
             value: null,
-            diagnostics: [layoutDiagnostic('SGL4001', NO_SPAN, { id: state.engineId, ms: timeoutFor(state.engineId) })],
+            diagnostics: [layoutDiagnostic('SGL4001', NO_SPAN, { id: state.engineId, ms: state.ms })],
           });
-        }, timeoutFor(engineId));
+        }, ms);
 
         const onAbort = (): void => {
           const state = takeCurrent(id);
@@ -302,8 +310,8 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
         };
         signal.addEventListener('abort', onAbort, { once: true });
 
-        const message: Extract<HostToWorker, { t: 'layout' }> = { t: 'layout', id, engine: engineId, input, options, metrics, table, seed: SEED };
-        current = { id, engineId, input, message, timer, signal, onAbort, resolve, reject };
+        const message: Extract<HostToWorker, { t: 'layout' }> = { t: 'layout', id, engine: engineId, input, options, metrics, table, seed: SEED, ...(composed && { plan }) };
+        current = { id, engineId, ms, input, message, timer, signal, onAbort, resolve, reject };
         worker.postMessage(message);
       });
     },

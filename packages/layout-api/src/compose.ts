@@ -43,7 +43,7 @@ import type { EdgeId, GraphEdge, GraphNode, LabelId, LabelSpec, NodeId, Semantic
 import type { EngineNote, LabelPlacement, LayoutContext, LayoutEngine, LayoutInput, LayoutResult, NodeLayout, NodeSizing } from './contract.js';
 import { applyHostFallbacks, placeLabels, routeStraight } from './fallbacks.js';
 import { workerText } from './host.js';
-import { describeShapeError, mapGeometry, validateResult } from './validate.js';
+import { checkResult, describeShapeError, mapGeometry } from './validate.js';
 
 /** One boundary of a plan (DD-14 C8): the container, its engine's full id, and
  *  that engine's options, complete (the plan's builder resolved inheritance). */
@@ -165,7 +165,11 @@ async function runScope(engine: LayoutEngine | undefined, view: LayoutInput, opt
   const result = applyHostFallbacks(view, raw, engine.capabilities, ctx.metrics);
   // `SGL4003` (a warning) is left to the host's validation of the whole
   // result, which reports it once (C29); only an error fails the box.
-  if (validateResult(result, view.graph, engine.id).some((d) => d.severity === 'error')) return { ok: false, detail: 'returned invalid geometry' };
+  let invalid = false;
+  checkResult(result, view.graph, (code) => {
+    invalid ||= code === 'SGL4002';
+  });
+  if (invalid) return { ok: false, detail: 'returned invalid geometry' };
   return { ok: true, result, determinism: engine.capabilities.determinism };
 }
 
