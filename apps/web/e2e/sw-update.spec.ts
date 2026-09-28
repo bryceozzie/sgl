@@ -103,6 +103,8 @@ test('F12: an update accepted in one tab reloads the others onto it, saved first
   test.setTimeout(240_000);
   const server = await serveDist({ noStore: true });
   const context = await browser.newContext({ serviceWorkers: 'allow', acceptDownloads: true });
+  // A returning visitor (DD-13 HD6): this server's origin is not the one the config seeds.
+  await context.addInitScript(() => localStorage.setItem('sgl-help-shown', '1'));
   try {
     // A installs the service worker; it controls pages loaded after that.
     const a = await context.newPage();

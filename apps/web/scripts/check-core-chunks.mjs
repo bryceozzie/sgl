@@ -229,4 +229,52 @@ if (!existsSync(`${DIST}index.html`)) {
     }
     if (process.exitCode !== 1) console.log('check-core-chunks: no help content at boot or in the worker.');
   }
+
+  // DD-13 P46 (help branch 4): the help chunks, by the build's module graph.
+  // Each is found by the module it is named after, and must be exactly one
+  // chunk: `help` (the drawer, `src/help/help.tsx`), `help-content` (the
+  // compiled Markdown), `reference` (`buildReference`) and `help-preview`
+  // (the preview queue). Every module of `src/help/` and `src/reference/`,
+  // and the content, is carried by those chunks alone: none by a chunk the
+  // page's entry or the layout worker reaches by static imports, nor by any
+  // other chunk. No boot chunk names `help-content`, `reference` or
+  // `help-preview` (only the `help` chunk loads them), and the help chunk is
+  // reached from the entry only by a dynamic import.
+  if (existsSync(graphFile)) {
+    /** @type {Record<string, string[]>} */
+    const graph = JSON.parse(readFileSync(graphFile, 'utf8'));
+    const HELP_CHUNKS = {
+      help: 'apps/web/src/help/help.tsx',
+      'help-content': '\0virtual:sgl-help-content',
+      reference: 'apps/web/src/reference/build.ts',
+      'help-preview': 'apps/web/src/help/help-preview.ts',
+    };
+    const isHelpModule = (m) => m === HELP_CHUNKS['help-content'] || m.startsWith('apps/web/src/help/') || m.startsWith('apps/web/src/reference/') || m.startsWith('apps/web/help/');
+    /** @type {Map<string, string>} */
+    const helpFiles = new Map();
+    for (const [name, module] of Object.entries(HELP_CHUNKS)) {
+      const files = Object.keys(graph).filter((f) => graph[f].includes(module));
+      if (files.length !== 1) fail(`expected one chunk carrying ${JSON.stringify(module)} (the lazy ${name} chunk), found ${files.length} (${files.join(', ')}).`);
+      for (const f of files) {
+        if (!new RegExp(`^${name}-[\\w-]{8}\\.js$`).test(f)) fail(`${f} carries ${JSON.stringify(module)} but is not named ${name}-*.js.`);
+        helpFiles.set(f, name);
+      }
+    }
+    for (const [file, modules] of Object.entries(graph)) {
+      const where = seen.has(file) ? 'reachable at boot' : inWorker.has(file) ? 'a static import of the layout worker' : 'not a help chunk';
+      if (helpFiles.has(file)) {
+        if (seen.has(file) || inWorker.has(file)) fail(`${file}, the lazy ${helpFiles.get(file)} chunk, is ${where}.`);
+        continue;
+      }
+      for (const m of modules) if (isHelpModule(m)) fail(`${file} (${where}) carries ${JSON.stringify(m)}, a module of the lazy help chunks.`);
+    }
+    for (const file of seen) {
+      const code = readFileSync(`${DIST}assets/${file}`, 'utf8');
+      for (const [f, name] of helpFiles) if (name !== 'help' && code.includes(f)) fail(`${file} (reachable at boot) names ${f}; only the help chunk loads the ${name} chunk.`);
+    }
+    const helpChunk = [...helpFiles].find(([, name]) => name === 'help')?.[0];
+    if (helpChunk !== undefined && ![...seen].some((f) => readFileSync(`${DIST}assets/${f}`, 'utf8').includes(helpChunk))) fail(`no boot chunk loads ${helpChunk}; the Help button could not open the drawer.`);
+    if (!assets.some((f) => /^help-[\w-]{8}\.css$/.test(f))) fail('no assets/help-*.css was emitted; the drawer would be unstyled.');
+    if (process.exitCode !== 1) console.log(`check-core-chunks: the help chunks (${[...helpFiles.keys()].sort().join(', ')}) carry every help module, and no boot or worker chunk carries one.`);
+  }
 }

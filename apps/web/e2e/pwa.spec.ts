@@ -42,13 +42,17 @@ test.describe('PWA (DD-08 §12)', () => {
     expect(has(/^assets\/ibm-plex-mono-latin-700-normal-[\w-]+\.woff2$/)).toBe(true);
     expect(has(/^fonts\/OFL\.txt$/)).toBe(true);
     expect(has(/^fonts\/OFL-IBM-Plex-Mono\.txt$/)).toBe(true);
-    // …and none of them is declared in the boot CSS: the lazy rich-text chunk
+    // …and none of them is declared in any CSS: the lazy rich-text chunk
     // registers them (`io/run-faces.ts`), so the core bundle carries no rule.
+    // The boot CSS declares the three boot faces; the lazy help-*.css (DD-13
+    // P46, help branch 4) declares none.
     const css = filesUnder(`${DIST}assets/`).filter((f) => f.endsWith('.css'));
-    expect(css.length).toBeGreaterThan(0);
+    expect(css.filter((f) => /^index-[\w-]+\.css$/.test(f))).toHaveLength(1);
+    expect(css.filter((f) => /^help-[\w-]+\.css$/.test(f))).toHaveLength(1);
     for (const f of css) {
       const text = readFileSync(`${DIST}assets/${f}`, 'utf8');
-      expect(text, f).toMatch(/inter-latin-400-normal/);
+      if (f.startsWith('index-')) expect(text, f).toMatch(/inter-latin-400-normal/);
+      else expect(text, f).not.toMatch(/@font-face/);
       expect(text, f).not.toMatch(/inter-latin-700-normal|inter-latin-\d+-italic|ibm-plex-mono/);
     }
     const richText = filesUnder(`${DIST}assets/`).filter((f) => /^rich-text-[\w-]+\.js$/.test(f));

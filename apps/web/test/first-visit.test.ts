@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { firstVisitHelp, HELP_SHOWN_KEY, type FlagStorage } from '../src/state/first-visit.js';
 
 /**
- * HD6 (DD-13 §14): on a first visit only — no stored document, so boot made
- * the example — the drawer opens at the quick start, and that it was shown
+ * HD6 (DD-13 §14): on a first visit only — no stored document to reopen, so
+ * boot made one (the example, or a share link's) — the drawer opens at the quick start, and that it was shown
  * is remembered (`localStorage`, `sgl-help-shown`). Storage that fails is
  * tolerated: nothing throws, and a first visit still gets its help.
  */
@@ -35,10 +35,10 @@ describe('the first-visit flag (HD6)', () => {
     expect(storage.data).toEqual({});
   });
 
-  it('a share link that made the document is not a first visit to help', () => {
+  it('a share link opened with nothing stored is a first visit too: the recipient is new to SGL', () => {
     const storage = memory();
-    expect(firstVisitHelp({ created: true, notices: ['share-opened'] }, () => storage)).toBe(false);
-    expect(storage.data).toEqual({});
+    expect(firstVisitHelp({ created: true, notices: ['share-opened'] }, () => storage)).toBe(true);
+    expect(storage.data[HELP_SHOWN_KEY]).toBe('1');
   });
 
   it('an invalid share link that fell back to the example is still a first visit', () => {

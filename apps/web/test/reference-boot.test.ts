@@ -8,10 +8,10 @@ import { describe, expect, it } from 'vitest';
  * help content are lazy. Only the help
  * chunks import it, dynamically, so it must never be statically reachable
  * from the page's entry (`main.tsx`) or from the layout worker's, which
- * together are the core bundle. The branch that first imports it
- * (`feat/help-drawer`) adds `reference-*.js` to `.size-limit.js`'s lazy list,
- * where `check-core-chunks.mjs` checks the built chunks; until then no chunk
- * is emitted, so this walks the sources.
+ * together are the core bundle. `feat/help-drawer` (branch 4) imports it,
+ * from the lazy help chunks, and names `reference-*.js` and the help chunks
+ * in `.size-limit.js`'s lazy list, where `check-core-chunks.mjs` checks the
+ * built chunks by their module graph; this still walks the sources.
  *
  * Help branch 2 adds the help content: the modules in `src/help/` (the
  * content types and `joinHelp`), the Markdown in `apps/web/help/` and its
@@ -71,6 +71,9 @@ describe('the reference builder and the help content stay out of the core bundle
 
   it('the walk sees the boot path (not vacuous)', () => {
     for (const f of ['App.tsx', 'io/app-boot.ts', 'state/pipeline.ts', 'toolbar/EnginePicker.tsx']) expect(reached).toContain(f);
+    // Help branch 4: the Help button and the first-visit check are the boot
+    // path's share of help; the drawer is `import('../help/help.js')`.
+    for (const f of ['toolbar/HelpButton.tsx', 'state/first-visit.ts']) expect(reached).toContain(f);
     // `share.ts` is lazy (`import('./share.js')`): proof dynamic imports are not followed.
     expect(reached).not.toContain('state/share.ts');
     expect(existsSync(resolve(SRC, REFERENCE_DIR, 'build.ts'))).toBe(true);

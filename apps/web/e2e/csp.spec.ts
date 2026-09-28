@@ -74,6 +74,15 @@ test('the app works under the CSP with no violation', async ({ page, context }) 
     .toBeGreaterThanOrEqual(3);
   expect((await saveAs(page, 'svg')).text).toMatch(/font-family:&apos;IBM Plex Mono&apos;/);
   expect(pngSize((await savePng(page, 1)).bytes).width).toBeGreaterThan(0);
+  // DD-13 §11 (help branch 4): the Help drawer (its lazy chunks and CSS), an
+  // entry, and its example previews on help's own layout worker, whose SVG
+  // carries a <style> as the canvas's does; Copy an example.
+  await page.getByRole('button', { name: 'Help', exact: true }).click();
+  await page.locator('aside#help-drawer').getByRole('searchbox', { name: 'Search help' }).fill('@pin');
+  await page.locator('aside#help-drawer .help-result[data-id="key/pin"]').click();
+  await expect(page.locator('aside#help-drawer .help-example').first().locator('.help-preview[data-state="rendered"] svg style')).toHaveCount(1, { timeout: 20_000 });
+  await page.locator('aside#help-drawer .help-example').first().getByRole('button', { name: 'Copy' }).click();
+  await expect(toastMessages(page)).toContainText(['Example copied.']);
 
   expect(await page.evaluate(() => (window as unknown as { __cspViolations: string[] }).__cspViolations)).toEqual([]);
   expect(consoleCsp).toEqual([]);

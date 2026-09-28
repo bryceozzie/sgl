@@ -120,20 +120,21 @@ export function createPreviewer(deps: PreviewDeps): Previewer {
     );
     return new Promise<PreviewOutcome>((resolve) => {
       let settled = false;
-      let stop: (() => void) | undefined;
       const finish = (svg: string | null): void => {
         if (settled) return;
         settled = true;
         const outcome: PreviewOutcome = { svg, codes: pipeline.diags.peek().map((d) => d.code), engineId: pipeline.effectiveEngineId.peek(), themeId: pipeline.effectiveThemeId.peek() };
         cancelTimeout();
+        // Later, never inside the effect's own run (which may be its first,
+        // before `stop` is assigned).
         queueMicrotask(() => {
-          stop?.();
+          stop();
           pipeline.dispose();
         });
         resolve(outcome);
       };
       const cancelTimeout = defaultSchedule(() => finish(null), PREVIEW_TIMEOUT_MS);
-      stop = effect(() => {
+      const stop = effect(() => {
         const good = pipeline.lastGood.value;
         const failed = pipeline.pipelineError.value !== null;
         const busy = pipeline.inFlight.value;

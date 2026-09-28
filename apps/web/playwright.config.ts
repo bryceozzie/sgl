@@ -44,6 +44,13 @@ export default defineConfig({
     // their timeouts (context set-up and teardown both), and blocking it
     // made the same Firefox run clean. Measured, not assumed.
     serviceWorkers: 'block',
+    // DD-13 HD6: a first visit opens the Help drawer at the quick start. Every
+    // test starts in a fresh context, so every test would be a first visit;
+    // the specs about something else start as a returning visitor, with the
+    // flag already set (`src/state/first-visit.ts`). `e2e/help.spec.ts` clears
+    // it for the first-visit case. A context on another origin (the specs'
+    // own static servers) does not get this and must set the flag itself.
+    storageState: { cookies: [], origins: [{ origin: `http://localhost:${PORT}`, localStorage: [{ name: 'sgl-help-shown', value: '1' }] }] },
   },
   webServer: {
     command: `vite build && vite preview --port ${PORT} --strictPort`,

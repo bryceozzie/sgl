@@ -2,7 +2,7 @@ import { engineNotes, type LayoutHost } from '@sgl/layout-api';
 import { runHostSequence } from '@sgl/layout-api/conformance';
 import { StaticMetricsMeasurer } from '@sgl/measure';
 import { describe, expect, it } from 'vitest';
-import { createPreviewer, DISPOSE_AFTER_MS, PREVIEW_CACHE_SIZE, previewEngineId, type PreviewOutcome, type PreviewRequest } from '../src/help/preview.js';
+import { createPreviewer, DISPOSE_AFTER_MS, PREVIEW_CACHE_SIZE, previewEngineId, type PreviewOutcome, type PreviewRequest } from '../src/help/help-preview.js';
 import { REGISTERED_ENGINES } from '../src/io/app-boot.js';
 import type { AppMeasurer, Cancel, Schedule } from '../src/state/types.js';
 import { createHarness, HARNESS_ENGINES, METRICS } from './harness.js';

@@ -42,6 +42,18 @@ import { serveDist, type StaticServer } from './static-server.js';
 // elsewhere; see playwright.config.ts).
 test.use({ serviceWorkers: 'allow' });
 
+// DD-13 HD6: a returning visitor, on any origin (WebKit's case uses a server of
+// its own, which the config's seeded storage does not cover).
+test.beforeEach(async ({ context }) => {
+  await context.addInitScript(() => {
+    try {
+      localStorage.setItem('sgl-help-shown', '1');
+    } catch {
+      // Tolerated by the app too.
+    }
+  });
+});
+
 /** Either way, nothing reaches a server any more. */
 async function goOffline(context: BrowserContext, server: StaticServer | null): Promise<void> {
   if (server !== null) await server.close();
@@ -407,7 +419,11 @@ test('offline, the lazy imports chunk comes from the precache: a document with i
     await expect(page.locator('.diagnostics-panel')).toHaveCount(0);
 
     const chunk = (name: string): Response[] => responses.filter((r) => new RegExp(`/assets/${name}-[^/]*\\.js$`).test(new URL(r.url()).pathname));
-    expect(chunk('imports').length).toBe(1);
+    // Two files since help branch 4: the app's own (`state/imports.ts` and
+    // the index and host) and `@sgl/core/imports`, which the lazy `reference`
+    // chunk shares for `IMPORT_CATALOGUE` (DD-13 §9), so the bundler gives it
+    // a chunk of its own; both are named after `imports`.
+    expect(chunk('imports').length).toBe(2);
     expect(chunk('filename').length).toBe(1);
     expect([...chunk('imports'), ...chunk('filename')].every((r) => r.fromServiceWorker())).toBe(true);
     expect(responses.filter((r) => !r.fromServiceWorker()).map((r) => r.url())).toEqual([]);
@@ -501,6 +517,51 @@ test('offline, a document stored in print boots in print, and Theme ▾ switches
     await waitForTheme(page, 'high-contrast');
     expect(await renderedSvg(page).evaluate((svg) => getComputedStyle(svg.querySelector('rect.canvas')!).fill)).toBe('rgb(255, 255, 255)');
     expect(responses.length).toBeGreaterThan(0);
+    expect(responses.filter((r) => !r.fromServiceWorker()).map((r) => r.url())).toEqual([]);
+    expect(failed).toEqual([]);
+  } finally {
+    await context.setOffline(false);
+  }
+});
+
+/**
+ * DD-13 P45 (help branch 4): help works offline. The `help` chunk and its
+ * CSS, `help-content`, `reference` and `help-preview` come from the
+ * precache, and so does what a preview needs: the layout worker, run a
+ * second time for help's own host, and the chunk of the example's engine.
+ * Chromium only, as above.
+ */
+test('offline, help and a preview come from the precache: the drawer opens, search finds @pin, its example renders', async ({ page, context, browserName }) => {
+  test.skip(browserName !== 'chromium', 'fromServiceWorker() is proof only in Chromium');
+  await page.goto('/');
+  await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+  expect(await page.evaluate(async () => Boolean((await navigator.serviceWorker.ready).active))).toBe(true);
+  await clearHttpCache(page, context, browserName);
+  await context.setOffline(true);
+  const responses: Response[] = [];
+  const failed: string[] = [];
+  context.on('response', (r) => {
+    if (r.url().startsWith('http')) responses.push(r);
+  });
+  context.on('requestfailed', (r) => failed.push(`${r.url()} ${r.failure()?.errorText ?? ''}`));
+  try {
+    await page.reload();
+    await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
+    const fetched = (re: RegExp): Response[] => responses.filter((r) => re.test(new URL(r.url()).pathname));
+    expect(fetched(/\/assets\/help-/)).toEqual([]); // not at boot
+
+    await page.getByRole('button', { name: 'Help', exact: true }).click();
+    const drawer = page.locator('aside#help-drawer');
+    await drawer.getByRole('searchbox', { name: 'Search help' }).fill('@pin');
+    await drawer.locator('.help-result[data-id="key/pin"]').click();
+    await expect(drawer.locator('.help-entry-title')).toHaveText('@pin');
+    await expect(drawer.locator('.help-example').first().locator('.help-preview[data-state="rendered"] svg g.n')).toHaveCount(3, { timeout: 20_000 });
+
+    for (const re of [/\/assets\/help-[\w-]{8}\.js$/, /\/assets\/help-[\w-]{8}\.css$/, /\/assets\/help-content-[\w-]{8}\.js$/, /\/assets\/reference-[\w-]{8}\.js$/, /\/assets\/help-preview-[\w-]{8}\.js$/]) {
+      expect(fetched(re).length, String(re)).toBeGreaterThan(0);
+    }
+    // The preview's worker is a second instance of the layout worker.
+    expect(fetched(/layout\.worker-.*\.js$/).length).toBeGreaterThanOrEqual(2);
     expect(responses.filter((r) => !r.fromServiceWorker()).map((r) => r.url())).toEqual([]);
     expect(failed).toEqual([]);
   } finally {

@@ -29,6 +29,8 @@ import { EngineOptions } from './toolbar/EngineOptions.js';
 import { EnginePicker } from './toolbar/EnginePicker.js';
 import { FileMenu, loadFileActions } from './toolbar/FileMenu.js';
 import { ThemePicker } from './toolbar/ThemePicker.js';
+import { firstVisitHelp } from './state/first-visit.js';
+import { HelpButton, HelpMount, type HelpDeps, type HelpRequest } from './toolbar/HelpButton.js';
 
 function browserSchedule(fn: () => void, ms: number): Cancel {
   const id = setTimeout(fn, ms);
@@ -117,9 +119,11 @@ export function App({ boot }: { readonly boot: AppBoot }) {
     if (boot.notices.includes('storage-failed')) autosave.request(boot.record);
     if (boot.store.persistent !== true || boot.notices.includes('storage-failed')) preloadSave();
     for (const t of boot.toasts ?? []) toasts.push(t.message, t.kind);
-    return { pipeline, toasts, autosave, session, storedSvg };
+    // HD6: a first visit opens help at the quick start, focus left alone.
+    const help = signal<HelpRequest | null>(firstVisitHelp(boot, () => localStorage) ? { focus: 'none' } : null);
+    return { pipeline, toasts, autosave, session, storedSvg, help, helpDeps: { measurer, store: boot.store, pipeline, toasts } };
   }, []);
-  const { pipeline, toasts, autosave, session, storedSvg } = app;
+  const { pipeline, toasts, autosave, session, storedSvg, help } = app;
 
   // Preact state, not a pipeline signal (I3: the pipeline never touches
   // CodeMirror or the DOM) — the editor view and the canvas's imperative
@@ -288,6 +292,9 @@ export function App({ boot }: { readonly boot: AppBoot }) {
     };
   }
 
+  /** DD-13 P30: an example as a new document, by Open's path; the drawer stays open. */
+  const helpDeps: HelpDeps = { ...app.helpDeps, openExample: async (source, engineId) => view !== null && openRecord(view, { ...newRecord(source), engineId }, true) };
+
   function reloadForUpdate(): void {
     // The new version takes over (and this page reloads) once saved.
     if (applyUpdate !== null) void followUpdate(updateSteps(applyUpdate), true);
@@ -314,6 +321,7 @@ export function App({ boot }: { readonly boot: AppBoot }) {
           <span aria-hidden="true">⟳</span> Fit
         </button>
         <FileMenu pipeline={pipeline} session={session} toasts={toasts} onOpen={open} />
+        <HelpButton state={help} />
       </header>
       <div class="panes">
         <Editor pipeline={pipeline} onView={setView} />
@@ -323,8 +331,9 @@ export function App({ boot }: { readonly boot: AppBoot }) {
           fitRequest={fitRequest}
           storedSvg={storedSvg}
         />
+        <HelpMount state={help} deps={helpDeps} />
       </div>
-      <DiagnosticsPanel pipeline={pipeline} view={view} />
+      <DiagnosticsPanel pipeline={pipeline} view={view} onHelp={(code) => (help.value = { id: `diag/${code}`, focus: 'entry' })} />
       <Toasts toasts={toasts} />
     </div>
   );

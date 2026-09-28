@@ -38,6 +38,15 @@
 // code (B5 branches 4 and 5), imported by the layout worker alone, and only
 // dynamically, on the first request for one of those engines;
 // `check-core-chunks.mjs` also walks the worker's static imports for it.
+// The help chunks are DD-13's (help branch 4, P46): `help-*.js` (the drawer's
+// UI: search, entry view, facts panel, example actions) and its
+// `help-*.css`, loaded by the toolbar's Help button; `help-content-*.js`
+// (the compiled Markdown, `virtual:sgl-help-content`) and `reference-*.js`
+// (`buildReference`), which the help chunk loads with itself; and
+// `help-preview-*.js` (the preview queue and its layout host), loaded on the
+// first example preview. (`help-*.js` already matches the two named after
+// it; they are listed to say what is there.) `check-core-chunks.mjs` checks
+// by the module graph that none of their modules is in a boot or worker chunk.
 //
 // size-limit is pinned to 12.1.0 (fix round 1, item 20): 13+ require Node
 // ≥ 22.18 (14 uses `fs/promises` `glob`), and CI runs Node 20.19.0
@@ -48,7 +57,7 @@
 export default [
   {
     name: 'core (entry + static imports + layout worker), gzip',
-    path: ['apps/web/dist/assets/*.js', 'apps/web/dist/assets/*.css', '!apps/web/dist/assets/elk-*.js', '!apps/web/dist/assets/share-*.js', '!apps/web/dist/assets/file-actions-*.js', '!apps/web/dist/assets/engine-options-form-*.js', '!apps/web/dist/assets/documents-menu-*.js', '!apps/web/dist/assets/imports-*.js', '!apps/web/dist/assets/filename-*.js', '!apps/web/dist/assets/rich-text-*.js', '!apps/web/dist/assets/run-faces-*.js', '!apps/web/dist/assets/std-trees-*.js'],
+    path: ['apps/web/dist/assets/*.js', 'apps/web/dist/assets/*.css', '!apps/web/dist/assets/elk-*.js', '!apps/web/dist/assets/share-*.js', '!apps/web/dist/assets/file-actions-*.js', '!apps/web/dist/assets/engine-options-form-*.js', '!apps/web/dist/assets/documents-menu-*.js', '!apps/web/dist/assets/imports-*.js', '!apps/web/dist/assets/filename-*.js', '!apps/web/dist/assets/rich-text-*.js', '!apps/web/dist/assets/run-faces-*.js', '!apps/web/dist/assets/std-trees-*.js', '!apps/web/dist/assets/help-*.js', '!apps/web/dist/assets/help-content-*.js', '!apps/web/dist/assets/help-preview-*.js', '!apps/web/dist/assets/help-*.css', '!apps/web/dist/assets/reference-*.js'],
     gzip: true,
     limit: '184 kB',
   },
