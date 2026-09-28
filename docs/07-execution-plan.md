@@ -1666,8 +1666,8 @@ test now has 30 s. Item by item:
   refused value gets `aria-invalid`, a visible message, and the box shows the value in use.
 - **23. SGL4010 is live** (human decision 2026-09-23). `layoutConfigDiagnostics` in
   `@sgl/layout-api` warns, at the key, for (a) a container-level `@layout.engine` naming
-  another engine — **until B8/B9 (per-container engines), a nested engine warns and is
-  ignored** — and (b) any `@layout` key the effective engine declares neither as an option nor
+  another engine — **until B8 (per-container engines), a nested engine warns and is
+  ignored** *(B9 is not involved: B8 is composed by the host, DD-14, 2026-09-28)* — and (b) any `@layout` key the effective engine declares neither as an option nor
   as a hint. The app's pipeline runs it with the effective engine's descriptor; the panel shows
   it with a warning squiggle and the diagram stays. Corpus fixtures `layout/nested-engine.sgl`
   and `layout/unknown-key.sgl`; SGL4010 moves to the whole-pipeline coverage half. The welcome
@@ -2199,6 +2199,38 @@ has the row. No golden moved: the fonts pin gains the fixture's entry, and its A
 new. Core bundle **179.31 kB of 182** (179 315 B), +129 B over `main` (accepted by the orchestrator over the
 brief's +0.1 kB cap).
 
+**B8 per-container engines, on `design/b8-container-engines`** (branched from `main` at `9f47545`;
+not merged). **Design only. No code.** [DD-14](detailed-design/14-container-engines.md), for F29
+(decisions C1–C49, eight ⚑ for the human). A container naming an engine is a *boundary*: laid out
+by that engine, placed as a fixed-size box by its parent's. The host composes the layouts
+bottom-up, in the worker, in one request; `ctx.sublayout` stays reserved (an ADR-0002 amendment).
+Edges across a boundary are lifted to the box: an engine that routes (`elk`) routes them to a fixed
+port on the box's side and the host adds a short leg; under `grid`/`fixed` the host draws them
+straight, as today. No new capability; `apiVersion` stays 1. Two proposed warnings, `SGL4012` and
+`SGL4013`. Boot ~0.5–0.7 kB with the composer in a lazy worker chunk (Stage L forecast ≈ 181.85 of
+182). Plan: `feat/b8-compose` → `feat/b8-wire` (F29 cleared) → `feat/b8-ports` → `perf/b8-cache`
+(if measured to need it), after `fix/root-layout-options`.
+
+**DD-14 decided** (human decision 2026-09-28, on `design/b8-container-engines`, `main` `90689df`
+merged in; **docs only, no code**). Every recommendation accepted, ⚑1–⚑8: a container naming an
+engine always gets its own layout, even its parent's engine (C2); a boundary's options work as the
+root's, an unset one inherited from the nearest enclosing container or root using the same engine,
+else the engine's default (C6); keys on a container that names no engine are hints for the engine
+around it, checked against its hints only, an ignored one `SGL4010` (C9); crossing edges under
+`elk` go to a fixed port on the box's side plus a host-drawn straight leg, under `grid` and `fixed`
+straight, and straight everywhere is the fallback (C13); **`SGL4012`** (unavailable container
+engine) and **`SGL4013`** (a box's layout failed; its parent's engine laid it out) approved (C12,
+C28); the composer is a lazy chunk in the worker and **the core limit is 184 kB** (C47; already on
+`main` at `90689df`). Applied on this branch: **ADR-0002** gains an "Amendment 2026-09-28" section
+(per-container engines are composed by the host; `ctx.sublayout` stays reserved for B9); **spec
+§4** gets DD-14 §3.8's approved `@layout.*` row text and "A container's own engine" paragraph
+(§9's worked example stays, on purpose); **04**'s B8 row is **Should** (human decision 2026-09-27,
+F29), agreeing with FR-Y9, and its B9 row and triage note no longer call `ctx.sublayout` B8's
+mechanism; Architecture §4.2/§4.4/§4.5/§12, DD-12 N2, DD-06 §2 and §9, DD-08 §3 and Stage K item
+23 below corrected (DD-14 §14, §15). The code comments and `corpus/layout/nested-engine.sgl`'s
+header that still say "B8/B9" are `feat/b8-wire`'s (DD-14 §11). Next: `feat/b8-compose`, then
+`feat/b8-wire`.
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
@@ -2221,7 +2253,7 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F28** | **DD-06 §8's conformance check 3 (no two sibling frames overlap) assumes the engine chooses every position.** Under `fixed`, nodes the author pinned may overlap on purpose. **Settled in the suite by `feat/b5-fixed`:** the corpus now has pins, so `runConformance`'s check 3 skips a pair of siblings that both have a `@pin` when the engine declares `pins` (`pinOf`); a pinned node against one the engine placed is still checked (`layout-api/test/conformance.test.ts`, both halves). What remains is the SDK's published conformance guide, which must say the same before third parties rely on it. | Stage M (B18), the guide's text only |
 | **F32** | **A node named `root` collides with ELK's internal root id,** and elk mislays that node's edges (`packages/layout-elk/src/mapping.ts`). Found by `feat/b5-tree` (2026-09-28). The adapter should namespace ELK ids so no author id can collide. | Orchestrator (small fix in the elk adapter) |
 | **F33** | **A lazy engine chunk that fails to load stays failed until reload:** the browser caches the failed `import()`, so the worker's retry never succeeds (elk and `std-trees` alike), despite a code comment saying elk's failed load is not cached. Found by `feat/b5-tree` (2026-09-28). Either correct the comment and document it, or re-import through a cache-busting path. | Orchestrator |
-| **F29** | **Spec §9's worked example puts `@layout: { engine: grid }` on a container, which this build does not support** (per-container engines are B8). Under `elk` it gives two `SGL4010` warnings. Found by help branch 2 (2026-09-27). **Human decision 2026-09-27: keep the example and build B8 (per-container engines) sooner.** | Whoever builds B8 (prioritised in Stage L) |
+| **F29** | **Spec §9's worked example puts `@layout: { engine: grid }` on a container, which this build does not support** (per-container engines are B8). Under `elk` it gives two `SGL4010` warnings. Found by help branch 2 (2026-09-27). **Human decision 2026-09-27: keep the example and build B8 (per-container engines) sooner.** | B8's implementer (prioritised in Stage L; design [DD-14](detailed-design/14-container-engines.md), decided 2026-09-28): `feat/b8-compose` (the composer), then `feat/b8-wire`, which clears this row |
 | **F30** | **Three keys are accepted and kept, but nothing uses them:** `@order`, `@tooltip` and `@size.aspectRatio`. The help says so. Each needs either an implementation or `SGL2010` ("no effect in this version") so authors are not misled. Found by help branch 2 (2026-09-27). | Orchestrator triage (small code fix per key) |
 
 ---
