@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { compile } from '../src/compile.js';
 import type { ConfigBag, ContainerModel, DocumentModel } from '../src/model.js';
 import { parse } from '../src/parse.js';
@@ -24,15 +24,18 @@ function node(model: DocumentModel, ...path: string[]): ContainerModel {
   return cur;
 }
 
-/** The fastest of three runs of `resolve()` alone, in ms (parse excluded). */
-function timeResolve(src: string): { ms: number; result: ReturnType<typeof resolve> } {
-  const { ast } = parse(src);
+/** The fastest of three runs of `resolve()` alone, in ms of CPU time (parse
+ *  excluded; a warm-up run first). CPU time (process.cpuUsage), not wall
+ *  time, so a machine busy with other suites does not inflate it (07 §2). */
+function timeResolve(input: string | ReturnType<typeof parse>['ast']): { ms: number; result: ReturnType<typeof resolve> } {
+  const ast = typeof input === 'string' ? parse(input).ast : input;
   let best = Number.POSITIVE_INFINITY;
   let result = resolve(ast);
   for (let i = 0; i < 3; i += 1) {
-    const t0 = performance.now();
+    const t0 = process.cpuUsage();
     result = resolve(ast);
-    best = Math.min(best, performance.now() - t0);
+    const { user, system } = process.cpuUsage(t0);
+    best = Math.min(best, (user + system) / 1000);
   }
   return { ms: best, result };
 }
@@ -97,15 +100,27 @@ describe('item 2: string doubling never throws', () => {
 });
 
 describe('item 3: many scopes over many variables', () => {
-  it('20 000 root variables and 5 000 scoped siblings resolve in under 500 ms', () => {
+  // A scope is its own entries plus a pointer to its parent's (`VarScope`);
+  // the regression is a scope that copies every enclosing variable, 5 000 ×
+  // 20 000 map entries. Hardened for a loaded machine (07 §2): the source is
+  // built and parsed in `beforeAll` (~1 s, outside the timed region and the
+  // test's timeout) and `resolve()` is timed in CPU time, best of three.
+  // Linear is ~90–100 ms; with the copy reintroduced as a mutation it took
+  // ~12.6 s, so 1 s (was 500 ms of wall time) still catches it.
+  let ast: ReturnType<typeof parse>['ast'];
+  beforeAll(() => {
     const vars = Array.from({ length: 20_000 }, (_, i) => `r${i}: ${i}`).join(', ');
     const siblings = Array.from({ length: 5_000 }, (_, i) => `c${i}: { @vars: { x: ${i} }, @order: $x, @meta: { r: $r${i} } }`).join('\n');
-    const { ms, result } = timeResolve(`@vars: { ${vars} }\n${siblings}\n`);
+    ast = parse(`@vars: { ${vars} }\n${siblings}\n`).ast;
+  }, 60_000);
+
+  it('20 000 root variables and 5 000 scoped siblings resolve in under 1 s of CPU time', () => {
+    const { ms, result } = timeResolve(ast);
     expect(result.diagnostics).toEqual([]);
     expect(node(result.model, 'c4999').config.order).toBe(4999);
     expect(node(result.model, 'c4999').config.meta).toEqual({ r: 4999 });
-    expect(ms).toBeLessThan(500);
-  });
+    expect(ms).toBeLessThan(1000);
+  }, 60_000);
 });
 
 describe('item 6: redeclared @vars merge like any config', () => {

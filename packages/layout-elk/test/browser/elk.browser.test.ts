@@ -158,9 +158,17 @@ describe('sgl.elk through a real Worker (Stage K)', () => {
     try {
       // Warm the worker and elkjs's chunk first, so the timed run is layout.
       await host.run('sgl.elk', inputFor(FORTY as string), {}, METRICS, {}, new AbortController().signal);
-      const t0 = performance.now();
-      const outcome = await host.run('sgl.elk', input, {}, METRICS, {}, new AbortController().signal);
-      const ms = performance.now() - t0;
+      // The best of two timed runs (07 §2): ~1.6–1.8 s each here, quiet or
+      // with 12 CPU hogs, so one run slowed by a busy machine does not fail
+      // a layout that fits its production timeout.
+      let ms = Number.POSITIVE_INFINITY;
+      let outcome: Awaited<ReturnType<typeof host.run>> | undefined;
+      for (let i = 0; i < 2; i += 1) {
+        const t0 = performance.now();
+        outcome = await host.run('sgl.elk', input, {}, METRICS, {}, new AbortController().signal);
+        ms = Math.min(ms, performance.now() - t0);
+      }
+      if (outcome === undefined) throw new Error('unreachable');
       console.warn(`[K10] elk, 1 000 nodes, ${navigator.userAgent.includes('Firefox') ? 'Firefox' : 'Chromium'} worker: ${ms.toFixed(0)} ms (round trip)`);
       expect(outcome.diagnostics).toEqual([]);
       expect(outcome.value).not.toBeNull();

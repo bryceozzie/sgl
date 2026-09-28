@@ -98,13 +98,15 @@ function isShortLoopRoute(layout: { readonly route: readonly { readonly to: { re
 }
 
 describe('loading elkjs (K1, K11)', () => {
+  // A 30 s timeout (07 §2): this is the file's first elk layout, which
+  // loads elkjs (~2 s quiet), too close to the default 5 s under load.
   it('leaves no document stub behind once elk has loaded, and the layout succeeded', async () => {
     expect(typeof (globalThis as { document?: unknown }).document).toBe('undefined');
     const input = layoutInputFor('checkout.sgl');
     const raw = await elkEngine.layout(input, conformanceContext({}, METRICS));
     expect(Object.keys(raw.nodes).length).toBeGreaterThan(0);
     expect(typeof (globalThis as { document?: unknown }).document).toBe('undefined');
-  });
+  }, 30_000);
 });
 
 describe('elk over the corpus (DD-06 §6, Stage K gate)', () => {

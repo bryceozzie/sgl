@@ -145,6 +145,10 @@ describe('MarkerTable: every part of the key is part of what a cached id stands 
 describe('ClassTable/MarkerTable naming is computed once per distinct key, with unchanged output (F7, F9)', () => {
   for (const theme of THEMES) {
     for (const doc of listCorpusDocs()) {
+      // A 30 s timeout (07 §2): n2000 through the whole pipeline plus three
+      // reference passes takes ~1.6–2.8 s quiet and went over the default 5 s
+      // under a full parallel run. These tests check names, not speed, so the
+      // timeout is only a hang guard.
       it(`${doc} under ${theme.id}`, async () => {
         const { styled } = await renderCorpusDoc(doc, theme);
         const { uses, markers } = usesOf(styled);
@@ -205,7 +209,7 @@ describe('ClassTable/MarkerTable naming is computed once per distinct key, with 
         for (const m of markers.filter((x) => x.arrowhead !== 'none')) {
           expect(colorRules.emit()).toContain(`.${markerPaintClass(m.arrowhead as Arrowhead, m.token)}{${m.arrowhead === 'open' ? 'stroke' : 'fill'}:${cssColor(m.color)}}`);
         }
-      });
+      }, 30_000);
     }
   }
 });
