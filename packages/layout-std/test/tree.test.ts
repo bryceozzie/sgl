@@ -192,6 +192,153 @@ describe('tree: the tidy-tree invariants (N30, N31)', () => {
   });
 });
 
+/**
+ * A plain recursive Buchheim, Jünger and Leipert (2002), for breadths that
+ * vary, as the paper writes it: the reference `tree.ts`'s explicit-stack
+ * version must agree with (fix round 1, item 4). Returns each node's centre.
+ */
+function referenceBuchheim(children: readonly (readonly number[])[], breadth: readonly number[], spacing: number): number[] {
+  const n = children.length;
+  const parent = new Array<number>(n).fill(-1);
+  const number = new Array<number>(n).fill(0);
+  for (let v = 0; v < n; v += 1) children[v]!.forEach((c, i) => ((parent[c] = v), (number[c] = i)));
+  const prelim = new Array<number>(n).fill(0);
+  const mod = new Array<number>(n).fill(0);
+  const shift = new Array<number>(n).fill(0);
+  const change = new Array<number>(n).fill(0);
+  const thread = new Array<number>(n).fill(-1);
+  const ancestor = Array.from({ length: n }, (_, v) => v);
+  const sep = (a: number, b: number) => (breadth[a]! + breadth[b]!) / 2 + spacing;
+  const leftSibling = (v: number) => (parent[v]! < 0 || number[v] === 0 ? -1 : children[parent[v]!]![number[v]! - 1]!);
+  const nextLeft = (v: number) => (children[v]!.length > 0 ? children[v]![0]! : thread[v]!);
+  const nextRight = (v: number) => (children[v]!.length > 0 ? children[v]![children[v]!.length - 1]! : thread[v]!);
+  const moveSubtree = (wl: number, wr: number, s: number) => {
+    const subtrees = number[wr]! - number[wl]!;
+    change[wr]! -= s / subtrees;
+    shift[wr]! += s;
+    change[wl]! += s / subtrees;
+    prelim[wr]! += s;
+    mod[wr]! += s;
+  };
+  const apportion = (v: number, defaultAncestor: number): number => {
+    const w = leftSibling(v);
+    if (w < 0) return defaultAncestor;
+    let [vir, vor, vil, vol] = [v, v, w, children[parent[v]!]![0]!];
+    let [sir, sor, sil, sol] = [mod[vir]!, mod[vor]!, mod[vil]!, mod[vol]!];
+    while (nextRight(vil) >= 0 && nextLeft(vir) >= 0) {
+      vil = nextRight(vil);
+      vir = nextLeft(vir);
+      vol = nextLeft(vol);
+      vor = nextRight(vor);
+      ancestor[vor] = v;
+      const s = prelim[vil]! + sil - (prelim[vir]! + sir) + sep(vil, vir);
+      if (s > 0) {
+        moveSubtree(parent[ancestor[vil]!] === parent[v] ? ancestor[vil]! : defaultAncestor, v, s);
+        sir += s;
+        sor += s;
+      }
+      sil += mod[vil]!;
+      sir += mod[vir]!;
+      sol += mod[vol]!;
+      sor += mod[vor]!;
+    }
+    if (nextRight(vil) >= 0 && nextRight(vor) < 0) {
+      thread[vor] = nextRight(vil);
+      mod[vor]! += sil - sor;
+    }
+    if (nextLeft(vir) >= 0 && nextLeft(vol) < 0) {
+      thread[vol] = nextLeft(vir);
+      mod[vol]! += sir - sol;
+      return v;
+    }
+    return defaultAncestor;
+  };
+  const firstWalk = (v: number): void => {
+    const kids = children[v]!;
+    const w = leftSibling(v);
+    if (kids.length === 0) {
+      prelim[v] = w < 0 ? 0 : prelim[w]! + sep(w, v);
+      return;
+    }
+    let defaultAncestor = kids[0]!;
+    for (const c of kids) {
+      firstWalk(c);
+      defaultAncestor = apportion(c, defaultAncestor);
+    }
+    let s = 0;
+    let c = 0;
+    for (let i = kids.length - 1; i >= 0; i -= 1) {
+      const k = kids[i]!;
+      prelim[k]! += s;
+      mod[k]! += s;
+      c += change[k]!;
+      s += shift[k]! + c;
+    }
+    const mid = (prelim[kids[0]!]! + prelim[kids[kids.length - 1]!]!) / 2;
+    if (w < 0) prelim[v] = mid;
+    else {
+      prelim[v] = prelim[w]! + sep(w, v);
+      mod[v] = prelim[v]! - mid;
+    }
+  };
+  const x = new Array<number>(n).fill(0);
+  const secondWalk = (v: number, m: number): void => {
+    x[v] = prelim[v]! + m;
+    for (const c of children[v]!) secondWalk(c, m + mod[v]!);
+  };
+  firstWalk(0);
+  secondWalk(0, 0);
+  return x;
+}
+
+describe('tree: Buchheim–Walker against a plain recursive reference (fix round 1, item 4)', () => {
+  /** A random tree whose labels range from one character to fifty, so
+   *  neighbouring subtrees differ strongly in breadth and the shifts are
+   *  spread over the subtrees between (`moveSubtree`'s `change`). */
+  function mixedTree(seed: number, count: number): { source: string; kids: number[][] } {
+    const next = lcg(seed);
+    const lines: string[] = [];
+    const kids: number[][] = [];
+    for (let i = 0; i < count; i += 1) {
+      kids.push([]);
+      const len = next() < 0.3 ? 30 + Math.floor(next() * 20) : 1 + Math.floor(next() * 3);
+      lines.push(`n${i}: "${'W'.repeat(len)}"`);
+      if (i > 0) {
+        // Bias parents towards the recent nodes: deep trees with bushy levels.
+        const p = Math.max(0, i - 1 - Math.floor(next() * Math.min(i, 6)));
+        kids[p]!.push(i);
+        lines.push(`n${p} -> n${i}`);
+      }
+    }
+    return { source: `${lines.join('\n')}\n`, kids };
+  }
+
+  it('places every node where the reference does, on random trees with mixed widths', async () => {
+    for (let seed = 1; seed <= 40; seed += 1) {
+      const { source, kids } = mixedTree(seed, 40);
+      const r = await raw(layoutInputForSource(source));
+      const centres = kids.map((_, i) => cx(frame(r, `n${i}`)));
+      const want = referenceBuchheim(
+        kids,
+        kids.map((_, i) => frame(r, `n${i}`).w),
+        40,
+      );
+      for (let i = 0; i < kids.length; i += 1) expect(centres[i]! - centres[0]!, `seed ${seed}, n${i}`).toBeCloseTo(want[i]! - want[0]!, 6);
+    }
+  });
+
+  it('the reference spreads a shift over the subtrees between (the case the check needs)', () => {
+    // r's children: a wide subtree, two small leaves, then a wide subtree
+    // whose contour pushes against the first: the leaves between are spaced
+    // evenly by `change`, not left against the first subtree.
+    const kids = [[1, 4, 5, 6], [2, 3], [], [], [], [], [7, 8], [], []];
+    const breadth = [10, 10, 60, 60, 10, 10, 10, 60, 60];
+    const x = referenceBuchheim(kids, breadth, 10);
+    expect(x[5]! - x[4]!).toBeCloseTo(x[6]! - x[5]!, 9);
+    expect(x[4]! - x[1]!).toBeCloseTo(x[5]! - x[4]!, 9);
+  });
+});
+
 describe('tree: the direction (N32, N38)', () => {
   const source = 'r: "Root"\na: "A"\nb: "B"\nr -> a\nr -> b\n';
   const at = async (direction: string) => {
