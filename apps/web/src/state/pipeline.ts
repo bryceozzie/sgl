@@ -576,7 +576,7 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   const layoutConfigDiags = computed<readonly Diagnostic[]>(() => {
     const engineId = effectiveEngineId.value;
     const boundaries = new Map(plan.value.scopes.map((sc) => [sc.node as string, deps.engineSchemas?.(sc.engine) ?? { id: sc.engine }]));
-    return layoutConfigDiagnostics(parsed.value.value, deps.engineSchemas?.(engineId) ?? { id: engineId }, model.value.diagnostics, (id) => boundaries.get(id));
+    return layoutConfigDiagnostics(parsed.value.value, deps.engineSchemas?.(engineId) ?? { id: engineId }, model.value.diagnostics, (id) => boundaries.get(id), plan.value.quiet);
   });
 
   const diags = computed<readonly Diagnostic[]>(() => [
@@ -704,7 +704,13 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     const geometryHash = styledSnapshot.geometryHash;
     const key = optionsKey(options);
     // B8 (DD-14 C43): the plan is part of the request; its spans (where an
-    // SGL4013 goes) count as the input's do, below.
+    // SGL4013 goes) count as the input's do, below. Today the plan is a
+    // function of what `inputKey` already holds (a container's `@layout`
+    // is in its node's `config`) and of the options, so `planKey` never
+    // decides a skip on its own (fix round 1, item 4: mutation M1 survived).
+    // It is kept as defence in depth: a plan fed by anything the input does
+    // not carry (the form's options through C6, a later plan rule) must not
+    // reuse a layout made for another plan.
     const spans: unknown[] = [];
     const planKey = JSON.stringify(scopes, (k, v: unknown) => (k === 'span' ? void spans.push(v) : v));
     const sameRequest = lastRequest !== null && lastRequest.engineId === engine && lastRequest.optionsKey === key && lastRequest.planKey === planKey;

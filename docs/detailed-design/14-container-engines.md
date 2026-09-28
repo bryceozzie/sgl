@@ -742,6 +742,40 @@ and `grid-in-tree` (`tree` places a `grid` box as a leaf of its size).
    inline.
 9. **The §8.2 estimates for `elk` boxes were three times low** (above); the cache branch is due.
 
+**Fix round 1** (orchestrator review; no blocker, 12 of 13 mutants killed).
+
+1. **`SGL4010` names the kind it checked:** the template is now "`@layout.{key}` is not {kind} of
+   engine `{id}`; ignored.", `{kind}` "an option" at the root and on a boundary, "a hint" on any
+   other node, a leaf included (a plain container's `@direction` under `elk` is an elk option, just
+   not a hint). The code is unchanged. Tests pinning the old text for hint checks changed:
+   `layout-plan.test.ts` (two), `layout-config.test.ts` (one), `apps/web/test/pipeline.test.ts`
+   (one); no golden holds the text.
+2. **The key check skips what the plan skips** (§3.7): `layoutPlan` also returns `quiet`, every node
+   hidden node and a node naming an available engine with no visible child, and
+   `layoutConfigDiagnostics` takes it: no `@layout` key in their subtrees gets a diagnostic (pins
+   are still judged).
+3. **`SGL4001` names a composed layout:** the template is now "Layout {what} did not finish within
+   {ms} ms …", `{what}` "engine `sgl.grid`" as before, or for a request with a plan "(`sgl.grid`
+   with 2 `sgl.elk` boxes and 1 `sgl.fixed` box)", engines in the plan's order. **Not done here, for
+   `perf/b8-cache`:** degrading under time pressure, dissolving the boxes not yet laid out when the
+   clock nears its end so that a composed layout still lands (at ~15 ms per `elk` box, 200 boxes
+   take ~3 s of the 10 s), rather than losing the whole request to `SGL4001`.
+4. **`planKey` is defence in depth:** the plan is today a function of what the input key already
+   holds and of the options, so no test can see `planKey` decide a skip alone (mutation M1
+   survived). It stays, so a plan fed by anything the input does not carry cannot reuse another
+   plan's layout; the pipeline's comment says so, and the test no longer claims to isolate it.
+5. **The worker validates the plan:** an array of at most `MAX_PLAN_SCOPES` (10 000) scopes, each
+   with string `node` and `engine`, a plain-object `options` and an optional span of two ordered
+   non-negative integers; anything else is `'error'` with the fixed reason "the request carried a
+   malformed plan" (the host's `SGL4011`), before the composer loads.
+6. A node named `__proto__` breaks `compile()`; it predates B8 and is 07 §2.1 F37.
+7. The help's `@layout` says crossing edges are one straight line for now, with ports to come.
+
+Size after the fix round, with `main` at `900f93b` merged in: core **181.14 kB** (181 142 B), +947 B
+over that `main` (180 195 B): over the brief's +0.9 kB line by about 50 B. The fix round's page
+items (the `{kind}`, `quiet`, the composed `SGL4001` wording) cost about 150 B; the plan check is in
+the lazy compose chunk (3.81 kB), so the worker's boot share stays small.
+
 ---
 
 ## 12. Changes to other documents (made by the implementing branches)

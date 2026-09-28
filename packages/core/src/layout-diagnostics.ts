@@ -26,10 +26,10 @@ export interface CodeSpec {
 type Related = readonly { readonly span: SourceSpan; readonly message: string }[];
 
 export const LAYOUT_CATALOGUE = {
-  SGL4001: { severity: 'error', template: 'Layout engine `{id}` did not finish within {ms} ms and was stopped. Showing the previous layout.' },
+  SGL4001: { severity: 'error', template: 'Layout {what} did not finish within {ms} ms and was stopped. Showing the previous layout.' },
   SGL4002: { severity: 'error', template: 'Layout engine `{id}` returned invalid geometry ({detail}). Showing the previous layout.' },
   SGL4003: { severity: 'warning', template: '`{node}` extends outside its container after layout.' },
-  SGL4010: { severity: 'warning', template: '`@layout.{key}` is not an option of engine `{id}`; ignored.' },
+  SGL4010: { severity: 'warning', template: '`@layout.{key}` is not {kind} of engine `{id}`; ignored.' },
   SGL4011: { severity: 'error', template: 'Layout engine `{id}` failed: {message}.' },
   SGL4012: { severity: 'warning', template: 'Layout engine `{name}` is not available; `{node}` is laid out by `{id}`.' },
   SGL4013: { severity: 'warning', template: 'Layout engine `{id}` failed for `{node}` ({detail}); it is laid out by `{parent}` instead.' },

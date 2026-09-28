@@ -59,6 +59,24 @@ export interface LayoutScope {
 /** The boundaries of one request, in `graph.order` (DD-14 C8). */
 export type LayoutPlan = readonly LayoutScope[];
 
+/** The most boundaries one request may carry (`feat/b8-wire` fix round 1,
+ *  item 5): far above any document the budgets allow (n2000 has 200). */
+export const MAX_PLAN_SCOPES = 10_000;
+
+/** Whether `plan` is what the host sends: an array of at most
+ *  `MAX_PLAN_SCOPES` scopes, each with string `node` and `engine` and a
+ *  plain-object `options`. The worker's message is untrusted input (B17's
+ *  iframe host), as an engine's output is. A scope's `span` is not checked:
+ *  it only reaches an `SGL4013` note, whose span the host checks
+ *  (`engineNotes`). Here, in the lazy chunk, it costs the boot path nothing. */
+function wellFormedPlan(plan: unknown): boolean {
+  return (
+    Array.isArray(plan) &&
+    plan.length <= MAX_PLAN_SCOPES &&
+    plan.every((s: { node?: unknown; engine?: unknown; options?: unknown } | null) => typeof s?.node === 'string' && typeof s.engine === 'string' && typeof s.options === 'object' && s.options !== null && !Array.isArray(s.options))
+  );
+}
+
 /** A box's leaf sizing in its parent's view (C24): fixed at its own engine's
  *  size, with a leaf's insets (no title band: the title is already placed). */
 function boxSizing(sizing: NodeSizing | undefined, size: Size): NodeSizing {
@@ -211,6 +229,9 @@ export async function composeLayout(
   engines: (id: string) => LayoutEngine | undefined,
   ctx: LayoutContext,
 ): Promise<LayoutResult> {
+  // A malformed plan fails the request with one fixed reason (the worker
+  // posts it; the host's SGL4011), never a raw TypeError.
+  if (!wellFormedPlan(plan)) throw new Error('the request carried a malformed plan');
   const { graph } = input;
 
   // 1. The boundaries: visible scopes with a visible child, one per node, in

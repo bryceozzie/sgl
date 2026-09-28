@@ -627,7 +627,7 @@ describe('container engines (DD-14, B8 branch 2)', () => {
     expect(env.pending.at(-1)!.plan).toBeUndefined();
   });
 
-  it("the skip key includes the plan (C43): a container's engine or option lays out again; the same plan does not", async () => {
+  it("a container's engine or option lays out again, and a text move that changes neither does not (C43; the input changes with the plan, so this does not isolate `planKey`, which is defence in depth)", async () => {
     const env = setup(SPEC_9, { engineSchemas });
     await completeOneLayout(env, 'payments');
     const requests = env.pending.length;
@@ -654,7 +654,7 @@ describe('container engines (DD-14, B8 branch 2)', () => {
     const source = 'a: {\n  @layout.engine: dagre\n  x\n}\nb: {\n  @direction: right\n  y\n}\n';
     const env = setup(source, { engineSchemas, defaultEngineId: 'sgl.elk' });
     expect(env.pipeline.diags.value.map((d) => [d.code, source.slice(d.span.from, d.span.to), d.message])).toEqual([
-      ['SGL4010', '@direction', '`@layout.direction` is not an option of engine `sgl.elk`; ignored.'],
+      ['SGL4010', '@direction', '`@layout.direction` is not a hint of engine `sgl.elk`; ignored.'],
       ['SGL4012', '@layout.engine', 'Layout engine `dagre` is not available; `a` is laid out by `sgl.elk`.'],
     ]);
   });

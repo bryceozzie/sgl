@@ -117,7 +117,9 @@ export function createWorkerRuntime(registry: EngineRegistry, port: WorkerRuntim
       // host fallbacks itself, per scope, and returns the whole raw result.
       // A worker built without the composer refuses a plan (SGL4011).
       const plan = message.plan;
-      if (plan !== undefined && plan.length > 0) {
+      // Anything but an empty array goes to the composer, which refuses a
+      // malformed plan (`MAX_PLAN_SCOPES`, fix round 1, item 5).
+      if (plan !== undefined && (!Array.isArray(plan) || plan.length > 0)) {
         if (loadCompose === undefined) throw new Error('per-container engines are not available in this worker');
         const compose = await loadCompose();
         const result = await compose(engine, message.input, message.options, plan, (id) => registry.get(id), ctx);

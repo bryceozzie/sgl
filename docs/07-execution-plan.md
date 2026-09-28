@@ -2290,6 +2290,18 @@ worker, 2 000 nodes): an `elk` root over 200 `grid` boxes ~0.2 s (elk alone ~1.0
 +135). Deviations are in DD-14 §11.2. DD-06 §2, §3, §4a, §9, DD-08 §3, §10, DD-10 §2, the corpus
 README and bench/README.md updated.
 
+**B8 branch 2, fix round 1** (on `feat/b8-wire`, `main` at `900f93b` merged in: `radial`, F32).
+`SGL4010` now says "not a hint" for a key checked against the surrounding engine's hints (a plain
+container's or a leaf's), "not an option" at the root and on a boundary (a `{kind}` parameter; the
+code is unchanged). The `@layout` key check skips what the plan skips: a hidden subtree, and a node
+naming an engine with no visible child (`layoutPlan`'s `quiet`). `SGL4001` for a composed request
+says so ("Layout (`sgl.grid` with 12 `sgl.elk` boxes) did not finish …"); degrading under time
+pressure is left to `perf/b8-cache` (DD-14 §11.2). `planKey` is kept as defence in depth (no test
+can isolate it). The worker refuses a malformed plan with a fixed `SGL4011` reason (at most 10 000
+scopes). The help says crossing edges are straight for now. `grid-in-tree` moved to
+`corpus/layout/engine-grid-in-tree.sgl` after F32. New finding F37 (`__proto__`). Core **181.14 kB** of 184 (181 142 B), +947 B over `main` at
+`900f93b`; the compose chunk 3.81 kB. DD-14 §11.2, DD-06 §3, §9.
+
 **B5 branch 4, `feat/b5-tree`** (from `main` at `9f47545`; `main` at `9c543c8`, with
 `fix/root-layout-options` and F31, merged in; not merged). This is DD-12 §13's branch 4.
 - **The spanning forest** (`layout-std/src/forest.ts`, DD-12 §7), shared with `radial`: edges lifted
@@ -2421,6 +2433,7 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F34** | **`tree` draws non-tree edges straight through unrelated nodes:** a cycle's broken arc, a second parent or a skip-level edge is left to the host's straight route (DD-06 §4.2), which ignores the nodes between its ends (`layout/tree-cycle.sgl`: `c -> a` crosses `B`). DD-12 §8.2 records it as a known limitation. `packages/layout-std/test/tree.test.ts` pins the count of edge runs through a leaf that is not their end per `layout/tree-*.sgl` fixture (`tree-cycle` 1, the others 0), so it can only go down. Remedy: obstacle-avoiding routing for the host's fallback or for `tree`'s non-tree edges. Found by B5 branch 4's review (fix round 1, 2026-09-28). | Orchestrator, after B5 |
 | **F36** | **`radial`'s edge labels can overlap nodes:** the host places an edge label at its straight route's arc-length midpoint (DD-06 §4.1), with no regard for the nodes around it; on a ring, a spoke's midpoint can fall on a neighbouring node, or a chord's across the disc. Found by B5 branch 5's review (fix round 1, 2026-09-28); no code changed. Remedy: host label placement that avoids frames, or a radial-specific placement along the spoke. | Orchestrator |
 | **F35** | **Quantizing to 1/64 px can make touching siblings overlap:** at `nodeSpacing: 0` two siblings whose frames touch exactly can, once `quantize` rounds each frame's position and size (DD-06 §5), overlap by up to a 1/64 px step. Host-wide, not `tree`'s: any engine that places frames edge to edge meets it. Found by B5 branch 4's review (fix round 1, 2026-09-28); no code changed. Remedy: quantize the edges of a frame rather than its position and size, or let conformance check 3 allow a 1/64 px overlap. | Orchestrator |
+| **F37** | **A node named `__proto__` breaks `compile()`:** `SemanticGraph.nodes` is a plain object keyed by node id, so `nodes['__proto__'] = …` sets the prototype instead of an entry. It predates B8 (found by `feat/b8-wire`'s review, 2026-09-28). Likely remedy: a null-prototype object (`Object.create(null)`) or an own-property guard in `@sgl/core`'s compile, with a corpus fixture. | orchestrator (core: `graph.nodes` as a plain object) |
 | **F30** | **Three keys are accepted and kept, but nothing uses them:** `@order`, `@tooltip` and `@size.aspectRatio`. The help says so. Each needs either an implementation or `SGL2010` ("no effect in this version") so authors are not misled. Found by help branch 2 (2026-09-27). | Orchestrator triage (small code fix per key) |
 
 ---

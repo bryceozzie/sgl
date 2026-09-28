@@ -41,7 +41,7 @@ describe('layoutConfigDiagnostics (SGL4010)', () => {
   it("(b) a key the effective engine does not declare warns, at root and on containers", () => {
     expect(run('@layout: { columns: 3 }\nbox: {\n  @layout.gap: 4\n  a\n}\n', ELK).map((d) => [d.text, d.message])).toEqual([
       ['columns', '`@layout.columns` is not an option of engine `sgl.elk`; ignored.'],
-      ['@layout.gap', '`@layout.gap` is not an option of engine `sgl.elk`; ignored.'],
+      ['@layout.gap', '`@layout.gap` is not a hint of engine `sgl.elk`; ignored.'],
     ]);
     // `@direction` is sugar for `@layout.direction` (language spec §4).
     expect(run('@direction: right\na\n', GRID).map((d) => d.message)).toEqual(['`@layout.direction` is not an option of engine `sgl.grid`; ignored.']);

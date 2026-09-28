@@ -198,7 +198,7 @@ export async function runPipeline(
     return e === undefined ? undefined : schemasOf(e);
   });
   const boundaries = new Map(plan.scopes.map((sc) => [sc.node as string, schemasOf(harnessEngineById(sc.engine)!)]));
-  const d3b = [...layoutConfigDiagnostics(ast, schemas, d2, (id) => boundaries.get(id)), ...plan.diagnostics];
+  const d3b = [...layoutConfigDiagnostics(ast, schemas, d2, (id) => boundaries.get(id), plan.quiet), ...plan.diagnostics];
   // SGL5007 (F31), as the app's pipeline emits it: the document's own
   // `@theme` names no built-in theme. The harness draws in `themeDoc` either way.
   const d3c = unknownThemeDiagnostics(ast, model.root.config['theme']);

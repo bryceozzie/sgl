@@ -85,6 +85,8 @@ rack: {
 client -> rack
 ```
 
+For now, an edge into or out of such a container is drawn as one straight line from node to node; routing it to a port on the container's side is to come.
+
 An option the container does not set comes from the nearest container around it, or the root, that uses the same engine, and otherwise is the engine's default. So a container that names the document's own engine keeps the document's other options, and changes only what it sets.
 
 ```sgl example title="The same engine, another direction" engine=elk

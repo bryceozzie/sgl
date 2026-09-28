@@ -1,8 +1,9 @@
 import { asEdgeId, asNodeId, NO_SPAN, type GraphEdge, type GraphNode, type NodeId, type SemanticGraph } from '@sgl/core';
 import { describe, expect, it } from 'vitest';
 import { LAYOUT_API_VERSION, type LayoutEngine, type LayoutInput, type LayoutResult } from '../src/contract.js';
-import type { WorkerToHost } from '../src/protocol.js';
+import type { HostToWorker, WorkerToHost } from '../src/protocol.js';
 import { EngineRegistry } from '../src/registry.js';
+import { MAX_PLAN_SCOPES } from '../src/compose.js';
 import { createWorkerRuntime, type WorkerRuntimePort } from '../src/worker-runtime.js';
 
 /** A `WorkerRuntimePort` that just records everything posted, for assertions. */
@@ -456,6 +457,32 @@ describe('a request with a plan (DD-14 C23, B8 branch 2)', () => {
     await flush();
     expect(loads).toBe(0);
     expect(port.sent.map((m) => m.t)).toEqual(['result', 'result']);
+  });
+
+  it('a malformed plan is refused by the composer with one fixed reason (fix round 1, item 5)', async () => {
+    const registry = new EngineRegistry();
+    registry.register(engine('test.engine', () => Promise.resolve(EMPTY_RESULT)));
+    const port = fakePort();
+    // The real composer: it is what checks the plan, in its lazy chunk.
+    const runtime = createWorkerRuntime(registry, port, () => import('../src/compose.js').then((m) => m.composeLayout));
+    const ok = { node: 'box', engine: 'test.box', options: {} };
+    const bad: unknown[] = [
+      'not an array',
+      { length: 1, 0: ok },
+      [null],
+      [{ ...ok, node: 3 }],
+      [{ ...ok, engine: undefined }],
+      [{ ...ok, options: null }],
+      [{ ...ok, options: [] }],
+      new Array(MAX_PLAN_SCOPES + 1).fill(ok),
+    ];
+    bad.forEach((plan, i) => runtime.receive({ ...layoutMessage({ id: i + 1 }), plan } as unknown as HostToWorker));
+    await flush();
+    expect([...port.sent].sort((a, b) => a.id - b.id)).toEqual(bad.map((_, i) => ({ t: 'error', id: i + 1, reason: 'the request carried a malformed plan' })));
+    // At the cap exactly, it is composed (the box is not in the graph, so it is not one).
+    runtime.receive({ ...layoutMessage({ id: 99 }), plan: new Array(MAX_PLAN_SCOPES).fill(ok) } as unknown as HostToWorker);
+    await flush();
+    expect(port.sent.at(-1)).toMatchObject({ t: 'result', id: 99 });
   });
 
   it("a composer that will not load, or a worker without one, is an error (the host's SGL4011)", async () => {

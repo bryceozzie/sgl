@@ -79,13 +79,21 @@ interface LayoutKey {
 /**
  * `boundary(id)` is the engine of the boundary `id`, from the plan
  * (`layoutPlan`'s scopes, looked up by the caller), or `undefined` for a node
- * that is not one. Without it, no node is a boundary.
+ * that is not one. Without it, no node is a boundary. `quiet` is
+ * `layoutPlan`'s: nodes whose subtree's `@layout` keys are not checked (a
+ * hidden node, and a node naming an engine with no visible child, §3.7).
+ *
+ * The message names what the key was checked against: "not an option" at
+ * the root and on a boundary, "not a hint" anywhere else (fix round 1,
+ * item 1: `@direction` on a plain container under elk is an elk option,
+ * just not a hint).
  */
 export function layoutConfigDiagnostics(
   ast: Document,
   engine: EngineSchemas,
   resolved: readonly Diagnostic[] = [],
   boundary: (id: NodeId) => EngineSchemas | undefined = () => undefined,
+  quiet: ReadonlySet<string> = new Set(),
 ): readonly Diagnostic[] {
   const out: Diagnostic[] = [];
   // SGL4021 (fix round 1, items 6 and 7): each node's first pin key in source
@@ -97,14 +105,15 @@ export function layoutConfigDiagnostics(
   // `around` places this layer's nodes; `own` is the node's own engine when it
   // is a boundary. Recursive over the AST, as before: the parser's own depth
   // bounds it.
-  const visit = (entries: readonly Entry[], path: readonly string[] | null, around: EngineSchemas, own: EngineSchemas | undefined): void => {
+  const visit = (entries: readonly Entry[], path: readonly string[] | null, around: EngineSchemas, own: EngineSchemas | undefined, mute = false): void => {
     const id = path === null ? '' : nodeIdFromPath(path);
+    mute ||= quiet.has(id);
     for (const entry of entries) {
       if (entry.kind === 'NodeDecl') {
         if (entry.value?.kind === 'Block') {
           const child = [...(path ?? []), entry.key];
           const inner = boundary(nodeIdFromPath(child) as NodeId);
-          visit(entry.value.entries, child, own ?? around, inner);
+          visit(entry.value.entries, child, own ?? around, inner, mute);
         }
         continue;
       }
@@ -115,10 +124,13 @@ export function layoutConfigDiagnostics(
       }
       // The root's keys and a boundary's are options of their own engine;
       // any other node's are hints for the engine around it.
+      if (mute) continue;
       const schemas = path === null ? around : own;
       const known = declaredKeys(schemas ?? around, schemas === undefined ? 'hintsSchema' : 'optionsSchema');
       for (const k of layoutKeys(entry)) {
-        if (k.key !== 'engine' && known !== null && !known.has(k.key)) out.push(layoutDiagnostic('SGL4010', k.span, { key: k.key, id: (schemas ?? around).id }));
+        if (k.key !== 'engine' && known !== null && !known.has(k.key)) {
+          out.push(layoutDiagnostic('SGL4010', k.span, { key: k.key, kind: schemas === undefined ? 'a hint' : 'an option', id: (schemas ?? around).id }));
+        }
       }
     }
   };
@@ -229,7 +241,7 @@ export function layoutPlan(
   model: DocumentModel,
   root: { readonly engine: string; readonly options: Readonly<Record<string, unknown>> },
   engines: (id: string) => EngineSchemas | undefined,
-): { readonly scopes: LayoutPlan; readonly diagnostics: readonly Diagnostic[] } {
+): { readonly scopes: LayoutPlan; readonly diagnostics: readonly Diagnostic[]; readonly quiet: ReadonlySet<string> } {
   // Every node's `@layout` keys in source order, by id. A node grafted by
   // `@imports` has none: it gets no SGL4012 and no SGL2011 (§3.7).
   const keysOf = new Map<string, LayoutKey[]>();
@@ -246,6 +258,10 @@ export function layoutPlan(
 
   const scopes: LayoutScope[] = [];
   const diagnostics: Diagnostic[] = [];
+  // Nodes whose subtrees' `@layout` keys `layoutConfigDiagnostics` skips
+  // (§3.7; fix round 1, item 2): a hidden node, and a node naming an engine
+  // with no visible child (whose children are all hidden, so quiet too).
+  const quiet = new Set<string>();
   // [container, the engine around it, the options each engine's nearest scope has]
   type Frame = readonly [ContainerModel, string, ReadonlyMap<string, Readonly<Record<string, unknown>>>];
   const stack: Frame[] = [];
@@ -257,9 +273,12 @@ export function layoutPlan(
     const [c, parentEngine, parentScopes] = stack.pop()!;
     let around = parentEngine;
     let inherit = parentScopes;
-    // A hidden node hides its subtree: nothing below it is visited.
-    if (c.config['hidden'] === true) continue;
+    // A hidden node hides its subtree: nothing below it is laid out.
     const id = nodeIdFromPath(c.path) as NodeId;
+    if (c.config['hidden'] === true) {
+      quiet.add(id);
+      continue;
+    }
     const layout = c.config['layout'];
     const name = typeof layout === 'object' && layout !== null && !Array.isArray(layout) ? (layout as ConfigBag)['engine'] : undefined;
     const keys = keysOf.get(id) ?? [];
@@ -279,9 +298,9 @@ export function layoutPlan(
         scopes.push({ node: id, engine: schemas.id, options, ...(at !== undefined && { span: at }) });
         around = schemas.id;
         inherit = new Map(inherit).set(schemas.id, options);
-      }
+      } else quiet.add(id);
     }
     push(c, around, inherit);
   }
-  return { scopes, diagnostics };
+  return { scopes, diagnostics, quiet };
 }

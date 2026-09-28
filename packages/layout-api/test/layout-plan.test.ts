@@ -52,9 +52,9 @@ function plan(source: string, root: { engine: string; options: Readonly<Record<s
 /** `layoutConfigDiagnostics` with the plan's boundaries, as the app calls it. */
 function checks(source: string, root: EngineSchemas = ELK) {
   const { ast } = parse(source);
-  const { scopes } = layoutPlan(ast, resolve(ast).model, { engine: root.id, options: {} }, engines);
+  const { scopes, quiet } = layoutPlan(ast, resolve(ast).model, { engine: root.id, options: {} }, engines);
   const byNode = new Map(scopes.map((s) => [s.node as string, engines(s.engine)!]));
-  return layoutConfigDiagnostics(ast, root, [], (id) => byNode.get(id)).map((d) => [d.code, source.slice(d.span.from, d.span.to), d.message]);
+  return layoutConfigDiagnostics(ast, root, [], (id) => byNode.get(id), quiet).map((d) => [d.code, source.slice(d.span.from, d.span.to), d.message]);
 }
 
 const SPEC_9 = `@layout: { engine: "elk", direction: right }
@@ -201,13 +201,23 @@ describe('layoutConfigDiagnostics, scope-aware (DD-14 C9–C11)', () => {
   it("a plain container's keys are hints for the engine around it (C9): `@direction` under elk is SGL4010, `columns` inside a grid box is not", () => {
     const src = 'box: {\n  @direction: right\n  @layout.priority: 2\n  x\n}\ncells: {\n  @layout.engine: grid\n  sub: {\n    @layout: { columns: 1, gap: 4 }\n    y\n  }\n}\n';
     expect(checks(src)).toEqual([
-      ['SGL4010', '@direction', '`@layout.direction` is not an option of engine `sgl.elk`; ignored.'],
-      ['SGL4010', 'gap', '`@layout.gap` is not an option of engine `sgl.grid`; ignored.'],
+      // A hint check says "hint": `direction` is an elk option, not a hint (fix round 1, item 1).
+      ['SGL4010', '@direction', '`@layout.direction` is not a hint of engine `sgl.elk`; ignored.'],
+      ['SGL4010', 'gap', '`@layout.gap` is not a hint of engine `sgl.grid`; ignored.'],
     ]);
+  });
+
+  it("a leaf's keys are hints too, and the message says so (fix round 1, item 1)", () => {
+    expect(checks('a: { @direction: left, @layout.priority: 1 }\n')).toEqual([['SGL4010', '@direction', '`@layout.direction` is not a hint of engine `sgl.elk`; ignored.']]);
   });
 
   it("under tree, a plain container's `@direction` is a hint and is fine (DD-12 N38)", () => {
     expect(checks('@layout.engine: tree\nsales: {\n  @direction: right\n  a\n}\n', TREE)).toEqual([]);
+  });
+
+  it('a hidden container, one inside it, and a container whose children are all hidden get no key check: the plan skips them too (fix round 1, item 2; §3.7)', () => {
+    const src = 'h: {\n  @hidden: true\n  @layout: { engine: grid, columns: 2, direction: right }\n  inner: {\n    @direction: left\n    x\n  }\n}\nempty: {\n  @layout: { engine: grid, columns: 2, direction: right }\n  y: { @hidden: true }\n}\n';
+    expect(checks(src)).toEqual([]);
   });
 
   it('keys on a container whose engine is not available are hints for the engine around it', () => {
