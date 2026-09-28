@@ -757,6 +757,16 @@ describe('the per-box cache (DD-14 C32)', () => {
     expect(await both(root, box, edited, cache)).toEqual([]);
   });
 
+  it("a label measured at another size (a theme's font) lays out the box that holds it, and only that box", async () => {
+    const root = column('t.root');
+    const box = column('t.box', { gap: 3 });
+    const cache = new LayoutCache();
+    const input = inputOf(TWO);
+    await both(root, box, input, cache);
+    const label = asLabelId('l:b.x>b.y');
+    expect(await both(root, box, { ...input, labelSizes: { ...input.labelSizes, [label]: { w: 30, h: 6 } } }, cache)).toEqual(['b']);
+  });
+
   it("an edit to one box's options, engine version, or the theme's metrics lays out what it reaches", async () => {
     const root = column('t.root');
     const box = column('t.box', { gap: 3 });
@@ -904,12 +914,18 @@ describe('the per-box cache (DD-14 C32)', () => {
     const root = column('t.root');
     const box = column('t.box', { gap: 3 });
     const cache = new LayoutCache();
-    const first = await composeLayout(root, inputOf(TWO), {}, PLAN, registry(root, box), ctx(), cache);
+    // `b` first, at (0, 0) in its own layout and in the root's: its
+    // contents are then moved by nothing, so without a copy the composed
+    // result would hold the cached objects themselves.
+    const spec: Spec = { tree: { b: ['b.x'], c: ['c.x'] } };
+    const first = await composeLayout(root, inputOf(spec), {}, PLAN, registry(root, box), ctx(), cache);
     const expected = JSON.stringify(first);
+    expect(first.nodes[n('b')]!.frame).toMatchObject({ x: 0, y: 0 });
     (first.nodes[n('b.x')]!.frame as { x: number }).x = 999;
-    const second = await composeLayout(root, inputOf(TWO), {}, PLAN, registry(root, box), ctx(), cache);
-    (second.nodes[n('c.x')]!.frame as { y: number }).y = 999;
-    expect(JSON.stringify(await composeLayout(root, inputOf(TWO), {}, PLAN, registry(root, box), ctx(), cache))).toBe(expected);
+    const second = await composeLayout(root, inputOf(spec), {}, PLAN, registry(root, box), ctx(), cache);
+    expect(JSON.stringify(second)).toBe(expected);
+    (second.nodes[n('b.x')]!.frame as { y: number }).y = 999;
+    expect(JSON.stringify(await composeLayout(root, inputOf(spec), {}, PLAN, registry(root, box), ctx(), cache))).toBe(expected);
     expect(box.calls).toEqual(['c', 'b']);
   });
 

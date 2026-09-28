@@ -83,6 +83,9 @@ interface Box {
 }
 interface Doc {
   root: 'grid' | 'elk' | 'fixed';
+  /** The root's own `@layout` option: a box of the root's engine that does
+   *  not set it inherits it (C6), with no change to its own text. */
+  rootOption: string | undefined;
   comments: number;
   tops: string[];
   boxes: Box[];
@@ -128,7 +131,7 @@ function generator(seed: number) {
     return [pick(pick(groups)), pick([...pick(groups), ...d.tops])];
   };
   const initial = (): Doc => {
-    const d: Doc = { root: pick(['grid', 'elk', 'elk', 'fixed'] as const), comments: 0, tops: ['top0'], boxes: Array.from({ length: 3 + int(3) }, () => box(0)), edges: [] };
+    const d: Doc = { root: pick(['grid', 'elk', 'elk', 'fixed'] as const), rootOption: undefined, comments: 0, tops: ['top0'], boxes: Array.from({ length: 3 + int(3) }, () => box(0)), edges: [] };
     for (let i = 0; i < 6; i += 1) {
       const e = randomEdge(d);
       if (e !== undefined) d.edges.push(e);
@@ -142,7 +145,15 @@ function generator(seed: number) {
   /** One keystroke-sized edit, in place; its name, for the failure message. */
   const edit = (d: Doc): string => {
     const b = anyBox(d);
-    switch (int(10)) {
+    switch (int(11)) {
+      case 10:
+        if (rand() < 0.25) {
+          d.root = pick(['grid', 'elk', 'fixed'] as const);
+          d.rootOption = undefined;
+          return 'the root engine';
+        }
+        d.rootOption = pick(OPTIONS[d.root]);
+        return "the root's options";
       case 0:
         b.leaves.push(leaf(b.engine));
         return `add a node to ${b.name}`;
@@ -190,7 +201,7 @@ function generator(seed: number) {
 function source(d: Doc): string {
   const lines: string[] = [];
   for (let i = 0; i < d.comments; i += 1) lines.push(`// edit ${i}`);
-  lines.push(`@layout: { engine: ${d.root} }`);
+  lines.push(`@layout: { engine: ${d.root}${d.rootOption === undefined ? '' : `, ${d.rootOption}`} }`);
   d.tops.forEach((t, i) => lines.push(`${t}: { @label: "Top"${d.root === 'fixed' ? `, @pin: { x: ${i * 90}, y: 0 }` : ''} }`));
   const emit = (b: Box, indent: string, i: number): void => {
     lines.push(`${indent}${b.name}: {`);
