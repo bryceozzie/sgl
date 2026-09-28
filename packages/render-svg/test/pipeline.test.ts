@@ -182,6 +182,28 @@ describe('a theme switch at the pipeline level (MVP acceptance criterion 2, DD-0
   }
 });
 
+/** F31: the harness warns about an unknown `@theme` name as the app does
+ *  (SGL5007, at the key), and never for a known name or none. What it draws
+ *  is unchanged: the harness draws in the theme it is given. */
+describe('an unknown @theme name at the pipeline level (F31, SGL5007)', () => {
+  const BODY = 'a\nb\na -> b\n';
+  it.each([
+    ['a known name', '@theme: "neutral-dark"\n', []],
+    ['no @theme', '', []],
+    ['a typo', '@theme: "neutral-drak"\n', [['SGL5007', 'warning', 'Unknown theme `neutral-drak`; using the default.', '@theme']]],
+  ] as const)('%s', async (_, head, expected) => {
+    const source = `${head}${BODY}`;
+    const { diagnostics } = await runPipeline(source, neutralLight);
+    expect(diagnostics.map((d) => [d.code, d.severity, d.message, source.slice(d.span.from, d.span.to)])).toEqual(expected);
+  });
+
+  it('the warning changes nothing drawn: the same SVG as with no @theme', async () => {
+    const typo = await runPipeline('@theme: "neutral-drak"\na\nb\na -> b\n', neutralLight);
+    const none = await runPipeline('a\nb\na -> b\n', neutralLight);
+    expect(typo.rendered.svg).toBe(none.rendered.svg);
+  });
+});
+
 /**
  * The seam this bug slipped through: `layout-api`'s `fallbacks.test.ts` pins
  * the arrow *reserve* (DD-06 §4.4 shortens the path by `arrowSize`) in
@@ -449,5 +471,16 @@ describe('wildcards in parent path segments render through the real pipeline (la
     expect((expanded.rendered.svg.match(/class="e-path/g) ?? []).length).toBe(3);
     // Nothing downstream can tell the edges came from a wildcard.
     expect(expanded.rendered.svg).toBe(byHand.rendered.svg);
+  });
+});
+
+describe("the harness sends the document's root @layout options, as the app does (DD-12 H6)", () => {
+  it("`@layout: { columns: 1 }` under grid stacks the nodes in one column; a caller's own options are overridden", async () => {
+    const xs = async (source: string, options: Readonly<Record<string, unknown>> = {}) => {
+      const { result } = await runPipeline(source, neutralLight, undefined, options);
+      return new Set(['a', 'b', 'c'].map((id) => result.nodes[id as keyof typeof result.nodes]!.frame.x));
+    };
+    expect((await xs('a\nb\nc\n')).size).toBe(2); // automatic: 2 columns for 3 nodes
+    expect((await xs('@layout: { columns: 1 }\na\nb\nc\n', { columns: 3 })).size).toBe(1);
   });
 });

@@ -1,0 +1,7 @@
+// expects: SGL5007
+// A `@theme` that names no built-in theme (F31): a typo of `neutral-dark`.
+// The document still draws in the default theme, and now says so.
+@theme: "neutral-drak"
+a
+b
+a -> b

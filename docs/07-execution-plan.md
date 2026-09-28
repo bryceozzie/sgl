@@ -2096,6 +2096,29 @@ cost is ~3.2 kB of the 6.01 kB left.
   After the merge, `fixed`'s `checkout.sgl` golden was regenerated: `main`'s `@style` rewrite
   shifts its note spans. Size: core **179.19 kB** of 182, +1.16 kB over `main` (178.03).
 
+**B5 branch 3, `fix/root-layout-options`** (from `main` at `7d77b63`; not merged). DD-12 §13's
+branch 3, H6: the root `@layout` options reach the engine. `rootLayoutOptions` (`@sgl/layout-api`)
+takes every root key but `engine` that the effective engine declares in `optionsSchema`, from the
+resolved root bag; the app sends them over the F11 form's bag, key by key, for that document
+(`Pipeline.documentOptions`), and never writes the persisted `engineOptions`. An undeclared key is
+`SGL4010` (at the root, options only now: a hint-only key there was silently ignored); a value the
+engine's form would not keep (`acceptsOption`) is `SGL2011` at its key (the docs were silent). Both
+are ignored. Options ▾ shows an overridden field's value, disabled, labelled "(set by document)".
+**Goldens:** only `checkout.sgl`'s `elk` input and output goldens changed (`direction: right` now
+reaches `elk`; approved in H6); the elk goldens and the render-svg harness now take each document's
+root options, and no other document in them has any. Tests: `layout-config`, apps/web `pipeline`,
+`engine-options` and `engine-options-form.browser`, render-svg `pipeline`, `elk`, and
+`e2e/root-layout-options.spec.ts` (checkout's six edges run left to right under `elk`). Docs: DD-12
+§13, DD-08 §10, DD-06 §2 and §7. Size: core **179.50 kB** of 182, +0.31 kB.
+**Merged `main` after `feat/help-content`** (`9f47545`; no conflicts, 07 §2 keeps both sides) and,
+merging second, made DD-13 P21's help update: `key/layout`, `key/direction` and the quick start
+now say that root options and `@direction` reach the engine and override Options ▾ for that
+document ("(set by document)"), that an undeclared key is `SGL4010` and an invalid value
+`SGL2011`, and that `@layout.direction` wins over `@direction`. Seven new examples, two with a
+`contains=` on the left-to-right viewBox (P22). The help harness runs `createPipeline`, so it needed
+no change. No golden differs from `main` but `checkout.sgl`'s two `elk` goldens. Core **179.50 kB**
+after the merge (help adds nothing at boot).
+
 **Help branch 1, `feat/help-reference`** (Stage L, E19, DD-13 §13 branch 1; branched from `main` at
 `ca9956e`; no golden changed). **DD-13 P5's exports**, each now the value the code uses in place of
 its literal: `@sgl/core` exports `CONFIG_REGISTRY` and `LANGUAGE_SHAPES`; `DEFAULT_SHAPE` (`ids.ts`)
@@ -2159,6 +2182,23 @@ of 182**, the same as `main` (this branch adds nothing to the boot path). Deviat
 `@direction` do not reach the engine yet (Options does; `fix/root-layout-options`), and spec §9's
 container `@layout: { engine: grid }` is `SGL4010` under `elk`; the help says so.
 
+**F31, `fix/unknown-theme`** (human decision 2026-09-27; branched from `main` at `c299642`, merged
+`main` at `9f47545`). A document whose root `@theme` names no built-in theme is now **`SGL5007`**
+(warning, "Unknown theme `{name}`; using the default."), the next free 5xxx code, at the key of the
+last root `@theme` entry; it still draws in the default theme. `unknownThemeDiagnostics(ast, name)`
+(`@sgl/theme`) builds it from the resolved name (so a `$variable` is checked by what it substitutes
+to; a non-string or non-root `@theme` stays the resolver's `SGL2011`/`SGL2012`), and both the app's
+pipeline and `render-svg`'s harness call it. `BUILT_IN` has no prototype (orchestrator decision): a
+name such as `constructor` resolved an `Object` method as a theme, and a stored record or share
+link's `t=` accepted it; now every lookup sees only the four themes. Fixture
+`corpus/theme/unknown-theme.sgl`; tests: `theme/test/unknown-theme.test.ts`, `render-svg`'s
+`pipeline.test.ts` (known, absent, typo; the drawing is unchanged), `apps/web/test/pipeline.test.ts`,
+`apps/web/test/theme-lookup.test.ts` (stored record and `t=`), `e2e/unknown-theme.spec.ts` (the panel
+and the squiggle). The help's `@theme` entry lists `SGL5007` with an example that expects it. DD-04 §6
+has the row. No golden moved: the fonts pin gains the fixture's entry, and its AST and tree pins are
+new. Core bundle **179.31 kB of 182** (179 315 B), +129 B over `main` (accepted by the orchestrator over the
+brief's +0.1 kB cap).
+
 **B8 per-container engines, on `design/b8-container-engines`** (branched from `main` at `9f47545`;
 not merged). **Design only. No code.** [DD-14](detailed-design/14-container-engines.md), for F29
 (decisions C1–C49, eight ⚑ for the human). A container naming an engine is a *boundary*: laid out
@@ -2191,9 +2231,10 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F25** | **The renderer's first baseline is `0.8 × fontSize`; measurement's ascent is the font's own** (DD-11 §19 item 5; found by DD-11's design, measured by `feat/a18-render`). DD-07 §5 once said `y = frame.y + layout.ascent` from the measured `TextLayout`; `render()` was never given one and has always drawn `0.8 × fontSize`, which A18 kept (T42) so no golden moved. `CanvasMeasurer`'s ascent is `fontBoundingBoxAscent`, which Chromium rounds to whole pixels: Inter's 0.969 em comes out as **13 px** for a 13 px node title against the rendered **10.4 px** (label drawn **2.6 px** higher than measurement's baseline), 12 px against 9.6 for a container title (2.4 px). Adopting the measured ascent would move every label by about 2–2.6 px and re-baseline every render golden under every theme; the label boxes and layout are unaffected (heights use `lineHeight`). `apps/web/test/rich-measure.browser.test.ts` pins the numbers. **A human decision:** keep `0.8 em` (DD-07 §5 now says so), or adopt the measured (or a fixed 0.97 em, deterministic across browsers) ascent in one golden re-baseline. | **Deferred: human decision 2026-09-27, leave it for now** (it cannot overflow a box); fold it into the next re-baseline of the render goldens made for another reason, by whoever next touches DD-07 §5 |
 | **F26** | **E15 (drag to pin) cannot write a dragged position back yet: the host throws away the translation it applies.** `quantize` (DD-06 §5, F14) moves every result so that its content box, plus the margin, starts at `(0, 0)`, and discards the offset (`x0`, `y0`). A pin is relative to its parent's content box, and root pins are relative to each other, the drawing framed to fit its content (DD-12 H2; human decision 2026-09-27), so a canvas position cannot be turned back into a root pin without that offset. Proposed remedy (DD-12 N3): an optional `origin` on `LayoutResult`. B5 does not need it. | E15 (Could), when built |
 | **F28** | **DD-06 §8's conformance check 3 (no two sibling frames overlap) assumes the engine chooses every position.** Under `fixed`, nodes the author pinned may overlap on purpose. **Settled in the suite by `feat/b5-fixed`:** the corpus now has pins, so `runConformance`'s check 3 skips a pair of siblings that both have a `@pin` when the engine declares `pins` (`pinOf`); a pinned node against one the engine placed is still checked (`layout-api/test/conformance.test.ts`, both halves). What remains is the SDK's published conformance guide, which must say the same before third parties rely on it. | Stage M (B18), the guide's text only |
+| **F32** | **A node named `root` collides with ELK's internal root id,** and elk mislays that node's edges (`packages/layout-elk/src/mapping.ts`). Found by `feat/b5-tree` (2026-09-28). The adapter should namespace ELK ids so no author id can collide. | Orchestrator (small fix in the elk adapter) |
+| **F33** | **A lazy engine chunk that fails to load stays failed until reload:** the browser caches the failed `import()`, so the worker's retry never succeeds (elk and `std-trees` alike), despite a code comment saying elk's failed load is not cached. Found by `feat/b5-tree` (2026-09-28). Either correct the comment and document it, or re-import through a cache-busting path. | Orchestrator |
 | **F29** | **Spec §9's worked example puts `@layout: { engine: grid }` on a container, which this build does not support** (per-container engines are B8). Under `elk` it gives two `SGL4010` warnings. Found by help branch 2 (2026-09-27). **Human decision 2026-09-27: keep the example and build B8 (per-container engines) sooner.** | Whoever builds B8 (prioritised in Stage L); design: [DD-14](detailed-design/14-container-engines.md), cleared by its branch 2, `feat/b8-wire` |
 | **F30** | **Three keys are accepted and kept, but nothing uses them:** `@order`, `@tooltip` and `@size.aspectRatio`. The help says so. Each needs either an implementation or `SGL2010` ("no effect in this version") so authors are not misled. Found by help branch 2 (2026-09-27). | Orchestrator triage (small code fix per key) |
-| **F31** | **An unknown `@theme` name falls back to the default theme with no warning.** A typo silently changes the look. Found by help branch 2 (2026-09-27). **Human decision 2026-09-27: a new theme-catalogue warning ("Unknown theme 'X'; using the default.") at the key, with a fixture, is approved.** | Orchestrator (a small code fix) |
 
 ---
 

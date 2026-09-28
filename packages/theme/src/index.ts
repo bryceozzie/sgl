@@ -6,6 +6,7 @@
  */
 
 export * from './cascade.js';
+export * from './document-theme.js';
 export * from './registry.js';
 export * from './types.js';
 export * from './themes/index.js';

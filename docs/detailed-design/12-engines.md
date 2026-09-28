@@ -64,7 +64,7 @@ These facts shape the design. Each is also in §17 where it contradicts a docume
    "layered", direction: right }`. Under `elk` it is laid out `DOWN`: the elk input golden
    `checkout.sgl.json` has `"elk.direction": "DOWN"`. SGL4010 does not warn, because `direction` is
    an option `elk` declares. DD-06 §7 records only the `grid` `columns` case. This matters to `tree`,
-   whose main option is `direction` (N40).
+   whose main option is `direction` (N40). *(Fixed in `fix/root-layout-options`, H6: §13 item 3.)*
 5. **The layout worker counts toward the core budget.** `.size-limit.js` counts every emitted JS/CSS
    file except the named lazy chunks, and the worker (`layout.worker-*.js`, 8.54 kB gz) is one of
    them. Engine code in the worker is therefore boot cost, as descriptors on the main thread are.
@@ -399,6 +399,8 @@ get no diagnostic, because an author can overlap them on purpose. Both rows go i
   overrides the picker, and the document is the source of truth.* It changes the live layout of
   every existing document that sets a root `@layout` option: `checkout.sgl` would go right under
   `elk`. Engine goldens do not change, because they pass options explicitly. §15 ⚑6.
+  *Built in `fix/root-layout-options` (H6), §13 item 3. The `elk` goldens now pass each document's
+  root options, so `checkout.sgl`'s two did change (approved in H6).*
 
 ---
 
@@ -701,7 +703,41 @@ begins.
      estimated ~1.45 kB (0.45 page, 1.00 worker).
 3. **`fix/root-layout-options`** (small; H6). `checkout.sgl`'s `elk` goldens may be regenerated here. Root `@layout` options reach the
    engine (N40). A pipeline test and an e2e case (`checkout.sgl` goes right under `elk`). Best merged
-   before `tree`, whose main option is `direction`.
+   before `tree`, whose main option is `direction`. **Implemented** on `fix/root-layout-options`
+   (2026-09-27); as built:
+   - **The seam, resolver side: `rootLayoutOptions(ast, root, engine)`** (`@sgl/layout-api`,
+     `layout-config.ts`). From the *resolved* root bag (variables substituted, `@direction` folded
+     into `layout.direction`), every key but `engine` that the effective engine declares in
+     `optionsSchema`, keys sorted, with the value as resolved. It returns `{ options, diagnostics }`.
+   - **An undeclared key is `SGL4010`, and ignored.** At the root only `optionsSchema` counts now:
+     the root has no hints (`compile()` drops its bag), so a hint-only key there (`span` under
+     `grid`, `priority` under `elk`) was silently ignored before and is `SGL4010` now. A
+     container's keys are still checked against options and hints.
+   - **An invalid value is `SGL2011` at its key, and ignored** (DD-06 and this document were
+     silent): "`@layout.nodeSpacing` expects a value engine `sgl.elk` accepts; ignored." The
+     caller decides what is valid through `EngineSchemas.accepts?(key, value)`; absent, any value of
+     a declared option is taken. A key set twice is reported at its last setting, which wins.
+   - **What the app accepts: exactly what the engine's F11 form would keep** (`acceptsOption`,
+     `state/engine-options.ts`: `normalize({ [key]: value })[key] === value`). So the form can
+     always show the value in use, and a value an engine's loose schema allows but it cannot use
+     (`grid`'s `columns: 0`) never reaches it. `elk`'s spacings stop at 500 px, as the form's do.
+     An engine with no hand-built form takes any value of a declared option.
+   - **The seam, app side.** The pipeline sends `{ ...optionsForEngine(engine, engineOptions),
+     ...documentOptions }`: the document's options override the form's key by key, for that
+     document. `engineOptions`, the persisted bag, is never written, so removing the key brings the
+     editor's value back. `Pipeline.documentOptions` exposes them; the options key the layout skip
+     compares already covers the merged bag. Geometry only: identity and paint are untouched.
+   - **The form** (DD-08 §10): an overridden field shows the document's value, is `disabled`, and its
+     `<label>` reads "Direction (set by document)", as Engine ▾ does. The form is the lazy
+     `engine-options-form` chunk, so this is free at boot.
+   - **Goldens.** The `elk` input and output goldens now take each document's root options; only
+     `checkout.sgl` has any (a test pins that), so only its two changed (`elk.direction` `DOWN` →
+     `RIGHT`). The render-svg harness merges them too, and no render golden changed: under `grid`,
+     `checkout.sgl`'s `direction` and `layout/unknown-key.sgl`'s `nodeSpacing` are not options.
+   - Tests: `layout-config.test.ts`, apps/web `pipeline`, `engine-options` and
+     `engine-options-form.browser` tests, render-svg `pipeline.test.ts`, `elk.test.ts`, and
+     `e2e/root-layout-options.spec.ts` (every `checkout.sgl` edge runs left to right under `elk`).
+   - Size: core **179.50 kB** of 182, +0.31 kB over `main` (179.19).
 4. **`feat/b5-tree`**.
    - `forest.ts` (§7) and `tree.ts`.
    - The lazy `std-trees` chunk infrastructure (N52): the worker's `manualChunks`, `.size-limit.js`,
@@ -890,4 +926,4 @@ The other documents:
 - **07**: a §2 paragraph and the Stage L row; §2.1 F6 and F10 are updated; F26–F28 are new.
 
 §17's items 1, 2, 4 (spec side), 6 and 7 are resolved by these edits. Item 3 is resolved in
-`feat/b5-pin`, item 5 in `fix/root-layout-options`, item 8 by F10's new owner, and item 9 is F28.
+`feat/b5-pin`, item 5 in `fix/root-layout-options` (done, §13 item 3), item 8 by F10's new owner, and item 9 is F28.

@@ -335,7 +335,9 @@ the same functions the app runs.
   - The output is sorted and identical across two runs.
 - **P21. Order with B5.** `feat/b5-pin` adds the `@pin` row, and `feat/b5-fixed`/`tree`/`radial`
   add engines. Whichever of help or B5 merges second writes the missing entries: P17 fails until
-  it does. *That is the guarantee working.*
+  it does. *That is the guarantee working.* The same holds for prose that describes behaviour a
+  B5 branch changes: `fix/root-layout-options` merged second and rewrote the root `@layout` and
+  `@direction` prose (§13 branch 2).
 - **P22. What the tests cannot prove.** That a preview shows what the prose claims.
   Until branch 0, `@style: dashed` rendered cleanly and drew a solid line (§17 item 1). An example whose point
   is a visual effect should carry `contains=` (for example `contains="stroke-dasharray"`), and
@@ -774,14 +776,26 @@ Reviewable branches, in order. Each is one reviewer's work, and each passes the 
      each other, nested pins, `SGL4020` for an unpinned node), and keep one `SGL4021` under `elk`.
      Root `@layout` options are still described as checked but not yet applied: whichever of this
      and `fix/root-layout-options` merges second updates that.
+   - **After `fix/root-layout-options` merged `main` with this branch in it** (P21: B5 branch 3
+     merged second, so it made the update). `key/layout`, `key/direction` and `topic/quickstart` now say
+     that root `@layout` options and `@direction` reach the engine and override Options for that
+     document, whose field then reads "(set by document)"; that an undeclared key is `SGL4010` (at
+     the root, options only: a hint such as `priority` is `SGL4010` there); that a value the form
+     would not keep is `SGL2011`; and, for `@direction`, that `@layout.direction` wins over it and
+     that `elk` does not use a container's. New examples: grid's `columns` and `gap` from the
+     document, `elk` left to right (by `@layout` and by `@direction`, each with a `contains=` on its
+     wide viewBox, P22), `@layout.direction` winning, a root hint (`SGL4010`), and invalid values
+     (`nodeSpacing: 900`, `@direction: sideways`: `SGL2011`). Both entries' `Diagnostics:` lines
+     gain `SGL2011`. No harness change was needed: it runs the app's `createPipeline`, which merges
+     the document's options, `fixed`'s `gap` included.
    - `build/node-modules.d.ts` declares the three Node functions the plugin uses; this app has no
      `@types/node`.
    - **Found while writing the prose (help follows the build, P2):** a root `@layout` option and
      `@direction` are checked (`SGL4010`) but do not reach the engine yet: the toolbar's Options
-     do (H6's `fix/root-layout-options` is not merged). A container's `@layout: { engine: grid }`,
+     do (H6's `fix/root-layout-options` is not merged; fixed when it merged, above). A container's `@layout: { engine: grid }`,
      as in spec §9's worked example, is `SGL4010` twice under `elk`. `@order`, `@tooltip` and
      `@size.aspectRatio` are kept but nothing uses them. An unknown `@theme` name falls back to
-     the default theme with no warning, and `@sgl`'s value is not checked.
+     the default theme with no warning (F31; since `fix/unknown-theme` it is `SGL5007`), and `@sgl`'s value is not checked.
 3. **`feat/help-content-2`.**
    - Content for `style`, `shape`, `engine` and `option`, `theme`, and `diag` (per HD4); all the
      topics.

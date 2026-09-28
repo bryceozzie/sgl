@@ -95,10 +95,15 @@ export function engineForm(engineId: string): EngineForm | null {
   return fields === undefined || rules === null ? null : { engineId, ...fields, ...rules };
 }
 
-/** The form's current values: the bag, normalised for `engineId`. */
-export function formValues(engineId: string, bag: Readonly<Record<string, unknown>>): Readonly<Record<string, OptionValue>> {
+/** The form's current values: the bag, normalised for `engineId`, with the
+ *  document's root options over it (DD-12 H6), as the request has them. */
+export function formValues(
+  engineId: string,
+  bag: Readonly<Record<string, unknown>>,
+  document: Readonly<Record<string, unknown>> = {},
+): Readonly<Record<string, OptionValue>> {
   const rules = engineOptionRules(engineId);
-  return rules === null ? {} : rules.normalize(bag);
+  return rules === null ? {} : { ...rules.normalize(bag), ...(document as Readonly<Record<string, OptionValue>>) };
 }
 
 /** What happened to one edit (fix round 1, item 22): the whole bag after

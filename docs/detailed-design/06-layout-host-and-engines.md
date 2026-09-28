@@ -68,6 +68,13 @@ The interfaces from [Architecture §4](../03-architecture.md#4-layout-engine-plu
 >   document; the host rebuilds each note as a diagnostic (§3, step 3).
 >   `LayoutResult.diagnostics` stays in the type, and the host ignores it: a
 >   message string from a worker is untrusted text.
+> - **Root `@layout` options reach the engine** (`fix/root-layout-options`, DD-12 H6).
+>   `rootLayoutOptions(ast, root, engine)` (`layout-config.ts`) takes every root `@layout` key but
+>   `engine` that the effective engine declares in `optionsSchema`, from the resolved root bag,
+>   keys sorted; the app merges them over its form's bag for that request (DD-08 §10). At the
+>   root, `SGL4010` checks `optionsSchema` alone: the root has no hints. A value the caller's
+>   `EngineSchemas.accepts` refuses (the app: whatever the engine's form would not keep) is
+>   `SGL2011` at the key, and not sent. `apiVersion` is unchanged: `run()` still takes one bag.
 > - **Bare engine names.** The app's `documentEngineOverride` maps a root
 >   `@layout.engine` of `x` to `sgl.x` when `x` itself is not registered and `sgl.x`
 >   is. Any other value passes through, so an unknown name is still `SGL4011`, as an
@@ -417,7 +424,7 @@ All arithmetic is integer/rational → `bitwise`. Edges and labels are left to t
 
 **The packing is shared (DD-12 N10, `feat/b5-fixed`).** The column and row arithmetic above is `packCells(sizes, cols, gap, align, x0, y0)` (`layout-std/src/pack.ts`), used by `grid` and `fixed` (§7a). `grid` passes its padding as the origin, so the sums are made in the same order as before and every `grid` golden is byte-identical.
 
-`hints.columns` is read from `node.config['layout']` directly (§2's amendment); the root has no such lookup, because `compile()` keeps only `model.root.config.title` from the root's config bag (`packages/core/src/compile.ts`) — a root-level `@layout.columns` never reaches `SemanticGraph` at all, so `grid` cannot honour one no matter how it reads hints. This is `compile()` (DD-03), frozen since Gate 1; out of Stage E's scope to fix, flagged here for whichever stage next touches root-level config plumbing.
+`hints.columns` is read from `node.config['layout']` directly (§2's amendment); the root has no such lookup, because `compile()` keeps only `model.root.config.title` from the root's config bag (`packages/core/src/compile.ts`) — a root-level `@layout.columns` never reaches `SemanticGraph` at all, so `grid` cannot honour one no matter how it reads hints. This is `compile()` (DD-03), frozen since Gate 1; out of Stage E's scope to fix, flagged here for whichever stage next touches root-level config plumbing. **Since `fix/root-layout-options` (DD-12 H6)** a root `@layout.columns` does reach `grid`, as the `columns` *option* (not a hint): the app sends the root's options with the request (§2's amendment).
 
 F1 (07 §2.1) is cleared here: `pack()`'s `childrenOf()` filters `.hidden` on every level, not just the top, since `children`/`rootChildren` list hidden nodes and only `graph.order` does not.
 

@@ -4,6 +4,7 @@ import { asNodeId, diagnostic, NO_SPAN, parse, type Diagnostic, type LabelId } f
 import type { LayoutHost, LayoutInput, LayoutResult, ResolvedThemeMetricsView } from '@sgl/layout-api';
 import type { StageResult } from '@sgl/core';
 import { labelRunKey, StaticMetricsMeasurer } from '@sgl/measure';
+import { DEFAULT_THEME_ID } from '@sgl/theme';
 import { REGISTERED_ENGINES, registeredEngine } from '../src/io/app-boot.js';
 import { createImportsRuntime } from '../src/state/imports.js';
 import { createPipeline } from '../src/state/pipeline.js';
@@ -209,6 +210,51 @@ describe('pipeline (DD-08 §3)', () => {
     env.pipeline.engineOptions.value = { anything: 1 };
     await completeOneLayout(env, 'a');
     expect(env.pending.at(-1)!.options).toEqual({ anything: 1 });
+  });
+
+  describe('root @layout options reach the engine (DD-12 H6)', () => {
+    const engineSchemas = (id: string) => REGISTERED_ENGINES.find((e) => e.id === id);
+
+    it("override the form's bag key by key, for this document only; the stored bag is left alone", async () => {
+      const source = '@layout: { engine: elk, direction: right, rankSpacing: 20 }\na: "A"\n';
+      const env = setup(source, { engineSchemas });
+      env.pipeline.engineOptions.value = { direction: 'down', nodeSpacing: 12, rankSpacing: 90 };
+      await completeOneLayout(env, 'a');
+      expect(env.pending.at(-1)!.engineId).toBe('sgl.elk');
+      expect(env.pending.at(-1)!.options).toEqual({ direction: 'right', nodeSpacing: 12, rankSpacing: 20, edgeRouting: 'ORTHOGONAL', nodePlacement: 'BRANDES_KOEPF' });
+      expect(env.pipeline.documentOptions.value).toEqual({ direction: 'right', rankSpacing: 20 });
+      expect(env.pipeline.engineOptions.value).toEqual({ direction: 'down', nodeSpacing: 12, rankSpacing: 90 });
+      expect(env.pipeline.diags.value).toEqual([]);
+
+      // Without them, the form's bag applies again.
+      const plain = '@layout: { engine: elk }\na: "A"\n';
+      env.pipeline.setDocument(parse(plain).tree, plain);
+      await completeOneLayout(env, 'a');
+      expect(env.pending.at(-1)!.options).toEqual({ direction: 'down', nodeSpacing: 12, rankSpacing: 90, edgeRouting: 'ORTHOGONAL', nodePlacement: 'BRANDES_KOEPF' });
+      expect(env.pipeline.documentOptions.value).toEqual({});
+    });
+
+    it('under the editor\'s engine too, and `@direction` sugar counts', async () => {
+      const source = '@direction: left\n@layout.columns: 3\na: "A"\n';
+      const env = setup(source, { engineSchemas, defaultEngineId: 'sgl.grid' });
+      await completeOneLayout(env, 'a');
+      // `direction` is not grid's (SGL4010, ignored); `columns` is.
+      expect(env.pending.at(-1)!.options).toEqual({ columns: 3, gap: 24, align: 'center' });
+      expect(env.pipeline.diags.value.map((d) => [d.code, source.slice(d.span.from, d.span.to)])).toEqual([['SGL4010', '@direction']]);
+    });
+
+    it('an undeclared key is SGL4010 and an invalid value SGL2011, each at its key; neither is sent', async () => {
+      const source = '@layout: { engine: elk, columns: 2, nodeSpacing: 900, direction: sideways }\na: "A"\n';
+      const env = setup(source, { engineSchemas });
+      await completeOneLayout(env, 'a');
+      expect(env.pending.at(-1)!.options).toEqual({ direction: 'down', nodeSpacing: 40, rankSpacing: 70, edgeRouting: 'ORTHOGONAL', nodePlacement: 'BRANDES_KOEPF' });
+      expect(env.pipeline.documentOptions.value).toEqual({});
+      expect(env.pipeline.diags.value.map((d) => [d.code, source.slice(d.span.from, d.span.to)]).sort()).toEqual([
+        ['SGL2011', 'direction'],
+        ['SGL2011', 'nodeSpacing'],
+        ['SGL4010', 'columns'],
+      ]);
+    });
   });
 
   it('last-good survives a syntax error (FR-E4)', async () => {
@@ -500,6 +546,39 @@ describe('document overrides (DD-08 §10)', () => {
     const env = setup('a: "A"');
     expect(env.pipeline.documentThemeId.value).toBeUndefined();
     expect(env.pipeline.effectiveThemeId.value).toBe(env.pipeline.themeId.value);
+  });
+
+  // F31 (human decision 2026-09-27): an unknown name is SGL5007 at the key,
+  // and the document still draws in the default theme, whatever the picker.
+  it('an unknown document @theme warns SGL5007 at the key and still draws in the default theme', () => {
+    const source = 'a: "A"\n@theme: "neutral-drak"\n';
+    const env = setup(source);
+    env.pipeline.themeId.value = 'neutral-dark'; // the picker's preference does not rescue a typo
+    expect(env.pipeline.diags.value.map((d) => [d.code, d.severity, d.message, source.slice(d.span.from, d.span.to)])).toEqual([
+      ['SGL5007', 'warning', 'Unknown theme `neutral-drak`; using the default.', '@theme'],
+    ]);
+    expect(env.pipeline.theme.value.value.id).toBe(DEFAULT_THEME_ID);
+
+    // Fixing the typo clears it.
+    const fixed = 'a: "A"\n@theme: "neutral-dark"\n';
+    env.pipeline.setDocument(parse(fixed).tree, fixed);
+    expect(env.pipeline.diags.value).toEqual([]);
+    expect(env.pipeline.theme.value.value.id).toBe('neutral-dark');
+  });
+
+  // What the warning says must be so: a name that is only an Object property
+  // drew a malformed theme (no id, an SGL5004) instead of the default.
+  it.each(['constructor', 'toString', '__proto__'])('@theme: "%s" is unknown too: SGL5007 alone, and the default theme', (name) => {
+    const env = setup(`@theme: "${name}"\na: "A"`);
+    expect(env.pipeline.diags.value.map((d) => d.code)).toEqual(['SGL5007']);
+    expect(env.pipeline.theme.value.value.id).toBe(DEFAULT_THEME_ID);
+  });
+
+  it.each([
+    ['a known @theme', '@theme: "print"\na: "A"'],
+    ['no @theme', 'a: "A"'],
+  ])('%s: no SGL5007', (_, source) => {
+    expect(setup(source).pipeline.diags.value).toEqual([]);
   });
 
   it('a document @layout.engine wins over the picker signal', () => {

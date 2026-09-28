@@ -1,4 +1,4 @@
-// DD-09 §2 / DD-10 §4: the core bundle budget, < 182 kB gzipped (NFR 4.1).
+// DD-09 §2 / DD-10 §4: the core bundle budget, < 184 kB gzipped (NFR 4.1; 180 kB until 2026-09-26, 182 kB until 2026-09-28, both raised by the human).
 // Raised from 180 kB by human decision 2026-09-26 (A9); the 300 kB hard
 // ceiling is unchanged.
 //
@@ -46,6 +46,6 @@ export default [
     name: 'core (entry + static imports + layout worker), gzip',
     path: ['apps/web/dist/assets/*.js', 'apps/web/dist/assets/*.css', '!apps/web/dist/assets/elk-*.js', '!apps/web/dist/assets/share-*.js', '!apps/web/dist/assets/file-actions-*.js', '!apps/web/dist/assets/engine-options-form-*.js', '!apps/web/dist/assets/documents-menu-*.js', '!apps/web/dist/assets/imports-*.js', '!apps/web/dist/assets/filename-*.js', '!apps/web/dist/assets/rich-text-*.js', '!apps/web/dist/assets/run-faces-*.js'],
     gzip: true,
-    limit: '182 kB',
+    limit: '184 kB',
   },
 ];

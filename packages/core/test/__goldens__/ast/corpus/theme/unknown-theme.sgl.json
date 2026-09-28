@@ -1,0 +1,122 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "theme"
+    ],
+    "value": {
+     "kind": "String",
+     "value": "neutral-drak",
+     "span": {
+      "from": 171,
+      "to": 185
+     }
+    },
+    "keySpan": {
+     "from": 163,
+     "to": 169
+    },
+    "span": {
+     "from": 163,
+     "to": 185
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "a",
+    "keySpan": {
+     "from": 186,
+     "to": 187
+    },
+    "span": {
+     "from": 186,
+     "to": 187
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "b",
+    "keySpan": {
+     "from": 188,
+     "to": 189
+    },
+    "span": {
+     "from": 188,
+     "to": 189
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "a",
+         "span": {
+          "from": 190,
+          "to": 191
+         }
+        }
+       ],
+       "span": {
+        "from": 190,
+        "to": 191
+       }
+      },
+      "span": {
+       "from": 190,
+       "to": 191
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "b",
+         "span": {
+          "from": 195,
+          "to": 196
+         }
+        }
+       ],
+       "span": {
+        "from": 195,
+        "to": 196
+       }
+      },
+      "span": {
+       "from": 195,
+       "to": 196
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 190,
+     "to": 196
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 197
+  }
+ },
+ "diagnostics": []
+}
