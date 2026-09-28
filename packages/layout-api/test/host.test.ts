@@ -683,11 +683,13 @@ describe('a request with a plan (DD-14 C23, C25, C26; B8 branch 2)', () => {
   it("posts the plan with the request, and only when there is one: a request without one is today's message", async () => {
     const { spawn, workers } = makeSpawn();
     const host = createWorkerHost(spawn);
-    void host.run('sgl.grid', INPUT, {}, METRICS, {}, new AbortController().signal, plan);
+    // Each run supersedes the last, which rejects with AbortError.
+    host.run('sgl.grid', INPUT, {}, METRICS, {}, new AbortController().signal, plan).catch(() => undefined);
     const first = workers[0]!.posted[0] as Extract<HostToWorker, { t: 'layout' }>;
     expect(first.plan).toBe(plan);
-    void host.run('sgl.grid', INPUT, {}, METRICS, {}, new AbortController().signal);
-    void host.run('sgl.grid', INPUT, {}, METRICS, {}, new AbortController().signal, []);
+    host.run('sgl.grid', INPUT, {}, METRICS, {}, new AbortController().signal).catch(() => undefined);
+    host.run('sgl.grid', INPUT, {}, METRICS, {}, new AbortController().signal, []).catch(() => undefined);
+    host.dispose();
     const layouts = workers[0]!.posted.filter((m) => m.t === 'layout');
     expect(layouts.map((m) => 'plan' in m)).toEqual([true, false, false]);
   });

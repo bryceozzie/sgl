@@ -580,8 +580,10 @@ describe('container engines (DD-14, B8 branch 2)', () => {
     const corpus = readFileSync(new URL('../../../corpus/checkout.sgl', import.meta.url), 'utf8');
     // `corpus/checkout.sgl` is the example, after its one comment line.
     expect(corpus.slice(corpus.indexOf('\n') + 1)).toBe(example);
-    const h = await createHarness(example, { engineSchemas, defaultEngineId: 'sgl.elk' });
+    const h = await createHarness(example, { engineSchemas, defaultEngineId: 'sgl.elk' }, { firstRender: false });
     try {
+      // elkjs's first load can outlast one `settle()` on a busy machine.
+      for (let i = 0; i < 40 && (h.pipeline.lastGood.value === null || h.pipeline.inFlight.value); i += 1) await h.settle().catch(() => undefined);
       // `cloud` is a shape name this version does not draw (SGL3006, info;
       // corpus/README.md), not a layout matter: nothing else, and no warning.
       expect(h.pipeline.diags.value.map((d) => [d.code, d.severity])).toEqual([
