@@ -1,12 +1,13 @@
 import { readFileSync } from 'node:fs';
-import { asNodeId, type NodeId, type Rect } from '@sgl/core';
-import { DEFAULT_ENGINE_TIMEOUT_MS, validateResult, type LayoutContext, type LayoutInput, type LayoutResult } from '@sgl/layout-api';
+import { asNodeId, type NodeId, type Point, type Rect } from '@sgl/core';
+import { DEFAULT_ENGINE_TIMEOUT_MS, validateResult, type EdgeLayout, type LayoutContext, type LayoutInput, type LayoutResult } from '@sgl/layout-api';
 import { conformanceContext, runHostSequence, siblingOverlaps } from '@sgl/layout-api/conformance';
 import { describe, expect, it } from 'vitest';
 import { CLEAN_DOCS } from '../../core/test/corpus-docs.js';
 import { layoutInputFor, layoutInputForSource, METRICS } from '../../layout-elk/test/corpus-input.js';
 import { listCorpusDocs } from '../../theme/test/corpus.js';
 import { RADIAL_ENGINE_ID, radialDescriptor } from '../src/descriptor.js';
+import { liftArcs, spanningForest, visibleChildren } from '../src/forest.js';
 import { radialEngine } from '../src/lazy.js';
 import { normalizeRadialOptions } from '../src/radial.js';
 
@@ -332,4 +333,202 @@ describe('radial over the corpus (DD-12 §12)', () => {
       await expect(`${JSON.stringify(result, null, 2)}\n`).toMatchFileSnapshot(`./__goldens__/radial/${doc}.json`);
     });
   }
+});
+
+/** Whether segment `pq` passes through the inside of `f` (shrunk by 1 px):
+ *  Liang–Barsky, as `tree.test.ts` counts it. */
+function crossesFrame(p: Point, q: Point, f: Rect): boolean {
+  const [x0, y0, x1, y1] = [f.x + 1, f.y + 1, f.x + f.w - 1, f.y + f.h - 1];
+  if (x1 <= x0 || y1 <= y0) return false;
+  let lo = 0;
+  let hi = 1;
+  const dx = q.x - p.x;
+  const dy = q.y - p.y;
+  for (const [den, num] of [
+    [-dx, p.x - x0],
+    [dx, x1 - p.x],
+    [-dy, p.y - y0],
+    [dy, y1 - p.y],
+  ] as const) {
+    if (den === 0) {
+      if (num <= 0) return false;
+    } else {
+      const t = num / den;
+      if (den < 0) lo = Math.max(lo, t);
+      else hi = Math.min(hi, t);
+    }
+  }
+  return hi - lo > 1e-9;
+}
+
+function runsOf(e: EdgeLayout): [Point, Point][] {
+  const out: [Point, Point][] = [];
+  let at = e.start;
+  for (const s of e.route) {
+    if (s.t === 'L') out.push([at, s.to]);
+    at = s.to;
+  }
+  return out;
+}
+
+/** The ids of the edges that draw a tree arc: between two siblings, the
+ *  second the first's child in the level's spanning forest. */
+function treeArcEdges(input: LayoutInput): Set<string> {
+  const graph = input.graph;
+  const out = new Set<string>();
+  const arcs = liftArcs(graph);
+  for (const level of [null, ...graph.order]) {
+    const kids = visibleChildren(level, graph);
+    if (kids.length === 0) continue;
+    const forest = spanningForest(kids, arcs.get(level) ?? [], graph);
+    for (const e of graph.edges) {
+      if (forest.parent.get(e.to.node) === e.from.node && kids.includes(e.from.node)) out.add(e.id);
+    }
+  }
+  return out;
+}
+
+/** Edge runs through a leaf that is neither end, split into tree-arc spokes
+ *  and every other edge. */
+function throughLeaves(input: LayoutInput, result: LayoutResult): { spokes: string[]; others: string[] } {
+  const graph = input.graph;
+  const tree = treeArcEdges(input);
+  const leaves = graph.order.filter((id) => result.nodes[id] !== undefined && !graph.nodes[id]!.children.some((c) => result.nodes[c] !== undefined));
+  const out = { spokes: [] as string[], others: [] as string[] };
+  for (const e of graph.edges) {
+    const layout = result.edges[e.id];
+    if (layout === undefined) continue;
+    for (const [p, q] of runsOf(layout)) {
+      for (const leaf of leaves) {
+        if (leaf === e.from.node || leaf === e.to.node || !crossesFrame(p, q, result.nodes[leaf]!.frame)) continue;
+        (tree.has(e.id) ? out.spokes : out.others).push(`${e.from.node}->${e.to.node} through ${leaf}`);
+      }
+    }
+  }
+  return out;
+}
+
+describe('radial, fix round 1', () => {
+  it('item 1: a zero-weight subtree (a zero-size leaf at nodeSpacing 0) lays out finite and valid', async () => {
+    const input = layoutInputForSource('r: "R"\na: "A"\nb: "B"\nz: { @size: { width: 0, height: 0 } }\nr -> a\nr -> b\na -> z\n');
+    expect(input.sizing[n('z')]!.fixed).toEqual({ w: 0, h: 0 });
+    const { raw: engine, result } = await runHostSequence(radialEngine, input, { nodeSpacing: 0 }, METRICS);
+    for (const l of Object.values(engine.nodes)) for (const v of Object.values(l.frame)) expect(Number.isFinite(v)).toBe(true);
+    expect(validateResult(result, input.graph, RADIAL_ENGINE_ID)).toEqual([]);
+  });
+
+  it('item 1 (M11): zero-size leaves at nodeSpacing 0 get distinct angles', async () => {
+    const leaf = (id: string) => `${id}: { @size: { width: 0, height: 0 } }\n`;
+    const input = layoutInputForSource(`r: "R"\n${leaf('p')}${leaf('q')}${leaf('s')}r -> p\nr -> q\nr -> s\n`);
+    const r = await raw(input, { nodeSpacing: 0 });
+    const root = frame(r, 'r');
+    const turns = ['p', 'q', 's'].map((id) => turnOf(root, frame(r, id)));
+    expect(new Set(turns.map((t) => t.toFixed(9))).size).toBe(3);
+    expect(turns).toEqual([1 / 6, 1 / 2, 5 / 6].map((t) => expect.closeTo(t, 9)));
+  });
+
+  it('item 2: a node’s children lie within a quarter turn either side of its own angle (the root keeps the whole turn)', async () => {
+    const lines = ['r: "R"', 'c: "C"', 'r -> c'];
+    for (let i = 0; i < 12; i += 1) lines.push(`g${i}: "G${i}"`, `c -> g${i}`);
+    const r = await raw(layoutInputForSource(`${lines.join('\n')}\n`));
+    const root = frame(r, 'r');
+    const own = turnOf(root, frame(r, 'c'));
+    for (let i = 0; i < 12; i += 1) {
+      const t = turnOf(root, frame(r, `g${i}`));
+      const off = Math.abs(((t - own + 1.5) % 1) - 0.5);
+      expect(off, `g${i}`).toBeLessThanOrEqual(0.25 + 1e-12);
+    }
+  });
+
+  it('item 2: no tree-arc spoke passes through a node (a chain into a fan, and a fan below an only child)', async () => {
+    const fan = ['r: "R"', 'c: "C"', 'r -> c'];
+    for (let i = 0; i < 12; i += 1) fan.push(`g${i}: "G${i}"`, `c -> g${i}`);
+    const chain = ['a: "A"', 'b: "B"', 'c: "C"', 'a -> b', 'b -> c'];
+    for (let i = 0; i < 10; i += 1) chain.push(`f${i}: "F${i}"`, `c -> f${i}`);
+    for (const lines of [fan, chain]) {
+      const input = layoutInputForSource(`${lines.join('\n')}\n`);
+      const { result } = await runHostSequence(radialEngine, input, {}, METRICS);
+      const through = throughLeaves(input, result);
+      expect(through.spokes, lines[0]).toEqual([]);
+      expect(through.others).toEqual([]);
+    }
+  });
+
+  /** Non-tree edges (a broken cycle arc, a second parent) are the host's
+   *  straight chords and can cross a node, as under `tree` (07 §2.1 F34):
+   *  pinned, to go only down. Tree-arc spokes: none. */
+  const PINNED_OTHERS: Record<string, number> = {
+    'layout/tree-cycle.sgl': 0,
+    'layout/tree-diamond.sgl': 2, // right -> bottom (a second parent) through top and left
+    'layout/tree-direction.sgl': 0,
+    'layout/tree-forest.sgl': 0,
+    'layout/tree-order.sgl': 0,
+    'layout/tree-root.sgl': 1, // client -> api (api is a root by its hint) through db
+  };
+  it('item 2: pins every tree fixture', () => {
+    expect(Object.keys(PINNED_OTHERS).sort()).toEqual([...TREE_DOCS].sort());
+  });
+  for (const doc of TREE_DOCS) {
+    it(`item 2: ${doc}: no tree-arc spoke through a node; other edges at most as pinned`, async () => {
+      const input = layoutInputFor(doc);
+      const { result } = await runHostSequence(radialEngine, input, {}, METRICS);
+      const through = throughLeaves(input, result);
+      expect(through.spokes).toEqual([]);
+      expect(through.others.length, through.others.join('; ')).toBeLessThanOrEqual(PINNED_OTHERS[doc] ?? 0);
+    });
+  }
+
+  it('item 2: no tree-arc spoke through a node over the corpus and random trees (a probe; reported)', async () => {
+    const found: string[] = [];
+    const inputs = listCorpusDocs().map((doc) => [doc, layoutInputFor(doc)] as const);
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) inputs.push([`random ${seed}`, layoutInputForSource(randomTree(seed, 60).source)]);
+    for (const [name, input] of inputs) {
+      const { result } = await runHostSequence(radialEngine, input, {}, METRICS);
+      for (const x of throughLeaves(input, result).spokes) found.push(`${name}: ${x}`);
+    }
+    console.warn(`[radial] tree-arc spokes through a node: ${found.length}${found.length > 0 ? ` (${found.slice(0, 5).join('; ')})` : ''}`);
+    expect(found).toEqual([]);
+  }, 60_000);
+
+  it('item 6: the ring gap is at least 2 × arrowSize + 8 at rankSpacing 0 and nodeSpacing 0, so every spoke has room for its arrowhead', async () => {
+    const input = layoutInputForSource('r: "R"\na: "A"\nb: "B"\nc: "C"\nr -> a\nr -> b\na -> c\n');
+    const { raw: engine, result } = await runHostSequence(radialEngine, input, { nodeSpacing: 0, rankSpacing: 0 }, METRICS);
+    const root = frame(engine, 'r');
+    const floor = 2 * METRICS.arrowSize + 8;
+    const diag = (id: string) => Math.hypot(frame(engine, id).w, frame(engine, id).h);
+    const r1 = dist(root, frame(engine, 'a'));
+    const r2 = dist(root, frame(engine, 'c'));
+    expect(r1 - (diag('r') + Math.max(diag('a'), diag('b'))) / 2).toBeGreaterThanOrEqual(floor - 1e-9);
+    expect(r2 - r1 - (Math.max(diag('a'), diag('b')) + diag('c')) / 2).toBeGreaterThanOrEqual(floor - 1e-9);
+    for (const e of input.graph.edges) {
+      const l = result.edges[e.id]!;
+      expect(Math.hypot(l.end.x - l.start.x, l.end.y - l.start.y), e.id).toBeGreaterThan(METRICS.arrowSize);
+    }
+  });
+
+  it('item 7: wedges follow the leaves’ sizes, not their count', async () => {
+    const r = await raw(layoutInputForSource('r: "R"\na: "A label much wider than the others are"\nb: "B"\nb1: "x"\nb2: "y"\nr -> a\nr -> b\nb -> b1\nb -> b2\n'));
+    const root = frame(r, 'r');
+    const w = (id: string): number => Math.hypot(frame(r, id).w, frame(r, id).h) + 40;
+    const wa = w('a');
+    const wb = w('b1') + w('b2');
+    expect(wa).toBeGreaterThan(wb / 2 + 50); // the sizes differ enough for a count to be wrong
+    expect(turnOf(root, frame(r, 'a'))).toBeCloseTo(wa / (wa + wb) / 2, 9);
+    expect(Math.abs(turnOf(root, frame(r, 'a')) - 1 / 6)).toBeGreaterThan(0.01); // by count: 1/6
+  });
+
+  it('item 8: the defaults are the descriptor’s, read from its schema, not repeated', () => {
+    const props = (radialDescriptor.optionsSchema as { properties: Record<string, { default: number }> }).properties;
+    const was = [props['nodeSpacing']!.default, props['rankSpacing']!.default] as const;
+    try {
+      props['nodeSpacing']!.default = 33;
+      props['rankSpacing']!.default = 77;
+      expect(normalizeRadialOptions({})).toEqual({ nodeSpacing: 33, rankSpacing: 77 });
+      expect(normalizeRadialOptions({ nodeSpacing: -1, rankSpacing: 5 })).toEqual({ nodeSpacing: 33, rankSpacing: 5 });
+    } finally {
+      props['nodeSpacing']!.default = was[0];
+      props['rankSpacing']!.default = was[1];
+    }
+    expect(normalizeRadialOptions({})).toEqual({ nodeSpacing: 40, rankSpacing: 70 });
+  });
 });

@@ -1,5 +1,6 @@
 import type { EdgeId, NodeId, Point, Size } from '@sgl/core';
 import type { EdgeLayout, LayoutContext, LayoutInput, LayoutResult, NodeLayout } from '@sgl/layout-api';
+import { radialDescriptor } from './descriptor.js';
 import { frameOf, leafSize, levelSize, liftArcs, spanningForest, visibleChildren, type LevelArc } from './forest.js';
 import { cosTurn, sinTurn } from './trig.js';
 
@@ -16,18 +17,23 @@ import { cosTurn, sinTurn } from './trig.js';
  *   its title plus the content insets.
  * - **A wedge layout (Eades 1992, N41)** per tree. A node's weight is the
  *   sum, over the leaves under it, of `diag(leaf) + nodeSpacing`, `diag`
- *   being the frame's diagonal. The root's wedge is `[0, 1)` turn; children
- *   split their parent's wedge in proportion to their weights, in BFS order.
+ *   being the frame's diagonal (never zero: fix round 1, item 1). The root's
+ *   wedge is `[0, 1)` turn and its children split it; a non-root node's
+ *   children split at most half a turn, centred on its own angle (Eades'
+ *   bound, fix round 1, item 2), so a subtree fans away from the centre.
+ *   Shares are in proportion to the weights, in BFS order.
  *   A node sits at the middle `α` of its wedge on ring `k` = its depth:
  *   centre `(R_k·sin 2πα, −R_k·cos 2πα)`, so angle 0 is 12 o'clock and
  *   angles run clockwise.
  * - **The smallest rings that fit (N42).** `R_0 = 0`; for `k ≥ 1`, `R_k` is
- *   the larger of `R_{k−1} + (E_{k−1} + E_k)/2 + rankSpacing` (`E_k` the
+ *   the larger of `R_{k−1} + (E_{k−1} + E_k)/2 + gap` (`E_k` the
  *   largest diagonal on ring `k`) and, for each node `v` on ring `k`,
  *   `(diag(v) + nodeSpacing) / (2·sin(π·min(θ_v, ½)))` (`θ_v` its wedge's
  *   width). So each node's bounding circle, grown by `nodeSpacing / 2`,
  *   stays inside its own wedge, and neighbouring rings' circles are
- *   `rankSpacing` apart: no two nodes overlap. Eades' further limit on
+ *   `gap` apart: no two nodes overlap. `gap` is `rankSpacing`, but at least
+ *   `2 × arrowSize + 8` (fix round 1, item 6, as `tree`'s bands), so every
+ *   spoke has room for its arrowhead. Eades' further limit on
  *   children's wedges (against crossings between subtrees) is left out of
  *   v1, as DD-12 says.
  * - **A forest is a row of discs (N43),** in their roots' declaration order,
@@ -46,11 +52,20 @@ export interface RadialOptions {
 }
 
 /** Every field filled from an untrusted bag: a value the schema allows is
- *  kept, anything else is the default (N47). */
+ *  kept, anything else is the descriptor's default (N47; fix round 1,
+ *  item 8: read from its schema, not repeated here). */
 export function normalizeRadialOptions(options: Readonly<Record<string, unknown>>): RadialOptions {
-  const spacing = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : fallback);
-  return { nodeSpacing: spacing(options['nodeSpacing'], 40), rankSpacing: spacing(options['rankSpacing'], 70) };
+  const props = (radialDescriptor.optionsSchema as { readonly properties: Readonly<Record<string, { readonly default: number }>> }).properties;
+  const spacing = (key: string): number => {
+    const v = options[key];
+    return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : props[key]!.default;
+  };
+  return { nodeSpacing: spacing('nodeSpacing'), rankSpacing: spacing('rankSpacing') };
 }
+
+/** The share of a turn a non-root node's children may span, centred on its
+ *  own angle (Eades' bound; fix round 1, item 2). */
+const CHILD_SPAN = 0.5;
 
 interface PlacedItem {
   readonly id: NodeId;
@@ -70,15 +85,19 @@ export function layoutRadial(input: LayoutInput, ctx: LayoutContext): LayoutResu
   const topId = input.scope;
   if (topId !== null && graph.nodes[topId] === undefined) throw new Error(`radial: unknown scope '${topId}'.`);
   const arcs = liftArcs(graph);
+  // Fix round 1, item 6: as `tree`'s bands, rings at least 2 × arrowSize + 8
+  // apart, so every spoke has room for its arrowhead.
+  const arrow = ctx.metrics.arrowSize;
+  const gap = Math.max(options.rankSpacing, 2 * (Number.isFinite(arrow) && arrow > 0 ? arrow : 0) + 8);
 
   // Post-order without recursion (N28): graph.order is pre-order, so a
   // container comes after every container inside it once reversed.
   const placed = new Map<NodeId, Placed>();
   for (let i = graph.order.length - 1; i >= 0; i -= 1) {
     const id = graph.order[i]!;
-    if (visibleChildren(id, graph).length > 0) placed.set(id, placeLevel(id, input, options, arcs.get(id) ?? [], placed));
+    if (visibleChildren(id, graph).length > 0) placed.set(id, placeLevel(id, input, options.nodeSpacing, gap, arcs.get(id) ?? [], placed));
   }
-  const top = topId === null ? placeLevel(null, input, options, arcs.get(null) ?? [], placed) : placed.get(topId) ?? { size: leafSize(input.sizing[topId]), items: [] };
+  const top = topId === null ? placeLevel(null, input, options.nodeSpacing, gap, arcs.get(null) ?? [], placed) : placed.get(topId) ?? { size: leafSize(input.sizing[topId]), items: [] };
 
   const nodes: Record<NodeId, NodeLayout> = {};
   if (topId !== null) nodes[topId] = frameOf(topId, { x: 0, y: 0 }, top.size, input, top.items.length > 0);
@@ -97,11 +116,10 @@ export function layoutRadial(input: LayoutInput, ctx: LayoutContext): LayoutResu
 }
 
 /** One level: `id`'s children as a row of discs in its content box, and `id`'s size. */
-function placeLevel(id: NodeId | null, input: LayoutInput, options: RadialOptions, levelArcs: readonly LevelArc[], placed: ReadonlyMap<NodeId, Placed>): Placed {
+function placeLevel(id: NodeId | null, input: LayoutInput, spacing: number, gap: number, levelArcs: readonly LevelArc[], placed: ReadonlyMap<NodeId, Placed>): Placed {
   const graph = input.graph;
   const kids = visibleChildren(id, graph);
   const padding = (id === null ? undefined : input.sizing[id])?.padding ?? ([0, 0, 0, 0] as const);
-  const spacing = options.nodeSpacing;
   const forest = spanningForest(kids, levelArcs, graph);
 
   const sizeOf = new Map<NodeId, Size>();
@@ -121,7 +139,10 @@ function placeLevel(id: NodeId | null, input: LayoutInput, options: RadialOption
     const order: NodeId[] = [root];
     for (let i = 0; i < order.length; i += 1) order.push(...(forest.children.get(order[i]!) ?? []));
 
-    // Weights, children first (N41).
+    // Weights, children first (N41). Fix round 1, item 1: never zero, so no
+    // wedge is empty. A subtree whose leaves weigh nothing (zero-size, at
+    // nodeSpacing 0) weighs its own node's diag + nodeSpacing, or 1 when
+    // that is zero too.
     const weight = new Map<NodeId, number>();
     for (let i = order.length - 1; i >= 0; i -= 1) {
       const v = order[i]!;
@@ -129,20 +150,24 @@ function placeLevel(id: NodeId | null, input: LayoutInput, options: RadialOption
       let w = 0;
       if (children.length === 0) w = diagOf.get(v)! + spacing;
       else for (const c of children) w += weight.get(c)!;
-      weight.set(v, w);
+      weight.set(v, w > 0 ? w : diagOf.get(v)! + spacing || 1);
     }
 
-    // Wedges, parents first: each child's share of its parent's wedge.
+    // Wedges, parents first: each child's share of the span its parent's
+    // children get. Fix round 1, item 2 (Eades' bound): the root's children
+    // span the whole turn; a non-root node's at most CHILD_SPAN, centred on
+    // its own angle (the middle of its wedge), so a subtree fans away from
+    // the centre instead of wrapping round it. The span is inside the
+    // node's wedge, so wedges at one depth stay disjoint.
     const start = new Map<NodeId, number>([[root, 0]]);
     const width = new Map<NodeId, number>([[root, 1]]);
     for (const v of order) {
       const children = forest.children.get(v) ?? [];
       const total = weight.get(v)!;
-      let at = start.get(v)!;
+      const span = v === root ? 1 : Math.min(width.get(v)!, CHILD_SPAN);
+      let at = v === root ? 0 : start.get(v)! + (width.get(v)! - span) / 2;
       for (const c of children) {
-        // A zero total (zero-size leaves, nodeSpacing 0): equal shares.
-        const share = total > 0 ? weight.get(c)! / total : 1 / children.length;
-        const wc = width.get(v)! * share;
+        const wc = span * (weight.get(c)! / total);
         start.set(c, at);
         width.set(c, wc);
         at += wc;
@@ -162,7 +187,7 @@ function placeLevel(id: NodeId | null, input: LayoutInput, options: RadialOption
       needed[k] = Math.max(needed[k]!, (d + spacing) / (2 * sinTurn(Math.min(width.get(v)!, 0.5) / 2)));
     }
     const radius = new Float64Array(rings);
-    for (let k = 1; k < rings; k += 1) radius[k] = Math.max(radius[k - 1]! + (extent[k - 1]! + extent[k]!) / 2 + options.rankSpacing, needed[k]!);
+    for (let k = 1; k < rings; k += 1) radius[k] = Math.max(radius[k - 1]! + (extent[k - 1]! + extent[k]!) / 2 + gap, needed[k]!);
 
     const disc = { root, x0: Number.POSITIVE_INFINITY, y0: Number.POSITIVE_INFINITY, x1: Number.NEGATIVE_INFINITY, y1: Number.NEGATIVE_INFINITY };
     for (const v of order) {
