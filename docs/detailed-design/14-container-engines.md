@@ -8,7 +8,8 @@ descriptors. **Outputs:** one `LayoutResult`, as today.
 
 **Status: decided (2026-09-28). Designed 2026-09-27 from `main` at `9f47545`; the human accepted
 every recommendation on 2026-09-28 (⚑1–⚑8, §13). No code is changed by this document**: §11's
-branches implement it. **Branch 1, `feat/b8-compose`, is built (§11.1).** The documents it amends were updated on this branch (§14). It assumes `fix/root-layout-options` (`5dfc16f`, DD-12 H6) is merged first: B8 reuses its
+branches implement it. **Branch 1, `feat/b8-compose`, is built (§11.1). Branch 2, `feat/b8-wire`, is
+built (§11.2): B8 works for users, with straight crossing edges, and F29 is cleared.** The documents it amends were updated on this branch (§14). It assumes `fix/root-layout-options` (`5dfc16f`, DD-12 H6) is merged first: B8 reuses its
 `rootLayoutOptions` seam and its `EngineSchemas.accepts`.
 
 **Why now.** Human decision F29 (2026-09-27): keep spec §9's worked example, which puts
@@ -487,6 +488,13 @@ Measured so far (DD-06 §8, 07 §2.1 F15, Node): `elk` 1 000 nodes ≈ 0.84 s, n
 | `elk` root, every container `engine: elk` | 201 ELK runs | **~0.6–1.3 s** |
 | No boundary | today's path, no composer loaded | unchanged |
 
+**Measured by branch 2** (`layout-elk/test/browser/compose.browser.test.ts`, a real Chromium
+worker, warm, best / median of 3, load ≈ 2; bench/README.md): `elk` alone 971 / 1 152 ms; an `elk`
+root over 200 `grid` boxes 196 / 207 ms; a `grid` root over 200 `elk` boxes 2 999 / 3 378 ms; an
+`elk` root over 200 `elk` boxes 3 030 / 3 339 ms. The first row is as estimated. An ELK call on a
+10-node box costs about 15 ms, not 2–5 ms, so the last two are three times the estimate and reach
+the whole 3 s budget: C49's answer, C32's cache (`perf/b8-cache`), is now warranted.
+
 - **C48. The composer's own cost is linear**: views, lifting (O(edges × depth)) and translation are a
   few ms at 2 000 nodes, off the keystroke path (the layout effect runs from the debounce timer).
 - **C49. No cap on the number of boundaries.** The request's timeout already bounds the author's own
@@ -655,6 +663,84 @@ crossing edge to a box's own port, the `assigned` rule and the label order.
 `tree` in its conformance suite (both directions, every container of the corpus and the 1 000-node
 graph) and passes; two more composed goldens, `tree-in-grid` (a `tree` box in a `grid` document)
 and `grid-in-tree` (`tree` places a `grid` box as a leaf of its size).
+
+### 11.2 Branch 2 as built (`feat/b8-wire`, from `main` at `707dd0c`)
+
+**What exists.**
+
+- **The plan** (C8, C6): `layoutPlan(ast, model, root, engines)` in `layout-config.ts`, beside
+  `rootLayoutOptions` (both now share `optionsOf`). `root` is the root engine and the bag the
+  request sends it. Each boundary's options are its engine's `optionsSchema` defaults, under the
+  options of the nearest enclosing scope using the same engine, under its own keys (a value the
+  app's form would refuse is `SGL2011` at the key, as at the root); keys sorted. `span` is the last
+  `engine` key, where `SGL4013` points. The model walk is iterative; the AST walk for spans recurses,
+  as `layoutConfigDiagnostics` already did.
+- **Diagnostics** (C9–C12): `layoutConfigDiagnostics(ast, engine, resolved, boundary?)` is
+  scope-aware (DD-06 §2, §9). **`SGL4012`** is a catalogue row, emitted by `layoutPlan`, owned by
+  the whole-pipeline coverage gate; fixture `corpus/layout/engine-unknown.sgl`.
+- **The app** (C25, C26, C43): `Pipeline`'s `plan` computed (from the request's options, so a
+  boundary using the root's engine inherits the form's, C7), its diagnostics in `diags`, its
+  boundaries passed to the checks; `host.run(…, plan)` when it is not empty; the plan in the skip
+  key, its spans with the input's (DD-08 §3). The host's clock is the plan's longest timeout.
+- **The worker** (C23, C47): `'layout'.plan`; `createWorkerRuntime(registry, port, loadCompose?)`;
+  the composer is the lazy `compose-*.js` chunk (3.68 kB gz), excluded in `.size-limit.js`, checked
+  by `check-core-chunks.mjs` (one chunk, not reachable from the page or the worker's static
+  imports, referenced by the worker, no catalogue row, and by the module graph `compose.ts` in it
+  alone and none of its modules on the worker's boot path), precached, and loaded offline
+  (`e2e/offline.spec.ts`). DD-10 §2.
+- **Fixtures** (§10 item 2): `corpus/layout/engine-{elk-in-grid, fixed-in-elk, three-levels,
+  same-engine, crossing, options-inherit, direction-hint, unknown}.sgl`. The render-svg harness lays
+  out a container naming `grid`, `fixed`, `tree` or `elk` with it (C46). `nested-engine.sgl` names
+  `grid` (a boundary in the harness's grid document; no diagnostic); `SGL4010`'s fixture is
+  `unknown-key.sgl`. New composed goldens: `crossing`, `options-inherit`; the moved fixtures and
+  `checkout.sgl` give their branch-1 goldens through `layoutPlan`.
+- **Help** (C45, DD-13 P21): `@layout` (a container's own engine, spec §9's `payments`, a `fixed` box
+  in an `elk` document, inheritance, `SGL4012`, `SGL4013` in prose, an option on a plain
+  container), `@direction` (C9), `@pin` (C10). `SGL4013` joins `NOT_DOCUMENT_REACHABLE`.
+- **Tests:** `layout-api/test/layout-plan.test.ts` (20), `worker-runtime.test.ts` and
+  `host.test.ts` (a request with a plan), `apps/web/test/pipeline.test.ts` (the plan reaches
+  `run()`, inheritance of the form's options, the skip key, `SGL4012` and C9's `SGL4010` at their
+  keys, `SGL4013` from a stub engine through the harness host, and spec §9 itself),
+  `render-svg/test/pipeline.test.ts` (the harness composes), `layout-elk/test/compose.test.ts`
+  (the corpus fixtures through `layoutPlan`), `layout-elk/test/browser/compose.browser.test.ts`
+  (Chromium worker equals Node for `grid-in-elk` and `elk-in-grid`; the §8.2 bench, §8.2 above),
+  and `e2e/container-engines.spec.ts` (spec §9 renders with grid inside elk; editing a container's
+  engine re-lays it out; `SGL4012`), `engine-options.spec.ts` test 23 (no warning since B8), and
+  the offline case.
+- **Goldens:** no engine or render golden changed; `checkout.sgl` is composed in the render harness
+  and draws its goldens byte for byte (C31). `nested-engine.sgl`'s CST/AST pins changed (its text,
+  C46), and `render-svg`'s `fonts/corpus-faces.json` gained eight entries (append only).
+- **Size:** core 180.07 → **180.82 kB** of 184 (+753 B: page +618 B, worker +135 B).
+
+**Deviations.**
+
+1. **Spec §9 is not diagnostic-free:** its two `SGL3006` infos (`@shape: cloud`, a shape this
+   version does not draw; corpus/README.md) remain. It has no warning and no error, and no layout
+   diagnostic at all (§10 item 6's "no diagnostics", the pipeline test and the e2e assert exactly
+   that).
+2. **The render-svg harness registers `elk` too**, as a container's engine only (C46 said `grid` and
+   `fixed`): the `engine-*` fixtures with an `elk` box are laid out as in the app instead of warning
+   `SGL4012`. A document naming `elk` at its root still runs under `grid`, as every render golden
+   was taken.
+3. **A new entry, `@sgl/layout-api/worker`, `shape.ts` and `checkResult`** (not in the design): Rollup
+   assigns whole modules to chunks, so without them `validate.ts` and nine catalogue rows sat on the
+   worker's boot path (+2.1 kB). DD-10 §2.
+4. **Sizes over the estimate:** the compose chunk is 3.68 kB (estimated 1.7–2.1: it also carries
+   `validate.ts`'s checks, `mapGeometry` and `workerText`); boot +0.75 kB (estimated ~0.7, within
+   the brief's +0.9 kB stop).
+5. **Defaults come from `optionsSchema`**, not the app's F11 normalisers: C8 asked for complete
+   bags, and the schema's defaults are the forms' for all four engines. The forms' `accepts` still
+   decides which values are refused.
+6. **`SGL4012` fires on a visible leaf naming an unavailable engine too**, not only on a container;
+   a leaf naming an available one is silent (§3.7). A leaf's keys, like a plain container's, are
+   hints of the engine around it (C9).
+7. **A composer chunk that will not load fails the request** (`SGL4011`, the previous layout kept),
+   as a failed `std-trees` or elkjs load does (F33), rather than laying out without the plan.
+8. **Branch 1's inline fixtures:** four moved to `corpus/` with their text unchanged and their note
+   last, so their spans and goldens are unchanged; `grid-in-fixed`, `tree-in-grid` and
+   `grid-in-tree` stay inline (`grid-in-tree` has a node named `root`, which elk's conformance over
+   the corpus trips on, 07 §2.1 F32).
+9. **The §8.2 estimates for `elk` boxes were three times low** (above); the cache branch is due.
 
 ---
 

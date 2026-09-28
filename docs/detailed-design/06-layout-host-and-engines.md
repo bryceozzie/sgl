@@ -43,13 +43,16 @@ The interfaces from [Architecture §4](../03-architecture.md#4-layout-engine-plu
 > `SGL4010`-on-unknown-hint-key validation this section describes was **not
 > implemented** until Stage K's fix round 1 (item 23, human decision 2026-09-23),
 > and is now, without a JSON-Schema validator: `layoutConfigDiagnostics(ast,
-> engineSchemas)` (`layout-api/src/layout-config.ts`) warns, at the key, for
-> (a) a container-level `@layout.engine` naming another engine than the
-> effective one (per-container engines are B8, DD-14; until B8 ships this warns and the
-> whole document is laid out by one engine), and (b) any `@layout.{key}` —
-> root, container, or `@direction` sugar — that the effective engine declares
-> in neither `optionsSchema` nor `hintsSchema` (key names only; values are not
-> validated). It reads the AST (only the AST keeps a span per `@layout`
+> engineSchemas, resolved, boundary?)` (`layout-api/src/layout-config.ts`) warns,
+> at the key (key names only; values are not validated). **Scope-aware since
+> B8** (`feat/b8-wire`, DD-14 C9–C11): a node's `engine` key is never `SGL4010`
+> (an available engine makes the container a boundary; an unavailable one is
+> `layoutPlan`'s `SGL4012`); the root's keys, and a boundary's (`boundary(id)`,
+> from the plan), must be options of their own engine; any other node's keys,
+> `@direction` sugar included, must be hints of the engine around it (so
+> `@direction` on a plain container under `elk` is `SGL4010`: `elk` has no such
+> hint). Until B8 a container's other engine was `SGL4010`, and its keys were
+> checked against options and hints of the one engine. It reads the AST (only the AST keeps a span per `@layout`
 > sub-key; `compile()` drops the root's bag). The app's pipeline runs it with
 > the effective engine's descriptor, beside `buildLayoutInput`; so does
 > `render-svg/test/pipeline.ts`. Fixtures: `corpus/layout/*.sgl`.
@@ -134,7 +137,8 @@ One long-lived `Worker` (`layout.worker.ts`), respawned on termination. Engines 
 ```ts
 // host → worker
 { t: 'layout', id: number, engine: string, input: LayoutInput, options: object,
-  metrics: ResolvedThemeMetrics, table: MeasureTable, seed: number }
+  metrics: ResolvedThemeMetrics, table: MeasureTable, seed: number,
+  plan?: LayoutPlan }                     // B8: present only when not empty
 { t: 'abort', id }
 { t: 'measure-reply', id, req: number, layout: TextLayout }
 
@@ -187,6 +191,8 @@ All payloads are plain objects; `LayoutInput` and `MeasureTable` are already `st
 Engines receive `ctx.signal`; `elk` cannot be interrupted mid-run (it is synchronous GWT code), so abort on `elk` is effectively the 250 ms terminate path. This is acceptable: respawn is ~30 ms and the next layout request is already queued. **Corrected by Stage K's fix round 1 (item 7):** that premise holds for a worker whose engines are already loaded, not for a *respawned* one — a fresh worker re-imports `elk`'s ~1.44 MB chunk and re-creates the `ELK` instance (hundreds of ms, and more on a slow device) before its first elk request. So `elkEngine.layout()` checks `ctx.signal.aborted` once elkjs has loaded and before calling ELK, and rejects with an `AbortError`: a request aborted while elkjs was loading answers `'error'` promptly, the host has no reason to terminate the worker, and the loaded instance is kept. An abort that arrives *during* ELK's synchronous run still takes the 250 ms path. **Corrected again by F21:** "the next layout request is already queued" was true, but on the worker being terminated — the superseding request is posted before the escalation fires, to the same worker — so a respawn used to drop it, and the caller waited out the whole timeout for an SGL4001 and no layout. Step 5 above re-posts it. Under CPU load the check after the import does not always save the worker either: the import itself (fetch, parse, `new ELK()`) can outlast 250 ms, as can ELK's run on the boot example, so an edit made during either still respawns the worker, and the new one imports elkjs again before laying out.
 
 A single in-flight request at a time; a new request aborts the previous one (the same `beginAbort` path — immediate `AbortError`, 250 ms escalation — as an external `AbortSignal`). The application never queues more than one (DD-08 §3).
+
+**A request with a plan** (B8, `feat/b8-wire`; DD-14 C23, C25, C26). `'layout'` carries an optional `plan` (`LayoutPlan`, §4a), posted only when it is not empty, from `run()`'s optional last parameter. The request's clock is the longest timeout of the plan's engines, the root's included (10 s if `elk` is anywhere), and `SGL4001` names the root engine and that time. `createWorkerRuntime(registry, port, loadCompose?)` hands a request with a plan to the composer (`composeLayout(engine, input, options, plan, registry.get, ctx)`), which applies the host fallbacks per scope and returns the whole raw result; the host validates and quantizes it as any other. The real worker's `loadCompose` is `() => import('@sgl/layout-api/compose')`, so the composer is the worker's lazy `compose` chunk (DD-10 §2), fetched on the first request with a plan; a worker without a loader, or a loader that fails, answers `'error'` (the host's `SGL4011`). The worker imports `@sgl/layout-api/worker` (the runtime and the registry) rather than the package's main entry, and `describeShapeError` lives in `shape.ts`: that keeps `validate.ts`, which the composer needs, off the worker's boot path.
 
 **Isolation level:** same-origin Worker. Sufficient for bundled engines. **⟶ B17:** the `LayoutHost` interface gets a second implementation that hosts the Worker inside a null-origin iframe; the protocol is identical.
 
@@ -274,6 +280,12 @@ fixed size. `@sgl/layout-api/compose` is its own entry and is on no boot path; b
   the next boundary with an `AbortError`.
 - **Crossing edges** are straight end to end under every parent in branch 1 (DD-14 C13's option
   (a)); branch 3 routes them to fixed ports on the box under `elk`.
+- **Wired in branch 2** (`feat/b8-wire`): the page builds the plan (`layoutPlan`, `layout-config.ts`,
+  DD-14 C8: boundaries in `graph.order`, each engine's full id, its options complete, C6's
+  inheritance, and `span` = the `engine` key), the request carries it (§3), and the worker runs the
+  composer from its lazy chunk. A box's result is checked with `checkResult` (`validate.ts`:
+  `validateResult`'s checks, reporting codes and values, building no message), so the chunk
+  carries no catalogue row.
 - **Determinism** (C30, C31): as reproducible as the least reproducible engine in the plan. A
   `grid` box in a `grid` document composes to `grid`'s own quantized result, coordinate for
   coordinate (`layout-elk/test/compose.test.ts`, over the corpus).
@@ -592,8 +604,9 @@ For each corpus graph (empty, one node, one edge, self-loop, parallel edges, 3-d
 | `SGL4001` | error | Layout engine `{id}` did not finish within {ms} ms and was stopped. Showing the previous layout. |
 | `SGL4002` | error | Layout engine `{id}` returned invalid geometry ({detail}). Showing the previous layout. |
 | `SGL4003` | warning | `{node}` extends outside its container after layout. |
-| `SGL4010` | warning | `@layout.{key}` is not an option of engine `{id}`; ignored. — **implemented** (Stage K fix round 1, item 23): a container-level `@layout.engine` naming another engine (until B8 ships; DD-14 C11 ends this case, and B9 is not involved), and any `@layout` key the effective engine does not declare (§2) |
+| `SGL4010` | warning | `@layout.{key}` is not an option of engine `{id}`; ignored. — **implemented** (Stage K fix round 1, item 23; scope-aware since `feat/b8-wire`, DD-14 C9–C11): a root or boundary key its own engine does not declare as an option, and any other node's key the engine around it does not declare as a hint (§2). A container's `engine` key is not one since B8. Fixture: `corpus/layout/unknown-key.sgl`; `engine-direction-hint.sgl` for a plain container's `@direction` |
 | `SGL4011` | error | Layout engine `{id}` failed: {message}. |
+| `SGL4012` | warning | Layout engine `{name}` is not available; `{node}` is laid out by `{id}`. **Implemented** (`feat/b8-wire`, DD-14 C12): from `layoutPlan`, on the main thread, at the container's (last) `engine` key, when the name is neither a registered id nor a registered engine's bare name; `{id}` is the engine around it, which lays it out. Not for a hidden or imported node. Fixture: `corpus/layout/engine-unknown.sgl` |
 | `SGL4013` | warning | Layout engine `{id}` failed for `{node}` ({detail}); it is laid out by `{parent}` instead. **Implemented** (`feat/b8-compose`, DD-14 C28): a composer note (§4a) when a container's own engine fails; the container is laid out by its parent's engine. No document can make a built-in engine fail, so no corpus fixture reaches it; `layout-api/test/compose.test.ts` covers it with stub engines |
 | `SGL4020` | warning | `{node}` has no `@pin`; `fixed` placed it below the pinned nodes. **Implemented** (`feat/b5-fixed`, DD-12 N9, H1, H5): a `fixed` engine note (§3), one per unpinned node, at its span. Fixture: `corpus/layout/pin-half.sgl` |
 | `SGL4021` | warning | `@pin` is not honoured by engine `{id}`; ignored. **Implemented** (`feat/b5-pin`, DD-12 N6, H4, H5): from `layoutConfigDiagnostics`, on the main thread, at the key. It fires once per node (by path), at its first pin key, when the engine does not declare `capabilities.pins`, and not for a pin the resolver dropped with `SGL2011` (fix round 1). Fixture: `corpus/layout/pin-under-elk.sgl` |
