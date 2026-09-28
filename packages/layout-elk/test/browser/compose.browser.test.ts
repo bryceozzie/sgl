@@ -10,7 +10,7 @@ import { layoutPlan, rootLayoutOptions, type EngineSchemas } from '../../../layo
 import { buildLayoutInput } from '../../../layout-api/src/sizing.js';
 import { fixedEngine, gridEngine } from '../../../layout-std/src/index.js';
 // Plain data and a plain-JS pure function, shared with the Node side.
-import { scaleDocument } from '../../../../bench/scale-document.js';
+import { editScaleDocument, scaleDocument } from '../../../../bench/scale-document.js';
 import CHECKOUT from '../../../../corpus/checkout.sgl?raw';
 import ELK_IN_GRID from '../../../../corpus/layout/engine-elk-in-grid.sgl?raw';
 import { elkEngine } from '../../src/index.js';
@@ -26,9 +26,14 @@ import { elkEngine } from '../../src/index.js';
  * - The §8.2 bench (C49): 2 000 nodes, 200 containers of 10, in three
  *   variants: an `elk` document of `grid` boxes, a `grid` document of `elk`
  *   boxes, and an `elk` document of `elk` boxes; with `elk` alone over the
- *   same graph (F15's measurement) beside them. Times are printed
- *   (`[B8-BENCH]`), not asserted beyond the request's own timeout: timing
- *   asserts are the nightly bench's (bench/README.md).
+ *   same graph (F15's measurement) beside them. Each on a fresh worker:
+ *   the document's first request (cold), three repeats (warm), and three
+ *   one-keystroke edits of each kind (`editScaleDocument`: inside one box,
+ *   outside every box, a box's options), for the per-box cache
+ *   (`perf/b8-cache`, DD-14 C32). Times are printed (`[B8-BENCH]`), not
+ *   asserted beyond the request's own timeout: timing asserts are the
+ *   nightly bench's (bench/README.md), and the cache's own CPU-time test is
+ *   `layout-elk/test/compose-cache.test.ts`.
  */
 
 const METRICS: ResolvedThemeMetricsView = {
@@ -93,36 +98,56 @@ describe('a plan through a real Worker (DD-14 §10 item 4)', () => {
   }, 120_000);
 });
 
-describe('the §8.2 bench: 2 000 nodes in 200 boxes (DD-14 C49)', () => {
-  it('prints the three mixed-engine variants and elk alone, each through the worker, warm', async () => {
+describe('the §8.2 bench: 2 000 nodes in 200 boxes (DD-14 C49, C32)', () => {
+  it('prints the three mixed-engine variants and elk alone through the worker: cold, warm, and one edit of each kind', async () => {
     const variants = [
       ['elk alone (F15)', elkEngine, scaleDocument(2000)],
       ['elk root, grid boxes', elkEngine, scaleDocument(2000, { boxes: 'grid' })],
       ['grid root, elk boxes', gridEngine, scaleDocument(2000, { boxes: 'elk' })],
       ['elk root, elk boxes', elkEngine, scaleDocument(2000, { boxes: 'elk' })],
     ] as const;
-    const host = createHost();
     const browser = navigator.userAgent.includes('Firefox') ? 'Firefox' : 'Chromium';
-    try {
-      // Warm the worker, elkjs's chunk and the composer's, so the timed runs are layout.
-      const warm = requestFor(ELK_IN_GRID as string, gridEngine);
-      await host.run('sgl.grid', warm.input, warm.options, METRICS, {}, new AbortController().signal, warm.plan);
-      for (const [name, root, source] of variants) {
-        const { input, options, plan } = requestFor(source, root);
-        expect(plan.length, name).toBe(name.startsWith('elk alone') ? 0 : 200);
-        const times: number[] = [];
-        for (let i = 0; i < 3; i += 1) {
+    for (const [name, root, source] of variants) {
+      const boxed = !name.startsWith('elk alone');
+      // A fresh worker per variant, so its per-box cache (`perf/b8-cache`)
+      // starts empty: "cold" is the document's first request, on a worker
+      // that has already loaded elkjs's chunk and the composer's.
+      const host = createHost();
+      try {
+        const warm = requestFor(ELK_IN_GRID as string, gridEngine);
+        await host.run('sgl.grid', warm.input, warm.options, METRICS, {}, new AbortController().signal, warm.plan);
+        const time = async (text: string): Promise<number> => {
+          const { input, options, plan } = requestFor(text, root);
+          expect(plan.length, name).toBe(boxed ? 200 : 0);
           const t0 = performance.now();
-          const outcome = await host.run(root.id, input, options, METRICS, {}, new AbortController().signal, plan.length > 0 ? plan : undefined);
-          times.push(performance.now() - t0);
+          const outcome = await host.run(root.id, input, options, METRICS, {}, new AbortController().signal, boxed ? plan : undefined);
+          const ms = performance.now() - t0;
           expect(outcome.diagnostics.filter((d) => d.severity === 'error'), name).toEqual([]);
           expect(outcome.value, name).not.toBeNull();
+          return ms;
+        };
+        const line = (what: string, times: readonly number[]): string => {
+          const sorted = [...times].sort((a, b) => a - b);
+          return `${what} best ${sorted[0]!.toFixed(0)} / median ${sorted[Math.floor(sorted.length / 2)]!.toFixed(0)} ms`;
+        };
+        const cold = await time(source);
+        const parts = [`cold ${cold.toFixed(0)} ms`, line('warm', [await time(source), await time(source), await time(source)])];
+        if (boxed) {
+          for (const kind of ['inside', 'outside', 'options'] as const) {
+            // Each edit is one keystroke away from the document just laid
+            // out, on a different box each time; the way back is not timed.
+            const times: number[] = [];
+            for (const k of [50, 100, 150]) {
+              times.push(await time(editScaleDocument(source, kind, k)));
+              await time(source);
+            }
+            parts.push(line(`edit ${kind}`, times));
+          }
         }
-        const sorted = [...times].sort((a, b) => a - b);
-        console.warn(`[B8-BENCH] ${name}, 2 000 nodes, ${browser} worker: best ${sorted[0]!.toFixed(0)} ms, median ${sorted[1]!.toFixed(0)} ms (round trip, 3 runs)`);
+        console.warn(`[B8-BENCH] ${name}, 2 000 nodes, ${browser} worker, round trip: ${parts.join('; ')}`);
+      } finally {
+        host.dispose();
       }
-    } finally {
-      host.dispose();
     }
-  }, 300_000);
+  }, 900_000);
 });

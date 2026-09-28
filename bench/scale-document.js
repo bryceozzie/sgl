@@ -55,3 +55,23 @@ export function scaleDocument(n, { rich = false, labelled = false, boxes = undef
   lines.push('');
   return lines.join('\n');
 }
+
+/**
+ * One edit to a `scaleDocument(n, { boxes })` source, for the keystroke bench
+ * of the per-box layout cache (`perf/b8-cache`, DD-14 C32):
+ *
+ * - `'inside'`: a new node in container `g${k}`, so that one box changes;
+ * - `'outside'`: a new top-level node before every container, so no box's
+ *   content changes but every source span after it moves;
+ * - `'options'`: an engine option on `g${k}`'s own `@layout` (`elk`'s
+ *   `direction: right`, `grid`'s `columns: 3`), so that box's options change.
+ */
+export function editScaleDocument(source, kind, k) {
+  const open = new RegExp(`^g${k}: \\{\\n  @layout\\.engine: (\\w+)$`, 'm');
+  const match = open.exec(source);
+  if (kind === 'outside') return source.replace(/^(@title: .*\n)/m, `$1top${k}: { @label: "Top ${k}" }\n`);
+  if (match === null) throw new Error(`editScaleDocument: no box g${k}`);
+  if (kind === 'inside') return source.replace(open, `${match[0]}\n  extra${k}: { @label: "Extra ${k}" }`);
+  if (kind === 'options') return source.replace(open, `${match[0]}\n  @layout.${match[1] === 'grid' ? 'columns: 3' : 'direction: right'}`);
+  throw new Error(`editScaleDocument: unknown kind ${kind}`);
+}
