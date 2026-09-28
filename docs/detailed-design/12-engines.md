@@ -437,6 +437,13 @@ get no diagnostic, because an author can overlap them on purpose. Both rows go i
   keeps each node's bounding circle inside its own wedge, so nodes on one ring cannot overlap, and
   nodes on different rings are a ring gap apart.* Eades' further limit (children's wedges no wider
   than `2·arccos(R_k / R_{k+1})`, against crossings between subtrees) is left out of v1.
+  *Fix round 1 (B5 branch 5, the orchestrator's decision): a non-root node's children span at most
+  ½ turn, centred on its own angle (the middle of its wedge); the root's span the whole turn. So an
+  only child's children fan away from the centre instead of wrapping round it, and no tree-arc
+  spoke crosses its root or an ancestor. The span lies inside the node's wedge, so wedges at one
+  depth stay disjoint. The ring gap (`rankSpacing` above) is at least `2 × arrowSize + 8`, as
+  `tree`'s band gap, so every spoke has room for its arrowhead. A node's weight is never zero: a
+  subtree whose leaves weigh nothing weighs its own `diag + nodeSpacing`, or 1.*
 - **N43. The components of a forest are separate discs, packed in a row.** They go left to right, in
   their roots' declaration order, top-aligned, `nodeSpacing` apart. An isolated node is a disc of
   its own. *elk's `radial` stacks every extra component at one point (§9.3).*
@@ -926,6 +933,34 @@ begins.
      0.60. The `std-trees` chunk is 4.71 kB gzipped (12.06 kB raw), +1.04 kB for `radial` and
      `trig` (§11: ~1.3), measured with Node's zlib (3.67 kB for `tree` alone by the same
      measure).
+   **Fix round 1, as built** (2026-09-28; `main` at `707dd0c`, B8 branch 1, merged in first):
+   1. **A zero-weight subtree gave NaN** (a zero-size leaf at `nodeSpacing: 0`: an empty wedge,
+      then a division by `sin 0`). A weight is never zero (N42's note); the equal-split branch
+      went with it. Tests: that input is finite and valid; zero-size leaves at `nodeSpacing: 0`
+      get distinct angles, 1/6, 1/2, 5/6 (M11).
+   2. **Spokes through the root.** Eades' bound, ½ turn centred on the node, for every non-root
+      node's children (N42's note). `radial.test.ts` counts edge runs through a leaf that is not
+      their end, split into tree-arc spokes (0 over `r -> c -> g0..g11`, `a -> b -> c -> f0..f9`,
+      the six `layout/tree-*.sgl`, the corpus and 8 random trees) and other edges, pinned to go only
+      down as for `tree` (F34): `tree-diamond` 2 (`right -> bottom`, a second parent), `tree-root`
+      1 (`client -> api`, `api` a root by its hint), the others 0.
+   3. **`sinTurn(−t)` was not `−sinTurn(t)` at the eighth turns** (`Math.round` rounds a tie up).
+      Both reduce `|t|` and reapply the sign: odd and even bit for bit, tested at ±k/8, their
+      neighbouring doubles and large turns.
+   4. **More pinned angles**: the negative eighth turns, the doubles either side of each k/8 in
+      [−1, 1], and large turns to 2⁵³. The golden's 85 old rows did not change; 53 were appended.
+   5. **The built chunk's trig is checked**: `apps/web/test/std-trees-chunk.test.ts` loads
+      `dist/assets/std-trees-*.js` in a child Node process and requires `trig.txt`'s bits. For
+      that the chunk exports `sinTurn`/`cosTurn`, and `lazy.ts` reads the layout function by a
+      computed name, so Rollup keeps every export.
+   6. **A ring-gap floor** of `2 × arrowSize + 8` (N42's note). Edge labels can still overlap
+      nodes: the host places them at a spoke's midpoint (07 §2.1 F36), not fixed here.
+   7. **The wedge test uses mixed label widths**, so weighting by count (M4) fails a unit test.
+   8. **The defaults come from `radialDescriptor`'s schema**, not repeated literals.
+   - **Radial goldens changed** (item 2 only): `chains.sgl`, `ports.sgl`, `layout/tree-cycle.sgl`,
+     `layout/tree-forest.sgl`. No other golden moved.
+   - **Size:** core **180.20 kB** (180 195 B), +19 B over the branch before the round; the
+     `std-trees` chunk 4.90 kB gzipped (12.30 kB raw).
 6. *(Done on this branch, H3: the backlog splits B5, and `force` is B22, Could; 07 §2.1 F10's owner
    is `force`.)*
 

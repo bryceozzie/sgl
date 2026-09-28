@@ -580,10 +580,11 @@ Each container is laid out on its own, post-order, from the same spanning forest
 ```
 weights:   leaf: diag + nodeSpacing (diag = the frame's diagonal, Math.sqrt); inner: the sum of
            its children's; a zero total splits equally
-wedges:    each tree's root [0, 1) turn; children split the parent's wedge by weight, BFS order
+wedges:    each tree's root [0, 1) turn, its children splitting it; a non-root node's children
+           split at most ½ turn centred on its own angle (Eades' bound); by weight (never 0), BFS order
 place:     a node at its wedge's middle α on ring k = its depth; centre (R_k sin 2πα, −R_k cos 2πα):
            angle 0 at 12 o'clock, clockwise; the root at (0, 0)
-rings:     R_0 = 0; R_k = max(R_{k−1} + (E_{k−1} + E_k)/2 + rankSpacing,
+rings:     R_0 = 0; R_k = max(R_{k−1} + (E_{k−1} + E_k)/2 + gap,   gap = max(rankSpacing, 2 × arrowSize + 8)
                               max over v on ring k of (diag(v) + nodeSpacing) / (2 sin(π min(θ_v, ½))))
            (E_k the largest diagonal on ring k, θ_v v's wedge width): bounding circles stay in
            their wedges, rings a ring gap apart, so nothing overlaps
