@@ -1,5 +1,5 @@
 import type { LayoutContext, LayoutEngine, LayoutInput, LayoutResult } from '@sgl/layout-api';
-import { treeDescriptor, type EngineDescriptor } from './descriptor.js';
+import { radialDescriptor, treeDescriptor, type EngineDescriptor } from './descriptor.js';
 
 /**
  * Engines whose layout code is the lazy `std-trees` chunk (DD-12 N52, H9):
@@ -43,3 +43,9 @@ export function lazyEngine(descriptor: EngineDescriptor, load: () => Promise<Lay
  *  (the page, via `/descriptor`, or a test worker) carries neither the stub
  *  nor the chunk. */
 export const treeEngine: LayoutEngine = /* @__PURE__ */ lazyEngine(treeDescriptor, async () => (await import('./std-trees.js')).layoutTree);
+
+/** `radial` (DD-12 §9): a wedge layout over the same spanning forest, from
+ *  the same chunk (N52); pure, as `treeEngine` is. The two stubs load the
+ *  chunk each on its own first call, but a module is imported once, so the
+ *  second costs no fetch. */
+export const radialEngine: LayoutEngine = /* @__PURE__ */ lazyEngine(radialDescriptor, async () => (await import('./std-trees.js')).layoutRadial);

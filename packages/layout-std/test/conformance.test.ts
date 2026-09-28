@@ -10,7 +10,7 @@ import { scaleDocument } from '../../../bench/scale-document.js';
 import { corpusStyledGraph, listCorpusDocs } from '../../theme/test/corpus.js';
 import { fixedEngine } from '../src/fixed.js';
 import { gridEngine } from '../src/grid.js';
-import { treeEngine } from '../src/lazy.js';
+import { radialEngine, treeEngine } from '../src/lazy.js';
 
 /**
  * DD-06 §8's conformance suite against `grid` — the other half of DD-06 §10's
@@ -120,4 +120,73 @@ it('tree passes all six conformance checks over the corpus and the 1 000-node gr
     // No validation warning at all: every child inside its container.
     expect(report.cases.filter((c) => c.validation.length > 0).map((c) => c.name)).toEqual([]);
   }
+}, 120_000);
+
+/**
+ * `radial` (DD-12 §12 item 2, B5 branch 5): the same cases, through the lazy
+ * engine (`radialEngine` loads `std-trees` on its first call), with checks
+ * 1–6 and 7 (DD-06 §8): every corpus document, the random-shaped tree and
+ * the 1 000-node graph, at the default spacings and at tight ones (where a
+ * rounding error in the ring formula would first show as an overlap).
+ */
+it('radial passes every conformance check over the corpus and the 1 000-node graph', async () => {
+  const lines = ['n0: "Root"'];
+  for (let i = 1; i < 200; i += 1) lines.push(`n${i}: "${'W'.repeat(1 + ((i * 7) % 11))}"`, `n${(i * 37) % i} -> n${i}`);
+  const cases: ConformanceCase[] = [
+    ...listCorpusDocs().map((name) => ({ name, input: inputOf(corpusStyledGraph(name).styled) })),
+    { name: 'a 200-node tree of mixed widths', input: inputForSource(`${lines.join('\n')}\n`) },
+    { name: N1000, input: inputForSource(scaleDocument(1000) as string) },
+  ];
+  for (const options of [{}, { nodeSpacing: 2, rankSpacing: 2 }]) {
+    const report = await runConformance(radialEngine, cases, { metrics: METRICS, now: () => performance.now(), timedCase: N1000, options });
+    const timed = report.cases.find((c) => c.name === N1000)!;
+    console.warn(`[conformance] radial (${JSON.stringify(options)}), 1 000 nodes, Node: ${timed.ms.toFixed(0)} ms`);
+    expect(report.failures, JSON.stringify(options)).toEqual([]);
+    expect(timed.withinTimeout).toBe(true);
+    expect(report.cases.every((c) => c.deterministic === true)).toBe(true);
+    expect(report.cases.filter((c) => c.validation.length > 0).map((c) => c.name)).toEqual([]);
+  }
+}, 120_000);
+
+/**
+ * DD-14 C35's check 7 ("honours `scope`") is on `feat/b8-compose`, not yet on
+ * `main`, so `runConformance` cannot run it here; whichever of the two
+ * branches merges second adds `radial` to it, as B8 left `tree` to. Until
+ * then, its second half, locally: for every container of every corpus
+ * document and of the 1 000-node graph, `radial` with `scope` = that
+ * container places exactly the container and its visible descendants, the
+ * container at (0, 0), and each of them where the whole-document layout puts
+ * it, moved by the container's own offset (radial lays out each container
+ * on its own, N45, so a scoped run is the same layout).
+ */
+it('radial honours scope: a container’s layout alone is its layout in the document (check 7’s second half)', async () => {
+  const inputs = [...listCorpusDocs().map((name) => ({ name, input: inputOf(corpusStyledGraph(name).styled) })), { name: N1000, input: inputForSource(scaleDocument(1000) as string) }];
+  let checked = 0;
+  for (const { name, input } of inputs) {
+    const graph = input.graph;
+    const whole = await radialEngine.layout(input, { options: {}, metrics: METRICS } as never);
+    for (const scope of graph.order) {
+      const node = graph.nodes[scope]!;
+      if (node.hidden || !node.children.some((k) => graph.nodes[k]?.hidden === false)) continue;
+      const want: string[] = [];
+      const stack = [scope];
+      while (stack.length > 0) {
+        const id = stack.pop()!;
+        want.push(id);
+        for (const k of graph.nodes[id]!.children) if (graph.nodes[k]?.hidden === false) stack.push(k);
+      }
+      const alone = await radialEngine.layout({ ...input, scope }, { options: {}, metrics: METRICS } as never);
+      expect(Object.keys(alone.nodes).sort(), `${name}: ${scope}`).toEqual(want.sort());
+      expect(alone.nodes[scope]!.frame, `${name}: ${scope}`).toMatchObject({ x: 0, y: 0, w: whole.nodes[scope]!.frame.w, h: whole.nodes[scope]!.frame.h });
+      const at = whole.nodes[scope]!.frame;
+      for (const id of want) {
+        const a = alone.nodes[id as never]!.frame;
+        const b = whole.nodes[id as never]!.frame;
+        expect(a.x + at.x, `${name}: ${id}`).toBeCloseTo(b.x, 9);
+        expect(a.y + at.y, `${name}: ${id}`).toBeCloseTo(b.y, 9);
+      }
+      checked += 1;
+    }
+  }
+  expect(checked).toBeGreaterThan(100); // the 1 000-node graph alone has 100
 }, 120_000);

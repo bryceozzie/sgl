@@ -1,0 +1,280 @@
+{
+  "bounds": {
+    "x": 0,
+    "y": 0,
+    "w": 280,
+    "h": 639.390625
+  },
+  "nodes": {
+    "platform": {
+      "frame": {
+        "x": 16,
+        "y": 176.34375,
+        "w": 248,
+        "h": 447.046875
+      },
+      "contentFrame": {
+        "x": 32,
+        "y": 213.9375,
+        "w": 216,
+        "h": 393.453125
+      }
+    },
+    "client": {
+      "frame": {
+        "x": 104,
+        "y": 16,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform.web": {
+      "frame": {
+        "x": 32,
+        "y": 213.9375,
+        "w": 216,
+        "h": 89.59375
+      },
+      "contentFrame": {
+        "x": 48,
+        "y": 251.546875,
+        "w": 184,
+        "h": 36
+      }
+    },
+    "platform.data": {
+      "frame": {
+        "x": 32,
+        "y": 517.78125,
+        "w": 216,
+        "h": 89.59375
+      },
+      "contentFrame": {
+        "x": 48,
+        "y": 555.390625,
+        "w": 184,
+        "h": 36
+      }
+    },
+    "platform.data.db": {
+      "frame": {
+        "x": 48,
+        "y": 555.390625,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform.data.cache": {
+      "frame": {
+        "x": 160,
+        "y": 555.390625,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform.web.ui": {
+      "frame": {
+        "x": 48,
+        "y": 251.546875,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform.web.cdn": {
+      "frame": {
+        "x": 160,
+        "y": 251.546875,
+        "w": 72,
+        "h": 36
+      }
+    }
+  },
+  "edges": {
+    "e-be334112e524c233": {
+      "start": {
+        "x": 135.71875,
+        "y": 52
+      },
+      "end": {
+        "x": 90.125,
+        "y": 243.75
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 90.125,
+            "y": 243.75
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0.23130387684289963,
+        "y": -0.9728815532003084
+      },
+      "endNormal": {
+        "x": -0.23130387684289963,
+        "y": 0.9728815532003084
+      },
+      "clip": "none"
+    },
+    "e-69689b04ba39061f": {
+      "start": {
+        "x": 84,
+        "y": 287.546875
+      },
+      "end": {
+        "x": 84,
+        "y": 547.390625
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 84,
+            "y": 547.390625
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0,
+        "y": -1
+      },
+      "endNormal": {
+        "x": 0,
+        "y": 1
+      },
+      "clip": "none"
+    },
+    "e-66a7798fce94a874": {
+      "start": {
+        "x": 196,
+        "y": 287.546875
+      },
+      "end": {
+        "x": 196,
+        "y": 547.390625
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 196,
+            "y": 547.390625
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0,
+        "y": -1
+      },
+      "endNormal": {
+        "x": 0,
+        "y": 1
+      },
+      "clip": "none"
+    }
+  },
+  "labels": [
+    {
+      "labelId": "l:client",
+      "frame": {
+        "x": 123.390625,
+        "y": 25.546875,
+        "w": 33.234375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:e-69689b04ba39061f",
+      "frame": {
+        "x": 59.09375,
+        "y": 410.3125,
+        "w": 27.515625,
+        "h": 14.296875
+      },
+      "align": "middle",
+      "baseline": "middle",
+      "occlusion": "plate"
+    },
+    {
+      "labelId": "l:platform",
+      "frame": {
+        "x": 32,
+        "y": 192.34375,
+        "w": 48.25,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:platform.data",
+      "frame": {
+        "x": 48,
+        "y": 533.78125,
+        "w": 27.375,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:platform.data.cache",
+      "frame": {
+        "x": 177.21875,
+        "y": 564.9375,
+        "w": 37.5625,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform.data.db",
+      "frame": {
+        "x": 74.96875,
+        "y": 564.9375,
+        "w": 18.0625,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform.web",
+      "frame": {
+        "x": 48,
+        "y": 229.9375,
+        "w": 26.640625,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:platform.web.cdn",
+      "frame": {
+        "x": 181.921875,
+        "y": 261.09375,
+        "w": 28.15625,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform.web.ui",
+      "frame": {
+        "x": 77.5,
+        "y": 261.09375,
+        "w": 13,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    }
+  ]
+}

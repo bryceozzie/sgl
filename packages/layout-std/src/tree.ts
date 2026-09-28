@@ -7,9 +7,8 @@ import {
   type LayoutInput,
   type LayoutResult,
   type NodeLayout,
-  type NodeSizing,
 } from '@sgl/layout-api';
-import { liftArcs, spanningForest, type LevelArc } from './forest.js';
+import { frameOf, leafSize, levelSize, liftArcs, spanningForest, visibleChildren, type LevelArc } from './forest.js';
 
 /**
  * `tree`'s layout (DD-12 §8), in the lazy `std-trees` chunk (N52): the
@@ -176,11 +175,6 @@ function siblingPairs(graph: SemanticGraph): Map<string, GraphEdge[]> {
   return out;
 }
 
-function visibleChildren(id: NodeId | null, graph: SemanticGraph): readonly NodeId[] {
-  const ids = id === null ? graph.rootChildren : (graph.nodes[id]?.children ?? []);
-  return ids.filter((cid) => graph.nodes[cid]?.hidden === false);
-}
-
 /** One level: `id`'s children as a tidy forest in its content box, and `id`'s size. */
 function placeLevel(
   id: NodeId | null,
@@ -306,18 +300,7 @@ function placeLevel(
     }
   }
 
-  const contentW = vertical ? spanB : spanD;
-  const contentH = vertical ? spanD : spanB;
-  let size: Size = { w: contentW, h: contentH };
-  if (id !== null && sizing !== undefined) {
-    const labelId = graph.nodes[id]?.labelId ?? null;
-    const title = labelId === null ? undefined : input.labelSizes[labelId];
-    const titleW = title === undefined ? 0 : title.w + sizing.contentInset[1] + sizing.contentInset[3];
-    size = {
-      w: Math.max(sizing.min?.w ?? 0, titleW, padding[3] + contentW + padding[1]),
-      h: Math.max(sizing.min?.h ?? 0, padding[0] + contentH + padding[2]),
-    };
-  }
+  const size = levelSize(id, input, vertical ? spanB : spanD, vertical ? spanD : spanB);
   return { size, items, elbows };
 }
 
@@ -445,30 +428,6 @@ function buchheim(children: readonly (readonly number[])[], parent: readonly num
     for (const c of children[v]!) walk.push([c, m + mod[v]!]);
   }
   return x;
-}
-
-/** A leaf's size, as `grid`, `fixed` and `elk` size it. */
-function leafSize(sizing: NodeSizing | undefined): Size {
-  if (sizing === undefined) return { w: 0, h: 0 };
-  return {
-    w: sizing.fixed?.w ?? clamp(sizing.intrinsic.w, sizing.min?.w, sizing.max?.w),
-    h: sizing.fixed?.h ?? clamp(sizing.intrinsic.h, sizing.min?.h, sizing.max?.h),
-  };
-}
-
-function clamp(v: number, min: number | undefined, max: number | undefined): number {
-  let out = v;
-  if (min !== undefined) out = Math.max(out, min);
-  if (max !== undefined) out = Math.min(out, max);
-  return out;
-}
-
-function frameOf(id: NodeId, origin: Point, size: Size, input: LayoutInput, container: boolean): NodeLayout {
-  const frame: Rect = { x: origin.x, y: origin.y, w: size.w, h: size.h };
-  const sizing = input.sizing[id];
-  if (!container || sizing === undefined) return { frame };
-  const [t, r, b, l] = sizing.padding;
-  return { frame, contentFrame: { x: frame.x + l, y: frame.y + t, w: frame.w - l - r, h: frame.h - t - b } };
 }
 
 /** The elbow of a tree arc (N34), `down`: from the parent's outline straight
