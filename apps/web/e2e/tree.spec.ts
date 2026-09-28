@@ -7,8 +7,8 @@ import { diagnosticCodes, EXAMPLE_NODE_COUNT, edgePaths, layoutGeometryHash, set
  * loads the lazy `std-trees` chunk into the layout worker then, not at boot
  * (N52); a document's bare `engine: tree` selects it; its Options ▾ form has
  * Direction, the spacings and Edges; and if the chunk cannot be fetched, the
- * request fails as elk's does (SGL4011, the previous picture kept) and the
- * next edit loads it.
+ * request fails as elk's does (SGL4011, the previous picture kept), goes on
+ * failing in that worker (F33), and loads after a reload.
  */
 
 const TREE = 'top: "Top"\nleft: "Left"\nright: "Right"\nleaf: "Leaf"\ntop -> left\ntop -> right\nleft -> leaf\n';
@@ -127,8 +127,9 @@ test('a root `@layout.direction: right` turns the tree, and Options ▾ shows it
  * with SGL4011 naming the engine, the previous picture stays, and the app
  * goes on working under another engine. The browser's module map remembers a
  * failed dynamic import for the life of the worker, so a retry in the same
- * worker fails again (as elk's would); the chunk loads with the next worker,
- * here a reload with the network back.
+ * worker fails again with the network back (as elk's would; 07 §2.1 F33,
+ * recorded here and not fixed); the chunk loads with the next worker, here a
+ * reload.
  */
 test('if the std-trees chunk cannot be fetched: SGL4011 and the previous picture kept, as elk; other engines still work; a reload loads it', async ({ page, context }) => {
   let block = true;
@@ -148,9 +149,16 @@ test('if the std-trees chunk cannot be fetched: SGL4011 and the previous picture
   await switchEngine(page, 'sgl.grid', underElk);
   await expect.poll(() => diagnosticCodes(page), { timeout: 20_000 }).toEqual([]);
 
-  // With the network back, the next worker loads the chunk.
+  // With the network back, the same worker still fails: the browser keeps
+  // the failed import (07 §2.1 F33, not fixed here). This records today's
+  // behaviour; fixing F33 turns this step into the retry succeeding.
   block = false;
+  const underGrid = await layoutGeometryHash(page);
   await page.locator('.engine-picker select').selectOption('sgl.tree');
+  await expect.poll(() => diagnosticCodes(page), { timeout: 20_000 }).toEqual(['SGL4011']);
+  expect(await layoutGeometryHash(page)).toBe(underGrid);
+
+  // The next worker loads the chunk.
   await page.reload();
   await waitForExactNodeCount(page, 4);
   await expect(page.locator('.engine-picker select')).toHaveValue('sgl.tree');
