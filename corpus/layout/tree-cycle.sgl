@@ -1,0 +1,12 @@
+// A cycle (DD-12 §12, N27): no node is free of incoming arcs, so the first in
+// declaration order, `a`, is the root, and the BFS breaks `c -> a`. The
+// broken arc is still drawn, straight, by the host (N34). No diagnostic.
+@layout: { engine: tree }
+a: "A"
+b: "B"
+c: "C"
+d: "D"
+a -> b
+b -> c
+c -> a
+b -> d: "second"

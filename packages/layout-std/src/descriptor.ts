@@ -100,3 +100,53 @@ export const fixedDescriptor: EngineDescriptor = {
   },
   hintsSchema: { type: 'object', properties: {} },
 };
+
+/**
+ * `tree` (DD-12 §8, B5 branch 4): a tidy tree (Buchheim–Walker) over the
+ * spanning forest of each container's children (§7), with elbow edges.
+ * Everything but `layout()`: the page lists it and checks `@layout` keys
+ * against its schemas; the worker registers `treeEngine`, whose `layout()`
+ * loads the lazy `std-trees` chunk on first use (H9, N52).
+ *
+ * N37: `elk`'s option names and defaults, so switching keeps a document's
+ * feel; `edgeRouting: straight` turns the elbows off. The hints are a
+ * container's own `direction` (N38, which `@direction` sets) and `root`
+ * (N27). N39: `orthogonal` routing (the tree arcs' elbows; the host routes
+ * every other edge straight), the host's labels, no ports, and `bitwise`
+ * (N33: `+ - * /`, `max`/`min` only).
+ */
+export const TREE_ENGINE_ID = 'sgl.tree';
+
+const DIRECTIONS = ['down', 'up', 'left', 'right'];
+
+export const treeDescriptor: EngineDescriptor = {
+  id: TREE_ENGINE_ID,
+  name: 'Tree',
+  version: '0.0.0',
+  apiVersion: LAYOUT_API_VERSION,
+  capabilities: {
+    containers: true,
+    edgeRouting: 'orthogonal',
+    ports: false,
+    labelPlacement: false,
+    incremental: false,
+    determinism: 'bitwise',
+  },
+  optionsSchema: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      direction: { type: 'string', enum: DIRECTIONS, default: 'down' },
+      nodeSpacing: { type: 'number', minimum: 0, default: 40 },
+      rankSpacing: { type: 'number', minimum: 0, default: 70 },
+      edgeRouting: { type: 'string', enum: ['orthogonal', 'straight'], default: 'orthogonal' },
+    },
+  },
+  hintsSchema: {
+    type: 'object',
+    properties: {
+      direction: { type: 'string', enum: DIRECTIONS },
+      root: { type: 'boolean' },
+    },
+  },
+};

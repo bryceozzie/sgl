@@ -243,6 +243,21 @@ describe('pipeline (DD-08 §3)', () => {
       expect(env.pipeline.diags.value.map((d) => [d.code, source.slice(d.span.from, d.span.to)])).toEqual([['SGL4010', '@direction']]);
     });
 
+    it('reach tree too (feat/b5-tree): direction and edgeRouting from the document; an elk-only value is SGL2011', async () => {
+      const source = '@layout: { engine: tree, direction: right, edgeRouting: straight, nodePlacement: LINEAR_SEGMENTS }\na: "A"\n';
+      const env = setup(source, { engineSchemas });
+      await completeOneLayout(env, 'a');
+      expect(env.pending.at(-1)!.engineId).toBe('sgl.tree');
+      expect(env.pending.at(-1)!.options).toEqual({ direction: 'right', nodeSpacing: 40, rankSpacing: 70, edgeRouting: 'straight' });
+      expect(env.pipeline.diags.value.map((d) => [d.code, source.slice(d.span.from, d.span.to)])).toEqual([['SGL4010', 'nodePlacement']]);
+
+      const bad = '@layout: { engine: tree, edgeRouting: ORTHOGONAL }\na: "A"\n';
+      env.pipeline.setDocument(parse(bad).tree, bad);
+      await completeOneLayout(env, 'a');
+      expect(env.pending.at(-1)!.options).toEqual({ direction: 'down', nodeSpacing: 40, rankSpacing: 70, edgeRouting: 'orthogonal' });
+      expect(env.pipeline.diags.value.map((d) => [d.code, bad.slice(d.span.from, d.span.to)])).toEqual([['SGL2011', 'edgeRouting']]);
+    });
+
     it('an undeclared key is SGL4010 and an invalid value SGL2011, each at its key; neither is sent', async () => {
       const source = '@layout: { engine: elk, columns: 2, nodeSpacing: 900, direction: sideways }\na: "A"\n';
       const env = setup(source, { engineSchemas });
@@ -638,6 +653,19 @@ describe('@pin under the registered engines (DD-12 N6, H4)', () => {
     const bare = setup('@layout: { engine: fixed }\na: { @pin: { x: 10, y: 20 } }\n', { ...registered, defaultEngineId: 'sgl.elk' });
     expect(bare.pipeline.effectiveEngineId.value).toBe('sgl.fixed');
     expect(bare.pipeline.diags.value).toEqual([]);
+  });
+
+  it('tree is registered, by id and bare name, with its hints: a container @direction and @layout.root are not SGL4010 (feat/b5-tree)', () => {
+    const tree = REGISTERED_ENGINES.find((e) => e.id === 'sgl.tree');
+    expect(tree).toMatchObject({ id: 'sgl.tree', name: 'Tree', determinism: 'bitwise' });
+    expect(tree?.pins).toBeUndefined();
+    const source = '@layout: { engine: tree }\nbox: {\n  @direction: right\n  a\n}\nr: { @layout: { root: true } }\n';
+    const env = setup(source, { ...registered, defaultEngineId: 'sgl.elk' });
+    expect(env.pipeline.effectiveEngineId.value).toBe('sgl.tree');
+    expect(env.pipeline.diags.value).toEqual([]);
+    // Tree does not honour pins (DD-12 N39): SGL4021, as under elk and grid.
+    const pinned = setup('@layout: { engine: tree }\na: { @pin: { x: 1, y: 2 } }\n', { ...registered, defaultEngineId: 'sgl.elk' });
+    expect(pinned.pipeline.diags.value.map((d) => d.code)).toEqual(['SGL4021']);
   });
 
   it.each(['sgl.grid', 'sgl.elk'])('neither grid nor elk honours pins: SGL4021 at the key under %s', (id) => {

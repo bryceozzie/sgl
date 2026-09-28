@@ -10,6 +10,7 @@ import { scaleDocument } from '../../../bench/scale-document.js';
 import { corpusStyledGraph, listCorpusDocs } from '../../theme/test/corpus.js';
 import { fixedEngine } from '../src/fixed.js';
 import { gridEngine } from '../src/grid.js';
+import { treeEngine } from '../src/lazy.js';
 
 /**
  * DD-06 §8's conformance suite against `grid` — the other half of DD-06 §10's
@@ -98,4 +99,31 @@ it('fixed passes all six conformance checks over the corpus and the 1 000-node g
     ['a', 'b'],
     ['box.p', 'box.q'],
   ]);
+}, 120_000);
+
+/**
+ * `tree` (DD-12 §12 item 2, B5 branch 4): the same cases, through the lazy
+ * engine (`treeEngine` loads `std-trees` on its first call). Every corpus
+ * document, including the cycles, forests and DAGs of `layout/tree-*.sgl`,
+ * plus a random-shaped tree and the 1 000-node graph for check 4 against its
+ * 5 000 ms timeout. Check 6 holds the elbows to their nodes' outlines.
+ */
+it('tree passes all six conformance checks over the corpus and the 1 000-node graph', async () => {
+  const lines = ['n0: "Root"'];
+  for (let i = 1; i < 200; i += 1) lines.push(`n${i}: "${'W'.repeat(1 + ((i * 7) % 11))}"`, `n${(i * 37) % i} -> n${i}`);
+  const cases: ConformanceCase[] = [
+    ...listCorpusDocs().map((name) => ({ name, input: inputOf(corpusStyledGraph(name).styled) })),
+    { name: 'a 200-node tree of mixed widths', input: inputForSource(`${lines.join('\n')}\n`) },
+    { name: N1000, input: inputForSource(scaleDocument(1000) as string) },
+  ];
+  for (const direction of ['down', 'right']) {
+    const report = await runConformance(treeEngine, cases, { metrics: METRICS, now: () => performance.now(), timedCase: N1000, options: { direction } });
+    const timed = report.cases.find((c) => c.name === N1000)!;
+    console.warn(`[conformance] tree (${direction}), 1 000 nodes, Node: ${timed.ms.toFixed(0)} ms`);
+    expect(report.failures, direction).toEqual([]);
+    expect(timed.withinTimeout).toBe(true);
+    expect(report.cases.every((c) => c.deterministic === true)).toBe(true);
+    // No validation warning at all: every child inside its container.
+    expect(report.cases.filter((c) => c.validation.length > 0).map((c) => c.name)).toEqual([]);
+  }
 }, 120_000);

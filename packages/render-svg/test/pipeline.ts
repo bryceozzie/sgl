@@ -17,7 +17,7 @@ import {
   type ResolvedThemeMetricsView,
   type StyledGraphInput,
 } from '@sgl/layout-api';
-import { fixedEngine, gridEngine } from '@sgl/layout-std';
+import { fixedEngine, gridEngine, treeEngine } from '@sgl/layout-std';
 import { labelRunKey, premeasure, StaticMetricsMeasurer, type MeasureTable } from '@sgl/measure';
 import { layoutWrapped } from '@sgl/text/wrap';
 import { BUILT_IN, neutralLight, resolveTheme, styleGraph, unknownThemeDiagnostics, type ResolvedTheme, type StyledGraph, type ThemeDoc } from '@sgl/theme';
@@ -125,13 +125,14 @@ async function layOut(
  *  document's file, `@imports` are linked by the file-system host against
  *  its directory (A9, `corpus/imports/`), through the import-aware resolve
  *  and compile, as the app does for a document with `@imports`. */
-/** The engines this harness can run: `grid`, every golden's engine, and
- *  `fixed` (feat/b5-fixed). */
-const HARNESS_ENGINES: readonly LayoutEngine[] = [gridEngine, fixedEngine];
+/** The engines this harness can run: `grid`, every golden's engine,
+ *  `fixed` (feat/b5-fixed) and `tree` (feat/b5-tree). */
+const HARNESS_ENGINES: readonly LayoutEngine[] = [gridEngine, fixedEngine, treeEngine];
 
 /** The engine a document names at its root `@layout.engine`, by id or bare
  *  name (DD-12 N22), when the harness has it; otherwise `grid`. So the pin
- *  fixtures that say `engine: fixed` run under `fixed`, and a document that
+ *  fixtures that say `engine: fixed` run under `fixed`, the `tree-*.sgl`
+ *  fixtures under `tree`, and a document that
  *  names `elk` (`checkout.sgl`, `pin-under-elk.sgl`) still runs under `grid`,
  *  as every render golden was taken. */
 export function harnessEngine(root: Readonly<Record<string, unknown>>): LayoutEngine {

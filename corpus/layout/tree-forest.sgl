@@ -1,0 +1,18 @@
+// A forest (DD-12 §12, N27, N30): three trees side by side, `nodeSpacing`
+// apart, in their roots' declaration order; `lone` is a tree of its own. The
+// document names `tree`, and the pipeline harness honours it
+// (`render-svg/test/pipeline.ts`). No diagnostic.
+@layout: { engine: tree }
+ceo: "CEO"
+cto: "CTO"
+cfo: "CFO"
+dev: "Developer"
+ops: "Operations"
+board: "Board"
+audit: "Audit committee"
+lone: "Advisor"
+ceo -> cto
+ceo -> cfo
+cto -> dev
+cto -> ops
+board -> audit

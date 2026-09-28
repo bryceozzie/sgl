@@ -1,6 +1,7 @@
 import preact from '@preact/preset-vite';
 import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { chunkModules } from './build/chunk-modules.js';
 import { HEADERS_FILE, META_CSP, headersFor, parseHeadersFile } from './build/headers.js';
 import { helpContentPlugin } from './build/help-plugin.js';
 import { sglMinify } from './build/minify.js';
@@ -108,14 +109,26 @@ export default defineConfig({
     // F20: terser, not esbuild, minifies the JS (`build/minify.ts`), so
     // `build.minify` is off below; the worker build takes the same plugin.
     sglMinify(),
+    // Fix round 1 of B5 branch 4: the module graph `check-core-chunks.mjs`
+    // reads (`build/chunk-modules.ts`); the worker's build records its own.
+    chunkModules('page'),
   ],
   // The layout worker is its own Rollup build. It must be an ES module
   // (Vite's default worker format is `iife`, which cannot code-split), so
   // that `elkEngine.layout()`'s dynamic `import()` of elkjs becomes a chunk
   // fetched on first use rather than being inlined into the worker (K1).
+  //
+  // B5 branch 4 (DD-12 N52): `tree`'s layout code is the lazy `std-trees`
+  // chunk, named after its module (`@sgl/layout-std`'s `dist/std-trees.js`,
+  // which only `treeEngine.layout()`'s dynamic `import()` reaches), as the
+  // page's lazy chunks are. It gets no `manualChunks` rule: Rollup moves a
+  // manual chunk's static dependencies into it, so `@sgl/layout-api` would
+  // follow and the worker would import the chunk statically (tried: it did).
+  // `check-core-chunks.mjs` holds it to one lazy chunk the worker only
+  // imports dynamically.
   worker: {
     format: 'es',
-    plugins: () => [sglMinify()],
+    plugins: () => [sglMinify(), chunkModules('worker')],
     rollupOptions: { output: { manualChunks: elkChunk } },
   },
   build: {

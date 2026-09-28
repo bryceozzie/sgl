@@ -4,7 +4,7 @@ import type { LayoutHost, ResolvedThemeMetricsView } from '@sgl/layout-api';
 import { engineNotes } from '@sgl/layout-api';
 import { runHostSequence } from '@sgl/layout-api/conformance';
 import { elkEngine } from '@sgl/layout-elk';
-import { fixedEngine, gridEngine } from '@sgl/layout-std';
+import { fixedEngine, gridEngine, treeEngine } from '@sgl/layout-std';
 import { StaticMetricsMeasurer } from '@sgl/measure';
 import { createPipeline, type Pipeline } from '../src/state/pipeline.js';
 import type { AppMeasurer, Cancel, PipelineDeps, Schedule } from '../src/state/types.js';
@@ -33,11 +33,11 @@ class TestMeasurer extends StaticMetricsMeasurer implements AppMeasurer {
   }
 }
 
-/** The engines `layout.worker.ts` registers, in its order: `elk`, `grid` and `fixed`.
+/** The engines `layout.worker.ts` registers, in its order: `elk`, `grid`, `fixed` and `tree`.
  *  `help-examples.test.ts` checks the ids against `REGISTERED_ENGINES`, the
  *  list the pickers and the help reference read, so a new worker engine
  *  cannot be missing here. */
-export const HARNESS_ENGINES = [elkEngine, gridEngine, fixedEngine] as const;
+export const HARNESS_ENGINES = [elkEngine, gridEngine, fixedEngine, treeEngine] as const;
 
 const macrotask = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 

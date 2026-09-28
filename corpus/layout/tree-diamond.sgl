@@ -1,0 +1,12 @@
+// A diamond DAG (DD-12 §12, N27): `bottom` has two parents; the first to
+// reach it in the BFS, `left`, keeps it, and `right -> bottom` is drawn
+// straight by the host. The tree arcs are elbows (N34). No diagnostic.
+@layout: { engine: tree }
+top: "Top"
+left: "Left"
+right: "Right"
+bottom: { @label: "Bottom", @shape: diamond }
+top -> left
+top -> right
+left -> bottom
+right -> bottom
