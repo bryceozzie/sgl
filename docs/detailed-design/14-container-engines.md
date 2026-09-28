@@ -736,10 +736,10 @@ and `grid-in-tree` (`tree` places a `grid` box as a leaf of its size).
    hints of the engine around it (C9).
 7. **A composer chunk that will not load fails the request** (`SGL4011`, the previous layout kept),
    as a failed `std-trees` or elkjs load does (F33), rather than laying out without the plan.
-8. **Branch 1's inline fixtures:** four moved to `corpus/` with their text unchanged and their note
-   last, so their spans and goldens are unchanged; `grid-in-fixed`, `tree-in-grid` and
-   `grid-in-tree` stay inline (`grid-in-tree` has a node named `root`, which elk's conformance over
-   the corpus trips on, 07 §2.1 F32).
+8. **Branch 1's inline fixtures:** five moved to `corpus/` with their text unchanged and their note
+   last, so their spans and goldens are unchanged (`grid-in-tree`, whose node is named `root`, once
+   `main`'s F32 fix was merged in); `grid-in-fixed`, `tree-in-grid` and `radial-in-grid` stay
+   inline.
 9. **The §8.2 estimates for `elk` boxes were three times low** (above); the cache branch is due.
 
 ---

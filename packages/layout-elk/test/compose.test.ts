@@ -21,9 +21,8 @@ import { documentOptionsFor, layoutInputFor, layoutInputForSource, METRICS } fro
  * diagnostics; none of these documents needs either (`layoutPlan`'s own plan
  * for each is checked below). Since branch 2 the fixtures DD-14 §10 lists are
  * `corpus/layout/engine-*.sgl` (their text unchanged, so their goldens are
- * too); `grid-in-fixed`, `tree-in-grid` and `grid-in-tree` stay here
- * (`grid-in-tree` has a node named `root`, which elk's conformance over the
- * corpus would trip on, 07 §2.1 F32).
+ * too), and so is `grid-in-tree` since F32's fix let a node be named `root`
+ * under elk; `grid-in-fixed` and `tree-in-grid` stay here.
  */
 
 const ENGINES: readonly LayoutEngine[] = [elkEngine, gridEngine, fixedEngine, treeEngine, radialEngine];
@@ -98,21 +97,6 @@ hub: {
 note -> hub.core
 `;
 
-const GRID_IN_TREE = `@layout: { engine: tree }
-root: "Root"
-left: "Left"
-cells: {
-  @label: "Cells"
-  @layout: { engine: grid, columns: 2 }
-  c1: "1"
-  c2: "2"
-  c3: "3"
-}
-root -> left
-root -> cells
-root -> cells.c1
-`;
-
 const FIXTURES: readonly Fixture[] = [
   // Spec §9's worked example: `payments` is a two-column grid in an elk document.
   { name: 'grid-in-elk', root: elkEngine, input: layoutInputFor('checkout.sgl'), options: documentOptionsFor('checkout.sgl') },
@@ -122,7 +106,7 @@ const FIXTURES: readonly Fixture[] = [
   { name: 'same-engine', root: elkEngine, input: layoutInputFor('layout/engine-same-engine.sgl'), options: {} },
   { name: 'grid-in-fixed', root: fixedEngine, input: layoutInputForSource(GRID_IN_FIXED), options: {} },
   { name: 'tree-in-grid', root: gridEngine, input: layoutInputForSource(TREE_IN_GRID), options: {} },
-  { name: 'grid-in-tree', root: treeEngine, input: layoutInputForSource(GRID_IN_TREE), options: {} },
+  { name: 'grid-in-tree', root: treeEngine, input: layoutInputFor('layout/engine-grid-in-tree.sgl'), options: {} },
   { name: 'radial-in-grid', root: gridEngine, input: layoutInputForSource(RADIAL_IN_GRID), options: {} },
 ];
 

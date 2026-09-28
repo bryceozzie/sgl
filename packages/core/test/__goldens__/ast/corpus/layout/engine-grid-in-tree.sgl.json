@@ -1,0 +1,464 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "layout"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "engine",
+       "isConfig": false,
+       "keySpan": {
+        "from": 11,
+        "to": 17
+       },
+       "value": {
+        "kind": "Word",
+        "value": "tree",
+        "span": {
+         "from": 19,
+         "to": 23
+        }
+       },
+       "span": {
+        "from": 11,
+        "to": 23
+       }
+      }
+     ],
+     "span": {
+      "from": 9,
+      "to": 25
+     }
+    },
+    "keySpan": {
+     "from": 0,
+     "to": 7
+    },
+    "span": {
+     "from": 0,
+     "to": 25
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "root",
+    "keySpan": {
+     "from": 26,
+     "to": 30
+    },
+    "value": {
+     "kind": "String",
+     "value": "Root",
+     "span": {
+      "from": 32,
+      "to": 38
+     }
+    },
+    "span": {
+     "from": 26,
+     "to": 38
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "left",
+    "keySpan": {
+     "from": 39,
+     "to": 43
+    },
+    "value": {
+     "kind": "String",
+     "value": "Left",
+     "span": {
+      "from": 45,
+      "to": 51
+     }
+    },
+    "span": {
+     "from": 39,
+     "to": 51
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "cells",
+    "keySpan": {
+     "from": 52,
+     "to": 57
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Cells",
+        "span": {
+         "from": 71,
+         "to": 78
+        }
+       },
+       "keySpan": {
+        "from": 63,
+        "to": 69
+       },
+       "span": {
+        "from": 63,
+        "to": 78
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "layout"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "engine",
+          "isConfig": false,
+          "keySpan": {
+           "from": 92,
+           "to": 98
+          },
+          "value": {
+           "kind": "Word",
+           "value": "grid",
+           "span": {
+            "from": 100,
+            "to": 104
+           }
+          },
+          "span": {
+           "from": 92,
+           "to": 104
+          }
+         },
+         {
+          "kind": "Property",
+          "key": "columns",
+          "isConfig": false,
+          "keySpan": {
+           "from": 106,
+           "to": 113
+          },
+          "value": {
+           "kind": "Number",
+           "value": 2,
+           "span": {
+            "from": 115,
+            "to": 116
+           }
+          },
+          "span": {
+           "from": 106,
+           "to": 116
+          }
+         }
+        ],
+        "span": {
+         "from": 90,
+         "to": 118
+        }
+       },
+       "keySpan": {
+        "from": 81,
+        "to": 88
+       },
+       "span": {
+        "from": 81,
+        "to": 118
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "c1",
+       "keySpan": {
+        "from": 121,
+        "to": 123
+       },
+       "value": {
+        "kind": "String",
+        "value": "1",
+        "span": {
+         "from": 125,
+         "to": 128
+        }
+       },
+       "span": {
+        "from": 121,
+        "to": 128
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "c2",
+       "keySpan": {
+        "from": 131,
+        "to": 133
+       },
+       "value": {
+        "kind": "String",
+        "value": "2",
+        "span": {
+         "from": 135,
+         "to": 138
+        }
+       },
+       "span": {
+        "from": 131,
+        "to": 138
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "c3",
+       "keySpan": {
+        "from": 141,
+        "to": 143
+       },
+       "value": {
+        "kind": "String",
+        "value": "3",
+        "span": {
+         "from": 145,
+         "to": 148
+        }
+       },
+       "span": {
+        "from": 141,
+        "to": 148
+       }
+      }
+     ],
+     "span": {
+      "from": 59,
+      "to": 150
+     }
+    },
+    "span": {
+     "from": 52,
+     "to": 150
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "root",
+         "span": {
+          "from": 151,
+          "to": 155
+         }
+        }
+       ],
+       "span": {
+        "from": 151,
+        "to": 155
+       }
+      },
+      "span": {
+       "from": 151,
+       "to": 155
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "left",
+         "span": {
+          "from": 159,
+          "to": 163
+         }
+        }
+       ],
+       "span": {
+        "from": 159,
+        "to": 163
+       }
+      },
+      "span": {
+       "from": 159,
+       "to": 163
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 151,
+     "to": 163
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "root",
+         "span": {
+          "from": 164,
+          "to": 168
+         }
+        }
+       ],
+       "span": {
+        "from": 164,
+        "to": 168
+       }
+      },
+      "span": {
+       "from": 164,
+       "to": 168
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "cells",
+         "span": {
+          "from": 172,
+          "to": 177
+         }
+        }
+       ],
+       "span": {
+        "from": 172,
+        "to": 177
+       }
+      },
+      "span": {
+       "from": 172,
+       "to": 177
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 164,
+     "to": 177
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "root",
+         "span": {
+          "from": 178,
+          "to": 182
+         }
+        }
+       ],
+       "span": {
+        "from": 178,
+        "to": 182
+       }
+      },
+      "span": {
+       "from": 178,
+       "to": 182
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "cells",
+         "span": {
+          "from": 186,
+          "to": 191
+         }
+        },
+        {
+         "kind": "Name",
+         "value": "c1",
+         "span": {
+          "from": 192,
+          "to": 194
+         }
+        }
+       ],
+       "span": {
+        "from": 186,
+        "to": 194
+       }
+      },
+      "span": {
+       "from": 186,
+       "to": 194
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 178,
+     "to": 194
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 487
+  }
+ },
+ "diagnostics": []
+}

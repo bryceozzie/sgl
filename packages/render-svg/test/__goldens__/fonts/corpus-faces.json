@@ -123,6 +123,10 @@
     "Inter normal 500",
     "Inter normal 600"
   ],
+  "layout/engine-grid-in-tree.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
   "layout/engine-options-inherit.sgl": [
     "Inter normal 500",
     "Inter normal 600"
