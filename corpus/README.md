@@ -75,7 +75,10 @@ after `checkout.sgl` and `injection/js-url-link.sgl` already covered them.
 
 ## Not yet covered
 
-`SGL4001`–`SGL4011` (the layout host and worker; Stage H) and `SGL5001`,
+`SGL4001`–`SGL4011` (the layout host and worker; Stage H), `SGL4013` (a
+container's own engine failed and its parent's laid it out, B8, DD-14 C28: no
+document can make a built-in engine fail; `layout-api/test/compose.test.ts`
+covers it with stub engines) and `SGL5001`,
 `SGL5002`, `SGL5003`, `SGL5005`, `SGL5006` (each fires on a defect in a *theme
 document* — an extends cycle, depth over 8, an unknown token — not in a `.sgl`
 document, and both built-in themes are well-formed, so no corpus fixture can

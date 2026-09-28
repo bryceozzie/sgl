@@ -1,0 +1,570 @@
+import {
+  asEdgeId,
+  asLabelId,
+  asNodeId,
+  type GraphEdge,
+  type GraphNode,
+  type LabelId,
+  type LabelSpec,
+  type NodeId,
+  type PortId,
+  type SemanticGraph,
+  type Size,
+} from '@sgl/core';
+import { describe, expect, it } from 'vitest';
+import { composeLayout, layoutView, type LayoutPlan } from '../src/compose.js';
+import { conformanceContext, runConformance, runHostSequence } from '../src/conformance.js';
+import {
+  LAYOUT_API_VERSION,
+  type LayoutContext,
+  type LayoutEngine,
+  type LayoutInput,
+  type LayoutResult,
+  type NodeLayout,
+  type NodeSizing,
+  type ResolvedThemeMetricsView,
+} from '../src/contract.js';
+import { engineNotes } from '../src/host.js';
+import { quantize } from '../src/validate.js';
+
+/**
+ * DD-14 §10 item 1: the composer (`@sgl/layout-api/compose`) with small
+ * in-memory engines, so each rule is seen on geometry that can be worked out
+ * by hand. The real engines' composed goldens are in
+ * `layout-elk/test/compose.test.ts` (it has `grid`, `fixed` and `elk`).
+ */
+
+const METRICS: ResolvedThemeMetricsView = { spacing: { node: 40, rank: 70, edgeLabel: 4 }, stroke: {}, arrowSize: 8 };
+
+// ---------------------------------------------------------------------------
+// A document builder: `tree` is `{ id: children }`, ids dotted as SGL's are.
+// ---------------------------------------------------------------------------
+
+interface Spec {
+  readonly tree: Readonly<Record<string, readonly string[]>>;
+  readonly edges?: readonly (readonly [string, string, string?])[];
+  readonly hidden?: readonly string[];
+  readonly ports?: Readonly<Record<string, readonly string[]>>;
+  readonly config?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  readonly edgeLabels?: readonly string[];
+}
+
+const LEAF: Size = { w: 20, h: 10 };
+const LABEL: Size = { w: 12, h: 6 };
+
+function inputOf(spec: Spec): LayoutInput {
+  const nodes: Record<string, GraphNode> = {};
+  const parentOf = new Map<string, string>();
+  for (const [id, kids] of Object.entries(spec.tree)) for (const k of kids) parentOf.set(k, id);
+  const all = new Set<string>([...Object.keys(spec.tree), ...parentOf.keys()]);
+  const hidden = new Set(spec.hidden ?? []);
+  const labels: Record<LabelId, LabelSpec> = {};
+  const labelSizes: Record<LabelId, Size> = {};
+  const sizing: Record<NodeId, NodeSizing> = {};
+  for (const id of all) {
+    const kids = spec.tree[id] ?? [];
+    const isHidden = hidden.has(id);
+    const labelId = isHidden ? null : asLabelId(`l:${id}`);
+    if (labelId !== null) {
+      labels[labelId] = { id: labelId, owner: { kind: 'node', id: asNodeId(id) }, role: 'title', runs: [{ text: id }] };
+      labelSizes[labelId] = LABEL;
+    }
+    nodes[id] = {
+      id: asNodeId(id),
+      path: id.split('.'),
+      parent: parentOf.has(id) ? asNodeId(parentOf.get(id)!) : null,
+      children: kids.map(asNodeId),
+      depth: id.split('.').length - 1,
+      shape: 'rect',
+      classes: [],
+      labelId,
+      ports: (spec.ports?.[id] ?? []).map((p) => ({ id: p as PortId, side: 'east' as const })),
+      config: spec.config?.[id] ?? {},
+      hidden: isHidden,
+      span: { from: id.length, to: id.length * 2 },
+    };
+    sizing[asNodeId(id)] =
+      kids.length > 0
+        ? { intrinsic: LABEL, contentInset: [2, 3, 4, 5], padding: [10, 3, 4, 5] }
+        : { intrinsic: LEAF, contentInset: [1, 1, 1, 1], padding: [1, 1, 1, 1] };
+  }
+  const roots = [...all].filter((id) => !parentOf.has(id));
+  const order: NodeId[] = [];
+  const walk = (id: string): void => {
+    if (hidden.has(id)) return;
+    order.push(asNodeId(id));
+    for (const k of spec.tree[id] ?? []) walk(k);
+  };
+  for (const r of roots) walk(r);
+  const edgeLabels = new Set(spec.edgeLabels ?? []);
+  const edges: GraphEdge[] = (spec.edges ?? []).map(([from, to, id]) => {
+    const eid = asEdgeId(id ?? `${from}>${to}`);
+    const [fn, fp] = from.split('#');
+    const [tn, tp] = to.split('#');
+    const labelId = edgeLabels.has(eid) ? asLabelId(`l:${eid}`) : null;
+    if (labelId !== null) {
+      labels[labelId] = { id: labelId, owner: { kind: 'edge', id: eid }, role: 'edge', runs: [{ text: eid }] };
+      labelSizes[labelId] = LABEL;
+    }
+    return {
+      id: eid,
+      from: { node: asNodeId(fn!), ...(fp !== undefined && { port: fp as PortId }) },
+      to: { node: asNodeId(tn!), ...(tp !== undefined && { port: tp as PortId }) },
+      directed: 'forward',
+      classes: [],
+      labelId,
+      config: {},
+      declaredIn: null,
+      hidden: hidden.has(fn!) || hidden.has(tn!),
+      span: { from: 0, to: 1 },
+    };
+  });
+  const graph: SemanticGraph = {
+    nodes: nodes as SemanticGraph['nodes'],
+    edges,
+    rootChildren: roots.map(asNodeId),
+    order,
+    labels,
+    meta: { nodeCount: order.length, edgeCount: edges.length, containerCount: order.filter((id) => nodes[id]!.children.length > 0).length },
+  };
+  return { graph, scope: null, sizing, labelSizes };
+}
+
+// ---------------------------------------------------------------------------
+// Engines.
+// ---------------------------------------------------------------------------
+
+/** `col`: every layer in one column, `gap` apart, starting at the padding;
+ *  a leaf is `fixed ?? intrinsic`. The scope node (if any) at `origin`.
+ *  Straight routing and label placement are left to the host. */
+function column(id: string, opts: { origin?: { x: number; y: number }; gap?: number; determinism?: 'bitwise' | 'quantized'; pins?: boolean } = {}): LayoutEngine & { calls: (NodeId | null)[] } {
+  const calls: (NodeId | null)[] = [];
+  return {
+    id,
+    name: id,
+    version: '0.0.0',
+    apiVersion: LAYOUT_API_VERSION,
+    capabilities: { containers: true, edgeRouting: 'straight', ports: false, labelPlacement: false, incremental: false, determinism: opts.determinism ?? 'bitwise', ...(opts.pins === true && { pins: true }) },
+    calls,
+    async layout(input: LayoutInput, ctx: LayoutContext): Promise<LayoutResult> {
+      calls.push(input.scope);
+      const gap = typeof ctx.options['gap'] === 'number' ? ctx.options['gap'] : (opts.gap ?? 10);
+      const { graph, sizing } = input;
+      const out: Record<NodeId, NodeLayout> = {};
+      const sizeOf = (nid: NodeId): Size => {
+        const n = graph.nodes[nid]!;
+        const kids = n.children.filter((k) => graph.nodes[k]?.hidden === false);
+        const s = sizing[nid]!;
+        if (kids.length === 0) return { w: s.fixed?.w ?? s.intrinsic.w, h: s.fixed?.h ?? s.intrinsic.h };
+        const sizes = kids.map(sizeOf);
+        return {
+          w: Math.max(...sizes.map((z) => z.w)) + s.padding[3] + s.padding[1],
+          h: sizes.reduce((a, z) => a + z.h, 0) + gap * (sizes.length - 1) + s.padding[0] + s.padding[2],
+        };
+      };
+      const place = (ids: readonly NodeId[], x0: number, y0: number): void => {
+        let y = y0;
+        for (const nid of ids) {
+          const n = graph.nodes[nid]!;
+          if (n.hidden) continue;
+          const size = sizeOf(nid);
+          const frame = { x: x0, y, w: size.w, h: size.h };
+          const kids = n.children.filter((k) => graph.nodes[k]?.hidden === false);
+          const s = sizing[nid]!;
+          out[nid] =
+            kids.length > 0
+              ? { frame, contentFrame: { x: x0 + s.padding[3], y: y + s.padding[0], w: size.w - s.padding[3] - s.padding[1], h: size.h - s.padding[0] - s.padding[2] } }
+              : { frame };
+          if (kids.length > 0) place(kids, x0 + s.padding[3], y + s.padding[0]);
+          y += size.h + gap;
+        }
+      };
+      const o = opts.origin ?? { x: 0, y: 0 };
+      if (input.scope === null) place(graph.rootChildren, o.x, o.y);
+      else place([input.scope], o.x, o.y);
+      return { bounds: { x: 0, y: 0, w: 0, h: 0 }, nodes: out, edges: {}, labels: [] };
+    },
+  };
+}
+
+function failing(id: string, how: 'throw' | 'shape' | 'missing' | 'abort'): LayoutEngine & { calls: number } {
+  const inner = column(`${id}.inner`);
+  const engine = {
+    id,
+    name: id,
+    version: '0.0.0',
+    apiVersion: LAYOUT_API_VERSION,
+    capabilities: inner.capabilities,
+    calls: 0,
+    async layout(input: LayoutInput, ctx: LayoutContext): Promise<LayoutResult> {
+      engine.calls += 1;
+      if (how === 'throw') throw new Error('boom `x`\nline two');
+      if (how === 'shape') return undefined as unknown as LayoutResult;
+      const r = await inner.layout(input, ctx);
+      if (how === 'abort') {
+        abortNow();
+        return r;
+      }
+      const nodes = { ...r.nodes };
+      delete nodes[input.scope!];
+      return { ...r, nodes };
+    },
+  };
+  return engine;
+}
+
+let abortNow: () => void = () => {};
+
+function registry(...engines: LayoutEngine[]): (id: string) => LayoutEngine | undefined {
+  const byId = new Map(engines.map((e) => [e.id, e]));
+  return (id) => byId.get(id);
+}
+
+function ctx(controller = new AbortController()): LayoutContext {
+  return { ...conformanceContext({}, METRICS), signal: controller.signal };
+}
+
+const n = asNodeId;
+const plan = (...scopes: [string, string, Record<string, unknown>?][]): LayoutPlan =>
+  scopes.map(([node, engine, options]) => ({ node: n(node), engine, options: options ?? {} }));
+
+// ---------------------------------------------------------------------------
+
+/** root: `a`, box `b` (`b.x`, `b.y`), `c`. */
+const BASIC: Spec = { tree: { a: [], b: ['b.x', 'b.y'], c: [] } };
+
+describe('layoutView (DD-14 C24)', () => {
+  const input = inputOf({
+    tree: { a: [], b: ['b.x', 'b.y'], c: [] },
+    edges: [['b.x', 'b.y'], ['a', 'b.x'], ['a', 'b'], ['b', 'b'], ['b.x', 'b'], ['b.y', 'b#p'], ['a', 'c']],
+    ports: { b: ['p'] },
+    config: { b: { layout: { engine: 'x' }, pin: { x: 1, y: 2 } } },
+  });
+
+  it("the parent's view: a box is a leaf of its size, with no title, its own ports and config", () => {
+    const view = layoutView(input, null, new Map([[n('b'), { w: 50, h: 40 }]]));
+    const g = view.graph;
+    expect(view.scope).toBeNull();
+    expect(g.order).toEqual(['a', 'b', 'c']);
+    expect(g.rootChildren).toEqual(['a', 'b', 'c']);
+    expect(g.nodes[n('b')]).toMatchObject({ children: [], labelId: null, ports: [{ id: 'p', side: 'east' }], config: { layout: { engine: 'x' }, pin: { x: 1, y: 2 } } });
+    expect(g.nodes[n('b.x')]).toBeUndefined();
+    expect(view.sizing[n('b')]).toEqual({ intrinsic: { w: 50, h: 40 }, fixed: { w: 50, h: 40 }, contentInset: [2, 3, 4, 5], padding: [2, 3, 4, 5] });
+    expect(Object.keys(g.labels).sort()).toEqual(['l:a', 'l:c']);
+    expect(Object.keys(view.labelSizes).sort()).toEqual(['l:a', 'l:c']);
+    // C14: box to box, a self-loop on a box, and two ends in this layer.
+    expect(g.edges.map((e) => e.id)).toEqual(['a>b', 'b>b', 'a>c']);
+    expect(g.meta).toEqual({ nodeCount: 3, edgeCount: 3, containerCount: 0 });
+  });
+
+  it("the box's own view: the scope is its view's root, with no ports (C22); edges inside it and to the box itself", () => {
+    const view = layoutView(input, n('b'), new Map());
+    const g = view.graph;
+    expect(view.scope).toBe('b');
+    expect(g.rootChildren).toEqual(['b']);
+    expect(g.order).toEqual(['b', 'b.x', 'b.y']);
+    expect(g.nodes[n('b')]).toMatchObject({ parent: null, ports: [], children: ['b.x', 'b.y'], labelId: 'l:b' });
+    expect(g.nodes[n('a')]).toBeUndefined();
+    expect(view.sizing[n('b')]).toBe(input.sizing[n('b')]);
+    expect(Object.keys(g.labels).sort()).toEqual(['l:b', 'l:b.x', 'l:b.y']);
+    // `b.y -> b[p]` ends on a port the parent places: not this view's edge.
+    expect(g.edges.map((e) => e.id)).toEqual(['b.x>b.y', 'b.x>b']);
+  });
+
+  it('an inner box inside a scope is a leaf there too, and hidden children stay (engines filter them)', () => {
+    const nested = inputOf({ tree: { o: ['o.i', 'o.h', 'o.z'], 'o.i': ['o.i.k'] }, hidden: ['o.h'] });
+    const view = layoutView(nested, n('o'), new Map([[n('o.i'), { w: 7, h: 9 }]]));
+    expect(view.graph.order).toEqual(['o', 'o.i', 'o.z']);
+    expect(view.graph.nodes[n('o.h')]?.hidden).toBe(true);
+    expect(view.graph.nodes[n('o.i')]?.children).toEqual([]);
+    expect(view.graph.nodes[n('o.i.k')]).toBeUndefined();
+  });
+});
+
+describe('composeLayout (DD-14 C23, C5)', () => {
+  it('sizes the box by its own engine, places it as one box by the parent, and moves its contents', async () => {
+    const outer = column('t.outer', { gap: 5 });
+    const inner = column('t.inner', { gap: 3 });
+    const input = inputOf(BASIC);
+    const r = await composeLayout(outer, input, {}, plan(['b', 't.inner']), registry(outer, inner), ctx());
+    expect(inner.calls).toEqual(['b']);
+    expect(outer.calls).toEqual([null]);
+    // The box: [10,3,4,5] padding, two 20x10 leaves 3 apart: 28 x 37.
+    expect(r.nodes[n('a')]!.frame).toEqual({ x: 0, y: 0, w: 20, h: 10 });
+    expect(r.nodes[n('b')]!.frame).toEqual({ x: 0, y: 15, w: 28, h: 37 });
+    expect(r.nodes[n('b')]!.contentFrame).toEqual({ x: 5, y: 25, w: 20, h: 23 });
+    expect(r.nodes[n('b.x')]!.frame).toEqual({ x: 5, y: 25, w: 20, h: 10 });
+    expect(r.nodes[n('b.y')]!.frame).toEqual({ x: 5, y: 38, w: 20, h: 10 });
+    expect(r.nodes[n('c')]!.frame).toEqual({ x: 0, y: 57, w: 20, h: 10 });
+    // The box's title is its own engine's (placed by the host for it), moved with it.
+    expect(r.labels.find((l) => l.labelId === 'l:b')!.frame).toEqual({ x: 5, y: 17, w: 12, h: 6 });
+    expect(r.labels.map((l) => l.labelId).sort()).toEqual(['l:a', 'l:b', 'l:b.x', 'l:b.y', 'l:c']);
+    // Nodes in graph.order.
+    expect(Object.keys(r.nodes)).toEqual(['a', 'b', 'b.x', 'b.y', 'c']);
+  });
+
+  it("a box's options are its own (C6: the plan carries them complete)", async () => {
+    const outer = column('t.outer');
+    const inner = column('t.inner');
+    const r = await composeLayout(outer, inputOf(BASIC), { gap: 1 }, plan(['b', 't.inner', { gap: 20 }]), registry(outer, inner), ctx());
+    expect(r.nodes[n('b.y')]!.frame.y - r.nodes[n('b.x')]!.frame.y).toBe(30);
+    expect(r.nodes[n('c')]!.frame.y - (r.nodes[n('b')]!.frame.y + r.nodes[n('b')]!.frame.h)).toBe(1);
+  });
+
+  it('nesting composes: three levels, each moved by its box position, bottom-up (C5)', async () => {
+    const e1 = column('t.one', { gap: 5 });
+    const e2 = column('t.two', { gap: 7 });
+    const e3 = column('t.three', { gap: 2 });
+    const input = inputOf({ tree: { p: ['p.q'], 'p.q': ['p.q.r', 'p.q.s'], z: [] } });
+    const order: string[] = [];
+    for (const e of [e1, e2, e3]) {
+      const f = e.layout.bind(e);
+      e.layout = (i, c) => {
+        order.push(`${e.id}:${i.scope ?? 'root'}`);
+        return f(i, c);
+      };
+    }
+    const r = await composeLayout(e1, input, {}, plan(['p', 't.two'], ['p.q', 't.three']), registry(e1, e2, e3), ctx());
+    expect(order).toEqual(['t.three:p.q', 't.two:p', 't.one:root']);
+    // p.q: two leaves 2 apart + padding => 28 x 36. p: p.q + padding => 36 x 50.
+    expect(r.nodes[n('p')]!.frame).toEqual({ x: 0, y: 0, w: 36, h: 50 });
+    expect(r.nodes[n('p.q')]!.frame).toEqual({ x: 5, y: 10, w: 28, h: 36 });
+    expect(r.nodes[n('p.q.r')]!.frame).toEqual({ x: 10, y: 20, w: 20, h: 10 });
+    expect(r.nodes[n('p.q.s')]!.frame).toEqual({ x: 10, y: 32, w: 20, h: 10 });
+    expect(r.nodes[n('z')]!.frame).toEqual({ x: 0, y: 55, w: 20, h: 10 });
+  });
+
+  it("a box's result is moved so its frame starts at the origin, then by its place in the parent (translation is exact)", async () => {
+    const outer = column('t.outer', { origin: { x: 100, y: 1000 } });
+    const inner = column('t.inner', { origin: { x: 12, y: 12 } });
+    const r = await composeLayout(outer, inputOf(BASIC), {}, plan(['b', 't.inner']), registry(outer, inner), ctx());
+    expect(r.nodes[n('b')]!.frame).toEqual({ x: 100, y: 1020, w: 28, h: 44 });
+    expect(r.nodes[n('b.x')]!.frame).toEqual({ x: 105, y: 1030, w: 20, h: 10 });
+  });
+
+  it('a `quantized` box is snapped to the 1/64 grid before its size reaches its parent; a `bitwise` one is not (C31)', async () => {
+    const outer = column('t.outer', { gap: 0.3 });
+    const q = column('t.q', { gap: 0.1, origin: { x: 0.004, y: 0 }, determinism: 'quantized' });
+    const b = column('t.b', { gap: 0.1, origin: { x: 0.004, y: 0 } });
+    const rq = await composeLayout(outer, inputOf(BASIC), {}, plan(['b', 't.q']), registry(outer, q), ctx());
+    const rb = await composeLayout(outer, inputOf(BASIC), {}, plan(['b', 't.b']), registry(outer, b), ctx());
+    // 0.1 is 6.4/64: snapped to 6/64 = 0.09375.
+    expect(rq.nodes[n('b.y')]!.frame.y - rq.nodes[n('b.x')]!.frame.y).toBe(10 + 6 / 64);
+    // 34.1 is 2182.4/64: snapped to 34.09375, the size the parent packs.
+    expect(rq.nodes[n('b')]!.frame.h).toBe(34.09375);
+    expect(rq.nodes[n('c')]!.frame.y).toBeCloseTo(10.3 + 34.09375 + 0.3, 12);
+    // `bitwise`: raw sums, the origin removed by subtraction only.
+    expect(rb.nodes[n('b.y')]!.frame.y - rb.nodes[n('b.x')]!.frame.y).toBeCloseTo(10.1, 12);
+    expect(rb.nodes[n('b')]!.frame.h).toBe(20 + 0.1 + 10 + 4);
+  });
+
+  it('an edge across a boundary is drawn straight end to end after composition, and labelled then (C15, C21)', async () => {
+    const outer = column('t.outer', { gap: 5 });
+    const inner = column('t.inner');
+    const input = inputOf({ ...BASIC, edges: [['a', 'b.y', 'in'], ['b.x', 'b.y', 'inside'], ['a', 'b', 'box']], edgeLabels: ['in'] });
+    const r = await composeLayout(outer, input, {}, plan(['b', 't.inner']), registry(outer, inner), ctx());
+    // `a` (0,0,20,10) centre (10,5); `b.y` at (5,45,20,10) centre (15,50).
+    expect(r.nodes[n('b.y')]!.frame).toEqual({ x: 5, y: 45, w: 20, h: 10 });
+    const e = r.edges[asEdgeId('in')]!;
+    expect(e.start.y).toBe(10);
+    expect(e.end.y).toBeCloseTo(45 - 8 * (45 / Math.hypot(5, 45)), 9);
+    expect(r.labels.some((l) => l.labelId === 'l:in')).toBe(true);
+    expect(Object.keys(r.edges).sort()).toEqual(['box', 'in', 'inside']);
+  });
+
+  it('merges engine notes in scope order: the root, then each box in document order (C29)', async () => {
+    const noting = (id: string, code: 'SGL4020'): LayoutEngine => {
+      const base = column(id);
+      return {
+        ...base,
+        async layout(i, c) {
+          const r = await base.layout(i, c);
+          return { ...r, notes: [{ code, span: { from: 0, to: 0 }, params: { node: i.scope ?? 'root' } }] };
+        },
+      };
+    };
+    const root = noting('t.root', 'SGL4020');
+    const box = noting('t.box', 'SGL4020');
+    const input = inputOf({ tree: { b1: ['b1.x'], b2: ['b2.x'] } });
+    const r = await composeLayout(root, input, {}, plan(['b1', 't.box'], ['b2', 't.box']), registry(root, box), ctx());
+    expect(r.notes!.map((x) => x.params!['node'])).toEqual(['root', 'b1', 'b2']);
+  });
+
+  it('two runs are identical (determinism)', async () => {
+    const outer = column('t.outer');
+    const inner = column('t.inner', { determinism: 'quantized', gap: 0.37 });
+    const input = inputOf({ ...BASIC, edges: [['a', 'b.x'], ['b.x', 'b.y']] });
+    const p = plan(['b', 't.inner']);
+    const one = await composeLayout(outer, input, {}, p, registry(outer, inner), ctx());
+    const two = await composeLayout(outer, input, {}, p, registry(outer, inner), ctx());
+    expect(JSON.stringify(two)).toBe(JSON.stringify(one));
+  });
+
+  it('a hidden box, or one whose children are all hidden, is not a boundary (DD-14 §3.7)', async () => {
+    const outer = column('t.outer');
+    const inner = column('t.inner');
+    const input = inputOf({ tree: { a: ['a.x'], h: ['h.x'], e: ['e.x'] }, hidden: ['h', 'h.x', 'e.x'] });
+    await composeLayout(outer, input, {}, plan(['h', 't.inner'], ['e', 't.inner'], ['nope', 't.inner']), registry(outer, inner), ctx());
+    expect(inner.calls).toEqual([]);
+  });
+});
+
+describe('a box whose engine fails is laid out by its parent (DD-14 C28, SGL4013)', () => {
+  const message = (r: LayoutResult): string[] => engineNotes(r.notes).map((d) => `${d.code} ${d.severity} ${JSON.stringify(d.span)} ${d.message}`);
+
+  it.each([
+    ['throw', 'boom  x  line two'],
+    ['shape', 'engine returned undefined, not a LayoutResult object'],
+    ['missing', 'returned invalid geometry'],
+  ] as const)('%s: the box is dissolved into its parent\'s view, with one SGL4013', async (how, detail) => {
+    const outer = column('t.outer', { gap: 5 });
+    const bad = failing('t.bad', how);
+    const r = await composeLayout(outer, inputOf(BASIC), {}, plan(['b', 't.bad']), registry(outer, bad), ctx());
+    expect(bad.calls).toBe(1);
+    // The parent's engine laid the box out as an ordinary container.
+    expect(r.nodes[n('b.x')]!.frame).toEqual({ x: 5, y: 25, w: 20, h: 10 });
+    expect(r.nodes[n('b.y')]!.frame).toEqual({ x: 5, y: 40, w: 20, h: 10 });
+    expect(message(r)).toEqual([`SGL4013 warning {"from":1,"to":2} Layout engine \`t.bad\` failed for \`b\` (${detail}); it is laid out by \`t.outer\` instead.`]);
+  });
+
+  it('an engine that is not registered fails the same way', async () => {
+    const outer = column('t.outer');
+    const r = await composeLayout(outer, inputOf(BASIC), {}, plan(['b', 't.nope']), registry(outer), ctx());
+    expect(message(r)).toEqual(['SGL4013 warning {"from":1,"to":2} Layout engine `t.nope` failed for `b` (not registered in this worker); it is laid out by `t.outer` instead.']);
+    expect(r.nodes[n('b.x')]).toBeDefined();
+  });
+
+  it("names the parent box's engine, and the failed box's inner boxes stay boxes", async () => {
+    const root = column('t.root', { gap: 5 });
+    const mid = column('t.mid', { gap: 7 });
+    const leaf = column('t.leaf', { gap: 1 });
+    const bad = failing('t.bad', 'throw');
+    const input = inputOf({ tree: { o: ['o.b'], 'o.b': ['o.b.i', 'o.b.z'], 'o.b.i': ['o.b.i.k', 'o.b.i.m'] } });
+    const r = await composeLayout(root, input, {}, plan(['o', 't.mid'], ['o.b', 't.bad'], ['o.b.i', 't.leaf']), registry(root, mid, leaf, bad), ctx());
+    expect(message(r)[0]).toContain('it is laid out by `t.mid` instead.');
+    // `o.b.i` is still `t.leaf`'s: its two leaves 1 apart.
+    expect(r.nodes[n('o.b.i.m')]!.frame.y - r.nodes[n('o.b.i.k')]!.frame.y).toBe(11);
+    // `o.b`'s layer is `t.mid`'s now: 7 apart.
+    expect(r.nodes[n('o.b.z')]!.frame.y - (r.nodes[n('o.b.i')]!.frame.y + r.nodes[n('o.b.i')]!.frame.h)).toBe(7);
+  });
+
+  it("the root's failure is today's: a throw rejects (SGL4011), a bad shape is returned for the host to reject (SGL4002)", async () => {
+    const inner = column('t.inner');
+    await expect(composeLayout(failing('t.bad', 'throw'), inputOf(BASIC), {}, plan(['b', 't.inner']), registry(inner), ctx())).rejects.toThrow('boom');
+    const r = await composeLayout(failing('t.bad', 'shape'), inputOf(BASIC), {}, plan(['b', 't.inner']), registry(inner), ctx());
+    expect(r).toBeUndefined();
+  });
+});
+
+describe('a superseded request stops between scopes (DD-14 C27)', () => {
+  it('an abort during one box stops before the next engine runs, with an AbortError', async () => {
+    const controller = new AbortController();
+    abortNow = () => controller.abort();
+    const root = column('t.root');
+    const later = column('t.later');
+    const first = failing('t.first', 'abort');
+    const input = inputOf({ tree: { b1: ['b1.x'], b2: ['b2.x'] } });
+    // Post-order: `b2` is laid out first.
+    const run = composeLayout(root, input, {}, plan(['b1', 't.later'], ['b2', 't.first']), registry(root, later, first), ctx(controller));
+    await expect(run).rejects.toMatchObject({ name: 'AbortError' });
+    expect(first.calls).toBe(1);
+    expect(later.calls).toEqual([]);
+    expect(root.calls).toEqual([]);
+  });
+
+  it('an engine that rejects because it saw the abort is not degraded (no SGL4013)', async () => {
+    const controller = new AbortController();
+    const root = column('t.root');
+    const aborting: LayoutEngine = {
+      ...column('t.ab'),
+      async layout() {
+        controller.abort();
+        throw Object.assign(new Error('aborted'), { name: 'AbortError' });
+      },
+    };
+    await expect(composeLayout(root, inputOf(BASIC), {}, plan(['b', 't.ab']), registry(root, aborting), ctx(controller))).rejects.toMatchObject({ name: 'AbortError' });
+    expect(root.calls).toEqual([]);
+  });
+});
+
+describe('runHostSequence and runConformance take a plan (DD-14 C40)', () => {
+  it('with a plan, the composed result is quantized as a request is; with an empty one, today\'s path', async () => {
+    const outer = column('t.outer', { gap: 0.3 });
+    const inner = column('t.inner', { gap: 0.1 });
+    const input = inputOf({ ...BASIC, edges: [['a', 'b.x']] });
+    const engines = registry(outer, inner);
+    const composed = await composeLayout(outer, input, {}, plan(['b', 't.inner']), engines, conformanceContext({}, METRICS));
+    const seq = await runHostSequence(outer, input, {}, METRICS, { plan: plan(['b', 't.inner']), engines });
+    expect(seq.raw).toEqual(composed);
+    expect(seq.result).toEqual(quantize(composed, 64));
+    const today = await runHostSequence(outer, input, {}, METRICS);
+    expect(await runHostSequence(outer, input, {}, METRICS, { plan: [], engines })).toEqual(today);
+  });
+
+  it('checks 1–6 run on the composed result of a case with a plan', async () => {
+    const outer = column('t.outer');
+    const inner = column('t.inner');
+    const input = inputOf({ ...BASIC, edges: [['a', 'b.x'], ['b.x', 'b.y']] });
+    const report = await runConformance(outer, [{ name: 'composed', input, plan: plan(['b', 't.inner']) }], { metrics: METRICS, now: () => 0, engines: registry(outer, inner) });
+    expect(report.failures).toEqual([]);
+    const composed = await composeLayout(outer, input, {}, plan(['b', 't.inner']), registry(outer, inner), conformanceContext({}, METRICS));
+    expect(report.cases[0]!.result).toEqual(quantize(composed, 64));
+    expect(report.cases[0]!.deterministic).toBe(true);
+    // A composed result the checks reject: an outer engine that stacks its
+    // layer on one spot overlaps the box and its siblings (check 3).
+    const stacking: LayoutEngine = { ...column('t.stack'), layout: (i, c) => column('t.stack').layout(i, { ...c, options: { gap: -10 } }) };
+    const bad = await runConformance(stacking, [{ name: 'composed', input, plan: plan(['b', 't.inner']) }], { metrics: METRICS, now: () => 0, engines: registry(stacking, inner) });
+    expect(bad.failures).toContain("composed: check 3 (siblings 'a' and 'b' overlap)");
+  });
+});
+
+describe("conformance check 7: an engine honours `scope` (DD-14 C35)", () => {
+  const input = inputOf({ tree: { a: [], b: ['b.x', 'b.y'], c: ['c.k'], 'c.k': ['c.k.z'] }, edges: [['b.x', 'b.y'], ['a', 'c.k.z']] });
+
+  it('an engine that places exactly the view\'s nodes passes, for every container', async () => {
+    const report = await runConformance(column('t.col'), [{ name: 'doc', input }], { metrics: METRICS, now: () => 0 });
+    expect(report.failures).toEqual([]);
+    expect(report.cases[0]!.scopes).toEqual(['b', 'c', 'c.k']);
+  });
+
+  it("an engine that leaves out the scope's own frame fails it, naming the container", async () => {
+    const col = column('t.col');
+    const childrenOnly: LayoutEngine = {
+      ...col,
+      async layout(i, c) {
+        const r = await col.layout(i, c);
+        if (i.scope === null) return r;
+        const nodes = { ...r.nodes };
+        delete nodes[i.scope];
+        return { ...r, nodes };
+      },
+    };
+    const report = await runConformance(childrenOnly, [{ name: 'doc', input }], { metrics: METRICS, now: () => 0 });
+    expect(report.failures).toContain("doc: check 7 (scope 'b': missing 'b')");
+  });
+
+  it('an engine that throws for a scope fails it', async () => {
+    const col = column('t.col');
+    const throwing: LayoutEngine = { ...col, layout: (i, c) => (i.scope === null ? col.layout(i, c) : Promise.reject(new Error('no scopes here'))) };
+    const report = await runConformance(throwing, [{ name: 'doc', input }], { metrics: METRICS, now: () => 0 });
+    expect(report.failures).toContain("doc: check 7 (scope 'b': threw: no scopes here)");
+  });
+
+  it('an engine that places too much fails it', async () => {
+    const col = column('t.col');
+    const extra: LayoutEngine = {
+      ...col,
+      async layout(i, c) {
+        const r = await col.layout(i, c);
+        return i.scope === null ? r : { ...r, nodes: { ...r.nodes, [n('zz')]: { frame: { x: 0, y: 0, w: 1, h: 1 } } } };
+      },
+    };
+    const report = await runConformance(extra, [{ name: 'doc', input }], { metrics: METRICS, now: () => 0 });
+    expect(report.failures.filter((f) => f.includes('check 7'))).toEqual([
+      "doc: check 7 (scope 'b': extra 'zz')",
+      "doc: check 7 (scope 'c': extra 'zz')",
+      "doc: check 7 (scope 'c.k': extra 'zz')",
+    ]);
+  });
+});
+

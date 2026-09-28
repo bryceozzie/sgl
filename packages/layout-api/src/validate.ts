@@ -297,7 +297,7 @@ export function quantize(result: LayoutResult, places: number): LayoutResult {
 /** `result` with every x coordinate through `fx`, every y through `fy` and
  *  every width, height and arc radius through `fLen`; `bounds` through the
  *  same (the caller replaces it). */
-function mapGeometry(
+export function mapGeometry(
   result: LayoutResult,
   fx: (v: number) => number,
   fy: (v: number) => number,

@@ -191,7 +191,10 @@ describe('runConformance (DD-06 §8)', () => {
     const g = graph([edge('xy', 'x', 'y')]);
     const straight = { start: { x: 20, y: 10 }, end: { x: 150, y: 10 }, route: [{ t: 'L' as const, to: { x: 150, y: 10 } }] };
     const engine = engineWith(() => Promise.resolve(layoutOf(g, { [asEdgeId('xy')]: straight })));
-    const report = await runConformance(engine, [{ name: 'g', input: input(g) }], { metrics: METRICS, now: () => 0, timedCase: 'g' });
+    // The engine returns one canned layout whatever it is given, so it
+    // cannot honour a scope: check 7 is off here (its own tests are in
+    // `compose.test.ts`).
+    const report = await runConformance(engine, [{ name: 'g', input: input(g) }], { metrics: METRICS, now: () => 0, timedCase: 'g', scopes: false });
     expect(report.failures).toEqual([]);
     expect(report.crossingCounts).toEqual({ g: 1 });
     expect(report.cases[0]).toMatchObject({ deterministic: true, withinTimeout: true });
