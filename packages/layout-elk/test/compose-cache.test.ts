@@ -1,12 +1,13 @@
 import { parse, resolve } from '@sgl/core';
 import { layoutPlan, rootLayoutOptions, type EngineSchemas, type LayoutContext, type LayoutEngine, type LayoutInput } from '@sgl/layout-api';
-import { composeLayout, LayoutCache, type LayoutPlan } from '@sgl/layout-api/compose';
+import { composeLayout, LayoutCache, layoutView, viewIndex, type LayoutPlan } from '@sgl/layout-api/compose';
 import { conformanceContext } from '@sgl/layout-api/conformance';
 import { fixedEngine, gridEngine, radialEngine, treeEngine } from '@sgl/layout-std';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { editScaleDocument, scaleDocument } from '../../../bench/scale-document.js';
 import { elkEngine } from '../src/index.js';
-import { layoutInputForSource, METRICS } from './corpus-input.js';
+import { listCorpusDocs } from '../../theme/test/corpus.js';
+import { layoutInputFor, layoutInputForSource, METRICS } from './corpus-input.js';
 
 /**
  * The per-box layout cache (DD-14 C32, `perf/b8-cache`) with the real
@@ -268,6 +269,26 @@ describe('the per-box cache: cached and uncached composition agree exactly (diff
   });
 });
 
+describe("layoutView with a request's index builds the same view (perf/b8-cache)", () => {
+  it('over every corpus document, the root and every container, with and without inner boxes', () => {
+    let views = 0;
+    for (const name of listCorpusDocs()) {
+      const input = layoutInputFor(name);
+      const { graph } = input;
+      const index = viewIndex(graph);
+      const containers = graph.order.filter((id) => graph.nodes[id]!.children.length > 0);
+      for (const scope of [null, ...containers]) {
+        const inner = new Map(containers.filter((id) => id !== scope).map((id) => [id, { w: 33, h: 21 }] as const));
+        for (const boxes of [new Map(), inner]) {
+          expect(layoutView(input, scope, boxes, index), `${name}, ${scope ?? 'root'}`).toStrictEqual(layoutView(input, scope, boxes));
+          views += 1;
+        }
+      }
+    }
+    expect(views).toBeGreaterThan(200);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // The keystroke test (CPU time, best of three).
 // ---------------------------------------------------------------------------
@@ -304,6 +325,44 @@ describe('the per-box cache: a keystroke inside one box lays out that box', () =
     }
     expect(edit, `edit ${edit.toFixed(0)} ms of CPU against ${full.toFixed(0)} ms for all 50 boxes`).toBeLessThan(full / 4);
   }, 60_000);
+});
+
+describe("the per-box cache: what a request costs when every box is cached grows linearly", () => {
+  let small: Request;
+  let large: Request;
+  const caches = new Map<Request, LayoutCache>();
+  beforeAll(async () => {
+    small = requestFor(scaleDocument(250, { boxes: 'grid' }), gridEngine);
+    large = requestFor(scaleDocument(4000, { boxes: 'grid' }), gridEngine);
+    caches.set(small, new LayoutCache()).set(large, new LayoutCache());
+    for (const r of [small, large, small, large]) await compose(r, caches.get(r));
+  }, 60_000);
+
+  // With every box cached, a request is the composer's own work: the views
+  // and keys, the root's layer, moving and merging. Building each box's
+  // view by a pass over the whole graph made that quadratic (200 views of a
+  // 2 000-node document took ~150 ms); `viewIndex` makes each view cost its
+  // own size. 16× the nodes, measured in CPU time: 10–27× with the index,
+  // 123–134× with the per-view pass; the verdict is the median of three
+  // ratios, each best of three.
+  it('16× the boxes, all cached, costs well under 50× as much CPU (median of three ratios, each best of three)', async () => {
+    const best = async (r: Request): Promise<number> => {
+      let min = Number.POSITIVE_INFINITY;
+      for (let i = 0; i < 3; i += 1) {
+        const t0 = process.cpuUsage();
+        await compose(r, caches.get(r));
+        const { user, system } = process.cpuUsage(t0);
+        min = Math.min(min, (user + system) / 1000);
+      }
+      return min;
+    };
+    const ratios: number[] = [];
+    for (let round = 0; round < 3; round += 1) ratios.push((await best(large)) / Math.max(await best(small), 0.5));
+    ratios.sort((a, b) => a - b);
+    console.warn(`[B8-CACHE-LINEAR] ${ratios.map((r) => r.toFixed(1)).join(' / ')}`);
+    expect(ratios[1], `ratios ${ratios.map((r) => r.toFixed(1)).join(', ')}`).toBeLessThan(50);
+    expect([caches.get(small)!.misses, caches.get(large)!.misses]).toEqual([25, 400]);
+  }, 120_000);
 });
 
 // ---------------------------------------------------------------------------

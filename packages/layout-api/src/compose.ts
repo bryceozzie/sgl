@@ -89,6 +89,30 @@ function boxSizing(sizing: NodeSizing | undefined, size: Size): NodeSizing {
   return { intrinsic: size, fixed: size, contentInset: inset, padding: inset };
 }
 
+/** Lookups over one graph that `layoutView` reuses across a request's views:
+ *  each node's position in `graph.order`, and the indices in `graph.edges` of
+ *  the edges at each node. */
+export interface ViewIndex {
+  readonly position: ReadonlyMap<NodeId, number>;
+  readonly incident: ReadonlyMap<NodeId, readonly number[]>;
+}
+
+export function viewIndex(graph: SemanticGraph): ViewIndex {
+  const position = new Map<NodeId, number>();
+  graph.order.forEach((id, i) => position.set(id, i));
+  const incident = new Map<NodeId, number[]>();
+  const add = (id: NodeId, i: number): void => {
+    const list = incident.get(id);
+    if (list === undefined) incident.set(id, [i]);
+    else list.push(i);
+  };
+  graph.edges.forEach((e, i) => {
+    add(e.from.node, i);
+    if (e.to.node !== e.from.node) add(e.to.node, i);
+  });
+  return { position, incident };
+}
+
 /**
  * The `LayoutInput` one scope's engine sees (DD-14 C24). `scope` is the
  * boundary, or `null` for the root's layer; `boxes` are the inner boundaries
@@ -105,8 +129,13 @@ function boxSizing(sizing: NodeSizing | undefined, size: Size): NodeSizing {
  *   on the scope node, which belongs to its parent's view (the box's outside).
  *   Every other edge crosses a boundary and is drawn after composition.
  * - **Order:** `graph.order`, filtered in place (so traversal is unchanged).
+ *
+ * With an `index` of `input.graph` (`viewIndex`), the edges and the order are
+ * found from the view's own nodes instead of by a pass over the whole graph:
+ * the same view, in time proportional to it (`perf/b8-cache`: 200 views of
+ * a 2 000-node document took ~150 ms without it).
  */
-export function layoutView(input: LayoutInput, scope: NodeId | null, boxes: ReadonlyMap<NodeId, Size>): LayoutInput {
+export function layoutView(input: LayoutInput, scope: NodeId | null, boxes: ReadonlyMap<NodeId, Size>, index?: ViewIndex): LayoutInput {
   const { graph } = input;
   const nodes: Record<NodeId, GraphNode> = {};
   const sizing: Record<NodeId, NodeSizing> = {};
@@ -153,10 +182,24 @@ export function layoutView(input: LayoutInput, scope: NodeId | null, boxes: Read
   }
 
   const present = (end: GraphEdge['from']): boolean => nodes[end.node] !== undefined && !(end.node === scope && end.port !== undefined);
-  const edges = graph.edges.filter((e) => present(e.from) && present(e.to) && !(e.from.node === scope && e.to.node === scope));
+  const keep = (e: GraphEdge): boolean => present(e.from) && present(e.to) && !(e.from.node === scope && e.to.node === scope);
+  let edges: GraphEdge[];
+  let order: NodeId[];
+  if (index === undefined) {
+    edges = graph.edges.filter(keep);
+    order = graph.order.filter((id) => nodes[id] !== undefined);
+  } else {
+    // The same two lists from the view's own nodes, not the whole graph's:
+    // an edge the view keeps has its source in the view, and `graph.order`'s
+    // positions sort the nodes back into its order.
+    const ids = Object.keys(nodes) as NodeId[];
+    const at = new Set<number>();
+    for (const id of ids) for (const i of index.incident.get(id) ?? []) at.add(i);
+    edges = [...at].sort((a, b) => a - b).map((i) => graph.edges[i]!).filter(keep);
+    order = ids.filter((id) => index.position.has(id)).sort((a, b) => index.position.get(a)! - index.position.get(b)!);
+  }
   for (const e of edges) addLabel(e.labelId);
 
-  const order = graph.order.filter((id) => nodes[id] !== undefined);
   const view: SemanticGraph = {
     ...graph,
     nodes,
@@ -418,6 +461,7 @@ export async function composeLayout(
   if (!wellFormedPlan(plan)) throw new Error('the request carried a malformed plan');
   cache?.begin(`${root.id}@${root.version}`);
   const { graph } = input;
+  const index = viewIndex(graph);
 
   // 1. The boundaries: visible scopes with a visible child, one per node, in
   //    graph.order.
@@ -452,7 +496,7 @@ export async function composeLayout(
   const runLayer = async (scope: NodeId | null, engine: LayoutEngine | undefined, opts: Readonly<Record<string, unknown>>): Promise<{ readonly view: LayoutInput; readonly outcome: ScopeOutcome }> => {
     for (;;) {
       const boxes = innerBoxes(graph, scope, sizes, active);
-      const view = layoutView(input, scope, boxes);
+      const view = layoutView(input, scope, boxes, index);
       const outcome = await runScope(engine, view, opts, ctx, cache);
       if (!outcome.ok) return { view, outcome };
       const resized = [...boxes].filter(([id, size]) => {
@@ -487,7 +531,7 @@ export async function composeLayout(
   let rootRaw: LayoutResult;
   for (;;) {
     const boxes = innerBoxes(graph, null, sizes, active);
-    rootView = layoutView(input, null, boxes);
+    rootView = layoutView(input, null, boxes, index);
     rootRaw = await root.layout(rootView, { ...ctx, options });
     if (describeShapeError(rootRaw) !== null) return rootRaw;
     const resized = [...boxes].filter(([id, size]) => {
