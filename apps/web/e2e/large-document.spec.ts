@@ -37,12 +37,20 @@ async function start(page: Page): Promise<void> {
   await expect(page.locator('.engine-picker select')).toHaveValue('sgl.grid');
 }
 
+/** How long a large document may take to reach the canvas (07 §2). A 3 000-
+ *  node boot or edit renders in ~2–4 s quiet (parse, layout in the worker,
+ *  render) and went past the default 5 s expect timeout at load 17. The
+ *  conditions waited on are the render itself (its title, then its exact
+ *  node count), so a generous bound makes the test no weaker: a cut-short
+ *  parse (F19) never shows the whole count, and still fails, only later. */
+const WHOLE = { timeout: 45_000 };
+
 /** The whole of `source`, titled `title`, is the canvas's live render, and
  *  nothing was reported against it: no diagnostic, and the chip is not
  *  showing a last good render in its place. */
 async function expectWhole(page: Page, source: string, title: string): Promise<void> {
-  await expect(renderedSvg(page).locator('title#sgl-t')).toHaveText(title);
-  await waitForExactNodeCount(page, visibleNodeCount(source));
+  await expect(renderedSvg(page).locator('title#sgl-t')).toHaveText(title, WHOLE);
+  await waitForExactNodeCount(page, visibleNodeCount(source), WHOLE);
   await expect.poll(() => diagnosticCodes(page)).toEqual([]);
   await expect(page.locator('.chip-last-good, .chip-crashed')).toHaveCount(0);
 }

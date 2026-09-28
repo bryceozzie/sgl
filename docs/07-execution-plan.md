@@ -2367,6 +2367,43 @@ generated edge id), and a property over names built from those fragments, each t
 with plain names; `mapping.test.ts` updated to the new ids. Core **180.14 kB** of 184, +66 B over
 `main` (180 071 → 180 137 B). DD-06 §6.1 (the pseudocode and note 10), §6.2.
 
+**Load-sensitive tests hardened, `test/harden-timing`** (branched from `main`; tests and docs
+only, not merged). Tests that failed at load 8–19 on 4 cores and passed when quiet now measure what
+they guard, not the scheduler. Each guarded regression was reintroduced as a mutation, failed the
+hardened test, and was reverted; each hardened test passed with 12–16 `yes` hogs on 4 cores (load
+up to ~23). **Unit (Node):** timed regions use **CPU time** (`process.cpuUsage`; Vitest's `forks`
+pool runs one file per process), best of three, with input building moved into `beforeAll` under
+its own timeout. `imports.test` 16 000 failed-namespace edges: 2 s CPU (was 500 ms wall; linear
+120–160 ms quiet or loaded; the edge index rebuilt per diagnostic ~145 s, the original quadratic 16 s).
+`variables-limits.test` 20 000 variables × 5 000 scopes: 1 s CPU (linear ~95 ms; a scope copying
+every enclosing variable ~12.6 s); its three 50 ms expansion bounds are CPU time too.
+`layout-api` `host.test` million-key params and 1e9 sparse array: 50 ms CPU, best of three (0.2 /
+0.01 ms; walking every params key ~126 s, scanning the array ~20 s), the million-key object built in
+`beforeAll`. `layout-std` `tree.test` "grows linearly": a 1 000 → 8 000 star (was 500 → 2 000),
+the median of three CPU ratios, limit 32 (linear 12–19×, from GC growing with the heap; a naive
+apportion walking every left sibling's contour 61–69×; at 500 → 2 000 that mutation gave only 12–14×
+against linear's 10.2–10.6× under load, and wall time under hogs put linear at 28× at 1 000 → 8 000).
+`naming-memo` n2000 and the other corpus-wide renders that sat at 1.3–2.8 s against the default 5 s
+(`render.test` never-throws and double-run, `fonts.test` embedded, `themes-c5` corpus pairs,
+`elk.test`'s first elk load, compose C31): 30 s timeouts. These check output, not speed (a memo
+keyed without its rule kind still fails 96 `naming-memo` cases); n2000 took 5.6 s under load.
+`elk.browser.test` K10: the best of two round trips against the production timeout. **e2e:**
+`large-document.spec.ts` waits up to 45 s for the render's title and exact node count (the
+conditions themselves; `ensureSyntaxTree` dropped, the 3 000-node edit still fails, on the title).
+`rich-text.spec.ts:52` was a **real race**, not only timing: a locator's `evaluate` resolves the
+element and then runs in a second round trip, and a later render of the same document replaces the
+whole tree in between; `getComputedStyle` of the detached tspan is all empty strings. Reproduced with
+the live picture re-rendered every 4 ms: the old reads failed 6/6 (`""` weight and style), the new
+6/6 passed. Every computed-style and geometry read in that spec is now one `page.evaluate` of the
+live tree, polled until the settled render shows it (a `.r-code` rule without `font-style:normal`
+still fails). **Product finding, reported, not fixed:** with the run faces late (CPU throttled 6×,
+faces delayed), an edit that adds markup is drawn three times — a frame without the new nodes
+(also seen quiet, ~170 ms before the next), then the rich labels **unmeasured** (`api` at its
+72 px minimum width, 3 of 10 font faces loaded), then the measured frame (131 px) 0.4–0.9 s
+later. A likely cause, not confirmed: the measure effect's guard holds layout for a table only at
+boot (`hasMeasuredOnce`), so a later edit is laid out and drawn with labels the previous table
+does not have. No golden changed; no product code changed.
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
