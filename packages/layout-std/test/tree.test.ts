@@ -1,8 +1,9 @@
-import { asNodeId, type NodeId, type Point, type Rect } from '@sgl/core';
+import { asNodeId, type GraphEdge, type NodeId, type Point, type Rect } from '@sgl/core';
 import {
   anchorPoint,
   DEFAULT_ENGINE_TIMEOUT_MS,
   validateResult,
+  type EdgeLayout,
   type LayoutContext,
   type LayoutInput,
   type LayoutResult,
@@ -328,10 +329,13 @@ describe('tree: elbows (N34)', () => {
     expect(Object.keys(result.edges)).toHaveLength(input.graph.edges.length);
   });
 
-  it('gives the elbow to the first edge between the arc’s own two nodes, once', async () => {
+  it('gives the centre lines to the first edge between the arc’s own two nodes, and the next one an elbow beside it (fix round 1)', async () => {
     const input = layoutInputForSource('p: "P"\nc: "C"\np -> c\np -> c: "again"\n');
     const r = await raw(input);
-    expect(Object.keys(r.edges)).toEqual([input.graph.edges[0]!.id]);
+    const [first, second] = input.graph.edges.map((e) => r.edges[e.id]!);
+    expect(first!.start.x).toBe(cx(frame(r, 'p')));
+    expect(second!.start.x).toBe(cx(frame(r, 'p')) + 8);
+    expect(second!.end.x).toBe(cx(frame(r, 'c')) + 8);
   });
 
   it('edgeRouting: straight turns the elbows off', async () => {
@@ -351,6 +355,119 @@ describe('tree: elbows (N34)', () => {
     expect(label.frame.x + label.frame.w / 2).toBeGreaterThan(Math.min(route[0]!.x, route[1]!.x));
     expect(label.frame.x + label.frame.w / 2).toBeLessThan(Math.max(route[0]!.x, route[1]!.x));
   });
+});
+
+/** An edge's straight runs, `start` then each `L` segment's end (a curve —
+ *  the host's self-loop teardrop — breaks the chain and is skipped). */
+function runs(e: EdgeLayout): [Point, Point][] {
+  const out: [Point, Point][] = [];
+  let at = e.start;
+  for (const s of e.route) {
+    if (s.t === 'L') out.push([at, s.to]);
+    at = s.to;
+  }
+  return out;
+}
+
+/** How long two segments run along one line together (0 if they are not
+ *  collinear). */
+function sharedRun([a, b]: [Point, Point], [c, d]: [Point, Point]): number {
+  const len = Math.hypot(b.x - a.x, b.y - a.y);
+  if (len === 0) return 0;
+  const ux = (b.x - a.x) / len;
+  const uy = (b.y - a.y) / len;
+  const off = (p: Point) => Math.abs((p.x - a.x) * uy - (p.y - a.y) * ux);
+  if (off(c) > 1e-6 || off(d) > 1e-6) return 0;
+  const t = (p: Point) => (p.x - a.x) * ux + (p.y - a.y) * uy;
+  const [c0, c1] = [t(c), t(d)].sort((p, q) => p - q) as [number, number];
+  return Math.min(len, c1) - Math.max(0, c0);
+}
+
+const pairOf = (e: GraphEdge): string => [e.from.node, e.to.node].sort().join(' ');
+
+/** Every pair of edges whose routes share a collinear run over 2 px, except
+ *  two elbows of different arcs: they meet at the parent they share, whose
+ *  trunk the org chart draws once by design (N34). */
+function collinearPairs(input: LayoutInput, result: LayoutResult, raw: LayoutResult): string[] {
+  const out: string[] = [];
+  const edges = input.graph.edges.filter((e) => result.edges[e.id] !== undefined);
+  for (let i = 0; i < edges.length; i += 1) {
+    for (let j = i + 1; j < edges.length; j += 1) {
+      const [p, q] = [edges[i]!, edges[j]!];
+      // Two elbows of different arcs meet only at the parent they share.
+      const trunk = raw.edges[p.id] !== undefined && raw.edges[q.id] !== undefined && pairOf(p) !== pairOf(q);
+      if (trunk) continue;
+      let worst = 0;
+      for (const s of runs(result.edges[p.id]!)) for (const t of runs(result.edges[q.id]!)) worst = Math.max(worst, sharedRun(s, t));
+      if (worst > 2) out.push(`${p.from.node}->${p.to.node} / ${q.from.node}->${q.to.node} (${worst.toFixed(1)} px)`);
+    }
+  }
+  return out;
+}
+
+describe('tree: every edge between an arc’s two nodes gets its own elbow (fix round 1, item 1)', () => {
+  const PAIRS = [
+    'a: "A"\nb: "B"\na -> b\na -> b\n',
+    'a: "A"\nb: "B"\na -> b\nb -> a\n',
+    'a: "A"\nb: "B"\na -> b\na -> b: "again"\nb -> a\nb -> a\na -- b\n',
+    'p: "Parent"\nx: "X"\nc: "Child"\np -> x\np -> c\np -> c\nc -> p\nc -> p: "back"\n',
+    'p: { @label: "P", @shape: ellipse }\nc: { @label: "C", @shape: diamond }\nd: "D"\np -> c\np -> d\nc -> p\np -> c\nd -> p\n',
+  ];
+
+  for (const direction of ['down', 'up', 'left', 'right']) {
+    it(`${direction}: no two routes share a collinear run over 2 px (tree fixtures and parallel/back edges)`, async () => {
+      const inputs = [...TREE_DOCS.map((d) => ({ name: d, input: layoutInputFor(d) })), ...PAIRS.map((src, i) => ({ name: `pair ${i}`, input: layoutInputForSource(src) }))];
+      for (const { name, input } of inputs) {
+        const { raw: engine, result } = await runHostSequence(treeEngine, input, { direction }, METRICS);
+        expect(collinearPairs(input, result, engine), name).toEqual([]);
+      }
+    });
+  }
+
+  it('routes the parallel and back edges of a pair itself, each an orthogonal elbow leaving and entering along the depth axis', async () => {
+    const input = layoutInputForSource(PAIRS[2]!);
+    const r = await raw(input);
+    for (const e of input.graph.edges) {
+      const layout = r.edges[e.id];
+      expect(layout, `${e.from.node}->${e.to.node}`).toBeDefined();
+      for (const [p, q] of runs(layout!)) expect(p.x === q.x || p.y === q.y).toBe(true);
+      const back = e.from.node === 'b';
+      const plain = (v: Point | undefined) => ({ x: v!.x + 0, y: v!.y + 0 }); // -0 is +0 here
+      expect(plain(layout!.endNormal)).toEqual({ x: 0, y: back ? -1 : 1 });
+      expect(plain(layout!.startNormal)).toEqual({ x: 0, y: back ? 1 : -1 });
+    }
+  });
+
+  it('is deterministic: the same offsets on every run, in graph order', async () => {
+    const input = layoutInputForSource(PAIRS[3]!);
+    expect(JSON.stringify(await raw(input))).toBe(JSON.stringify(await raw(input)));
+  });
+});
+
+describe('tree: rankSpacing 0 keeps the elbow (fix round 1, item 6)', () => {
+  for (const direction of ['down', 'up', 'left', 'right']) {
+    it(`${direction}: the first and last runs follow the depth axis, and the arrowhead does too`, async () => {
+      const input = layoutInputForSource('p: "Parent"\na: "A"\nb: "Bee bee bee"\nc: "C"\np -> a\np -> b\np -> c\nb -> p\n');
+      const { raw: engine, result } = await runHostSequence(treeEngine, input, { direction, rankSpacing: 0 }, METRICS);
+      for (const e of input.graph.edges) {
+        for (const layout of [engine.edges[e.id]!, result.edges[e.id]!]) {
+          const r = runs(layout);
+          expect(r.length, `${e.from.node}->${e.to.node}`).toBeGreaterThan(0);
+          const dir = ([p, q]: [Point, Point]) => {
+            const len = Math.hypot(q.x - p.x, q.y - p.y);
+            return { x: (q.x - p.x) / len, y: (q.y - p.y) / len };
+          };
+          const last = dir(r[r.length - 1]!);
+          expect(last.x, `${direction} ${e.from.node}->${e.to.node}`).toBeCloseTo(layout.endNormal!.x, 9);
+          expect(last.y, `${direction} ${e.from.node}->${e.to.node}`).toBeCloseTo(layout.endNormal!.y, 9);
+          const first = dir(r[0]!);
+          expect(first.x).toBeCloseTo(-layout.startNormal!.x, 9);
+          expect(first.y).toBeCloseTo(-layout.startNormal!.y, 9);
+          for (const [p, q] of r) expect(p.x === q.x || p.y === q.y, `${direction} ${e.from.node}->${e.to.node}`).toBe(true);
+        }
+      }
+    });
+  }
 });
 
 describe('tree: forest order and hints (N27, N29)', () => {

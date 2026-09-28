@@ -37,10 +37,18 @@ import { liftArcs, spanningForest, type LevelArc } from './forest.js';
  * - **Elbows (N34).** A tree arc drawn by an edge between its own two nodes
  *   (not descendants lifted to them) is routed from the parent's outline down
  *   its centre line, across the middle of the gap between the two bands, and
- *   down the child's centre line to its outline. `finishEngineRoutes`
- *   reserves the arrowhead. Every other edge is left to the host's straight
- *   routing, as are all edges under `edgeRouting: straight`. Labels are the
- *   host's (N35); no ports (N36).
+ *   down the child's centre line to its outline. Every other edge between
+ *   the same two nodes (a parallel, or a back edge child to parent) gets an
+ *   elbow of its own (fix round 1): its runs are offset sideways by a fixed
+ *   step, alternately right and left, and its crossing run by a smaller step
+ *   nearer the parent or the child, so no two of them share a line. Under
+ *   orthogonal routing the gap between bands is at least `2 × arrowSize + 8`,
+ *   so an elbow always ends on a run along the depth axis however small
+ *   `rankSpacing` is. `finishEngineRoutes` reserves the arrowhead. Every
+ *   other edge is left to the host's straight routing, as are all edges
+ *   under `edgeRouting: straight`; such an edge can cross unrelated nodes
+ *   (DD-12 §8.2, a known limitation). Labels are the host's (N35); no ports
+ *   (N36).
  * - **`bitwise` (N33)**: `+ - * /`, `max` and `min`, which ECMAScript
  *   specifies exactly. No trigonometry, no `ctx.random`.
  */
@@ -83,7 +91,17 @@ interface Elbow {
   readonly edge: GraphEdge;
   readonly mid: number;
   readonly direction: Direction;
+  /** Signed rank among the pair's edges: 0 on the centre lines, then +1,
+   *  -1, +2, … (fix round 1). */
+  readonly rank: number;
+  /** The largest |rank| of the pair. */
+  readonly ranks: number;
+  /** The edge runs child to parent. */
+  readonly back: boolean;
 }
+
+/** The sideways step between the elbows of one pair, at most (fix round 1). */
+const ELBOW_STEP = 8;
 
 interface Placed {
   readonly size: Size;
@@ -97,6 +115,10 @@ export function layoutTree(input: LayoutInput, ctx: LayoutContext): LayoutResult
   const topId = input.scope;
   if (topId !== null && graph.nodes[topId] === undefined) throw new Error(`tree: unknown scope '${topId}'.`);
   const arcs = liftArcs(graph);
+  const pairs = siblingPairs(graph);
+  // Fix round 1, item 6: room for both ends' runs, the arrowhead's included.
+  const arrow = ctx.metrics.arrowSize;
+  const gap = options.edgeRouting === 'orthogonal' ? Math.max(options.rankSpacing, 2 * (Number.isFinite(arrow) && arrow > 0 ? arrow : 0) + 8) : options.rankSpacing;
 
   // Each container's direction, pre-order: its own hint, else its parent's (N38).
   const directionOf = new Map<NodeId | null, Direction>([[null, options.direction]]);
@@ -112,9 +134,9 @@ export function layoutTree(input: LayoutInput, ctx: LayoutContext): LayoutResult
   const placed = new Map<NodeId, Placed>();
   for (let i = graph.order.length - 1; i >= 0; i -= 1) {
     const id = graph.order[i]!;
-    if (visibleChildren(id, graph).length > 0) placed.set(id, placeLevel(id, input, options, directionOf.get(id)!, arcs.get(id) ?? [], placed));
+    if (visibleChildren(id, graph).length > 0) placed.set(id, placeLevel(id, input, options, gap, directionOf.get(id)!, arcs.get(id) ?? [], pairs, placed));
   }
-  const top = topId === null ? placeLevel(null, input, options, options.direction, arcs.get(null) ?? [], placed) : placed.get(topId) ?? { size: leafSize(input.sizing[topId]), items: [], elbows: [] };
+  const top = topId === null ? placeLevel(null, input, options, gap, options.direction, arcs.get(null) ?? [], pairs, placed) : placed.get(topId) ?? { size: leafSize(input.sizing[topId]), items: [], elbows: [] };
 
   const nodes: Record<NodeId, NodeLayout> = {};
   const edges: Record<EdgeId, EdgeLayout> = {};
@@ -135,6 +157,25 @@ export function layoutTree(input: LayoutInput, ctx: LayoutContext): LayoutResult
   return { bounds: { x: 0, y: 0, w: top.size.w, h: top.size.h }, nodes, edges, labels: [] };
 }
 
+/** The key of an unordered pair of nodes. */
+const pairKey = (a: NodeId, b: NodeId): string => (a < b ? `${a}\u0000${b}` : `${b}\u0000${a}`);
+
+/** Every visible edge between two visible siblings, by unordered pair, in
+ *  `graph.edges` order: the edges an elbow can draw (fix round 1). */
+function siblingPairs(graph: SemanticGraph): Map<string, GraphEdge[]> {
+  const out = new Map<string, GraphEdge[]>();
+  for (const edge of graph.edges) {
+    const a = graph.nodes[edge.from.node];
+    const b = graph.nodes[edge.to.node];
+    if (edge.hidden || a === undefined || b === undefined || a === b || a.hidden || b.hidden || a.parent !== b.parent) continue;
+    const key = pairKey(a.id, b.id);
+    const list = out.get(key);
+    if (list === undefined) out.set(key, [edge]);
+    else list.push(edge);
+  }
+  return out;
+}
+
 function visibleChildren(id: NodeId | null, graph: SemanticGraph): readonly NodeId[] {
   const ids = id === null ? graph.rootChildren : (graph.nodes[id]?.children ?? []);
   return ids.filter((cid) => graph.nodes[cid]?.hidden === false);
@@ -145,8 +186,10 @@ function placeLevel(
   id: NodeId | null,
   input: LayoutInput,
   options: TreeOptions,
+  gap: number,
   direction: Direction,
   levelArcs: readonly LevelArc[],
+  pairs: ReadonlyMap<string, readonly GraphEdge[]>,
   placed: ReadonlyMap<NodeId, Placed>,
 ): Placed {
   const graph = input.graph;
@@ -195,7 +238,8 @@ function placeLevel(
 
   const centre = buchheim(childIdx, parent, breadth, options.nodeSpacing);
 
-  // Levels are bands (N31): level k starts at Σ_{j<k} (T_j + rankSpacing).
+  // Levels are bands (N31): level k starts at Σ_{j<k} (T_j + gap), the gap
+  // being rankSpacing, or the elbows' room if that is larger (item 6).
   const level = new Int32Array(n);
   let levels = 0;
   for (let v = 1; v < n; v += 1) {
@@ -208,7 +252,7 @@ function placeLevel(
   let total = 0;
   for (let k = 0; k < levels; k += 1) {
     offset[k] = total;
-    total += band[k]! + (k < levels - 1 ? options.rankSpacing : 0);
+    total += band[k]! + (k < levels - 1 ? gap : 0);
   }
 
   // The direction last (N32): breadth and depth, flipped for up and left,
@@ -240,14 +284,25 @@ function placeLevel(
     items.push({ id: kid, rel: { x: padding[3] + content[v]!.x, y: padding[0] + content[v]!.y }, size: sizes[v]! });
   }
 
-  // N34: the elbow of each tree arc drawn by its own two nodes.
+  // N34: an elbow for every edge between a tree arc's own two nodes: the
+  // arc's first direct edge on the centre lines, and each other one, forward
+  // or back, offset by its rank (fix round 1).
   const elbows: Elbow[] = [];
   if (options.edgeRouting === 'orthogonal') {
     for (const arc of levelArcs) {
-      if (arc.direct === undefined || forest.parent.get(arc.to) !== arc.from) continue;
+      if (forest.parent.get(arc.to) !== arc.from) continue;
+      const all = pairs.get(pairKey(arc.from, arc.to)) ?? [];
+      const list = arc.direct === undefined ? all : [arc.direct, ...all.filter((e) => e !== arc.direct)];
+      if (list.length === 0) continue;
       const k = level[order.get(arc.to)!]!;
-      const mid = offset[k]! - options.rankSpacing / 2;
-      elbows.push({ edge: arc.direct, mid: (vertical ? padding[0] : padding[3]) + (flip ? total - mid : mid) - minD, direction });
+      const m = offset[k]! - gap / 2;
+      const mid = (vertical ? padding[0] : padding[3]) + (flip ? total - m : m) - minD;
+      const ranks = Math.ceil((list.length - 1) / 2);
+      for (let i = 0; i < list.length; i += 1) {
+        const edge = list[i]!;
+        const rank = i % 2 === 1 ? (i + 1) / 2 : 0 - i / 2;
+        elbows.push({ edge, mid, direction, rank, ranks, back: edge.from.node !== arc.from });
+      }
     }
   }
 
@@ -420,28 +475,60 @@ function frameOf(id: NodeId, origin: Point, size: Size, input: LayoutInput, cont
  *  down its centre line to the middle of the gap between the bands, across
  *  to the child's centre line, and down to the child's outline. A
  *  zero-length segment is dropped. The ends are on each shape's outline
- *  (`anchorPoint` along the centre line). */
+ *  (`anchorPoint` along the centre line).
+ *
+ *  Fix round 1: an elbow of rank `r ≠ 0` (another edge between the same two
+ *  nodes) leaves and enters `r` steps to the side of the centre lines (on
+ *  each outline, `anchorPoint` towards that offset), the step at most
+ *  `ELBOW_STEP` and small enough to stay inside both nodes, and crosses `r`
+ *  smaller steps nearer the parent when it lies on the child's side (nearer
+ *  the child otherwise), so the pair's elbows nest without sharing a line.
+ *  A back edge runs the same path from the child. */
 function elbowRoute(elbow: Elbow, origin: Point, graph: SemanticGraph, nodes: Readonly<Record<NodeId, NodeLayout>>): EdgeLayout {
-  const { edge, direction } = elbow;
-  const from = nodes[edge.from.node]!.frame;
-  const to = nodes[edge.to.node]!.frame;
+  const { edge, direction, rank, back } = elbow;
+  const parentId = back ? edge.to.node : edge.from.node;
+  const childId = back ? edge.from.node : edge.to.node;
+  const from = nodes[parentId]!.frame;
+  const to = nodes[childId]!.frame;
   const vertical = direction === 'down' || direction === 'up';
   const sign = direction === 'down' || direction === 'right' ? 1 : -1;
   const v = vertical ? { x: 0, y: sign } : { x: sign, y: 0 };
   const pc = centreOf(from);
   const cc = centreOf(to);
-  const start = anchorPoint(graph.nodes[edge.from.node]!.shape, from, { x: pc.x + v.x, y: pc.y + v.y });
-  const end = anchorPoint(graph.nodes[edge.to.node]!.shape, to, { x: cc.x - v.x, y: cc.y - v.y });
-  const mid = (vertical ? origin.y : origin.x) + elbow.mid;
+  let mid = (vertical ? origin.y : origin.x) + elbow.mid;
+  let start: Point;
+  let end: Point;
+  if (rank === 0) {
+    start = anchorPoint(graph.nodes[parentId]!.shape, from, { x: pc.x + v.x, y: pc.y + v.y });
+    end = anchorPoint(graph.nodes[childId]!.shape, to, { x: cc.x - v.x, y: cc.y - v.y });
+  } else {
+    const half = (f: Rect): number => (vertical ? f.w : f.h) / 2;
+    const deep = (f: Rect): number => (vertical ? f.h : f.w) / 2;
+    const side = rank * Math.min(ELBOW_STEP, Math.min(half(from), half(to)) / (elbow.ranks + 1));
+    const u = vertical ? { x: side, y: 0 } : { x: 0, y: side };
+    start = anchorPoint(graph.nodes[parentId]!.shape, from, { x: pc.x + u.x + v.x * deep(from), y: pc.y + u.y + v.y * deep(from) });
+    end = anchorPoint(graph.nodes[childId]!.shape, to, { x: cc.x + u.x - v.x * deep(to), y: cc.y + u.y - v.y * deep(to) });
+    // The crossing run, in depth measured from the parent towards the child.
+    const depth = (p: Point): number => sign * (vertical ? p.y : p.x);
+    const room = Math.max(0, Math.min(sign * mid - depth(pc) - deep(from), depth(cc) - deep(to) - sign * mid));
+    const lateral = vertical ? cc.x - pc.x : cc.y - pc.y;
+    const across = lateral > 0 ? 1 : lateral < 0 ? -1 : 0;
+    mid -= sign * across * rank * Math.min(ELBOW_STEP / 2, room / (2 * (elbow.ranks + 1)));
+  }
   const points: Point[] = vertical
-    ? [{ x: pc.x, y: mid }, { x: cc.x, y: mid }, end]
-    : [{ x: mid, y: pc.y }, { x: mid, y: cc.y }, end];
+    ? [start, { x: start.x, y: mid }, { x: end.x, y: mid }, end]
+    : [start, { x: mid, y: start.y }, { x: mid, y: end.y }, end];
+  if (back) points.reverse();
   const route: PathSeg[] = [];
-  let at = start;
-  for (const p of points) {
+  let at = points[0]!;
+  for (let i = 1; i < points.length; i += 1) {
+    const p = points[i]!;
     if (p.x === at.x && p.y === at.y) continue;
     route.push({ t: 'L', to: p });
     at = p;
   }
-  return { start, end, route, startNormal: { x: -v.x, y: -v.y }, endNormal: v, clip: 'none' };
+  const out = { x: -v.x, y: -v.y };
+  return back
+    ? { start: points[0]!, end: at, route, startNormal: v, endNormal: out, clip: 'none' }
+    : { start: points[0]!, end: at, route, startNormal: out, endNormal: v, clip: 'none' };
 }
