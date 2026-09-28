@@ -796,6 +796,11 @@ Reviewable branches, in order. Each is one reviewer's work, and each passes the 
      subtree under `tree`) and `@order`, which `tree` reads (§13 item 2's "nothing uses them"
      no longer holds for it). No engine or option entry was written: `engine` and `option` are
      not enforced kinds until `feat/help-content-2`, which writes them for every engine.
+   - **`feat/b5-radial`** (P21: B5 merged second): `radial` joined `HARNESS_ENGINES` and
+     `HELP_ENGINES`, and `key/layout.engine`'s values and aliases, with a checked `radial`
+     example. The prose: the quick start's engine list, `@layout.engine`, the hints
+     (`@layout.root` makes the centre of a disc), `@order` (radial reads it too) and `@direction`
+     (not a `radial` option, so ignored with a warning). No engine or option entry, as for `tree`.
    - `build/node-modules.d.ts` declares the three Node functions the plugin uses; this app has no
      `@types/node`.
    - **Found while writing the prose (help follows the build, P2):** a root `@layout` option and

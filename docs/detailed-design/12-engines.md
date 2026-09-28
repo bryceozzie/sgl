@@ -6,8 +6,8 @@
 **Inputs:** `LayoutInput` (DD-06 §2). **Outputs:** `LayoutResult`.
 
 **Status: design (2026-09-27), from `main` at `755bfd0`. Branches 1 (`feat/b5-pin`), 2
-(`feat/b5-fixed`), 3 (`fix/root-layout-options`) and 4 (`feat/b5-tree`, 2026-09-28) are
-implemented (§13); branch 5 is not.**
+(`feat/b5-fixed`), 3 (`fix/root-layout-options`), 4 (`feat/b5-tree`, 2026-09-28) and 5
+(`feat/b5-radial`, 2026-09-28) are implemented (§13).**
 **Human decisions (2026-09-27): every §15 recommendation was accepted, H1–H9.** The documents they
 change (language spec §4 and §9, the backlog, ADR-0004, Architecture §4.5, 01, 06, 07) are updated
 on this branch (§18). The orchestrator also decided that bare engine names are accepted (N22), as a
@@ -864,7 +864,68 @@ begins.
    - **Size:** core **180.03 kB** (180 034 B), +48 B over the branch with `main` merged
      (179 986 B), all of it `engine-options.ts` reading the descriptor; +435 B over `main`.
 5. **`feat/b5-radial`**. `trig.ts`, `radial.ts` into the same chunk. Options and form, goldens,
-   conformance, the cross-browser `bitwise` test, and e2e.
+   conformance, the cross-browser `bitwise` test, and e2e. **Implemented** on `feat/b5-radial`
+   (2026-09-28, from `main` at `1fd4b22`); the deviations are below the list.
+
+   **As built, and its deviations:**
+   - **The files.** `trig.ts` (`sinTurn`, `cosTurn`), `radial.ts` (`layoutRadial`,
+     `normalizeRadialOptions`), both re-exported by `std-trees.ts`; `radialDescriptor` in
+     `descriptor.ts`, which shares one `SPACINGS` schema object and one `root` hint with
+     `treeDescriptor`; `radialEngine = lazyEngine(radialDescriptor, …)` in `lazy.ts`, pure like
+     `treeEngine`. The two stubs each load the chunk on their own first call; the module is
+     imported once, so the second fetches nothing (`e2e/radial.spec.ts`). Host timeout 5 000 ms.
+     `visibleChildren`, `leafSize`, `levelSize` (a container's size from its content, padding,
+     `min` and title) and `frameOf` moved from `tree.ts` to `forest.ts`, unchanged, to be shared;
+     no `tree` golden moved.
+   - **The polynomial (N44 said degree 13).** A degree-13 Taylor polynomial is off by up to 2e-14
+     at π/4, over §12's 1e-14 (the accuracy tests fail with the x¹⁵ term dropped). `trig.ts`
+     evaluates Taylor to x¹⁵ for sine and x¹⁶ for cosine by Horner's rule, after an exact
+     quadrant reduction (`q = round(4t)`, `t − q/4`) and one scaling to radians. A minimax fit
+     would do at degree 13, but Taylor's coefficients are `1/n!` and need no fitting tool to
+     check. Measured against `Math.sin`/`Math.cos`: worst 6.9e-16 over [0, 1] turn (10⁶ points),
+     2.5e-15 over [−3, 3]; exact at the quarter turns, no `-0`, within one ulp of √½ at the
+     eighth turns.
+   - **Rings (N42) and discs (N43) as written.** The discs go in their roots' **declaration**
+     order, as N43 says, not in the order `spanningForest` finds the roots (which `tree` uses):
+     a `@layout.root` hint on a later node makes it a root without moving its disc to the front
+     (`layout/tree-root.sgl`). A zero total weight (zero-size leaves at `nodeSpacing: 0`) splits
+     a wedge equally, and a node with no room to keep (`diag + nodeSpacing = 0`) adds no ring
+     constraint. The content box is the frames' own extent, so a disc's left-most and top-most
+     frames sit exactly at 0.
+   - **Hints.** `root` only. A container's `@direction` is `SGL4010` under `radial` (it is not a
+     hint of it); `@order` is honoured among siblings, as under `tree`, because the forest is
+     shared.
+   - **Conformance check 7 is not on `main`.** DD-14 C35's "honours `scope`" is on the unmerged
+     `feat/b8-compose`. `conformance.test.ts` runs its second half locally for `radial`: for every
+     container of the corpus and of the 1 000-node graph, a scoped run places exactly the
+     container and its visible descendants, the container at (0, 0), each where the
+     whole-document layout puts it. Whichever of B8 and this branch merges second adds `radial`
+     to `runConformance`'s check 7, as B8 did for `tree`.
+   - **The cross-browser test.** Chromium's V8 is Node's engine, so `radial.browser.test.ts`
+     proves the worker path and the chunk, not that another engine's arithmetic agrees. That is
+     the job of the bit-pattern golden (`__goldens__/trig.txt`, 85 angles), which
+     `trig.browser.test.ts` checks in every browser the project runs.
+   - **Tests.** `trig.test.ts`, `trig.browser.test.ts`; `radial.test.ts` (the descriptor and
+     options; no implementation-approximated `Math` function or `**` in `radial.ts`, `trig.ts`
+     or `forest.ts`; 12 o'clock and clockwise; wedges in proportion to weight; one ring per depth,
+     a ring gap apart; neighbours' bounding circles `nodeSpacing` apart on a ring; no overlap on
+     random trees at default and tight spacings; `@order`, cycles, forests, root hints,
+     containers, titles, `scope`; the host's straight edges and labels; a 2 000-node path and
+     star; a bitwise double run, raw and quantized, over the corpus; goldens in
+     `__goldens__/radial/` for `CLEAN_DOCS` and the six `layout/tree-*.sgl`);
+     `conformance.test.ts` (checks 1–6 at the default and at 2 px spacings, and check 7's second
+     half); `radial.browser.test.ts` (five cases, raw inside the worker and quantized through
+     it); apps/web `engine-options`, `engine-options-radial-defaults` (the form follows the
+     descriptor), `pipeline` and `reference` tests; e2e `radial.spec.ts`, criterion 1 under
+     `radial`, and `radial` offline in criterion 5.
+   - **Help (DD-13 P21, this branch merged second):** `radial` joined `HELP_ENGINES` and
+     `HARNESS_ENGINES`, `key/layout.engine`'s values and aliases (with a checked example), the
+     hints (`@layout.root`), `@order`, `@direction` and the quick start.
+   - **Size:** core **180.15 kB** of 184 (180 154 B), +120 B over `main` (180 034 B): the
+     descriptor on the page and in the worker, the F11 rules and the timeout row. §11 estimated
+     0.60. The `std-trees` chunk is 4.71 kB gzipped (12.06 kB raw), +1.04 kB for `radial` and
+     `trig` (§11: ~1.3), measured with Node's zlib (3.67 kB for `tree` alone by the same
+     measure).
 6. *(Done on this branch, H3: the backlog splits B5, and `force` is B22, Could; 07 §2.1 F10's owner
    is `force`.)*
 

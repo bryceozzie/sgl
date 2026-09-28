@@ -2284,6 +2284,29 @@ mixed-widths case; the form's defaults come from `treeDescriptor`. F35 found (qu
 `parallel-selfloop`, `wildcard-paths`); no other. Core **180.03 kB** of 184, +48 B over the branch
 with `main` merged. DD-12 §8.2, §13 (fix round 1), DD-06 §7b, DD-10 §2.
 
+**B5 branch 5, `radial`** (`feat/b5-radial`, from `main` at `1fd4b22`; not merged). `radial`
+(`sgl.radial`, bare name `radial`; `radial.ts`, `radialDescriptor`): Eades' wedge layout over
+`tree`'s spanning forest, per container; each tree's root at its disc's centre, ring = depth,
+wedges by the leaves' diagonals plus `nodeSpacing`, from 12 o'clock clockwise; the smallest rings
+that keep every node's bounding circle in its wedge and rings a ring gap apart; a forest's discs in
+a row in their roots' declaration order; straight edges and labels by the host; options
+`nodeSpacing`, `rankSpacing` (Ring spacing in the F11 form, defaults from the descriptor), hint
+`root`; host timeout 5 000 ms. **`bitwise` (H8):** `trig.ts`'s own `sinTurn`/`cosTurn` (exact
+quadrant reduction, Taylor to x¹⁵/x¹⁶ by Horner; worst error 6.9e-16 over a turn; DD-12 N44 said
+degree 13, which misses §12's 1e-14), with an 85-angle bit-pattern golden checked in Node and in
+Chromium. Its code is in the lazy `std-trees` chunk beside `tree`'s; `check-core-chunks.mjs`'s
+module list adds `radial.ts` and `trig.ts`. Shared helpers moved from `tree.ts` to `forest.ts`,
+unchanged. Tests: `trig.test.ts`, `radial.test.ts` (units, a bitwise double run over the corpus,
+goldens in `__goldens__/radial/`), conformance checks 1–6 at two spacings plus check 7's scope
+half locally (check 7 itself is on the unmerged `feat/b8-compose`: whichever merges second adds
+`radial` to it), `trig.browser.test.ts`, `radial.browser.test.ts` (raw inside the worker), apps/web
+form, defaults, pipeline and reference tests, e2e `radial.spec.ts`, criterion 1 under `radial`,
+`radial` offline in criterion 5. Help (P21): `radial` in the engine lists, `@layout.engine`,
+the hints, `@order`, `@direction` and the quick start. **Goldens:** new only
+(`layout-std/test/__goldens__/radial/`, `__goldens__/trig.txt`); no existing golden changed. Core
+**180.15 kB** of 184 (180 154 B), +120 B over `main`; the `std-trees` chunk 4.71 kB gzipped (+1.04
+kB). DD-12 §13 branch 5, DD-06 §7c and §8, DD-10 §2, DD-13 §13.
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
