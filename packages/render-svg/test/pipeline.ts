@@ -22,7 +22,7 @@ import {
 } from '@sgl/layout-api';
 import { composeLayout } from '@sgl/layout-api/compose';
 import { elkEngine } from '@sgl/layout-elk';
-import { fixedEngine, gridEngine, treeEngine } from '@sgl/layout-std';
+import { fixedEngine, gridEngine, radialEngine, treeEngine } from '@sgl/layout-std';
 import { labelRunKey, premeasure, StaticMetricsMeasurer, type MeasureTable } from '@sgl/measure';
 import { layoutWrapped } from '@sgl/text/wrap';
 import { BUILT_IN, neutralLight, resolveTheme, styleGraph, unknownThemeDiagnostics, type ResolvedTheme, type StyledGraph, type ThemeDoc } from '@sgl/theme';
@@ -136,8 +136,9 @@ async function layOut(
  *  its directory (A9, `corpus/imports/`), through the import-aware resolve
  *  and compile, as the app does for a document with `@imports`. */
 /** The engines this harness can run: `grid`, every golden's engine,
- *  `fixed` (feat/b5-fixed) and `tree` (feat/b5-tree). */
-const HARNESS_ENGINES: readonly LayoutEngine[] = [gridEngine, fixedEngine, treeEngine];
+ *  `fixed` (feat/b5-fixed), `tree` (feat/b5-tree) and `radial`
+ *  (feat/b5-radial; no corpus document names it yet). */
+const HARNESS_ENGINES: readonly LayoutEngine[] = [gridEngine, fixedEngine, treeEngine, radialEngine];
 
 /** B8 (DD-14 C46): the engines a container may name here: the root's, and
  *  `elk` too, so a fixture's `elk` box is laid out as in the app. `elk` is a

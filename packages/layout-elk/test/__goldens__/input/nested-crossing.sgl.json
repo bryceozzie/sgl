@@ -14,7 +14,7 @@
   },
   "children": [
     {
-      "id": "platform",
+      "id": "n:platform",
       "layoutOptions": {
         "elk.spacing.nodeNode": "40",
         "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -26,7 +26,7 @@
       },
       "children": [
         {
-          "id": "platform.web",
+          "id": "n:platform.web",
           "layoutOptions": {
             "elk.spacing.nodeNode": "40",
             "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -38,7 +38,7 @@
           },
           "children": [
             {
-              "id": "platform.web.ui",
+              "id": "n:platform.web.ui",
               "width": 72,
               "height": 36,
               "labels": [
@@ -53,7 +53,7 @@
               ]
             },
             {
-              "id": "platform.web.cdn",
+              "id": "n:platform.web.cdn",
               "width": 72,
               "height": 36,
               "labels": [
@@ -70,7 +70,7 @@
           ]
         },
         {
-          "id": "platform.data",
+          "id": "n:platform.data",
           "layoutOptions": {
             "elk.spacing.nodeNode": "40",
             "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -82,7 +82,7 @@
           },
           "children": [
             {
-              "id": "platform.data.db",
+              "id": "n:platform.data.db",
               "width": 72,
               "height": 36,
               "labels": [
@@ -97,7 +97,7 @@
               ]
             },
             {
-              "id": "platform.data.cache",
+              "id": "n:platform.data.cache",
               "width": 72,
               "height": 36,
               "labels": [
@@ -116,7 +116,7 @@
       ]
     },
     {
-      "id": "client",
+      "id": "n:client",
       "width": 72,
       "height": 36,
       "labels": [
@@ -133,22 +133,22 @@
   ],
   "edges": [
     {
-      "id": "e-be334112e524c233",
+      "id": "e:e-be334112e524c233",
       "sources": [
-        "client"
+        "n:client"
       ],
       "targets": [
-        "platform.web.ui"
+        "n:platform.web.ui"
       ],
       "labels": []
     },
     {
-      "id": "e-69689b04ba39061f",
+      "id": "e:e-69689b04ba39061f",
       "sources": [
-        "platform.web.ui"
+        "n:platform.web.ui"
       ],
       "targets": [
-        "platform.data.db"
+        "n:platform.data.db"
       ],
       "labels": [
         {
@@ -162,12 +162,12 @@
       ]
     },
     {
-      "id": "e-66a7798fce94a874",
+      "id": "e:e-66a7798fce94a874",
       "sources": [
-        "platform.web.cdn"
+        "n:platform.web.cdn"
       ],
       "targets": [
-        "platform.data.cache"
+        "n:platform.data.cache"
       ],
       "labels": []
     }

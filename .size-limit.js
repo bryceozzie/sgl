@@ -34,8 +34,8 @@
 // `io/run-faces.ts`, A18's seven run faces (DD-11 T26): registered by `rich-text`
 // and listed for export by `file-actions`, which share it, so the bundler gives
 // it a chunk of its own; the boot CSS declares none of them.
-// `std-trees-*.js` is B5's (DD-12 N52, H9): `tree`'s layout code (and
-// `radial`'s, when it lands), imported by the layout worker alone, and only
+// `std-trees-*.js` is B5's (DD-12 N52, H9): `tree`'s and `radial`'s layout
+// code (B5 branches 4 and 5), imported by the layout worker alone, and only
 // dynamically, on the first request for one of those engines;
 // `check-core-chunks.mjs` also walks the worker's static imports for it.
 //

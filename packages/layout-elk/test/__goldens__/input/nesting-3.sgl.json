@@ -14,7 +14,7 @@
   },
   "children": [
     {
-      "id": "external",
+      "id": "n:external",
       "layoutOptions": {
         "elk.spacing.nodeNode": "40",
         "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -26,7 +26,7 @@
       },
       "children": [
         {
-          "id": "external.cdn",
+          "id": "n:external.cdn",
           "width": 72,
           "height": 36,
           "labels": [
@@ -43,7 +43,7 @@
       ]
     },
     {
-      "id": "platform",
+      "id": "n:platform",
       "layoutOptions": {
         "elk.spacing.nodeNode": "40",
         "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -55,7 +55,7 @@
       },
       "children": [
         {
-          "id": "platform.ingress",
+          "id": "n:platform.ingress",
           "layoutOptions": {
             "elk.spacing.nodeNode": "40",
             "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -67,7 +67,7 @@
           },
           "children": [
             {
-              "id": "platform.ingress.lb",
+              "id": "n:platform.ingress.lb",
               "width": 106.38100000000001,
               "height": 36,
               "labels": [
@@ -82,7 +82,7 @@
               ]
             },
             {
-              "id": "platform.ingress.waf",
+              "id": "n:platform.ingress.waf",
               "width": 72,
               "height": 36,
               "labels": [
@@ -99,7 +99,7 @@
           ]
         },
         {
-          "id": "platform.services",
+          "id": "n:platform.services",
           "layoutOptions": {
             "elk.spacing.nodeNode": "40",
             "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -111,7 +111,7 @@
           },
           "children": [
             {
-              "id": "platform.services.api",
+              "id": "n:platform.services.api",
               "width": 72,
               "height": 36,
               "labels": [
@@ -126,7 +126,7 @@
               ]
             },
             {
-              "id": "platform.services.worker",
+              "id": "n:platform.services.worker",
               "width": 72,
               "height": 36,
               "labels": [
@@ -147,52 +147,52 @@
   ],
   "edges": [
     {
-      "id": "e-aa8a579440c55bf8",
+      "id": "e:e-aa8a579440c55bf8",
       "sources": [
-        "platform.services.worker"
+        "n:platform.services.worker"
       ],
       "targets": [
-        "external.cdn"
+        "n:external.cdn"
       ],
       "labels": []
     },
     {
-      "id": "e-8053b7646e964a44",
+      "id": "e:e-8053b7646e964a44",
       "sources": [
-        "platform.ingress.lb"
+        "n:platform.ingress.lb"
       ],
       "targets": [
-        "platform.services.api"
+        "n:platform.services.api"
       ],
       "labels": []
     },
     {
-      "id": "e-8312902bb75b3f5b",
+      "id": "e:e-8312902bb75b3f5b",
       "sources": [
-        "platform.ingress.waf"
+        "n:platform.ingress.waf"
       ],
       "targets": [
-        "platform.ingress.lb"
+        "n:platform.ingress.lb"
       ],
       "labels": []
     },
     {
-      "id": "e-838a69e88cc4c5f7",
+      "id": "e:e-838a69e88cc4c5f7",
       "sources": [
-        "platform.services.api"
+        "n:platform.services.api"
       ],
       "targets": [
-        "platform.services.worker"
+        "n:platform.services.worker"
       ],
       "labels": []
     },
     {
-      "id": "e-727e23be260ac34e",
+      "id": "e:e-727e23be260ac34e",
       "sources": [
-        "platform.services.api"
+        "n:platform.services.api"
       ],
       "targets": [
-        "platform.ingress.lb"
+        "n:platform.ingress.lb"
       ],
       "labels": []
     }

@@ -1,5 +1,5 @@
 import { ELK_DEFAULT_OPTIONS, ELK_ENGINE_ID, normalizeElkOptions } from '@sgl/layout-elk/descriptor';
-import { treeDescriptor } from '@sgl/layout-std/descriptor';
+import { radialDescriptor, treeDescriptor, type EngineDescriptor } from '@sgl/layout-std/descriptor';
 
 /**
  * F11 (DD-08 §10): each engine's option defaults and the normalisation of an
@@ -26,6 +26,8 @@ export const GRID_ENGINE_ID = 'sgl.grid';
 export const FIXED_ENGINE_ID = 'sgl.fixed';
 /** DD-12 §8 (feat/b5-tree). */
 export const TREE_ENGINE_ID = 'sgl.tree';
+/** DD-12 §9 (feat/b5-radial). */
+export const RADIAL_ENGINE_ID = 'sgl.radial';
 
 export type OptionValue = string | number;
 
@@ -66,24 +68,31 @@ function elkValues(bag: Readonly<Record<string, unknown>>) {
   };
 }
 
-/** `tree`'s option schema: its enums and defaults (fix round 1, item 9). */
-const TREE_PROPS = (treeDescriptor.optionsSchema as { readonly properties: Readonly<Record<string, { readonly enum?: readonly string[]; readonly default: OptionValue }>> })
-  .properties;
+type SchemaProps = Readonly<Record<string, { readonly enum?: readonly string[]; readonly default: OptionValue }>>;
 
-/** DD-12 N37: `tree` has `elk`'s `direction`, `nodeSpacing` and `rankSpacing`
- *  (names, values and the form's 0–500 range), and its own `edgeRouting`,
- *  `orthogonal` (elbows) or `straight`. Its defaults are its descriptor's
- *  (fix round 1, item 9: they were `elk`'s, equal only by coincidence). */
-function treeValues(bag: Readonly<Record<string, unknown>>): Readonly<Record<string, OptionValue>> {
-  const choice = (key: string): OptionValue => {
-    const v = bag[key];
-    return typeof v === 'string' && (TREE_PROPS[key]!.enum ?? []).includes(v) ? v : TREE_PROPS[key]!.default;
+/** The rules of an engine whose options are all enums and 0–500 spacings,
+ *  read from its descriptor's `optionsSchema`: its fields, in schema order,
+ *  and its defaults (B5 branch 4 fix round 1, item 9: `tree`'s were `elk`'s,
+ *  equal only by coincidence). An enum keeps a value it lists, a number a
+ *  finite one from 0 to `SPACING_MAX`; anything else is the default.
+ *
+ *  - DD-12 N37: `tree` has `elk`'s `direction`, `nodeSpacing` and
+ *    `rankSpacing` (names, values and the form's 0–500 range), and its own
+ *    `edgeRouting`, `orthogonal` (elbows) or `straight`.
+ *  - DD-12 N47 (feat/b5-radial): `radial` has `tree`'s two spacings, the
+ *    second its ring gap. */
+function schemaRules(descriptor: EngineDescriptor): EngineOptionRules {
+  const props = (descriptor.optionsSchema as { readonly properties: SchemaProps }).properties;
+  const normalize = (bag: Readonly<Record<string, unknown>>): Readonly<Record<string, OptionValue>> => {
+    const out: Record<string, OptionValue> = {};
+    for (const key in props) {
+      const v = bag[key];
+      const p = props[key]!;
+      out[key] = (p.enum ? typeof v === 'string' && p.enum.includes(v) : typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= SPACING_MAX) ? (v as OptionValue) : p.default;
+    }
+    return out;
   };
-  const spacing = (key: string): OptionValue => {
-    const v = bag[key];
-    return typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= SPACING_MAX ? v : TREE_PROPS[key]!.default;
-  };
-  return { direction: choice('direction'), nodeSpacing: spacing('nodeSpacing'), rankSpacing: spacing('rankSpacing'), edgeRouting: choice('edgeRouting') };
+  return { defaults: normalize({}), normalize };
 }
 
 const RULES: Readonly<Record<string, EngineOptionRules>> = {
@@ -107,10 +116,8 @@ const RULES: Readonly<Record<string, EngineOptionRules>> = {
     defaults: FIXED_DEFAULTS,
     normalize: (bag) => ({ gap: validGap(bag['gap'], FIXED_DEFAULTS['gap'] as number) }),
   },
-  [TREE_ENGINE_ID]: {
-    defaults: treeValues({}),
-    normalize: treeValues,
-  },
+  [TREE_ENGINE_ID]: schemaRules(treeDescriptor),
+  [RADIAL_ENGINE_ID]: schemaRules(radialDescriptor),
 };
 
 /** `engineId`'s defaults and normalisation, or `null` for an engine with no

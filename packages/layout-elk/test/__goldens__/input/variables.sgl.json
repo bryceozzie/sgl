@@ -14,7 +14,7 @@
   },
   "children": [
     {
-      "id": "api",
+      "id": "n:api",
       "width": 117.92500000000001,
       "height": 36,
       "labels": [
@@ -29,7 +29,7 @@
       ]
     },
     {
-      "id": "payments",
+      "id": "n:payments",
       "layoutOptions": {
         "elk.spacing.nodeNode": "40",
         "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -41,7 +41,7 @@
       },
       "children": [
         {
-          "id": "payments.ledger",
+          "id": "n:payments.ledger",
           "width": 147.56500000000003,
           "height": 36,
           "labels": [
@@ -56,7 +56,7 @@
           ]
         },
         {
-          "id": "payments.outbox",
+          "id": "n:payments.outbox",
           "width": 72,
           "height": 36,
           "labels": [
@@ -73,7 +73,7 @@
       ]
     },
     {
-      "id": "alerts",
+      "id": "n:alerts",
       "width": 72,
       "height": 36,
       "labels": [
@@ -90,12 +90,12 @@
   ],
   "edges": [
     {
-      "id": "e-cc06ad2b5c7e9903",
+      "id": "e:e-cc06ad2b5c7e9903",
       "sources": [
-        "api"
+        "n:api"
       ],
       "targets": [
-        "payments.ledger"
+        "n:payments.ledger"
       ],
       "labels": [
         {
@@ -109,22 +109,22 @@
       ]
     },
     {
-      "id": "e-2a99b033c332697c",
+      "id": "e:e-2a99b033c332697c",
       "sources": [
-        "payments.outbox"
+        "n:payments.outbox"
       ],
       "targets": [
-        "alerts"
+        "n:alerts"
       ],
       "labels": []
     },
     {
-      "id": "e-18e821ab4535867d",
+      "id": "e:e-18e821ab4535867d",
       "sources": [
-        "payments.ledger"
+        "n:payments.ledger"
       ],
       "targets": [
-        "payments.outbox"
+        "n:payments.outbox"
       ],
       "labels": [
         {

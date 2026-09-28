@@ -119,6 +119,17 @@ export const TREE_ENGINE_ID = 'sgl.tree';
 
 const DIRECTIONS = ['down', 'up', 'left', 'right'];
 
+/** `nodeSpacing` and `rankSpacing`, `elk`'s names and defaults, which `tree`
+ *  and `radial` share (N37, N47): one object, so the two schemas cost the
+ *  boot bundle once. */
+const SPACINGS = {
+  nodeSpacing: { type: 'number', minimum: 0, default: 40 },
+  rankSpacing: { type: 'number', minimum: 0, default: 70 },
+} as const;
+
+/** The `root: boolean` hint (N27), `tree`'s and `radial`'s. */
+const ROOT_HINT = { type: 'boolean' } as const;
+
 export const treeDescriptor: EngineDescriptor = {
   id: TREE_ENGINE_ID,
   name: 'Tree',
@@ -137,8 +148,7 @@ export const treeDescriptor: EngineDescriptor = {
     additionalProperties: false,
     properties: {
       direction: { type: 'string', enum: DIRECTIONS, default: 'down' },
-      nodeSpacing: { type: 'number', minimum: 0, default: 40 },
-      rankSpacing: { type: 'number', minimum: 0, default: 70 },
+      ...SPACINGS,
       edgeRouting: { type: 'string', enum: ['orthogonal', 'straight'], default: 'orthogonal' },
     },
   },
@@ -146,7 +156,38 @@ export const treeDescriptor: EngineDescriptor = {
     type: 'object',
     properties: {
       direction: { type: 'string', enum: DIRECTIONS },
-      root: { type: 'boolean' },
+      root: ROOT_HINT,
     },
   },
+};
+
+/**
+ * `radial` (DD-12 §9, B5 branch 5): a wedge layout (Eades) over the same
+ * spanning forest as `tree` (§7), each tree's root at the centre of its own
+ * disc. Everything but `layout()`, as for `tree`: the worker registers
+ * `radialEngine`, whose `layout()` loads the same lazy `std-trees` chunk
+ * (H9, N52).
+ *
+ * N47: `nodeSpacing` and `rankSpacing` (the ring gap), `tree`'s; the one
+ * hint is `root` (N27). The host draws every edge straight (N46) and places
+ * the labels; no ports. `bitwise` (N44, H8): its own `sinTurn`/`cosTurn`,
+ * never `Math.sin`/`Math.cos`.
+ */
+export const RADIAL_ENGINE_ID = 'sgl.radial';
+
+export const radialDescriptor: EngineDescriptor = {
+  id: RADIAL_ENGINE_ID,
+  name: 'Radial',
+  version: '0.0.0',
+  apiVersion: LAYOUT_API_VERSION,
+  capabilities: {
+    containers: true,
+    edgeRouting: 'straight',
+    ports: false,
+    labelPlacement: false,
+    incremental: false,
+    determinism: 'bitwise',
+  },
+  optionsSchema: { type: 'object', additionalProperties: false, properties: SPACINGS },
+  hintsSchema: { type: 'object', properties: { root: ROOT_HINT } },
 };

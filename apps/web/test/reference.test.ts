@@ -64,7 +64,7 @@ describe('buildReference: representative entries (DD-13 P6)', () => {
   });
 
   it('@layout.engine takes the registered engines\' bare names (DD-12 N22); @theme the built-in theme ids', () => {
-    expect(key('layout.engine')).toMatchObject({ type: 'string', values: ['elk', 'grid', 'fixed', 'tree'], parent: 'key/layout' });
+    expect(key('layout.engine')).toMatchObject({ type: 'string', values: ['elk', 'grid', 'fixed', 'tree', 'radial'], parent: 'key/layout' });
     expect(key('layout').subKeys).toEqual(['key/layout.engine']);
     expect(key('theme').values).toEqual(['high-contrast', 'neutral-dark', 'neutral-light', 'print']);
     expect(key('theme').default).toBe(DEFAULT_THEME_ID);

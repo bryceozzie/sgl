@@ -8,9 +8,9 @@ Diagnostics: SGL4010, SGL2011
 
 At the document root it sets the engine's `direction` option, like any root `@layout` option: it reaches the engine and overrides Direction in the toolbar's Options for this document, which then shows "Direction (set by document)". If the document also sets `@layout.direction`, that one wins.
 
-`elk` and `tree` have a `direction` option. `grid` and `fixed` have none, so under them it is ignored with a warning.
+`elk` and `tree` have a `direction` option. `grid`, `fixed` and `radial` have none, so under them it is ignored with a warning.
 
-On a container, `@direction` is a hint for the engine around it. Under `tree` it turns the tree inside the container, and containers inside that one take the same direction unless they set their own. `elk` has no such hint, so there it is ignored with a warning. To turn a container under `elk`, give it an engine of its own, `@layout: { engine: elk, direction: right }`; then `@direction` inside the same container sets that engine's option.
+On a container, `@direction` is a hint for the engine around it. Under `tree` it turns the tree inside the container, and containers inside that one take the same direction unless they set their own. `elk`, `grid`, `fixed` and `radial` have no such hint, so there it is ignored with a warning. To turn a container under `elk`, give it an engine of its own, `@layout: { engine: elk, direction: right }`; then `@direction` inside the same container sets that engine's option.
 
 ```sgl snippet
 @direction: right

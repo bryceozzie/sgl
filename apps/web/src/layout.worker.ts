@@ -1,6 +1,6 @@
 import { createWorkerRuntime, EngineRegistry, type HostToWorker, type WorkerToHost } from '@sgl/layout-api/worker';
 import { elkEngine } from '@sgl/layout-elk';
-import { fixedEngine, gridEngine, treeEngine } from '@sgl/layout-std';
+import { fixedEngine, gridEngine, radialEngine, treeEngine } from '@sgl/layout-std';
 
 /**
  * The real layout worker entry (Stage H, decision D2). Everything that runs
@@ -28,6 +28,9 @@ registry.register(fixedEngine);
 // B5 branch 4 (DD-12 H9, N52): `tree` is a static descriptor whose
 // `layout()` imports the lazy `std-trees` chunk on the first tree request.
 registry.register(treeEngine);
+// B5 branch 5 (DD-12 §9): `radial`, the same way; its layout code is in the
+// same `std-trees` chunk, so whichever of the two is picked first loads it.
+registry.register(radialEngine);
 
 /** `self` in a module worker is typed as `Window & typeof globalThis` by this
  *  app's own `DOM` lib (needed for `App.tsx`'s use of `window`/`document`) rather

@@ -14,7 +14,7 @@
   },
   "children": [
     {
-      "id": "payments",
+      "id": "n:payments",
       "layoutOptions": {
         "elk.spacing.nodeNode": "40",
         "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -26,7 +26,7 @@
       },
       "children": [
         {
-          "id": "payments.api",
+          "id": "n:payments.api",
           "width": 72,
           "height": 36,
           "labels": [
@@ -43,7 +43,7 @@
       ]
     },
     {
-      "id": "bus",
+      "id": "n:bus",
       "width": 72,
       "height": 36,
       "labels": [
@@ -58,7 +58,7 @@
       ]
     },
     {
-      "id": "store1",
+      "id": "n:store1",
       "layoutOptions": {
         "elk.spacing.nodeNode": "40",
         "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -70,7 +70,7 @@
       },
       "children": [
         {
-          "id": "store1.api",
+          "id": "n:store1.api",
           "width": 72,
           "height": 36,
           "layoutOptions": {
@@ -88,7 +88,7 @@
           ],
           "ports": [
             {
-              "id": "store1.api#out",
+              "id": "p10:store1.api#out",
               "width": 0,
               "height": 0,
               "layoutOptions": {
@@ -98,7 +98,7 @@
           ]
         },
         {
-          "id": "store1.apiV2",
+          "id": "n:store1.apiV2",
           "width": 72,
           "height": 36,
           "layoutOptions": {
@@ -116,7 +116,7 @@
           ],
           "ports": [
             {
-              "id": "store1.apiV2#out",
+              "id": "p12:store1.apiV2#out",
               "width": 0,
               "height": 0,
               "layoutOptions": {
@@ -126,7 +126,7 @@
           ]
         },
         {
-          "id": "store1.db",
+          "id": "n:store1.db",
           "width": 72,
           "height": 36,
           "labels": [
@@ -143,7 +143,7 @@
       ]
     },
     {
-      "id": "store2",
+      "id": "n:store2",
       "layoutOptions": {
         "elk.spacing.nodeNode": "40",
         "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -155,7 +155,7 @@
       },
       "children": [
         {
-          "id": "store2.api-edge",
+          "id": "n:store2.api-edge",
           "width": 74.583,
           "height": 36,
           "layoutOptions": {
@@ -173,7 +173,7 @@
           ],
           "ports": [
             {
-              "id": "store2.api-edge#out",
+              "id": "p15:store2.api-edge#out",
               "width": 0,
               "height": 0,
               "layoutOptions": {
@@ -183,7 +183,7 @@
           ]
         },
         {
-          "id": "store2.cache",
+          "id": "n:store2.cache",
           "width": 72,
           "height": 36,
           "labels": [
@@ -200,7 +200,7 @@
       ]
     },
     {
-      "id": "store3",
+      "id": "n:store3",
       "layoutOptions": {
         "elk.spacing.nodeNode": "40",
         "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -212,7 +212,7 @@
       },
       "children": [
         {
-          "id": "store3.db",
+          "id": "n:store3.db",
           "width": 72,
           "height": 36,
           "labels": [
@@ -229,7 +229,7 @@
       ]
     },
     {
-      "id": "stored",
+      "id": "n:stored",
       "width": 72,
       "height": 36,
       "labels": [
@@ -244,7 +244,7 @@
       ]
     },
     {
-      "id": "platform",
+      "id": "n:platform",
       "layoutOptions": {
         "elk.spacing.nodeNode": "40",
         "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -256,7 +256,7 @@
       },
       "children": [
         {
-          "id": "platform.auth",
+          "id": "n:platform.auth",
           "layoutOptions": {
             "elk.spacing.nodeNode": "40",
             "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -268,7 +268,7 @@
           },
           "children": [
             {
-              "id": "platform.auth.handler",
+              "id": "n:platform.auth.handler",
               "width": 72,
               "height": 36,
               "labels": [
@@ -285,7 +285,7 @@
           ]
         },
         {
-          "id": "platform.billing",
+          "id": "n:platform.billing",
           "layoutOptions": {
             "elk.spacing.nodeNode": "40",
             "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -297,7 +297,7 @@
           },
           "children": [
             {
-              "id": "platform.billing.handler",
+              "id": "n:platform.billing.handler",
               "width": 72,
               "height": 36,
               "labels": [
@@ -312,7 +312,7 @@
               ]
             },
             {
-              "id": "platform.billing.worker",
+              "id": "n:platform.billing.worker",
               "width": 72,
               "height": 36,
               "labels": [
@@ -329,7 +329,7 @@
           ]
         },
         {
-          "id": "platform.docs",
+          "id": "n:platform.docs",
           "layoutOptions": {
             "elk.spacing.nodeNode": "40",
             "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -341,7 +341,7 @@
           },
           "children": [
             {
-              "id": "platform.docs.site",
+              "id": "n:platform.docs.site",
               "width": 72,
               "height": 36,
               "labels": [
@@ -358,7 +358,7 @@
           ]
         },
         {
-          "id": "platform.inner",
+          "id": "n:platform.inner",
           "width": 72,
           "height": 36,
           "labels": [
@@ -373,7 +373,7 @@
           ]
         },
         {
-          "id": "platform.gateway",
+          "id": "n:platform.gateway",
           "width": 72.412,
           "height": 36,
           "labels": [
@@ -390,7 +390,7 @@
       ]
     },
     {
-      "id": "lanes",
+      "id": "n:lanes",
       "layoutOptions": {
         "elk.spacing.nodeNode": "40",
         "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -402,7 +402,7 @@
       },
       "children": [
         {
-          "id": "lanes.lane1",
+          "id": "n:lanes.lane1",
           "layoutOptions": {
             "elk.spacing.nodeNode": "40",
             "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -414,7 +414,7 @@
           },
           "children": [
             {
-              "id": "lanes.lane1.cam1",
+              "id": "n:lanes.lane1.cam1",
               "width": 72,
               "height": 36,
               "labels": [
@@ -429,7 +429,7 @@
               ]
             },
             {
-              "id": "lanes.lane1.cam2",
+              "id": "n:lanes.lane1.cam2",
               "width": 72,
               "height": 36,
               "labels": [
@@ -446,7 +446,7 @@
           ]
         },
         {
-          "id": "lanes.lane2",
+          "id": "n:lanes.lane2",
           "layoutOptions": {
             "elk.spacing.nodeNode": "40",
             "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -458,7 +458,7 @@
           },
           "children": [
             {
-              "id": "lanes.lane2.camA",
+              "id": "n:lanes.lane2.camA",
               "layoutOptions": {
                 "elk.spacing.nodeNode": "40",
                 "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -470,7 +470,7 @@
               },
               "children": [
                 {
-                  "id": "lanes.lane2.camA.lens",
+                  "id": "n:lanes.lane2.camA.lens",
                   "width": 72,
                   "height": 36,
                   "labels": [
@@ -491,7 +491,7 @@
       ]
     },
     {
-      "id": "switch",
+      "id": "n:switch",
       "width": 72,
       "height": 36,
       "labels": [
@@ -508,42 +508,42 @@
   ],
   "edges": [
     {
-      "id": "e-b88d62fed4c10b18",
+      "id": "e:e-b88d62fed4c10b18",
       "sources": [
-        "store1.api"
+        "n:store1.api"
       ],
       "targets": [
-        "payments.api"
+        "n:payments.api"
       ],
       "labels": []
     },
     {
-      "id": "e-593c33cc85b979d4",
+      "id": "e:e-593c33cc85b979d4",
       "sources": [
-        "store1.apiV2"
+        "n:store1.apiV2"
       ],
       "targets": [
-        "payments.api"
+        "n:payments.api"
       ],
       "labels": []
     },
     {
-      "id": "e-4013c5118f03ab65",
+      "id": "e:e-4013c5118f03ab65",
       "sources": [
-        "store2.api-edge"
+        "n:store2.api-edge"
       ],
       "targets": [
-        "payments.api"
+        "n:payments.api"
       ],
       "labels": []
     },
     {
-      "id": "e-732147fe5e342317",
+      "id": "e:e-732147fe5e342317",
       "sources": [
-        "store1.api#out"
+        "p10:store1.api#out"
       ],
       "targets": [
-        "bus"
+        "n:bus"
       ],
       "labels": [
         {
@@ -557,12 +557,12 @@
       ]
     },
     {
-      "id": "e-cc4fb08237fd807b",
+      "id": "e:e-cc4fb08237fd807b",
       "sources": [
-        "store1.apiV2#out"
+        "p12:store1.apiV2#out"
       ],
       "targets": [
-        "bus"
+        "n:bus"
       ],
       "labels": [
         {
@@ -576,12 +576,12 @@
       ]
     },
     {
-      "id": "e-34e82cea56a0615e",
+      "id": "e:e-34e82cea56a0615e",
       "sources": [
-        "store2.api-edge#out"
+        "p15:store2.api-edge#out"
       ],
       "targets": [
-        "bus"
+        "n:bus"
       ],
       "labels": [
         {
@@ -595,142 +595,142 @@
       ]
     },
     {
-      "id": "e-f0b55fd14a3c1561",
+      "id": "e:e-f0b55fd14a3c1561",
       "sources": [
-        "lanes.lane1.cam1"
+        "n:lanes.lane1.cam1"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-14e3a19fd5aa805a",
+      "id": "e:e-14e3a19fd5aa805a",
       "sources": [
-        "lanes.lane1.cam2"
+        "n:lanes.lane1.cam2"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-41e78964b9e1e4b0",
+      "id": "e:e-41e78964b9e1e4b0",
       "sources": [
-        "lanes.lane2.camA"
+        "n:lanes.lane2.camA"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-7ec8fc76cadbc206",
+      "id": "e:e-7ec8fc76cadbc206",
       "sources": [
-        "lanes.lane2.camA.lens"
+        "n:lanes.lane2.camA.lens"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-144249b1075d819e",
+      "id": "e:e-144249b1075d819e",
       "sources": [
-        "lanes.lane1.cam1"
+        "n:lanes.lane1.cam1"
       ],
       "targets": [
-        "lanes.lane1.cam2"
+        "n:lanes.lane1.cam2"
       ],
       "labels": []
     },
     {
-      "id": "e-3447644a50e83cf8",
+      "id": "e:e-3447644a50e83cf8",
       "sources": [
-        "lanes.lane1.cam1"
+        "n:lanes.lane1.cam1"
       ],
       "targets": [
-        "lanes.lane2.camA"
+        "n:lanes.lane2.camA"
       ],
       "labels": []
     },
     {
-      "id": "e-062b1185994b3b5a",
+      "id": "e:e-062b1185994b3b5a",
       "sources": [
-        "lanes.lane1.cam2"
+        "n:lanes.lane1.cam2"
       ],
       "targets": [
-        "lanes.lane1.cam1"
+        "n:lanes.lane1.cam1"
       ],
       "labels": []
     },
     {
-      "id": "e-2aff5633dec3800f",
+      "id": "e:e-2aff5633dec3800f",
       "sources": [
-        "lanes.lane1.cam2"
+        "n:lanes.lane1.cam2"
       ],
       "targets": [
-        "lanes.lane2.camA"
+        "n:lanes.lane2.camA"
       ],
       "labels": []
     },
     {
-      "id": "e-2b9dd4e66192fdd4",
+      "id": "e:e-2b9dd4e66192fdd4",
       "sources": [
-        "lanes.lane2.camA"
+        "n:lanes.lane2.camA"
       ],
       "targets": [
-        "lanes.lane1.cam1"
+        "n:lanes.lane1.cam1"
       ],
       "labels": []
     },
     {
-      "id": "e-ab093edd8c52a203",
+      "id": "e:e-ab093edd8c52a203",
       "sources": [
-        "lanes.lane2.camA"
+        "n:lanes.lane2.camA"
       ],
       "targets": [
-        "lanes.lane1.cam2"
+        "n:lanes.lane1.cam2"
       ],
       "labels": []
     },
     {
-      "id": "e-98852831e39de168",
+      "id": "e:e-98852831e39de168",
       "sources": [
-        "platform.auth.handler"
+        "n:platform.auth.handler"
       ],
       "targets": [
-        "bus"
+        "n:bus"
       ],
       "labels": []
     },
     {
-      "id": "e-af287e8cc92f5175",
+      "id": "e:e-af287e8cc92f5175",
       "sources": [
-        "platform.billing.handler"
+        "n:platform.billing.handler"
       ],
       "targets": [
-        "bus"
+        "n:bus"
       ],
       "labels": []
     },
     {
-      "id": "e-6c4a142ad3fb4c0a",
+      "id": "e:e-6c4a142ad3fb4c0a",
       "sources": [
-        "platform.billing.handler"
+        "n:platform.billing.handler"
       ],
       "targets": [
-        "platform.auth.handler"
+        "n:platform.auth.handler"
       ],
       "labels": []
     },
     {
-      "id": "e-2b8c1c911f9b945e",
+      "id": "e:e-2b8c1c911f9b945e",
       "sources": [
-        "platform.billing.worker"
+        "n:platform.billing.worker"
       ],
       "targets": [
-        "platform.auth.handler"
+        "n:platform.auth.handler"
       ],
       "labels": []
     }

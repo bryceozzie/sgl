@@ -374,14 +374,14 @@ root ElkNode:
   edges:    map(all edges, toElkEdge)          // ALL edges live on root — valid under INCLUDE_CHILDREN
 
 toElkNode(n):
-  id: n.id
+  id: 'n:' + n.id                                            // F32: every id namespaced (note 10)
   width/height:  sizing.fixed ?? clamp(sizing.intrinsic, min, max)      // leaves
                  (omitted for containers — ELK sizes them from children + padding)
   labels: leaf ? [{ text: labelId,                           // Stage K: never '' (ELK ignores it)
              width: label.w + box.l + box.r, height: label.h + box.t + box.b,   // the label box, below
              layoutOptions: { 'elk.nodeLabels.placement': '[H_CENTER, V_CENTER, INSIDE]' } }]
           : []                                               // containers: title not sent (note 2)
-  ports: map(n.ports, p => ({ id: n.id + '#' + p.id, width: 0, height: 0,          // Stage K: portSize unseen
+  ports: map(n.ports, p => ({ id: portId(n.id, p.id), width: 0, height: 0,         // Stage K: portSize unseen
                               layoutOptions: { 'elk.port.side': NORTH|SOUTH|EAST|WEST } }))
   layoutOptions (a valid portConstraints hint — ELK's PortConstraints enum — or else any node with ports):
                               { 'elk.portConstraints': hint ?? 'FIXED_SIDE' }    // unknown hint values skipped
@@ -392,11 +392,13 @@ toElkNode(n):
   children: map(visible n.children, toElkNode)      // a container whose children are all hidden is a leaf
 
 toElkEdge(e):
-  id: e.id
-  sources: [ e.from.port ? e.from.node + '#' + e.from.port : e.from.node ]
+  id: 'e:' + e.id
+  sources: [ e.from.port ? portId(e.from.node, e.from.port) : 'n:' + e.from.node ]
   targets: [ likewise ]
   labels: e.labelId ? [{ text: labelId, width, height, layoutOptions: { 'elk.edgeLabels.placement': 'CENTER' } }] : []
   layoutOptions: { 'elk.layered.priority.direction': hints.priority }   // when present
+
+portId(node, port) = 'p' + node.length + ':' + node + '#' + port    // F32 (note 10)
 ```
 
 `directed: 'none'` and `'both'` are still passed as directed edges (ELK is layered; direction drives rank). Arrowheads are the renderer's concern.
@@ -412,6 +414,7 @@ toElkEdge(e):
 7. **`portSize` is unseen.** It is a style (`geometry.portSize`), and engines never see `StyledGraph`; ports are sent zero-sized, so a port's point is on the node boundary and the renderer draws its circle there.
 8. **Label boxes.** §4.1 centres a leaf's title in its *content box* (frame inset by `contentInset`); ELK centres a label in the *frame*. They differ only where insets are asymmetric (a cylinder's cap, a package's tab), so ELK is given the label grown by the asymmetric part of the insets, on the side that needs it. The `LabelPlacement` frame is that box exactly as ELK placed it; `align`/`baseline` (`start`/`end`, `top`/`bottom`) put the text at its inner edge.
 9. **Seed.** `elk.randomSeed: '1'` (K2). Two runs are identical after quantization in Node and in a Chromium worker, and ELK's quantized output in Chromium equals Node's golden byte for byte (`elk.browser.test.ts`).
+10. **Ids are namespaced (F32, `fix/elk-root-id`).** ELK's ids are global per graph, and an author may name a node anything a quoted key holds: `root`, `a#in`, `e-43cd40b7c998acd4`. Stage K sent author ids unchanged beside its own root `root` and ports `node#port`, so a node named `root` took over the root's id in `fromElkGraph` (every edge ELK placed in the root's frame was drawn offset by that node's position) and a node named `a#in` met node `a`'s port `in`. Every id the adapter sends is now namespaced by kind: a node `n:<id>`, an edge `e:<id>`, a port `p<length of node id>:<node id>#<port>` (the length makes the pair recoverable whatever either name contains, so two ports never meet). The root stays `root`, which no namespaced id can equal; labels carry no id (their `text` is the `LabelId`, which ELK never reads as one). `fromElkGraph` strips the prefix on the way back (a node or edge id without it is one ELK was never sent: SGL4011), and an edge's `container` is looked up among the namespaced ids. ELK's layout does not depend on the id strings: every elk result golden is byte-identical, only the input goldens' ids changed, and `layout-elk/test/ids.test.ts` checks that documents with tricky names (fixed cases and a property) lay out exactly as the same documents with plain names, through conformance checks 1–7.
 
 ### 6.2 Output mapping
 
@@ -434,6 +437,7 @@ LabelPlacement (cont.)  = frame at frame + (contentInset.l, contentInset.t), siz
 LabelPlacement (edge)   = frame at abs(container) + label.x/y, align 'middle', baseline 'top', occlusion 'plate'
 bounds                  = { 0, 0, root.width, root.height }   (advisory: the host replaces it, §5)
 (an edge ELK returns without a section is left out, so routeStraight fills it; an id ELK returns that was never sent throws → SGL4011)
+(ids come back namespaced, §6.1 note 10: a node's and an edge's prefix is stripped, and one without its prefix was never sent)
 ```
 
 **Routes round a container's title (F16, `avoidTitle` in `mapping.ts`; fix round 1).** ELK is not given a container's title (§6.1 note 2), so it may run an edge into (or out of) the container straight through it: the title sits in the band `elk.padding.top` reserves, and to ELK that band is empty padding. After every route is mapped, `fromElkGraph` takes each container with a title, outer containers first, and each *run*: a vertical segment (within 1e-6 px) of a route that passes from above the title's text box to below it, where the container is an ancestor of the run's far end (the target, or the source for a run going up, e.g. under `direction: up`). A route through the title of a container that holds neither end is a K4 crossing and is left alone.
@@ -575,13 +579,47 @@ elbows:            unless edgeRouting is straight, every edge between a tree arc
 
 Tests: `layout-std/test/forest.test.ts`, `tree.test.ts` (units, tidy-tree invariants on random trees, a bitwise double run raw and quantized over the corpus, goldens in `__goldens__/tree/` for `CLEAN_DOCS` and `layout/tree-*.sgl`), `lazy.test.ts` (the chunk loads once; a failed load is `SGL4011`, then `load` runs again), `conformance.test.ts`, `test/browser/tree.browser.test.ts` (Chromium equals Node byte for byte: the raw output computed inside a real worker, and the finished result through one), and `apps/web/e2e/tree.spec.ts`. Fix round 1 added: no two routes share a collinear run over 2 px (parallel and back edges), `rankSpacing: 0`'s elbows, a pinned count of edge runs through unrelated leaves, and a plain recursive Buchheim–Walker as a reference on random trees of mixed widths.
 
+## 7c. `radial` engine (`@sgl/layout-std`, DD-12 §7, §9; `feat/b5-radial`)
+
+```ts
+id: 'sgl.radial', apiVersion: 1,
+capabilities: { containers: true, edgeRouting: 'straight', ports: false, labelPlacement: false,
+                incremental: false, determinism: 'bitwise' }
+optionsSchema: { nodeSpacing: number, minimum 0 (40), rankSpacing: number, minimum 0 (70) }
+hintsSchema:   { root: boolean }
+```
+
+`radialDescriptor` is in `@sgl/layout-std/descriptor`, sharing `tree`'s spacing schema and `root` hint objects. **The layout code is lazy and in the same chunk as `tree`'s** (DD-12 H9, N52): `radialEngine` (`lazy.ts`) imports `./std-trees.js` (`forest.ts`, `tree.ts`, `radial.ts`, `trig.ts`) on its first call; whichever of the two engines is picked first loads it, and a failed load behaves as §7b says (F33). Host timeout 5 000 ms. The options form (DD-08 §10) has Node spacing and Ring spacing (`rankSpacing`), 0–500, defaults from the descriptor.
+
+Each container is laid out on its own, post-order, from the same spanning forest as `tree` (§7b: `liftArcs`, `spanningForest`, so `@layout.root` and `@order` work the same way):
+
+```
+weights:   leaf: diag + nodeSpacing (diag = the frame's diagonal, Math.sqrt); inner: the sum of
+           its children's; a zero total splits equally
+wedges:    each tree's root [0, 1) turn, its children splitting it; a non-root node's children
+           split at most ½ turn centred on its own angle (Eades' bound); by weight (never 0), BFS order
+place:     a node at its wedge's middle α on ring k = its depth; centre (R_k sin 2πα, −R_k cos 2πα):
+           angle 0 at 12 o'clock, clockwise; the root at (0, 0)
+rings:     R_0 = 0; R_k = max(R_{k−1} + (E_{k−1} + E_k)/2 + gap,   gap = max(rankSpacing, 2 × arrowSize + 8)
+                              max over v on ring k of (diag(v) + nodeSpacing) / (2 sin(π min(θ_v, ½))))
+           (E_k the largest diagonal on ring k, θ_v v's wedge width): bounding circles stay in
+           their wedges, rings a ring gap apart, so nothing overlaps
+discs:     one per tree, in a row in their roots' declaration order, top-aligned, nodeSpacing
+           apart; size = max(min, title + contentInset.l + r, padding + content)
+```
+
+- **Edges and labels are the host's** (§4.1, §4.2): the engine returns no `EdgeLayout` and no label; every edge is a straight spoke (or a straight chord between non-tree nodes, which can cross a node, as under `tree`, F34).
+- **`bitwise`** (ADR-0004, amended): `+ - * /`, `max`, `min`, `Math.sqrt`, and `trig.ts`'s `sinTurn`/`cosTurn` (sin and cos of an angle in turns: an exact quadrant reduction, then Taylor polynomials to x¹⁵ and x¹⁶ by Horner's rule; worst error 6.9e-16 over a turn against `Math.sin`). Never `Math.sin`/`Math.cos`, no `ctx.random`. Every walk is a loop over a BFS order.
+
+Tests: `layout-std/test/trig.test.ts` (accuracy, and a golden of the bit patterns of 85 angles, `__goldens__/trig.txt`, which `test/browser/trig.browser.test.ts` checks in the browser), `radial.test.ts` (units; a bitwise double run raw and quantized over the corpus; goldens in `__goldens__/radial/` for `CLEAN_DOCS` and `layout/tree-*.sgl`), `conformance.test.ts` (checks 1–7), `layout-elk/test/compose.test.ts` (`radial-in-grid`), `test/browser/radial.browser.test.ts` (Chromium equals Node byte for byte, raw inside a real worker and finished through one), and `apps/web/e2e/radial.spec.ts`.
+
 ---
 
 ## 8. Conformance suite (`@sgl/layout-api/conformance`)
 
 Run against both engines in CI; shipped in `@sgl/plugin-sdk` later (**⟶ B18** — the suite exists in MVP; the SDK packaging is what is deferred).
 
-**Implemented (Stage K), `packages/layout-api/src/conformance.ts`.** `runConformance(engine, cases, { metrics, now, timedCase, options?, timeoutMs? })` runs each case through `runHostSequence` — `engine.layout -> applyHostFallbacks -> quantize(…, 64)`, the real request's sequence in one process — and returns a report with every failure of checks 1–6 as text, plus the K4 crossing counts (§6.3) as warnings. **Check 1 fails on *error* diagnostics only**; a warning such as `SGL4003` is reported in the case's `validation` but passes (fix round 1, item 9). Cases are `LayoutInput`s the caller builds (this package may not import `@sgl/theme`/`@sgl/measure`); the clock is injected (`performance.now` is banned below `apps/web`). Check 2 compares the quantized results (and, for `bitwise` engines, the raw ones too) and skips `best-effort`. Check 4's budget defaults to the host's own timeout for that engine. Check 5 reads the engine's *raw* output, before any fallback. The suites: `layout-elk/test/conformance.test.ts` and `layout-std/test/conformance.test.ts` (`grid` and, since `feat/b5-fixed`, `fixed`; since `feat/b5-tree`, `tree`, under `down` and `right`), each over every corpus document plus a 1 000-node graph built in memory from `bench/scale-document.js` (the same generator as `n50`/`n500`/`n2000`). Both pass. Measured (K10): `elk` 1 000 nodes ≈ 0.84 s in Node (host sequence included) and ≈ 1.07 s round trip in a Chromium worker, against its 10 s timeout; `grid` ≈ 13 ms.
+**Implemented (Stage K), `packages/layout-api/src/conformance.ts`.** `runConformance(engine, cases, { metrics, now, timedCase, options?, timeoutMs? })` runs each case through `runHostSequence` — `engine.layout -> applyHostFallbacks -> quantize(…, 64)`, the real request's sequence in one process — and returns a report with every failure of checks 1–6 as text, plus the K4 crossing counts (§6.3) as warnings. **Check 1 fails on *error* diagnostics only**; a warning such as `SGL4003` is reported in the case's `validation` but passes (fix round 1, item 9). Cases are `LayoutInput`s the caller builds (this package may not import `@sgl/theme`/`@sgl/measure`); the clock is injected (`performance.now` is banned below `apps/web`). Check 2 compares the quantized results (and, for `bitwise` engines, the raw ones too) and skips `best-effort`. Check 4's budget defaults to the host's own timeout for that engine. Check 5 reads the engine's *raw* output, before any fallback. The suites: `layout-elk/test/conformance.test.ts` and `layout-std/test/conformance.test.ts` (`grid` and, since `feat/b5-fixed`, `fixed`; since `feat/b5-tree`, `tree`, under `down` and `right`; since `feat/b5-radial`, `radial`, at the default and at 2 px spacings), each over every corpus document plus a 1 000-node graph built in memory from `bench/scale-document.js` (the same generator as `n50`/`n500`/`n2000`). Both pass. Measured (K10): `elk` 1 000 nodes ≈ 0.84 s in Node (host sequence included) and ≈ 1.07 s round trip in a Chromium worker, against its 10 s timeout; `grid` ≈ 13 ms.
 
 For each corpus graph (empty, one node, one edge, self-loop, parallel edges, 3-deep nesting, container-to-container edge, boundary-crossing edge, disconnected components, 1 000 nodes, extreme aspect):
 

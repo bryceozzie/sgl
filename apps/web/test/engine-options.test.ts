@@ -1,5 +1,5 @@
 import { elkDescriptor } from '@sgl/layout-elk/descriptor';
-import { fixedEngine, gridEngine, treeEngine } from '@sgl/layout-std';
+import { fixedEngine, gridEngine, radialEngine, treeEngine } from '@sgl/layout-std';
 import { describe, expect, it } from 'vitest';
 import { editOption, engineForm, formValues, withOption } from '../src/state/engine-form.js';
 import { acceptsOption, defaultOptionsFor, optionsForEngine } from '../src/state/engine-options.js';
@@ -80,8 +80,26 @@ describe('engine options form (F11)', () => {
     expect(withOption('sgl.tree', {}, 'edgeRouting', 'straight')).toEqual({ ...defaultOptionsFor('sgl.tree'), edgeRouting: 'straight' });
   });
 
+  it('radial: node spacing and ring spacing (0–500), tree’s names and defaults (DD-12 N47)', () => {
+    const form = engineForm(radialEngine.id)!;
+    expect(form.title).toBe('Radial options');
+    expect(form.fields).toEqual([
+      { kind: 'number', key: 'nodeSpacing', label: 'Node spacing', min: 0, max: 500, step: 1 },
+      { kind: 'number', key: 'rankSpacing', label: 'Ring spacing', min: 0, max: 500, step: 1 },
+    ]);
+    expect(defaultOptionsFor(radialEngine.id)).toEqual({ nodeSpacing: 40, rankSpacing: 70 });
+    expect(formValues('sgl.radial', { nodeSpacing: 0, rankSpacing: 500, direction: 'up', gap: 3 })).toEqual({ nodeSpacing: 0, rankSpacing: 500 });
+    for (const bad of [-1, 501, 'x', Number.NaN]) expect(formValues('sgl.radial', { nodeSpacing: bad, rankSpacing: bad })).toEqual({ nodeSpacing: 40, rankSpacing: 70 });
+    expect(optionsForEngine('sgl.radial', { direction: 'up', rankSpacing: 12 })).toEqual({ nodeSpacing: 40, rankSpacing: 12 });
+    expect(editOption('sgl.radial', { rankSpacing: 30 }, 'rankSpacing', '600')).toEqual({
+      bag: { nodeSpacing: 40, rankSpacing: 30 },
+      rejected: 'Ring spacing must be a number from 0 to 500. Using 30.',
+    });
+    expect(withOption('sgl.radial', {}, 'nodeSpacing', '0')).toEqual({ nodeSpacing: 0, rankSpacing: 70 });
+  });
+
   it("every select choice and default is one the engine's optionsSchema allows", () => {
-    for (const engine of [elkDescriptor, gridEngine, fixedEngine, treeEngine]) {
+    for (const engine of [elkDescriptor, gridEngine, fixedEngine, treeEngine, radialEngine]) {
       const props = (engine.optionsSchema as { properties: Record<string, { enum?: readonly string[]; default?: unknown }> }).properties;
       const form = engineForm(engine.id)!;
       for (const field of form.fields) {

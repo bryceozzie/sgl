@@ -215,4 +215,38 @@ test.describe('MVP acceptance', () => {
     expect(underTree.renderedPaint).toBe(underElk.renderedPaint);
     expect(underTree.geometry).not.toBe(underElk.geometry);
   });
+
+  /** Criterion 1 under `radial` (DD-12 §12 item 5, feat/b5-radial): the same
+   *  40-node, three-level document as the first case. Switching from elk to
+   *  radial (whose layout code the worker loads from the lazy `std-trees`
+   *  chunk then) keeps identity and paint, changes geometry, and leaves no
+   *  diagnostic: radial takes nested containers as nested discs (N45). */
+  test('criterion 1 under radial: the 40-node document, elk → radial, changes only geometry, with no diagnostics', async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.goto('/');
+    await setSource(page, corpusDoc('forty-three-level.sgl'));
+    await waitForExactNodeCount(page, 40);
+    await expect(page.locator('.engine-picker select')).toHaveValue('sgl.elk');
+    await expect(page.locator('.diagnostics-panel')).toHaveCount(0);
+    const underElk = {
+      identity: await renderedIdentity(page),
+      paint: await paintHash(page),
+      renderedPaint: await renderedPaintHash(page),
+      geometry: await layoutGeometryHash(page),
+    };
+
+    await switchEngine(page, 'sgl.radial', underElk.geometry);
+    await waitForExactNodeCount(page, 40);
+    await expect(page.locator('.diagnostics-panel')).toHaveCount(0);
+    const underRadial = {
+      identity: await renderedIdentity(page),
+      paint: await paintHash(page),
+      renderedPaint: await renderedPaintHash(page),
+      geometry: await layoutGeometryHash(page),
+    };
+    expect(underRadial.identity).toEqual(underElk.identity);
+    expect(underRadial.paint).toBe(underElk.paint);
+    expect(underRadial.renderedPaint).toBe(underElk.renderedPaint);
+    expect(underRadial.geometry).not.toBe(underElk.geometry);
+  });
 });

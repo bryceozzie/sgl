@@ -145,10 +145,14 @@ if (!existsSync(`${DIST}index.html`)) {
   // code; the worker references it (else `tree` could never load); and no
   // boot chunk references it at all (only the worker may import it).
   const TREES_SIGNATURE = 'tree: unknown scope';
+  // B5 branch 5: `radial`'s layout code is in the same chunk (its own
+  // `radial: unknown scope` error), and so is its trigonometry.
+  const RADIAL_SIGNATURE = 'radial: unknown scope';
   const treesChunks = assets.filter((f) => /^std-trees-[\w-]+\.js$/.test(f));
   if (treesChunks.length !== 1) fail(`expected one assets/std-trees-*.js chunk, found ${treesChunks.length} (${treesChunks.join(', ')}).`);
   for (const trees of treesChunks) {
     if (!readFileSync(`${DIST}assets/${trees}`, 'utf8').includes(TREES_SIGNATURE)) fail(`${trees} does not contain '${TREES_SIGNATURE}'; update TREES_SIGNATURE for this minifier output.`);
+    if (!readFileSync(`${DIST}assets/${trees}`, 'utf8').includes(RADIAL_SIGNATURE)) fail(`${trees} does not contain '${RADIAL_SIGNATURE}'; radial's layout code is missing from the std-trees chunk, or update RADIAL_SIGNATURE.`);
     for (const file of seen) {
       if (file === trees) fail(`${trees}, the lazy std-trees chunk, is reachable at boot.`);
       else if (readFileSync(`${DIST}assets/${file}`, 'utf8').includes(trees)) fail(`${file} (reachable at boot) references the lazy std-trees chunk ${trees}; only the layout worker may import it.`);
@@ -158,8 +162,9 @@ if (!existsSync(`${DIST}index.html`)) {
   }
   for (const file of [...seen, ...inWorker]) {
     if (!treesChunks.includes(file) && readFileSync(`${DIST}assets/${file}`, 'utf8').includes(TREES_SIGNATURE)) fail(`${file} (boot or worker) contains tree's layout code; it belongs to the lazy std-trees chunk.`);
+    if (!treesChunks.includes(file) && readFileSync(`${DIST}assets/${file}`, 'utf8').includes(RADIAL_SIGNATURE)) fail(`${file} (boot or worker) contains radial's layout code; it belongs to the lazy std-trees chunk.`);
   }
-  if (process.exitCode !== 1) console.log(`check-core-chunks: tree's layout code is the lazy ${treesChunks.join(', ')}, which only the worker imports, dynamically.`);
+  if (process.exitCode !== 1) console.log(`check-core-chunks: tree's and radial's layout code is the lazy ${treesChunks.join(', ')}, which only the worker imports, dynamically.`);
 
   // B8 branch 2 (DD-14 C47, DD-10 §2): the composer, `@sgl/layout-api/compose`,
   // is the lazy `compose` chunk, which only the worker imports, dynamically,
@@ -196,9 +201,9 @@ if (!existsSync(`${DIST}index.html`)) {
   // source files through each package's `dist` source maps: every module of
   // STD_TREES_MODULES is carried by the std-trees chunk, and no module the
   // std-trees chunk carries is carried by any other chunk — so by none the
-  // page or the worker reaches by static imports. `feat/b5-radial` adds its
-  // modules to the list.
-  const STD_TREES_MODULES = ['packages/layout-std/src/forest.ts', 'packages/layout-std/src/tree.ts'];
+  // page or the worker reaches by static imports. `feat/b5-radial` added its
+  // modules, `radial.ts` and its trigonometry, `trig.ts`.
+  const STD_TREES_MODULES = ['packages/layout-std/src/forest.ts', 'packages/layout-std/src/tree.ts', 'packages/layout-std/src/radial.ts', 'packages/layout-std/src/trig.ts'];
   const REPO = fileURLToPath(new URL('../../../', import.meta.url));
   const graphFile = fileURLToPath(new URL('../node_modules/.sgl-build/chunk-modules.json', import.meta.url));
   if (!existsSync(graphFile)) fail(`${graphFile} is missing; run \`pnpm build\` (build/chunk-modules.ts writes it).`);

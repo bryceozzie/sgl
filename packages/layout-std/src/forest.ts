@@ -1,4 +1,5 @@
-import type { GraphEdge, NodeId, SemanticGraph } from '@sgl/core';
+import type { GraphEdge, NodeId, Point, Rect, SemanticGraph, Size } from '@sgl/core';
+import type { LayoutInput, NodeLayout, NodeSizing } from '@sgl/layout-api';
 
 /**
  * The spanning forest `tree` and `radial` share (DD-12 §7). Part of the lazy
@@ -146,4 +147,56 @@ export function spanningForest(kids: readonly NodeId[], arcs: readonly LevelArc[
     bfs();
   }
   return { roots, children, parent, depth };
+}
+
+/* The rest is also shared by `tree` and `radial` (moved from `tree.ts` in
+ * B5 branch 5, unchanged): a level's children, a leaf's size, a level's
+ * size, and a node's layout. */
+
+/** A level's visible children, in declaration order. */
+export function visibleChildren(id: NodeId | null, graph: SemanticGraph): readonly NodeId[] {
+  const ids = id === null ? graph.rootChildren : (graph.nodes[id]?.children ?? []);
+  return ids.filter((cid) => graph.nodes[cid]?.hidden === false);
+}
+
+/** A leaf's size, as `grid`, `fixed` and `elk` size it. */
+export function leafSize(sizing: NodeSizing | undefined): Size {
+  if (sizing === undefined) return { w: 0, h: 0 };
+  return {
+    w: sizing.fixed?.w ?? clamp(sizing.intrinsic.w, sizing.min?.w, sizing.max?.w),
+    h: sizing.fixed?.h ?? clamp(sizing.intrinsic.h, sizing.min?.h, sizing.max?.h),
+  };
+}
+
+function clamp(v: number, min: number | undefined, max: number | undefined): number {
+  let out = v;
+  if (min !== undefined) out = Math.max(out, min);
+  if (max !== undefined) out = Math.min(out, max);
+  return out;
+}
+
+/** The size of level `id` whose content is `w × h`: the content itself at
+ *  the root; for a container, the content plus padding, at least its `min`,
+ *  and as wide as its title plus the content insets (`fixed`'s and `elk`'s
+ *  rule). */
+export function levelSize(id: NodeId | null, input: LayoutInput, w: number, h: number): Size {
+  const sizing = id === null ? undefined : input.sizing[id];
+  if (id === null || sizing === undefined) return { w, h };
+  const padding = sizing.padding;
+  const labelId = input.graph.nodes[id]?.labelId ?? null;
+  const title = labelId === null ? undefined : input.labelSizes[labelId];
+  const titleW = title === undefined ? 0 : title.w + sizing.contentInset[1] + sizing.contentInset[3];
+  return {
+    w: Math.max(sizing.min?.w ?? 0, titleW, padding[3] + w + padding[1]),
+    h: Math.max(sizing.min?.h ?? 0, padding[0] + h + padding[2]),
+  };
+}
+
+/** A node's layout at `origin`, with its content frame when it is a laid-out container. */
+export function frameOf(id: NodeId, origin: Point, size: Size, input: LayoutInput, container: boolean): NodeLayout {
+  const frame: Rect = { x: origin.x, y: origin.y, w: size.w, h: size.h };
+  const sizing = input.sizing[id];
+  if (!container || sizing === undefined) return { frame };
+  const [t, r, b, l] = sizing.padding;
+  return { frame, contentFrame: { x: frame.x + l, y: frame.y + t, w: frame.w - l - r, h: frame.h - t - b } };
 }

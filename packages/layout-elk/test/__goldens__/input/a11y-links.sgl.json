@@ -14,7 +14,7 @@
   },
   "children": [
     {
-      "id": "a",
+      "id": "n:a",
       "width": 72,
       "height": 36,
       "labels": [
@@ -29,7 +29,7 @@
       ]
     },
     {
-      "id": "b",
+      "id": "n:b",
       "width": 72,
       "height": 36,
       "labels": [
@@ -46,12 +46,12 @@
   ],
   "edges": [
     {
-      "id": "e-43cd40b7c998acd4",
+      "id": "e:e-43cd40b7c998acd4",
       "sources": [
-        "a"
+        "n:a"
       ],
       "targets": [
-        "b"
+        "n:b"
       ],
       "labels": []
     }

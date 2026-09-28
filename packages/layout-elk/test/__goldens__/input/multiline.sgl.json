@@ -14,7 +14,7 @@
   },
   "children": [
     {
-      "id": "api",
+      "id": "n:api",
       "width": 145.381,
       "height": 49.800000000000004,
       "labels": [
@@ -29,7 +29,7 @@
       ]
     },
     {
-      "id": "ledger",
+      "id": "n:ledger",
       "width": 93.355,
       "height": 49.800000000000004,
       "labels": [
@@ -44,7 +44,7 @@
       ]
     },
     {
-      "id": "outbox",
+      "id": "n:outbox",
       "width": 72,
       "height": 49.800000000000004,
       "labels": [
@@ -59,7 +59,7 @@
       ]
     },
     {
-      "id": "single",
+      "id": "n:single",
       "width": 72,
       "height": 36,
       "labels": [
@@ -76,12 +76,12 @@
   ],
   "edges": [
     {
-      "id": "e-2692142e37269974",
+      "id": "e:e-2692142e37269974",
       "sources": [
-        "api"
+        "n:api"
       ],
       "targets": [
-        "ledger"
+        "n:ledger"
       ],
       "labels": [
         {
@@ -95,12 +95,12 @@
       ]
     },
     {
-      "id": "e-341623d299d48a21",
+      "id": "e:e-341623d299d48a21",
       "sources": [
-        "ledger"
+        "n:ledger"
       ],
       "targets": [
-        "outbox"
+        "n:outbox"
       ],
       "labels": []
     }
