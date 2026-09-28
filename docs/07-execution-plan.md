@@ -2173,7 +2173,7 @@ link's `t=` accepted it; now every lookup sees only the four themes. Fixture
 `apps/web/test/theme-lookup.test.ts` (stored record and `t=`), `e2e/unknown-theme.spec.ts` (the panel
 and the squiggle). The help's `@theme` entry lists `SGL5007` with an example that expects it. DD-04 §6
 has the row. No golden moved: the fonts pin gains the fixture's entry, and its AST and tree pins are
-new. Core bundle **179.32 kB of 182**, +129 B over `main` (accepted by the orchestrator over the
+new. Core bundle **179.31 kB of 182** (179 315 B), +129 B over `main` (accepted by the orchestrator over the
 brief's +0.1 kB cap).
 
 ### 2.1 Open findings
