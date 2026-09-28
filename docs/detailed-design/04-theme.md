@@ -209,8 +209,11 @@ container: contentFrame top inset += titleHeight + titleGap
 | `SGL5004` | warning | `{name}` expects {type}, got `{value}`; ignored. |
 | `SGL5005` | warning | Unknown token `@{name}`; using a fallback value. |
 | `SGL5006` | error | Token `@{name}` refers to itself via `{cycle}`. |
+| `SGL5007` | warning | Unknown theme `{name}`; using the default. |
 
 `SGL5003`/`5004` from a *document's* `@style` carry the document span; from a theme they carry no span and are shown in the theme picker instead.
+
+`SGL5007` (F31, human decision 2026-09-27) is about the document, not a theme: its root `@theme` names no built-in theme. It is at the key of the last root `@theme` entry (the one in force), and the document draws in the default theme. `unknownThemeDiagnostics` (`@sgl/theme`) builds it for the app's pipeline and `render-svg`'s harness alike. `BUILT_IN` has no prototype, so a name such as `constructor` is unknown here and at every other lookup.
 
 ---
 

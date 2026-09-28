@@ -58,7 +58,7 @@ orders -> ledger
 
 - **Engine** in the toolbar chooses how the diagram is laid out: `elk` draws layered diagrams, `grid` places nodes in rows and columns, `fixed` puts each node where its `@pin` says, and `tree` draws a hierarchy as a tidy tree, parents above their children.
 - **Theme** chooses the colours.
-- A document can choose for itself with `@layout: { engine: grid }` and `@theme`, and the toolbar then says so.
+- A document can choose for itself with `@layout: { engine: grid }` and `@theme`, and the toolbar then says so. Its other `@layout` keys, and `@direction`, are the engine's options: they override the toolbar's Options for that document, which marks each such field "(set by document)".
 - **Share** makes a link that carries the whole document inside it. Nothing is uploaded.
 
 ```sgl example title="A document that picks its engine and theme" engine=grid

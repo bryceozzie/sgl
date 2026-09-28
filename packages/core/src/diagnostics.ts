@@ -84,6 +84,9 @@ export const CATALOGUE = {
   SGL5004: { severity: 'warning', template: '`{name}` expects {type}, got `{value}`; ignored.' },
   SGL5005: { severity: 'warning', template: 'Unknown token `@{name}`; using a fallback value.' },
   SGL5006: { severity: 'error', template: 'Token `@{name}` refers to itself via `{cycle}`.' },
+  // F31 (human decision 2026-09-27): a document's `@theme` names no built-in
+  // theme; it draws in the default one, as it always did, and now says so.
+  SGL5007: { severity: 'warning', template: 'Unknown theme `{name}`; using the default.' },
 
   // ---- 6xxx platform (DD-07) ---------------------------------------------
   SGL6001: { severity: 'warning', template: 'Link on `{element}` uses `{scheme}:`, which is not allowed; the link was removed.' },

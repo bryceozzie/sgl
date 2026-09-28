@@ -1,10 +1,11 @@
 import { asNodeId, type LabelId, type Size } from '@sgl/core';
-import { buildLayoutInput, type LayoutInput, type ResolvedThemeMetricsView, type StyledGraphInput } from '@sgl/layout-api';
+import { buildLayoutInput, rootLayoutOptions, type LayoutInput, type ResolvedThemeMetricsView, type StyledGraphInput } from '@sgl/layout-api';
 import { labelRunKey, premeasure, StaticMetricsMeasurer } from '@sgl/measure';
 import { layoutWrapped } from '@sgl/text/wrap';
 import { styleGraph, resolveTheme, BUILT_IN, neutralLight, type StyledGraph } from '@sgl/theme';
 import { compile, parse, resolve } from '@sgl/core';
-import { corpusStyledGraph } from '../../theme/test/corpus.js';
+import { corpusSource, corpusStyledGraph } from '../../theme/test/corpus.js';
+import { elkDescriptor } from '../src/descriptor.js';
 
 /** The metrics every Node-side layout fixture uses (`grid.test.ts`,
  *  `render-svg/test/pipeline.ts`, `bench/generate-grid-fixture.js`). */
@@ -29,6 +30,13 @@ function inputOf(styled: StyledGraph): LayoutInput {
  *  `StaticMetricsMeasurer` — the same composition `grid.test.ts` uses. */
 export function layoutInputFor(name: string): LayoutInput {
   return inputOf(corpusStyledGraph(name).styled);
+}
+
+/** The options a corpus document's root `@layout` gives `elk` (DD-12 H6), as
+ *  the app sends them: `checkout.sgl`'s `direction: right`. */
+export function documentOptionsFor(name: string): Readonly<Record<string, unknown>> {
+  const { ast } = parse(corpusSource(name));
+  return rootLayoutOptions(ast, resolve(ast).model.root.config, elkDescriptor).options;
 }
 
 /** The same, over source text rather than a corpus file. */

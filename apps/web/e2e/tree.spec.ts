@@ -100,6 +100,28 @@ test('a document naming `engine: tree` selects it; Options ▾ has Direction, sp
   for (const d of await edgePaths(page)) expect(vertices(d), d).toHaveLength(2);
 });
 
+/** DD-12 H6 with `tree` (branch 3, merged): a root `direction` reaches it. */
+test('a root `@layout.direction: right` turns the tree, and Options ▾ shows it as the document’s', async ({ page }) => {
+  await page.goto('/');
+  await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
+  const source = `@layout: { engine: tree, direction: right }\n${TREE}`;
+  await setSource(page, source);
+  await waitForExactNodeCount(page, visibleNodeCount(source));
+  await expect(page.locator('.engine-picker select')).toHaveValue('sgl.tree');
+  await expect(page.locator('.diagnostics-panel')).toHaveCount(0);
+  await expect
+    .poll(
+      async () => {
+        const [top, left] = await Promise.all(['Top', 'Left'].map((l) => box(page, l)));
+        return left!.x > top!.x + top!.w;
+      },
+      { timeout: 20_000 },
+    )
+    .toBe(true);
+  await page.locator('.engine-options summary').click();
+  await expect(page.getByLabel('Direction (set by document)')).toHaveValue('right');
+});
+
 /**
  * Degradation, as `elk`'s lazy chunk degrades (DD-06 §3): the request fails
  * with SGL4011 naming the engine, the previous picture stays, and the app
