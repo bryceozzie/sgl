@@ -9,7 +9,8 @@ descriptors. **Outputs:** one `LayoutResult`, as today.
 **Status: decided (2026-09-28). Designed 2026-09-27 from `main` at `9f47545`; the human accepted
 every recommendation on 2026-09-28 (⚑1–⚑8, §13). No code is changed by this document**: §11's
 branches implement it. **Branch 1, `feat/b8-compose`, is built (§11.1). Branch 2, `feat/b8-wire`, is
-built (§11.2): B8 works for users, with straight crossing edges, and F29 is cleared.** The documents it amends were updated on this branch (§14). It assumes `fix/root-layout-options` (`5dfc16f`, DD-12 H6) is merged first: B8 reuses its
+built (§11.2): B8 works for users, with straight crossing edges, and F29 is cleared. Branch 4,
+`perf/b8-cache`, is built (§11.4): the per-box cache (C32).** The documents it amends were updated on this branch (§14). It assumes `fix/root-layout-options` (`5dfc16f`, DD-12 H6) is merged first: B8 reuses its
 `rootLayoutOptions` seam and its `EngineSchemas.accepts`.
 
 **Why now.** Human decision F29 (2026-09-27): keep spec §9's worked example, which puts
@@ -376,6 +377,10 @@ root, and `payments.api -> psp` leaves it.
   bench shows it.* **F23** is the main-thread cost of compiling many imported nodes on every
   keystroke. This cache is its layout-side counterpart and does not fix it; the two meet if F23's
   remedy keeps a graft across keystrokes, because an unchanged graft gives an unchanged view.
+  **Built by `perf/b8-cache` (§11.4)**, as described, with the key widened to everything the
+  engine and the host fallbacks read (the engine's version and capabilities, the theme metrics),
+  a bound in entries and bytes that stores nothing new when full, and a clear on a change of the
+  document's engine.
 
 ---
 
@@ -494,6 +499,14 @@ root over 200 `grid` boxes 196 / 207 ms; a `grid` root over 200 `elk` boxes 2 99
 `elk` root over 200 `elk` boxes 3 030 / 3 339 ms. The first row is as estimated. An ELK call on a
 10-node box costs about 15 ms, not 2–5 ms, so the last two are three times the estimate and reach
 the whole 3 s budget: C49's answer, C32's cache (`perf/b8-cache`), is now warranted.
+
+**Measured by branch 4** (`perf/b8-cache`, §11.4; the same bench, each variant on a fresh worker,
+round trip, best / median of 3; edits from `editScaleDocument`): with the cache, a keystroke in a
+document of 200 `elk` boxes costs **~0.12–0.2 s** instead of ~2.8–3.1 s, whether the edit is
+inside one box, outside every box, or to one box's options, under a `grid` or an `elk` root. The
+first layout of such a document (cold: every box is laid out) is unchanged, **~3.2–3.5 s**, still
+at or over the 3 s budget; it is paid when the document is opened or its engines change, not per
+keystroke. §11.4 has the table.
 
 - **C48. The composer's own cost is linear**: views, lifting (O(edges × depth)) and translation are a
   few ms at 2 000 nodes, off the keystroke path (the layout effect runs from the debounce timer).
@@ -759,7 +772,8 @@ and `grid-in-tree` (`tree` places a `grid` box as a leaf of its size).
    with 2 `sgl.elk` boxes and 1 `sgl.fixed` box)", engines in the plan's order. **Not done here, for
    `perf/b8-cache`:** degrading under time pressure, dissolving the boxes not yet laid out when the
    clock nears its end so that a composed layout still lands (at ~15 ms per `elk` box, 200 boxes
-   take ~3 s of the 10 s), rather than losing the whole request to `SGL4001`.
+   take ~3 s of the 10 s), rather than losing the whole request to `SGL4001`. *(`perf/b8-cache`
+   measured it and did not build it: §11.4, item 5.)*
 4. **`planKey` is defence in depth:** the plan is today a function of what the input key already
    holds and of the options, so no test can see `planKey` decide a skip alone (mutation M1
    survived). It stays, so a plan fed by anything the input does not carry cannot reuse another
@@ -775,6 +789,96 @@ Size after the fix round, with `main` at `900f93b` merged in: core **181.14 kB**
 over that `main` (180 195 B): over the brief's +0.9 kB line by about 50 B. The fix round's page
 items (the `{kind}`, `quiet`, the composed `SGL4001` wording) cost about 150 B; the plan check is in
 the lazy compose chunk (3.81 kB), so the worker's boot share stays small.
+
+### 11.4 Branch 4 as built (`perf/b8-cache`, from `main` at `d657551`)
+
+Branch 3 (`feat/b8-ports`) is not built yet; this branch was brought forward by §8.2's
+measurement.
+
+**What exists.** All of it in `packages/layout-api/src/compose.ts`, the lazy `compose` chunk.
+
+1. **`LayoutCache`** (C32). `composeLayout(…, ctx, cache?)` takes one; `runScope` looks each box
+   up before running its engine and stores what it returns.
+   - **Key** (`cacheKey`): exact JSON of the box's engine id, `version`, `apiVersion` and
+     `capabilities` (the host fallbacks read them), its options (the plan's, complete, so an
+     option inherited from the root (C6) is in it), the theme metrics (`ctx.metrics`, which
+     engines and the fallbacks read), and its whole view (C24): its nodes (config included), the
+     sizing (an inner box's laid-out size included, so a box whose inner box changed size misses),
+     its labels and their measured sizes, its edges, its order. Node and edge **spans are left
+     out**, so an edit earlier in the text, which moves every span after it, does not miss; a
+     result with notes (`fixed`'s `SGL4020`) also keeps its view's spans, and a hit needs them
+     equal (C32). `-0`, `undefined` and non-finite numbers are encoded apart from `0`, a missing
+     key and `null`. Keys are content, compared in full; never object identity across requests.
+     An entry for a 10-node box is ~25 kB by the bound's estimate.
+   - **What is stored:** a box whose engine succeeded and passed the view's checks, and whose
+     engine did not call `ctx.random`, `ctx.log` or `ctx.measure.layoutRunsAsync` (then its
+     result is a function of the key alone; a draw from the request's seeded `random` would also
+     depend on the draws before it). A failed or dissolved box (C28), and the root's layer, are
+     never cached: the root's view changes with almost any edit, and it is laid out every time.
+     Values go in and come out as `structuredClone` copies.
+   - **Policy: the last two finished requests** (C32, the A9 import cache's rule): when a request
+     runs to the end, every entry neither it nor the one before used is dropped. A superseded
+     request that stopped part-way (C27) ends no generation, so fast typing does not age out boxes
+     it never reached. One edit at a time changes a few keys; the old entry lives one more
+     generation, so an edit undone hits.
+   - **Bounds:** 2 000 entries and 32 MB (`LAYOUT_CACHE_LIMITS`; each entry's key, result JSON and
+     spans at two bytes a character). n2000's 200 `elk` boxes take 201 entries, ~5 MB. **When
+     full, a new entry is not stored**; nothing is evicted to make room. A request visits its
+     boxes in the same order every time, so any recency policy over a scan larger than the cache
+     misses on every box, as the LRU tried for F24 did (07 §2.1); keeping what is in gives a larger
+     document stable partial hits, and the two-request sweep frees room.
+   - **Cleared** when the document's engine (`id@version`) changes. **Lives in the worker:**
+     `composeInWorker`, which `layout.worker.ts`'s loader now takes, holds one `LayoutCache` per
+     instance of the module, so a respawned worker (a timeout, an unanswered abort) starts empty.
+2. **`viewIndex`** (not in the design). With the cache, a keystroke still took ~200 ms, ~150 ms
+   of it `layoutView`: each view filtered all of `graph.edges` and `graph.order`, quadratic over a
+   request's boxes, and the cache cannot skip a view, because the view is the key. `viewIndex(graph)`
+   (each node's position in `graph.order`, each node's edges by index) is built once per request,
+   and `layoutView(…, index?)` gathers a view's edges and order from its own nodes. The same view
+   (a test compares both over every corpus document and container).
+3. **Tests.** `layout-api/test/compose.test.ts` (14 units on stub engines: repeat, edits inside,
+   outside and to options, engine version, metrics, a label's measured size, a nested box, notes
+   and spans, impure and failed boxes, generations and abort, the bound, the engine change, exact
+   keys, copies, `composeInWorker`); `layout-elk/test/compose-cache.test.ts`: **the differential
+   test** (8 seeds × 40 random keystroke edits of documents of `grid`, `elk`, `fixed`, `tree` and
+   `radial` boxes, nested boxes, pins and loose nodes, under `grid`, `elk` and `fixed` roots; edits
+   add, remove and relabel nodes, change a box's options or engine, the root's options or engine,
+   add a top-level node or a comment line before everything, add and remove edges, pin and unpin;
+   each version composed with the sequence's one cache and with none must be identical by
+   `JSON.stringify` and `toStrictEqual`, which compares numbers with `Object.is`), the view index
+   over the corpus, and two CPU-time tests (best of three): an edit inside one of 50 `elk` boxes
+   costs under a quarter of laying all 50 out (without the cache: 351 against 363 ms), and a
+   request whose boxes are all cached grows linearly (16× the nodes under 50×; without the index
+   123–134×). A mutation pass over the cache (14 mutants) killed all but one equivalent mutant (the
+   view's order out of the key: it is the pre-order of the view's nodes, already in the key). The
+   §8.2 bench (browser) and a Node bench (`SGL_BENCH=1`) print cold, warm and edits.
+4. **Numbers** (Chromium worker, round trip, best / median of 3; before is `main` `d657551`, load
+   ≈ 1; after is this branch, load ≈ 6 from other agents' runs):
+
+   | Document (2 000 nodes) | Before: cold / warm / edit inside / outside / options (ms) | After (ms) |
+   |---|---|---|
+   | `grid` root, 200 `elk` boxes | 3 231 / 2 845 / 2 864 / 2 774 / 2 846 | 3 515 / 139 / 141 / 118 / 125 |
+   | `elk` root, 200 `elk` boxes | 3 321 / 3 128 / 3 031 / 2 891 / 2 808 | 3 524 / 146 / 156 / 134 / 119 |
+   | `elk` root, 200 `grid` boxes | 331 / 209 / 229 / 205 / 197 | 320 / 226 / 175 / 169 / 132 |
+
+   Against DD-09 §2: a keystroke in a 200-`elk`-box document now lays out in ~0.12–0.2 s, well
+   inside the 3 s full-pipeline budget (the 60 ms keystroke budget is for 50 nodes and the
+   synchronous stages; layout is debounced and off-thread). The cold layout is every box's and
+   is unchanged at ~3.2–3.5 s, at or over 3 s. In Node the composer alone takes ~50–100 ms with
+   the cache against ~1.5–1.8 s without. A `grid` box costs ~0.1 ms, so for `grid` boxes the
+   cache saves nothing and costs its keys (~20 ms at 200 boxes), within noise here.
+5. **Degrading under time pressure (§11.2 fix round 1, item 3) is not built.** It would dissolve
+   the boxes not yet laid out when the request's clock nears its end. After the cache, the only
+   request that lays out every box is the cold one, ~3.3 s of the 10 s clock at 200 `elk` boxes
+   (~15 ms each); `SGL4001` would need ~600 `elk` boxes, three times the 2 000-node budget's
+   document. And it needs a clock in the composer, which C31 and the lint rule forbid: the output
+   would depend on the machine's speed. If a real document reaches the timeout, the remedy is a
+   faster ELK call per box, or a cap.
+6. **Size:** core 181 142 → 181 150 B (+8 B: the loader's export name); the lazy compose chunk
+   3.81 → 4.78 kB gzipped.
+
+**Deviations.** `viewIndex` (item 2) is new; C32's key is wider than written (item 1); the root's
+layer is not cached.
 
 ---
 

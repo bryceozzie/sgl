@@ -286,6 +286,22 @@ fixed size. `@sgl/layout-api/compose` is its own entry and is on no boot path; b
   composer from its lazy chunk. A box's result is checked with `checkResult` (`validate.ts`:
   `validateResult`'s checks, reporting codes and values, building no message), so the chunk
   carries no catalogue row.
+- **The per-box cache** (C32; `perf/b8-cache`, DD-14 §11.4). `composeLayout(…, cache?)` takes a
+  `LayoutCache`; the worker's loader takes `composeInWorker`, which holds one per worker, so a
+  respawn starts empty. A box whose key is cached is not laid out: its stored result (a copy) is
+  moved into place as a fresh one would be. The key is the exact JSON of the engine's id, version,
+  API version and capabilities, the box's options, the theme metrics and its whole view (C24),
+  without node and edge spans (a result with notes also needs its spans equal). Only a checked
+  success whose engine did not call `ctx.random`, `ctx.log` or `ctx.measure.layoutRunsAsync` is
+  stored; failures, dissolved boxes and the root's layer never are. Entries used by neither of the
+  last two finished requests are dropped when a request finishes (a superseded one ends no
+  generation); at most 2 000 entries and 32 MB, and when full nothing new is stored (no eviction:
+  a scan larger than the cache would thrash any recency policy, 07 §2.1 F24). Cleared when the
+  document's engine changes. A keystroke in a document of 200 `elk` boxes: ~0.12–0.2 s in a
+  Chromium worker instead of ~3 s; the first layout is unchanged. `layoutView` takes an optional
+  `viewIndex(graph)`, built once per request, so a view costs its own size rather than a pass
+  over the whole graph. The result is byte for byte the uncached one
+  (`layout-elk/test/compose-cache.test.ts`, the differential test).
 - **Determinism** (C30, C31): as reproducible as the least reproducible engine in the plan. A
   `grid` box in a `grid` document composes to `grid`'s own quantized result, coordinate for
   coordinate (`layout-elk/test/compose.test.ts`, over the corpus).

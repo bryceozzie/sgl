@@ -152,3 +152,29 @@ three to eight times DD-14 §8.2's 2–5 ms guess: 200 of them take about 3 s,
 the whole pipeline's budget at 2 000 nodes (DD-09 §2), inside the 10 s
 timeout. DD-14 C49 names the remedy: the per-subtree cache
 (`perf/b8-cache`, C32), not a cap.
+
+### With the per-box cache (`perf/b8-cache`, DD-14 §11.4)
+
+Since `perf/b8-cache` the bench runs each variant on a fresh worker (so its
+cache starts empty) and prints the document's first request (**cold**), three
+repeats (**warm**), and three one-keystroke edits of each kind from
+`editScaleDocument` (`scale-document.js`): a node added **inside** one box, a
+top-level node added **outside** every box (every span after it moves), and an
+option on one box's own `@layout` (**options**). `packages/layout-elk/test/
+compose-cache.test.ts` has the same in Node, with and without the cache, when
+`SGL_BENCH=1` is set (`[B8-CACHE-NODE]`).
+
+Chromium 1194 worker, round trip, best of 3 (before: `main` `d657551`, load
+≈ 1; after: this branch, load ≈ 6):
+
+| Document (2 000 nodes) | Cold | Warm | Edit inside | Edit outside | Edit options |
+|---|---|---|---|---|---|
+| `grid` root, 200 `elk` boxes, before | 3 231 ms | 2 845 ms | 2 864 ms | 2 774 ms | 2 846 ms |
+| `grid` root, 200 `elk` boxes, after | 3 515 ms | 139 ms | 141 ms | 118 ms | 125 ms |
+| `elk` root, 200 `elk` boxes, before | 3 321 ms | 3 128 ms | 3 031 ms | 2 891 ms | 2 808 ms |
+| `elk` root, 200 `elk` boxes, after | 3 524 ms | 146 ms | 156 ms | 134 ms | 119 ms |
+| `elk` root, 200 `grid` boxes, before | 331 ms | 209 ms | 229 ms | 205 ms | 197 ms |
+| `elk` root, 200 `grid` boxes, after | 320 ms | 226 ms | 175 ms | 169 ms | 132 ms |
+
+A keystroke re-lays out only the boxes it changed. The cold request lays
+every box out and costs what it did.
