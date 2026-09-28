@@ -44,6 +44,8 @@ Both numbers are required, each between -100 000 and 100 000; otherwise the whol
 api: { @pin: { x: 40 } }
 ```
 
+A pin is honoured by the engine that places the node. Inside a container laid out by `fixed` (`@layout: { engine: fixed }`), pins work in a document laid out by any engine; the container's own pin is for the engine around it.
+
 `elk` and `grid` do not honour pins: they lay the node out as usual and warn that the pin is ignored.
 
 ```sgl example title="A pin, ignored by elk" expect=SGL4021

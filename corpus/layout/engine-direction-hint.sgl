@@ -1,0 +1,13 @@
+// expects: SGL4010
+// On a container that names no engine, `@layout` keys are hints for the
+// engine around it (DD-14 C9): `@direction` is an option of elk's, not a hint,
+// so on `box` it is ignored with a warning. To turn a container, give it an
+// engine: `@layout: { engine: elk, direction: right }` (`engine-same-engine`).
+@layout: { engine: elk }
+box: {
+  @label: "Box"
+  @direction: right
+  a: "A"
+  b: "B"
+  a -> b
+}

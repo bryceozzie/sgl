@@ -1,0 +1,616 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "layout"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "engine",
+       "isConfig": false,
+       "keySpan": {
+        "from": 11,
+        "to": 17
+       },
+       "value": {
+        "kind": "Word",
+        "value": "grid",
+        "span": {
+         "from": 19,
+         "to": 23
+        }
+       },
+       "span": {
+        "from": 11,
+        "to": 23
+       }
+      }
+     ],
+     "span": {
+      "from": 9,
+      "to": 25
+     }
+    },
+    "keySpan": {
+     "from": 0,
+     "to": 7
+    },
+    "span": {
+     "from": 0,
+     "to": 25
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "intro",
+    "keySpan": {
+     "from": 26,
+     "to": 31
+    },
+    "value": {
+     "kind": "String",
+     "value": "Intro",
+     "span": {
+      "from": 33,
+      "to": 40
+     }
+    },
+    "span": {
+     "from": 26,
+     "to": 40
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "pipeline",
+    "keySpan": {
+     "from": 41,
+     "to": 49
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Pipeline",
+        "span": {
+         "from": 63,
+         "to": 73
+        }
+       },
+       "keySpan": {
+        "from": 55,
+        "to": 61
+       },
+       "span": {
+        "from": 55,
+        "to": 73
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "layout"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "engine",
+          "isConfig": false,
+          "keySpan": {
+           "from": 87,
+           "to": 93
+          },
+          "value": {
+           "kind": "Word",
+           "value": "elk",
+           "span": {
+            "from": 95,
+            "to": 98
+           }
+          },
+          "span": {
+           "from": 87,
+           "to": 98
+          }
+         },
+         {
+          "kind": "Property",
+          "key": "direction",
+          "isConfig": false,
+          "keySpan": {
+           "from": 100,
+           "to": 109
+          },
+          "value": {
+           "kind": "Word",
+           "value": "right",
+           "span": {
+            "from": 111,
+            "to": 116
+           }
+          },
+          "span": {
+           "from": 100,
+           "to": 116
+          }
+         }
+        ],
+        "span": {
+         "from": 85,
+         "to": 118
+        }
+       },
+       "keySpan": {
+        "from": 76,
+        "to": 83
+       },
+       "span": {
+        "from": 76,
+        "to": 118
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "fetch",
+       "keySpan": {
+        "from": 121,
+        "to": 126
+       },
+       "value": {
+        "kind": "String",
+        "value": "Fetch",
+        "span": {
+         "from": 128,
+         "to": 135
+        }
+       },
+       "span": {
+        "from": 121,
+        "to": 135
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "parse",
+       "keySpan": {
+        "from": 138,
+        "to": 143
+       },
+       "value": {
+        "kind": "String",
+        "value": "Parse",
+        "span": {
+         "from": 145,
+         "to": 152
+        }
+       },
+       "span": {
+        "from": 138,
+        "to": 152
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "emit",
+       "keySpan": {
+        "from": 155,
+        "to": 159
+       },
+       "value": {
+        "kind": "String",
+        "value": "Emit",
+        "span": {
+         "from": 161,
+         "to": 167
+        }
+       },
+       "span": {
+        "from": 155,
+        "to": 167
+       }
+      },
+      {
+       "kind": "EdgeStmt",
+       "endpoints": [
+        {
+         "kind": "Endpoint",
+         "path": {
+          "kind": "PathExpr",
+          "root": false,
+          "parents": 0,
+          "segments": [
+           {
+            "kind": "Name",
+            "value": "fetch",
+            "span": {
+             "from": 170,
+             "to": 175
+            }
+           }
+          ],
+          "span": {
+           "from": 170,
+           "to": 175
+          }
+         },
+         "span": {
+          "from": 170,
+          "to": 175
+         }
+        },
+        {
+         "kind": "Endpoint",
+         "path": {
+          "kind": "PathExpr",
+          "root": false,
+          "parents": 0,
+          "segments": [
+           {
+            "kind": "Name",
+            "value": "parse",
+            "span": {
+             "from": 179,
+             "to": 184
+            }
+           }
+          ],
+          "span": {
+           "from": 179,
+           "to": 184
+          }
+         },
+         "span": {
+          "from": 179,
+          "to": 184
+         }
+        }
+       ],
+       "ops": [
+        "->"
+       ],
+       "span": {
+        "from": 170,
+        "to": 184
+       }
+      },
+      {
+       "kind": "EdgeStmt",
+       "endpoints": [
+        {
+         "kind": "Endpoint",
+         "path": {
+          "kind": "PathExpr",
+          "root": false,
+          "parents": 0,
+          "segments": [
+           {
+            "kind": "Name",
+            "value": "parse",
+            "span": {
+             "from": 187,
+             "to": 192
+            }
+           }
+          ],
+          "span": {
+           "from": 187,
+           "to": 192
+          }
+         },
+         "span": {
+          "from": 187,
+          "to": 192
+         }
+        },
+        {
+         "kind": "Endpoint",
+         "path": {
+          "kind": "PathExpr",
+          "root": false,
+          "parents": 0,
+          "segments": [
+           {
+            "kind": "Name",
+            "value": "emit",
+            "span": {
+             "from": 196,
+             "to": 200
+            }
+           }
+          ],
+          "span": {
+           "from": 196,
+           "to": 200
+          }
+         },
+         "span": {
+          "from": 196,
+          "to": 200
+         }
+        }
+       ],
+       "ops": [
+        "->"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "tokens",
+        "span": {
+         "from": 202,
+         "to": 210
+        }
+       },
+       "span": {
+        "from": 187,
+        "to": 210
+       }
+      }
+     ],
+     "span": {
+      "from": 51,
+      "to": 212
+     }
+    },
+    "span": {
+     "from": 41,
+     "to": 212
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "out",
+    "keySpan": {
+     "from": 213,
+     "to": 216
+    },
+    "value": {
+     "kind": "String",
+     "value": "Out",
+     "span": {
+      "from": 218,
+      "to": 223
+     }
+    },
+    "span": {
+     "from": 213,
+     "to": 223
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "intro",
+         "span": {
+          "from": 224,
+          "to": 229
+         }
+        }
+       ],
+       "span": {
+        "from": 224,
+        "to": 229
+       }
+      },
+      "span": {
+       "from": 224,
+       "to": 229
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "pipeline",
+         "span": {
+          "from": 233,
+          "to": 241
+         }
+        },
+        {
+         "kind": "Name",
+         "value": "fetch",
+         "span": {
+          "from": 242,
+          "to": 247
+         }
+        }
+       ],
+       "span": {
+        "from": 233,
+        "to": 247
+       }
+      },
+      "span": {
+       "from": 233,
+       "to": 247
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 224,
+     "to": 247
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "pipeline",
+         "span": {
+          "from": 248,
+          "to": 256
+         }
+        },
+        {
+         "kind": "Name",
+         "value": "emit",
+         "span": {
+          "from": 257,
+          "to": 261
+         }
+        }
+       ],
+       "span": {
+        "from": 248,
+        "to": 261
+       }
+      },
+      "span": {
+       "from": 248,
+       "to": 261
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "out",
+         "span": {
+          "from": 265,
+          "to": 268
+         }
+        }
+       ],
+       "span": {
+        "from": 265,
+        "to": 268
+       }
+      },
+      "span": {
+       "from": 265,
+       "to": 268
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "value": {
+     "kind": "String",
+     "value": "done",
+     "span": {
+      "from": 270,
+      "to": 276
+     }
+    },
+    "span": {
+     "from": 248,
+     "to": 276
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "intro",
+         "span": {
+          "from": 277,
+          "to": 282
+         }
+        }
+       ],
+       "span": {
+        "from": 277,
+        "to": 282
+       }
+      },
+      "span": {
+       "from": 277,
+       "to": 282
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "pipeline",
+         "span": {
+          "from": 286,
+          "to": 294
+         }
+        }
+       ],
+       "span": {
+        "from": 286,
+        "to": 294
+       }
+      },
+      "span": {
+       "from": 286,
+       "to": 294
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 277,
+     "to": 294
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 636
+  }
+ },
+ "diagnostics": []
+}

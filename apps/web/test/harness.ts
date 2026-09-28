@@ -1,6 +1,6 @@
 import { effect } from '@preact/signals';
 import { parse } from '@sgl/core';
-import type { LayoutHost, ResolvedThemeMetricsView } from '@sgl/layout-api';
+import type { LayoutEngine, LayoutHost, ResolvedThemeMetricsView } from '@sgl/layout-api';
 import { engineNotes } from '@sgl/layout-api';
 import { runHostSequence } from '@sgl/layout-api/conformance';
 import { elkEngine } from '@sgl/layout-elk';
@@ -55,8 +55,15 @@ export interface Harness {
 }
 
 /** `firstRender: false` for a pipeline that is expected to hold its first
- *  render (A9's import gate, DD-08 §15 I25). */
-export async function createHarness(source: string, deps: Partial<PipelineDeps> = {}, options: { readonly firstRender?: boolean } = {}): Promise<Harness> {
+ *  render (A9's import gate, DD-08 §15 I25). `engines`: more engines for the
+ *  host to run beside `HARNESS_ENGINES` (a stub, for B8's `SGL4013`). */
+export async function createHarness(
+  source: string,
+  deps: Partial<PipelineDeps> = {},
+  options: { readonly firstRender?: boolean; readonly engines?: readonly LayoutEngine[] } = {},
+): Promise<Harness> {
+  const engines: readonly LayoutEngine[] = [...HARNESS_ENGINES, ...(options.engines ?? [])];
+  const lookup = (id: string): LayoutEngine | undefined => engines.find((e) => e.id === id);
   const timers: { fn: () => void; ms: number; cancelled: boolean }[] = [];
   const schedule: Schedule = (fn, ms) => {
     const entry = { fn, ms, cancelled: false };
@@ -68,12 +75,13 @@ export async function createHarness(source: string, deps: Partial<PipelineDeps> 
   };
   let requests = 0;
   const host: LayoutHost = {
-    async run(engineId, input, options) {
+    async run(engineId, input, options, _metrics, _table, _signal, plan) {
       requests += 1;
-      const engine = HARNESS_ENGINES.find((e) => e.id === engineId);
+      const engine = lookup(engineId);
       if (engine === undefined) throw new Error(`the harness has no engine ${engineId}`);
       await macrotask();
-      const { raw, result } = await runHostSequence(engine, input, options, METRICS);
+      // B8 (DD-14 C23): a request with a plan is composed, as the worker does.
+      const { raw, result } = await runHostSequence(engine, input, options, METRICS, plan === undefined ? undefined : { plan, engines: lookup });
       // The host's own notes path (`host.ts`): an engine's notes, such as
       // `fixed`'s SGL4020, become diagnostics exactly as in the app, capped
       // with SGL4022. `raw` is what the worker posts before the host quantizes.

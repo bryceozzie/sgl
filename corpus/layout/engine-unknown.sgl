@@ -1,0 +1,11 @@
+// expects: SGL4012
+// A container naming a layout engine that is not available (DD-14 C12): a
+// warning at the key, and the container is laid out by the engine around it,
+// as if it named none.
+box: {
+  @label: "Box"
+  @layout: { engine: dagre }
+  a: "A"
+  b: "B"
+  a -> b
+}

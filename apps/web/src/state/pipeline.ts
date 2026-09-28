@@ -16,7 +16,7 @@ import {
   type ResolveResult,
   type StageResult,
 } from '@sgl/core';
-import { buildLayoutInput, layoutConfigDiagnostics, rootLayoutOptions, type LayoutInput, type LayoutResult } from '@sgl/layout-api';
+import { buildLayoutInput, layoutConfigDiagnostics, layoutPlan, rootLayoutOptions, type LayoutInput, type LayoutPlan, type LayoutResult } from '@sgl/layout-api';
 import { labelRunKey, premeasure, type MeasureTable } from '@sgl/measure';
 import { labelBox, layoutLines, needsWrap, UNCONSTRAINED } from '@sgl/text';
 import { BUILT_IN, DEFAULT_THEME_ID, resolveTheme, styleGraph, unknownThemeDiagnostics, type ResolvedTheme, type StyledGraph } from '@sgl/theme';
@@ -325,12 +325,22 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   const effectiveEngineId = computed<string>(() => documentEngineId.value ?? engineId.value);
   // DD-12 H6: the root `@layout` options, checked against the effective
   // engine; a value is accepted when that engine's form would keep it.
+  const schemasFor = (id: string) => {
+    const schemas = deps.engineSchemas?.(id);
+    return schemas && { ...schemas, accepts: (k: string, v: unknown) => acceptsOption(id, k, v) };
+  };
   const rootOptions = computed(() => {
     const id = effectiveEngineId.value;
-    const schemas = deps.engineSchemas?.(id);
-    return rootLayoutOptions(parsed.value.value, model.value.model.root.config, schemas === undefined ? { id } : { ...schemas, accepts: (k, v) => acceptsOption(id, k, v) });
+    return rootLayoutOptions(parsed.value.value, model.value.model.root.config, schemasFor(id) ?? { id });
   });
   const documentOptions = computed(() => rootOptions.value.options);
+  // The engine gets exactly what the options form shows (fix round 1, item 3):
+  // the stored bag, with the document's root options over it (DD-12 H6).
+  const requestOptions = computed(() => ({ ...optionsForEngine(effectiveEngineId.value, engineOptions.value), ...documentOptions.value }));
+  // B8 (DD-14 C8): the containers laid out by an engine of their own, with
+  // their options (a boundary using the root's engine inherits the request's,
+  // C6, C7), and SGL4012 for an engine that is not available.
+  const plan = computed(() => layoutPlan(parsed.value.value, model.value.model, { engine: effectiveEngineId.value, options: requestOptions.value }, schemasFor));
 
   // A18 (DD-11 T53): the lazy `rich-text` chunk — the inline parser and the
   // word breaker — loads for the first document whose labels hold `*` or a
@@ -558,12 +568,15 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   // pseudocode's list simply omits — filled in per §1's "if a document is merely
   // incomplete, fill the gap the way the surrounding design implies."
   // SGL4010 (fix round 1, item 23; human decision 2026-09-23): the
-  // document's `@layout` keys against the effective engine — a container's
-  // own engine (B8/B9) and keys the engine does not declare are warned about
-  // and ignored. From the parsed AST, where each key has its own span.
+  // document's `@layout` keys against the engine each is for, and SGL4021
+  // against the engine that places the node — scope-aware since B8 (DD-14
+  // C11): the root's and a boundary's keys are their own engine's options,
+  // any other node's are hints for the engine around it. From the parsed
+  // AST, where each key has its own span.
   const layoutConfigDiags = computed<readonly Diagnostic[]>(() => {
     const engineId = effectiveEngineId.value;
-    return layoutConfigDiagnostics(parsed.value.value, deps.engineSchemas?.(engineId) ?? { id: engineId }, model.value.diagnostics);
+    const boundaries = new Map(plan.value.scopes.map((sc) => [sc.node as string, deps.engineSchemas?.(sc.engine) ?? { id: sc.engine }]));
+    return layoutConfigDiagnostics(parsed.value.value, deps.engineSchemas?.(engineId) ?? { id: engineId }, model.value.diagnostics, (id) => boundaries.get(id));
   });
 
   const diags = computed<readonly Diagnostic[]>(() => [
@@ -571,6 +584,7 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     ...model.value.diagnostics,
     ...graph.value.diagnostics,
     ...layoutConfigDiags.value,
+    ...plan.value.diagnostics,
     ...rootOptions.value.diagnostics,
     // SGL5007 (F31): the document's `@theme` names no built-in theme; the
     // theme stage above draws the default one, as before.
@@ -678,6 +692,7 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
   let lastRequest: {
     readonly engineId: string;
     readonly optionsKey: string;
+    readonly planKey: string;
     readonly inputKey: string;
     readonly spansKey: string;
     graph: StyledGraph['graph'];
@@ -685,10 +700,14 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     geometryHash: string;
   } | null = null;
 
-  function runLayout(styledSnapshot: StyledGraph, tableSnapshot: MeasureTable, engine: string, options: Readonly<Record<string, unknown>>): void {
+  function runLayout(styledSnapshot: StyledGraph, tableSnapshot: MeasureTable, engine: string, options: Readonly<Record<string, unknown>>, scopes: LayoutPlan): void {
     const geometryHash = styledSnapshot.geometryHash;
     const key = optionsKey(options);
-    const sameRequest = lastRequest !== null && lastRequest.engineId === engine && lastRequest.optionsKey === key;
+    // B8 (DD-14 C43): the plan is part of the request; its spans (where an
+    // SGL4013 goes) count as the input's do, below.
+    const spans: unknown[] = [];
+    const planKey = JSON.stringify(scopes, (k, v: unknown) => (k === 'span' ? void spans.push(v) : v));
+    const sameRequest = lastRequest !== null && lastRequest.engineId === engine && lastRequest.optionsKey === key && lastRequest.planKey === planKey;
     // Skipping keeps the layout that landed, so a request still in flight
     // (for some other input, since superseded) must not land after it.
     const keep = (): void => {
@@ -702,7 +721,6 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
 
     let input: LayoutInput;
     let inputKey: string;
-    const spans: unknown[] = [];
     try {
       // Inside the boundary: this runs from the debounce timer, so a throw
       // here (a `buildLayoutInput` invariant — e.g. an unknown node id) would
@@ -735,14 +753,14 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     };
     try {
       void deps.host
-        .run(engine, input, options, deps.metrics, tableSnapshot, controller.signal)
+        .run(engine, input, options, deps.metrics, tableSnapshot, controller.signal, scopes.length > 0 ? scopes : undefined)
         .then((result) => {
           if (generation !== layoutGeneration) return; // superseded; the new request owns layoutDiags now
           layoutDiags.value = result.diagnostics;
           if (result.value !== null) {
             layoutTable = tableSnapshot;
             layout.value = result.value;
-            lastRequest = { engineId: engine, optionsKey: key, inputKey, spansKey, graph: styledSnapshot.graph, table: tableSnapshot, geometryHash };
+            lastRequest = { engineId: engine, optionsKey: key, planKey, inputKey, spansKey, graph: styledSnapshot.graph, table: tableSnapshot, geometryHash };
           }
           // else: keep layout.value as is (FR-E4) — layoutDiags already carries
           // SGL4001/SGL4002/SGL4011.
@@ -768,9 +786,8 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     const styledSnapshot = styled.value.value;
     const tableSnapshot = table.value;
     const engine = effectiveEngineId.value;
-    // The engine gets exactly what the options form shows (fix round 1, item 3):
-    // the stored bag, with the document's root options over it (DD-12 H6).
-    const options = { ...optionsForEngine(engine, engineOptions.value), ...documentOptions.value };
+    const options = requestOptions.value;
+    const scopes = plan.value.scopes;
 
     // Reads `table.value` above regardless, so this effect is still subscribed
     // to it and re-runs the instant the first real table lands (see
@@ -783,7 +800,7 @@ export function createPipeline(deps: PipelineDeps, initialSource = ''): Pipeline
     }
     debounceCancel = schedule(() => {
       debounceCancel = null;
-      runLayout(styledSnapshot, tableSnapshot, engine, options);
+      runLayout(styledSnapshot, tableSnapshot, engine, options, scopes);
     }, debounceMs);
   });
 

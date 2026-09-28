@@ -7,16 +7,21 @@ import {
   buildLayoutInput,
   engineNotes,
   layoutConfigDiagnostics,
+  layoutPlan,
   rootLayoutOptions,
   quantize,
   validateResult,
   type LayoutContext,
   type LayoutEngine,
+  type EngineSchemas,
   type LayoutInput,
+  type LayoutPlan,
   type LayoutResult,
   type ResolvedThemeMetricsView,
   type StyledGraphInput,
 } from '@sgl/layout-api';
+import { composeLayout } from '@sgl/layout-api/compose';
+import { elkEngine } from '@sgl/layout-elk';
 import { fixedEngine, gridEngine, treeEngine } from '@sgl/layout-std';
 import { labelRunKey, premeasure, StaticMetricsMeasurer, type MeasureTable } from '@sgl/measure';
 import { layoutWrapped } from '@sgl/text/wrap';
@@ -80,6 +85,8 @@ export interface RenderedDoc {
   readonly result: LayoutResult;
   /** The pre-measure table the layout was sized from (A18: the seam test). */
   readonly table: MeasureTable;
+  /** The containers laid out by an engine of their own (DD-14 C8). */
+  readonly plan: LayoutPlan;
   readonly theme: ResolvedTheme;
   readonly rendered: RenderResult;
   /** Every diagnostic from every stage — parse, resolve, compile, resolveTheme,
@@ -105,6 +112,7 @@ async function layOut(
   styled: StyledGraph,
   engine: LayoutEngine,
   options: Readonly<Record<string, unknown>>,
+  plan: LayoutPlan = [],
 ): Promise<{ readonly input: LayoutInput; readonly result: LayoutResult; readonly table: MeasureTable; readonly diagnostics: readonly Diagnostic[] }> {
   const table = premeasure(styled, new StaticMetricsMeasurer({ lineModel: layoutWrapped }));
   const labelSizes: Record<LabelId, Size> = {};
@@ -113,8 +121,10 @@ async function layOut(
     labelSizes[labelId] = layout === undefined ? { w: 0, h: 0 } : { w: layout.width, h: layout.height };
   }
   const input = buildLayoutInput(styled as StyledGraphInput, labelSizes);
-  const raw = await engine.layout(input, ctxWith(options));
-  const result = quantize(applyHostFallbacks(input, raw, engine.capabilities, METRICS), 64);
+  // B8 (DD-14 C23, C46): a document naming a container engine the harness
+  // has is composed, as the worker composes a request with a plan.
+  const raw = plan.length > 0 ? await composeLayout(engine, input, options, plan, harnessEngineById, ctxWith(options)) : await engine.layout(input, ctxWith(options));
+  const result = quantize(plan.length > 0 ? raw : applyHostFallbacks(input, raw, engine.capabilities, METRICS), 64);
   // DD-12 N20: the engine's own notes, checked and rebuilt as the host does.
   const diagnostics = validateResult(result, styled.graph, engine.id);
   return { input, result, table, diagnostics: [...diagnostics, ...engineNotes(raw.notes)] };
@@ -129,12 +139,31 @@ async function layOut(
  *  `fixed` (feat/b5-fixed) and `tree` (feat/b5-tree). */
 const HARNESS_ENGINES: readonly LayoutEngine[] = [gridEngine, fixedEngine, treeEngine];
 
+/** B8 (DD-14 C46): the engines a container may name here: the root's, and
+ *  `elk` too, so a fixture's `elk` box is laid out as in the app. `elk` is a
+ *  box engine only: a document naming it at its root still runs under `grid`,
+ *  as every render golden was taken. */
+const BOX_ENGINES: readonly LayoutEngine[] = [...HARNESS_ENGINES, elkEngine];
+const harnessEngineById = (id: string): LayoutEngine | undefined => BOX_ENGINES.find((e) => e.id === id);
+
+/** What the `@layout` checks and the plan read of an engine (as the app's
+ *  `registeredEngine` gives them). */
+function schemasOf(engine: LayoutEngine): EngineSchemas {
+  return {
+    id: engine.id,
+    ...(engine.optionsSchema && { optionsSchema: engine.optionsSchema }),
+    ...(engine.hintsSchema && { hintsSchema: engine.hintsSchema }),
+    ...(engine.capabilities.pins === true && { pins: true }),
+  };
+}
+
 /** The engine a document names at its root `@layout.engine`, by id or bare
  *  name (DD-12 N22), when the harness has it; otherwise `grid`. So the pin
  *  fixtures that say `engine: fixed` run under `fixed`, the `tree-*.sgl`
  *  fixtures under `tree`, and a document that
  *  names `elk` (`checkout.sgl`, `pin-under-elk.sgl`) still runs under `grid`,
- *  as every render golden was taken. */
+ *  as every render golden was taken. A container's own engine is the plan's
+ *  (`BOX_ENGINES`, DD-14 C46). */
 export function harnessEngine(root: Readonly<Record<string, unknown>>): LayoutEngine {
   const layout = root['layout'];
   const named = typeof layout === 'object' && layout !== null && !Array.isArray(layout) ? (layout as Record<string, unknown>)['engine'] : undefined;
@@ -157,28 +186,31 @@ export async function runPipeline(
   // SGL4010 (Stage K fix round 1, item 23) and SGL4021 (DD-12 N6), as the
   // app's pipeline emits them: the document's `@layout` keys and `@pin`s
   // against the engine laying it out.
-  const schemas = {
-    id: engine.id,
-    ...(engine.optionsSchema && { optionsSchema: engine.optionsSchema }),
-    ...(engine.hintsSchema && { hintsSchema: engine.hintsSchema }),
-    ...(engine.capabilities.pins === true && { pins: true }),
-  };
-  const d3b = layoutConfigDiagnostics(ast, schemas, d2);
+  const schemas = schemasOf(engine);
   // DD-12 H6: the root `@layout` options override the caller's, as the app's
   // override its form's. No `accepts` here: the harness has no form rules.
   const root = rootLayoutOptions(ast, model.root.config, schemas);
+  // B8 (DD-14 C8, C46): the containers naming an engine the harness has are
+  // boundaries, laid out by it; any other name is SGL4012, as in the app.
+  const plan = layoutPlan(ast, model, { engine: engine.id, options: { ...options, ...root.options } }, (id) => {
+    const e = harnessEngineById(id);
+    return e === undefined ? undefined : schemasOf(e);
+  });
+  const boundaries = new Map(plan.scopes.map((sc) => [sc.node as string, schemasOf(harnessEngineById(sc.engine)!)]));
+  const d3b = [...layoutConfigDiagnostics(ast, schemas, d2, (id) => boundaries.get(id)), ...plan.diagnostics];
   // SGL5007 (F31), as the app's pipeline emits it: the document's own
   // `@theme` names no built-in theme. The harness draws in `themeDoc` either way.
   const d3c = unknownThemeDiagnostics(ast, model.root.config['theme']);
   const { value: theme, diagnostics: d4 } = resolveTheme(themeDoc, (id) => BUILT_IN[id]);
   const { value: styled, diagnostics: d5 } = styleGraph(graph, theme, model.classes);
-  const { input, result, table, diagnostics: d6 } = await layOut(styled, engine, { ...options, ...root.options });
+  const { input, result, table, diagnostics: d6 } = await layOut(styled, engine, { ...options, ...root.options }, plan.scopes);
   const rendered = render(styled, result, theme, table);
   return {
     styled,
     input,
     result,
     table,
+    plan: plan.scopes,
     theme,
     rendered,
     diagnostics: [...d1, ...d2, ...d3, ...d3b, ...root.diagnostics, ...d3c, ...d4, ...d5, ...d6, ...rendered.diagnostics],

@@ -106,6 +106,39 @@
     "Inter normal 400",
     "Inter normal 500"
   ],
+  "layout/engine-crossing.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "layout/engine-direction-hint.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "layout/engine-elk-in-grid.sgl": [
+    "Inter normal 400",
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "layout/engine-fixed-in-elk.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "layout/engine-options-inherit.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "layout/engine-same-engine.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "layout/engine-three-levels.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
+  "layout/engine-unknown.sgl": [
+    "Inter normal 500",
+    "Inter normal 600"
+  ],
   "layout/forty-three-pinned.sgl": [
     "Inter normal 500",
     "Inter normal 600"

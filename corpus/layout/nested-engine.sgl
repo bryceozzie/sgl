@@ -1,10 +1,13 @@
-// expects: SGL4010
-// A container naming its own layout engine. Per-container engines are B8/B9,
-// so the whole document is laid out by the root's engine (grid, in the
-// pipeline harness) and this key is warned about and ignored (DD-06 §9).
+// A container naming its own layout engine (DD-14 C1, C2): `box` is laid out
+// by `grid` on its own and placed as one box by the document's engine (`grid`,
+// in the pipeline harness, which honours the container engines it has, C46).
+// A grid box in a grid document composes to the picture grid alone draws
+// (C31), so its render goldens are those it had when the key was ignored. No
+// diagnostic: `SGL4010`'s fixture is `unknown-key.sgl`, and an engine that is
+// not available is `engine-unknown.sgl`'s `SGL4012`.
 box: {
   @label: "Box"
-  @layout: { engine: "sgl.elk" }
+  @layout: { engine: grid }
   a: "A"
   b: "B"
   a -> b

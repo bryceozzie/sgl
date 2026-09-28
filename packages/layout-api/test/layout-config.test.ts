@@ -3,10 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { layoutConfigDiagnostics, rootLayoutOptions, type EngineSchemas } from '../src/layout-config.js';
 
 /**
- * SGL4010 (Stage K fix round 1, item 23 — human decision 2026-09-23): a
- * container-level `@layout.engine` (per-container engines are B8/B9) and any
- * `@layout.{key}` the effective engine does not declare are warned about,
- * at the key, and ignored.
+ * SGL4010 (Stage K fix round 1, item 23 — human decision 2026-09-23): any
+ * `@layout.{key}` the engine it is for does not declare is warned about, at
+ * the key, and ignored. Since B8 (DD-14 C11) a container's `engine` key is
+ * never SGL4010, and a node's keys are that engine's hints; the plan's
+ * boundaries are `layout-plan.test.ts`'s.
  */
 
 const ELK: EngineSchemas = {
@@ -30,15 +31,9 @@ function run(source: string, engine: EngineSchemas) {
 }
 
 describe('layoutConfigDiagnostics (SGL4010)', () => {
-  it('(a) a container-level @layout.engine other than the effective engine warns, at the key, in every spelling', () => {
+  it("a container's @layout.engine is not SGL4010 in any spelling, whichever engine it names (DD-14 C11)", () => {
     const src = 'box: {\n  @layout: { engine: grid }\n  a\n}\nother: {\n  @layout.engine: "sgl.grid"\n  b\n}\n';
-    expect(run(src, ELK)).toEqual([
-      { code: 'SGL4010', severity: 'warning', text: 'engine', message: '`@layout.engine` is not an option of engine `sgl.elk`; ignored.' },
-      { code: 'SGL4010', severity: 'warning', text: '@layout.engine', message: '`@layout.engine` is not an option of engine `sgl.elk`; ignored.' },
-    ]);
-  });
-
-  it("(a) naming the effective engine itself, or setting it at the root, is not a warning", () => {
+    expect(run(src, ELK)).toEqual([]);
     expect(run('@layout.engine: "sgl.elk"\nbox: {\n  @layout: { engine: elk }\n  a\n}\n', ELK)).toEqual([]);
     expect(run('@layout: { engine: grid }\na\n', ELK)).toEqual([]);
   });
@@ -62,10 +57,12 @@ describe('layoutConfigDiagnostics (SGL4010)', () => {
     expect(run('@layout: { columns: 3, gap: 8 }\nbox: {\n  @layout.columns: 2\n  a\n}\n', GRID)).toEqual([]);
   });
 
-  it('an engine the app does not know: only (a) is checked', () => {
-    expect(run('@layout: { anything: 1 }\nbox: {\n  @layout.engine: grid\n  a\n}\n', { id: 'org.example.x' }).map((d) => d.text)).toEqual([
-      '@layout.engine',
-    ]);
+  it('an engine the app does not know: nothing is checked', () => {
+    expect(run('@layout: { anything: 1 }\nbox: {\n  @layout.engine: grid\n  @layout.gap: 2\n  a\n}\n', { id: 'org.example.x' })).toEqual([]);
+  });
+
+  it("a node's keys are hints of the engine around it, not its options (DD-14 C9)", () => {
+    expect(run('box: {\n  @direction: right\n  @layout.nodeSpacing: 3\n  a\n}\n', ELK).map((d) => d.text)).toEqual(['@direction', '@layout.nodeSpacing']);
   });
 });
 

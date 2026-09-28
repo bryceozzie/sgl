@@ -1,7 +1,9 @@
+import { readFileSync } from 'node:fs';
 import { effect } from '@preact/signals';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { asNodeId, diagnostic, NO_SPAN, parse, type Diagnostic, type LabelId } from '@sgl/core';
-import type { LayoutHost, LayoutInput, LayoutResult, ResolvedThemeMetricsView } from '@sgl/layout-api';
+import type { LayoutEngine, LayoutHost, LayoutInput, LayoutPlan, LayoutResult, ResolvedThemeMetricsView } from '@sgl/layout-api';
+import { gridEngine } from '@sgl/layout-std';
 import type { StageResult } from '@sgl/core';
 import { labelRunKey, StaticMetricsMeasurer } from '@sgl/measure';
 import { DEFAULT_THEME_ID } from '@sgl/theme';
@@ -38,6 +40,8 @@ interface PendingRun {
   readonly engineId: string;
   readonly input: LayoutInput;
   readonly options: object;
+  /** The plan, when `run()` was given one (DD-14 C25). */
+  readonly plan?: LayoutPlan;
   readonly signal: AbortSignal;
   readonly resolve: (result: StageResult<LayoutResult | null>) => void;
   /** Not part of the real `LayoutHost` contract (DD-06 §3: `run()` only ever
@@ -61,9 +65,9 @@ interface PendingRun {
 function createFakeHost(options: { readonly ignoreAbort?: boolean } = {}): { readonly host: LayoutHost; readonly pending: PendingRun[] } {
   const pending: PendingRun[] = [];
   const host: LayoutHost = {
-    run(engineId, input, engineOptions, _metrics, _table, signal) {
+    run(engineId, input, engineOptions, _metrics, _table, signal, plan) {
       return new Promise<StageResult<LayoutResult | null>>((resolve, reject) => {
-        pending.push({ engineId, input, options: engineOptions, signal, resolve, reject });
+        pending.push({ engineId, input, options: engineOptions, ...(plan !== undefined && { plan }), signal, resolve, reject });
         if (!options.ignoreAbort) signal.addEventListener('abort', () => reject(makeAbortError()), { once: true });
       });
     },
@@ -170,25 +174,31 @@ async function completeOneLayout(env: ReturnType<typeof setup>, nodeId: string):
 }
 
 describe('pipeline (DD-08 §3)', () => {
-  it('warns SGL4010 for a container engine and an undeclared @layout key (fix round 1, item 23; the e2e test checks the diagram stays)', async () => {
+  it('warns SGL4010 for an undeclared @layout key on a boundary, and SGL4012 for a container engine that is not registered (DD-14 C11, C12)', async () => {
     const source = 'box: {\n  @layout: { engine: sgl.elk, columns: 2, gap: 4 }\n  a: "A"\n}\n';
     const env = setup(source, {
       engineSchemas: (id) => (id === 'sgl.grid' ? { id, optionsSchema: { properties: { columns: {}, gap: {}, align: {} } } } : undefined),
     });
     await completeOneLayout(env, 'box');
-    const warnings = env.pipeline.diags.value.filter((d) => d.code === 'SGL4010');
-    expect(warnings.map((d) => [source.slice(d.span.from, d.span.to), d.severity])).toEqual([['engine', 'warning']]);
+    // `sgl.elk` is not registered here: SGL4012, and `box`'s keys are hints
+    // for grid, which has none.
+    expect(env.pipeline.diags.value.map((d) => [d.code, source.slice(d.span.from, d.span.to), d.severity])).toEqual([
+      ['SGL4010', 'columns', 'warning'],
+      ['SGL4010', 'gap', 'warning'],
+      ['SGL4012', 'engine', 'warning'],
+    ]);
+    expect(env.pending.at(-1)!.plan).toBeUndefined();
 
-    // Under an engine that does not declare `columns`/`gap`, those warn too.
-    const env2 = setup(source.replace('sgl.elk', 'sgl.grid'), {
+    // Under an engine that does not declare `columns`/`gap`, the boundary's own engine's options are what count.
+    const source2 = source.replace('sgl.elk', 'sgl.grid');
+    const env2 = setup(source2, {
       defaultEngineId: 'sgl.elk',
-      engineSchemas: (id) => (id === 'sgl.elk' ? { id, optionsSchema: { properties: { direction: {} } } } : undefined),
+      engineSchemas: (id) =>
+        id === 'sgl.elk' ? { id, optionsSchema: { properties: { direction: {} } } } : id === 'sgl.grid' ? { id, optionsSchema: { properties: { columns: {} } } } : undefined,
     });
     await flush();
-    expect(env2.pipeline.diags.value.filter((d) => d.code === 'SGL4010').map((d) => source.replace('sgl.elk', 'sgl.grid').slice(d.span.from, d.span.to))).toEqual([
-      'engine',
-      'columns',
-      'gap',
+    expect(env2.pipeline.diags.value.map((d) => [d.code, source2.slice(d.span.from, d.span.to), d.message])).toEqual([
+      ['SGL4010', 'gap', '`@layout.gap` is not an option of engine `sgl.grid`; ignored.'],
     ]);
   });
 
@@ -544,6 +554,114 @@ describe('pipeline (DD-08 §3)', () => {
       expect(input.labelSizes[id]).toEqual({ w: measured!.width, h: measured!.height });
       expect(input.labelSizes[id]!.w).toBeGreaterThan(0);
       expect(input.labelSizes[id]!.h).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('container engines (DD-14, B8 branch 2)', () => {
+  const engineSchemas = (id: string) => REGISTERED_ENGINES.find((e) => e.id === id);
+  const SPEC_9 = '@layout: { engine: elk, direction: right }\npayments: {\n  @label: "Payments"\n  @layout: { engine: grid, columns: 2 }\n  api\n  ledger\n  outbox\n}\npsp\npayments.api -> psp\n';
+
+  it("spec §9: no diagnostics, and the plan reaches run() beside the root's engine and options", async () => {
+    const env = setup(SPEC_9, { engineSchemas });
+    await completeOneLayout(env, 'payments');
+    expect(env.pipeline.diags.value).toEqual([]);
+    const call = env.pending.at(-1)!;
+    expect(call.engineId).toBe('sgl.elk');
+    expect(call.options).toMatchObject({ direction: 'right' });
+    expect(call.plan!.map((s) => [s.node, s.engine, s.options, SPEC_9.slice(s.span!.from, s.span!.to)])).toEqual([
+      ['payments', 'sgl.grid', { align: 'center', columns: 2, gap: 24 }, 'engine'],
+    ]);
+  });
+
+  it('spec §9 itself, through the real engines: no warning, only the two SGL3006 infos for `cloud`; `payments` is a two-column grid (F29 cleared)', async () => {
+    const spec = readFileSync(new URL('../../../docs/02-language-spec.md', import.meta.url), 'utf8');
+    const example = /## 9\. Worked example\n\n```sgl\n([\s\S]*?)```/.exec(spec)![1]!;
+    const corpus = readFileSync(new URL('../../../corpus/checkout.sgl', import.meta.url), 'utf8');
+    // `corpus/checkout.sgl` is the example, after its one comment line.
+    expect(corpus.slice(corpus.indexOf('\n') + 1)).toBe(example);
+    const h = await createHarness(example, { engineSchemas, defaultEngineId: 'sgl.elk' });
+    try {
+      // `cloud` is a shape name this version does not draw (SGL3006, info;
+      // corpus/README.md), not a layout matter: nothing else, and no warning.
+      expect(h.pipeline.diags.value.map((d) => [d.code, d.severity])).toEqual([
+        ['SGL3006', 'info'],
+        ['SGL3006', 'info'],
+      ]);
+      const layout = h.pipeline.lastGood.value!.layout;
+      const f = (id: string) => layout.nodes[asNodeId(id)]!.frame;
+      expect(f('payments.ledger').y + f('payments.ledger').h / 2).toBeCloseTo(f('payments.api').y + f('payments.api').h / 2, 1);
+      expect(f('payments.ledger').x).toBeGreaterThan(f('payments.api').x + f('payments.api').w);
+      expect(f('payments.outbox').y).toBeGreaterThan(f('payments.api').y + f('payments.api').h);
+      expect(f('payments.outbox').x + f('payments.outbox').w / 2).toBe(f('payments.api').x + f('payments.api').w / 2);
+    } finally {
+      h.dispose();
+    }
+  });
+
+  it("a boundary using the root's engine inherits the toolbar's options (C6, C7)", async () => {
+    const source = 'row: {\n  @layout: { engine: elk, direction: right }\n  a\n  b\n}\n';
+    const env = setup(source, { engineSchemas, defaultEngineId: 'sgl.elk' });
+    env.pipeline.engineOptions.value = { nodeSpacing: 12 };
+    await completeOneLayout(env, 'row');
+    expect(env.pending.at(-1)!.plan![0]!.options).toEqual({ direction: 'right', edgeRouting: 'ORTHOGONAL', nodePlacement: 'BRANDES_KOEPF', nodeSpacing: 12, rankSpacing: 70 });
+  });
+
+  it("a document without a container engine gives run() no plan", async () => {
+    const env = setup('box: {\n  a\n}\n', { engineSchemas });
+    await completeOneLayout(env, 'box');
+    expect(env.pending.at(-1)!.plan).toBeUndefined();
+  });
+
+  it("the skip key includes the plan (C43): a container's engine or option lays out again; the same plan does not", async () => {
+    const env = setup(SPEC_9, { engineSchemas });
+    await completeOneLayout(env, 'payments');
+    const requests = env.pending.length;
+    const other = SPEC_9.replace('columns: 2', 'columns: 3');
+    env.pipeline.setDocument(parse(other).tree, other);
+    await completeOneLayout(env, 'payments');
+    expect(env.pending.length).toBe(requests + 1);
+    expect(env.pending.at(-1)!.plan![0]!.options['columns']).toBe(3);
+    const fixedBox = other.replace('engine: grid, columns: 3', 'engine: fixed');
+    env.pipeline.setDocument(parse(fixedBox).tree, fixedBox);
+    await completeOneLayout(env, 'payments');
+    expect(env.pending.at(-1)!.plan![0]!.engine).toBe('sgl.fixed');
+    // Moving text without changing the plan or the input: no new request.
+    const moved = `// a comment\n${fixedBox}`;
+    const before = env.pending.length;
+    env.pipeline.setDocument(parse(moved).tree, moved);
+    await flushUntil(() => env.calls.some((c) => !c.cancelled));
+    env.fireLatest();
+    await flush();
+    expect(env.pending.length).toBe(before);
+  });
+
+  it('SGL4012 for an engine that is not available, and C9\'s SGL4010 for a plain container\'s option, each at its key', () => {
+    const source = 'a: {\n  @layout.engine: dagre\n  x\n}\nb: {\n  @direction: right\n  y\n}\n';
+    const env = setup(source, { engineSchemas, defaultEngineId: 'sgl.elk' });
+    expect(env.pipeline.diags.value.map((d) => [d.code, source.slice(d.span.from, d.span.to), d.message])).toEqual([
+      ['SGL4010', '@direction', '`@layout.direction` is not an option of engine `sgl.elk`; ignored.'],
+      ['SGL4012', '@layout.engine', 'Layout engine `dagre` is not available; `a` is laid out by `sgl.elk`.'],
+    ]);
+  });
+
+  it('SGL4013 from an engine that fails on a box, through the host, at its `engine` key (C28)', async () => {
+    const broken: LayoutEngine = {
+      ...gridEngine,
+      id: 'test.broken',
+      name: 'Broken',
+      layout: () => Promise.reject(new Error('boom')),
+    };
+    const schemas = (id: string) => (id === broken.id ? registeredEngine(broken) : engineSchemas(id));
+    const source = '@layout.engine: grid\nbox: {\n  @layout.engine: "test.broken"\n  a\n  b\n}\n';
+    const h = await createHarness(source, { engineSchemas: schemas }, { engines: [broken] });
+    try {
+      expect(h.pipeline.diags.value.map((d) => [d.code, source.slice(d.span.from, d.span.to), d.message])).toEqual([
+        ['SGL4013', '@layout.engine', 'Layout engine `test.broken` failed for `box` (boom); it is laid out by `sgl.grid` instead.'],
+      ]);
+      expect(h.pipeline.lastGood.value!.layout.nodes[asNodeId('box.a')]).toBeDefined();
+    } finally {
+      h.dispose();
     }
   });
 });

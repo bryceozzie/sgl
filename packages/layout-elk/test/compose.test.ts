@@ -1,11 +1,11 @@
-import { asNodeId, type NodeId } from '@sgl/core';
-import { validateResult, type LayoutEngine, type LayoutInput, type LayoutResult } from '@sgl/layout-api';
+import { asNodeId, parse, resolve, type NodeId } from '@sgl/core';
+import { layoutPlan, validateResult, type EngineSchemas, type LayoutEngine, type LayoutInput, type LayoutResult } from '@sgl/layout-api';
 import type { LayoutPlan } from '@sgl/layout-api/compose';
 import { detachedEdges, runConformance, runHostSequence } from '@sgl/layout-api/conformance';
 import { fixedEngine, gridEngine, treeEngine } from '@sgl/layout-std';
 import { describe, expect, it } from 'vitest';
 import { scaleDocument } from '../../../bench/scale-document.js';
-import { listCorpusDocs } from '../../theme/test/corpus.js';
+import { corpusSource, listCorpusDocs } from '../../theme/test/corpus.js';
 import { elkEngine } from '../src/index.js';
 import { documentOptionsFor, layoutInputFor, layoutInputForSource, METRICS } from './corpus-input.js';
 
@@ -17,10 +17,13 @@ import { documentOptionsFor, layoutInputFor, layoutInputForSource, METRICS } fro
  *
  * The plan is built as DD-14 C8 describes, from each container's
  * `@layout.engine` (a bare name is `sgl.<name>`), its other `@layout` keys
- * being the options. Branch 2's `layoutPlan` adds inheritance (C6) and the
- * diagnostics; none of these documents needs either. The fixtures are here,
- * not in `corpus/`, until the app and the render harness run plans (branch 2):
- * in the corpus today they would be laid out by one engine and warn `SGL4010`.
+ * being the options. `layoutPlan` (branch 2) adds inheritance (C6) and the
+ * diagnostics; none of these documents needs either (`layoutPlan`'s own plan
+ * for each is checked below). Since branch 2 the fixtures DD-14 §10 lists are
+ * `corpus/layout/engine-*.sgl` (their text unchanged, so their goldens are
+ * too); `grid-in-fixed`, `tree-in-grid` and `grid-in-tree` stay here
+ * (`grid-in-tree` has a node named `root`, which elk's conformance over the
+ * corpus would trip on, 07 §2.1 F32).
  */
 
 const ENGINES: readonly LayoutEngine[] = [elkEngine, gridEngine, fixedEngine, treeEngine];
@@ -46,76 +49,6 @@ interface Fixture {
   readonly input: LayoutInput;
   readonly options: Readonly<Record<string, unknown>>;
 }
-
-const ELK_IN_GRID = `@layout: { engine: grid }
-intro: "Intro"
-pipeline: {
-  @label: "Pipeline"
-  @layout: { engine: elk, direction: right }
-  fetch: "Fetch"
-  parse: "Parse"
-  emit: "Emit"
-  fetch -> parse
-  parse -> emit: "tokens"
-}
-out: "Out"
-intro -> pipeline.fetch
-pipeline.emit -> out: "done"
-intro -> pipeline
-`;
-
-const FIXED_IN_ELK = `@layout: { engine: elk }
-client: "Client"
-rack: {
-  @label: "Rack"
-  @layout: { engine: fixed }
-  top: { @label: "Top", @pin: { x: 0, y: 0 } }
-  mid: { @label: "Mid", @pin: { x: 40, y: 60 } }
-  loose: "Loose"
-}
-db: { @label: "DB", @shape: cylinder }
-client -> rack.top
-rack.mid -> db
-client -> db
-client -> rack
-`;
-
-const THREE_LEVELS = `@layout: { engine: fixed }
-a: { @label: "A", @pin: { x: 0, y: 0 } }
-outer: {
-  @label: "Outer"
-  @pin: { x: 200, y: 0 }
-  @layout: { engine: elk }
-  head: "Head"
-  inner: {
-    @label: "Inner"
-    @layout: { engine: grid, columns: 2 }
-    p: "P"
-    q: "Q"
-    r: "R"
-  }
-  head -> inner
-  head -> inner.p
-}
-a -> outer.head
-`;
-
-const SAME_ENGINE = `@layout: { engine: elk }
-top: "Top"
-row: {
-  @label: "Row"
-  @layout: { engine: elk, direction: right }
-  a: "A"
-  b: "B"
-  c: "C"
-  a -> b
-  b -> c
-}
-bottom: "Bottom"
-top -> row
-row -> bottom
-top -> row.a
-`;
 
 const GRID_IN_FIXED = `@layout: { engine: fixed }
 x: { @label: "X", @pin: { x: 0, y: 0 } }
@@ -165,10 +98,10 @@ root -> cells.c1
 const FIXTURES: readonly Fixture[] = [
   // Spec §9's worked example: `payments` is a two-column grid in an elk document.
   { name: 'grid-in-elk', root: elkEngine, input: layoutInputFor('checkout.sgl'), options: documentOptionsFor('checkout.sgl') },
-  { name: 'elk-in-grid', root: gridEngine, input: layoutInputForSource(ELK_IN_GRID), options: {} },
-  { name: 'fixed-in-elk', root: elkEngine, input: layoutInputForSource(FIXED_IN_ELK), options: {} },
-  { name: 'three-levels', root: fixedEngine, input: layoutInputForSource(THREE_LEVELS), options: {} },
-  { name: 'same-engine', root: elkEngine, input: layoutInputForSource(SAME_ENGINE), options: {} },
+  { name: 'elk-in-grid', root: gridEngine, input: layoutInputFor('layout/engine-elk-in-grid.sgl'), options: {} },
+  { name: 'fixed-in-elk', root: elkEngine, input: layoutInputFor('layout/engine-fixed-in-elk.sgl'), options: {} },
+  { name: 'three-levels', root: fixedEngine, input: layoutInputFor('layout/engine-three-levels.sgl'), options: {} },
+  { name: 'same-engine', root: elkEngine, input: layoutInputFor('layout/engine-same-engine.sgl'), options: {} },
   { name: 'grid-in-fixed', root: fixedEngine, input: layoutInputForSource(GRID_IN_FIXED), options: {} },
   { name: 'tree-in-grid', root: gridEngine, input: layoutInputForSource(TREE_IN_GRID), options: {} },
   { name: 'grid-in-tree', root: treeEngine, input: layoutInputForSource(GRID_IN_TREE), options: {} },
@@ -212,6 +145,73 @@ describe('composed goldens (DD-14 §10 item 2)', () => {
       expect(detachedEdges(f.input.graph, result, METRICS.arrowSize)).toEqual([]);
     });
   }
+});
+
+/**
+ * B8 branch 2: the corpus's `engine-*.sgl` through the app's own plan
+ * (`layoutPlan`, DD-14 C8, with C6's inheritance and the engines' defaults),
+ * as a request carries it. The moved fixtures give exactly their goldens
+ * above (their plans differ only in options the engines default anyway);
+ * `crossing` and `options-inherit` are new goldens.
+ */
+describe('the corpus fixtures through layoutPlan (DD-14 §10 item 2)', () => {
+  const schemas = (id: string): EngineSchemas | undefined => {
+    const e = engineById(id);
+    return e === undefined ? undefined : { id: e.id, ...(e.optionsSchema && { optionsSchema: e.optionsSchema }), ...(e.hintsSchema && { hintsSchema: e.hintsSchema }) };
+  };
+  const planned = (doc: string, root: LayoutEngine) => {
+    const { ast } = parse(corpusSource(doc));
+    const options = documentOptionsFor(doc);
+    const plan = layoutPlan(ast, resolve(ast).model, { engine: root.id, options }, schemas);
+    return { plan, options, input: layoutInputFor(doc) };
+  };
+
+  it.each([
+    ['layout/engine-elk-in-grid.sgl', 'elk-in-grid', gridEngine],
+    ['layout/engine-fixed-in-elk.sgl', 'fixed-in-elk', elkEngine],
+    ['layout/engine-three-levels.sgl', 'three-levels', fixedEngine],
+    ['layout/engine-same-engine.sgl', 'same-engine', elkEngine],
+    ['checkout.sgl', 'grid-in-elk', elkEngine],
+  ] as const)('%s gives the %s golden', async (doc, golden, root) => {
+    const { plan, options, input } = planned(doc, root);
+    expect(plan.diagnostics).toEqual([]);
+    const { result } = await runHostSequence(root, input, options, METRICS, { plan: plan.scopes, engines: engineById });
+    await expect(`${JSON.stringify(result, null, 2)}\n`).toMatchFileSnapshot(`./__goldens__/composed/${golden}.json`);
+  });
+
+  it.each([
+    ['layout/engine-crossing.sgl', 'crossing'],
+    ['layout/engine-options-inherit.sgl', 'options-inherit'],
+  ] as const)('%s: golden, two identical runs, every edge on its own node', async (doc, golden) => {
+    const { plan, options, input } = planned(doc, elkEngine);
+    expect(plan.diagnostics).toEqual([]);
+    const run2 = () => runHostSequence(elkEngine, input, options, METRICS, { plan: plan.scopes, engines: engineById });
+    const one = await run2();
+    const two = await run2();
+    expect(JSON.stringify(two.raw)).toBe(JSON.stringify(one.raw));
+    expect(JSON.stringify(two.result)).toBe(JSON.stringify(one.result));
+    expect(detachedEdges(input.graph, one.result, METRICS.arrowSize)).toEqual([]);
+    expect(validateResult(one.result, input.graph, elkEngine.id).filter((d) => d.severity === 'error')).toEqual([]);
+    await expect(`${JSON.stringify(one.result, null, 2)}\n`).toMatchFileSnapshot(`./__goldens__/composed/${golden}.json`);
+  });
+
+  it("options-inherit: each box's options, as C6 builds them", () => {
+    const { plan } = planned('layout/engine-options-inherit.sgl', elkEngine);
+    expect(plan.scopes.map((s) => [s.node, s.engine, s.options])).toEqual([
+      ['cells', 'sgl.grid', { align: 'center', columns: 'auto', gap: 8 }],
+      ['cells.lane', 'sgl.elk', { direction: 'right', edgeRouting: 'ORTHOGONAL', nodePlacement: 'BRANDES_KOEPF', nodeSpacing: 20, rankSpacing: 30 }],
+      ['cells.lane.sub', 'sgl.grid', { align: 'center', columns: 1, gap: 8 }],
+    ]);
+  });
+
+  it('options-inherit: `lane` flows right, as the root does, and `sub` is one column', async () => {
+    const { plan, options, input } = planned('layout/engine-options-inherit.sgl', elkEngine);
+    const { result } = await runHostSequence(elkEngine, input, options, METRICS, { plan: plan.scopes, engines: engineById });
+    const f = (id: string) => frameOf(result, id);
+    expect(f('cells.lane.y').x).toBeGreaterThan(f('cells.lane.x').x + f('cells.lane.x').w);
+    expect(f('cells.lane.sub.q').x).toBe(f('cells.lane.sub.p').x);
+    expect(f('cells.lane.sub.q').y).toBeGreaterThan(f('cells.lane.sub.p').y);
+  });
 });
 
 describe('what the composed fixtures show', () => {

@@ -24,7 +24,7 @@ export const ENFORCED_KINDS: readonly HelpKind[] = ['key'];
  * chunk load. `SGL5001`, `SGL5002` and `SGL5006` need a theme file, which a
  * document cannot supply. Branch 3 confirms this list when it writes `diag`.
  */
-export const NOT_DOCUMENT_REACHABLE: ReadonlySet<string> = new Set(['SGL2027', 'SGL4001', 'SGL4002', 'SGL4003', 'SGL4011', 'SGL5001', 'SGL5002', 'SGL5006', 'SGL6002']);
+export const NOT_DOCUMENT_REACHABLE: ReadonlySet<string> = new Set(['SGL2027', 'SGL4001', 'SGL4002', 'SGL4003', 'SGL4011', 'SGL4013', 'SGL5001', 'SGL5002', 'SGL5006', 'SGL6002']);
 
 const SUMMARY_MAX = 200;
 

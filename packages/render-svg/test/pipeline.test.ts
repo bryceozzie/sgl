@@ -82,6 +82,13 @@ const DOWNSTREAM_EXTRA: Readonly<Record<string, readonly DiagnosticCode[]>> = {
   // `pin-nested` and `forty-three-pinned` have no extra: every node is
   // pinned.
   'layout/pin-half.sgl': ['SGL4020'],
+  // B8 (DD-14 §10 item 2): `rack.loose` has no pin inside the `fixed` box,
+  // so `fixed` packs it and warns, as it does at a document's root.
+  'layout/engine-fixed-in-elk.sgl': ['SGL4020'],
+  // The document's root options are elk's (`direction`, `nodeSpacing`, which
+  // its `elk` boxes inherit, C6), and the harness runs the root under grid,
+  // as it does `checkout.sgl`'s: two SGL4010 at the root.
+  'layout/engine-options-inherit.sgl': ['SGL4010', 'SGL4010'],
   // Fix round 1, item 3: 150 unpinned nodes, of which the host shows the
   // first 100 SGL4020 notes; its own SGL4022 is the header's.
   'layout/pin-many-loose.sgl': new Array<DiagnosticCode>(100).fill('SGL4020'),
@@ -140,6 +147,33 @@ describe('the pipeline, source to SVG: no unexpected diagnostics (Stage G, T3 ga
       expect(codesOf(diagnostics)).toEqual(expected);
     });
   }
+});
+
+/**
+ * B8 (DD-14 C46, C31): the harness lays out a container that names an engine
+ * with that engine, as the app does. `checkout.sgl` (spec §9) is composed,
+ * `payments` a grid box in the harness's grid document, and still draws the
+ * picture its render goldens were taken from: a grid box in a grid document
+ * composes to what grid alone gives.
+ */
+describe('container engines in the pipeline harness (DD-14 C46)', () => {
+  it('checkout.sgl: `payments` is a grid box of two columns', async () => {
+    const { plan, result } = await runPipeline(corpusSource('checkout.sgl'), neutralLight);
+    expect(plan.map((s) => [s.node, s.engine, s.options])).toEqual([['payments', 'sgl.grid', { align: 'center', columns: 2, gap: 24 }]]);
+    const frame = (id: string) => result.nodes[id as keyof typeof result.nodes]!.frame;
+    expect(frame('payments.ledger').x).toBeGreaterThan(frame('payments.api').x);
+    expect(frame('payments.outbox').y).toBeGreaterThan(frame('payments.api').y);
+  });
+
+  it('an elk box is laid out by elk here too, and an engine no one has is SGL4012', async () => {
+    const same = await runPipeline(corpusSource('layout/engine-same-engine.sgl'), neutralLight);
+    expect(same.plan.map((s) => [s.node, s.engine])).toEqual([['row', 'sgl.elk']]);
+    const [a, b] = ['row.a', 'row.b'].map((id) => same.result.nodes[id as keyof typeof same.result.nodes]!.frame);
+    expect(b!.x).toBeGreaterThan(a!.x + a!.w);
+    const unknown = await runPipeline(corpusSource('layout/engine-unknown.sgl'), neutralLight);
+    expect(unknown.plan).toEqual([]);
+    expect(unknown.diagnostics.map((d) => d.message)).toEqual(['Layout engine `dagre` is not available; `box` is laid out by `sgl.grid`.']);
+  });
 });
 
 describe('a theme switch at the pipeline level (MVP acceptance criterion 2, DD-09 §4)', () => {

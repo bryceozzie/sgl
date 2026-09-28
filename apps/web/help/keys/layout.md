@@ -1,10 +1,10 @@
 # @layout {#key/layout}
 
-Chooses the layout engine at the document root, and gives an engine hints on a container. It is an object; `@layout.<key>` sets one key.
+Chooses the layout engine at the document root, and on a container either gives it an engine of its own or passes hints to the engine around it. It is an object; `@layout.<key>` sets one key.
 
 Aliases: engine, layout engine, arrange
 
-Diagnostics: SGL4010, SGL2011
+Diagnostics: SGL4010, SGL2011, SGL4012
 
 At the root, `engine` picks the engine for this document, overriding the Engine picker. The other keys are the engine's options, listed on its engine page, and they reach the engine. Each one the document sets overrides the toolbar's Options for this document only: Options shows that field with the document's value, disabled, and its label ends "(set by document)". Delete the key and the value in Options applies again.
 
@@ -56,13 +56,67 @@ a
 b
 ```
 
-On a container, the keys are hints for the engine that lays out the whole document. A container cannot pick an engine of its own: a different `engine` there is ignored with a warning.
+A container whose `@layout` names an `engine` is laid out by that engine, with everything inside it, as if it were a small document of its own. The engine around it places it as one box. Its other keys are that engine's options, checked as the root's are.
 
-```sgl example title="A container cannot change the engine" expect=SGL4010,SGL4010
+```sgl example title="A grid inside an elk document" engine=elk
+@layout: { engine: elk, direction: right }
+storefront
 payments: {
   @layout: { engine: grid, columns: 2 }
   api
   ledger
+  outbox
+}
+psp
+storefront -> payments.api
+payments.api -> psp
+```
+
+A `fixed` container keeps its children at their pins, whatever engine lays out the rest of the document.
+
+```sgl example title="Pins inside a fixed container" engine=elk
+@layout: { engine: elk }
+client
+rack: {
+  @layout: { engine: fixed }
+  top: { @pin: { x: 0, y: 0 } }
+  bottom: { @pin: { x: 60, y: 50 } }
+}
+client -> rack
+```
+
+An option the container does not set comes from the nearest container around it, or the root, that uses the same engine, and otherwise is the engine's default. So a container that names the document's own engine keeps the document's other options, and changes only what it sets.
+
+```sgl example title="The same engine, another direction" engine=elk
+@layout: { engine: elk, nodeSpacing: 20 }
+top
+row: {
+  @layout: { engine: elk, direction: right }
+  a
+  b
+  c
+  a -> b -> c
+}
+top -> row
+```
+
+An engine that is not available is ignored with a warning (`SGL4012`), and the container is laid out by the engine around it. If a container's engine fails, the engine around it lays the container out instead, with a warning (`SGL4013`).
+
+```sgl example title="An engine that is not available" expect=SGL4012
+box: {
+  @layout: { engine: dagre }
+  a
+  b
+}
+```
+
+On a container that names no engine, the keys are hints for the engine around it. An option there is not a hint, so it is ignored with a warning: to change it inside the container, give the container an engine.
+
+```sgl example title="An option on a plain container" expect=SGL4010
+box: {
+  @layout: { nodeSpacing: 10 }
+  a
+  b
 }
 ```
 
@@ -74,7 +128,7 @@ The engine that lays out the document, by its short name, `elk`, `grid`, `fixed`
 
 Aliases: engine, elk, grid, fixed, tree
 
-Write it at the document root, as `@layout: { engine: grid }` or `@layout.engine: grid`. `elk` draws layered diagrams with routed edges; `grid` places nodes in rows and columns; `fixed` places each node at its `@pin`; `tree` draws each container's children as a tidy tree, parents centred above their children, joined by elbow edges.
+Write it at the document root, as `@layout: { engine: grid }` or `@layout.engine: grid`. On a container, it gives that container an engine of its own. `elk` draws layered diagrams with routed edges; `grid` places nodes in rows and columns; `fixed` places each node at its `@pin`; `tree` draws each container's children as a tidy tree, parents centred above their children, joined by elbow edges.
 
 ```sgl example title="The short form" engine=grid
 @layout.engine: grid

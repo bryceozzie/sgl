@@ -1,0 +1,23 @@
+@layout: { engine: fixed }
+a: { @label: "A", @pin: { x: 0, y: 0 } }
+outer: {
+  @label: "Outer"
+  @pin: { x: 200, y: 0 }
+  @layout: { engine: elk }
+  head: "Head"
+  inner: {
+    @label: "Inner"
+    @layout: { engine: grid, columns: 2 }
+    p: "P"
+    q: "Q"
+    r: "R"
+  }
+  head -> inner
+  head -> inner.p
+}
+a -> outer.head
+// Three levels (DD-14 C5): a `grid` box inside an `elk` box inside a `fixed`
+// document. `fixed` places `outer` at its pin (its pin is judged by `fixed`,
+// the engine that places it: no SGL4021). No diagnostic. (This note is last so
+// the text above, moved from `layout-elk/test/compose.test.ts`, keeps its
+// spans.)

@@ -6,8 +6,8 @@
     "kind": "NodeDecl",
     "key": "box",
     "keySpan": {
-     "from": 521,
-     "to": 524
+     "from": 197,
+     "to": 200
     },
     "value": {
      "kind": "Block",
@@ -21,17 +21,17 @@
         "kind": "String",
         "value": "Box",
         "span": {
-         "from": 538,
-         "to": 543
+         "from": 214,
+         "to": 219
         }
        },
        "keySpan": {
-        "from": 530,
-        "to": 536
+        "from": 206,
+        "to": 212
        },
        "span": {
-        "from": 530,
-        "to": 543
+        "from": 206,
+        "to": 219
        }
       },
       {
@@ -47,75 +47,75 @@
           "key": "engine",
           "isConfig": false,
           "keySpan": {
-           "from": 557,
-           "to": 563
+           "from": 233,
+           "to": 239
           },
           "value": {
            "kind": "Word",
-           "value": "grid",
+           "value": "dagre",
            "span": {
-            "from": 565,
-            "to": 569
+            "from": 241,
+            "to": 246
            }
           },
           "span": {
-           "from": 557,
-           "to": 569
+           "from": 233,
+           "to": 246
           }
          }
         ],
         "span": {
-         "from": 555,
-         "to": 571
+         "from": 231,
+         "to": 248
         }
        },
        "keySpan": {
-        "from": 546,
-        "to": 553
+        "from": 222,
+        "to": 229
        },
        "span": {
-        "from": 546,
-        "to": 571
+        "from": 222,
+        "to": 248
        }
       },
       {
        "kind": "NodeDecl",
        "key": "a",
        "keySpan": {
-        "from": 574,
-        "to": 575
+        "from": 251,
+        "to": 252
        },
        "value": {
         "kind": "String",
         "value": "A",
         "span": {
-         "from": 577,
-         "to": 580
+         "from": 254,
+         "to": 257
         }
        },
        "span": {
-        "from": 574,
-        "to": 580
+        "from": 251,
+        "to": 257
        }
       },
       {
        "kind": "NodeDecl",
        "key": "b",
        "keySpan": {
-        "from": 583,
-        "to": 584
+        "from": 260,
+        "to": 261
        },
        "value": {
         "kind": "String",
         "value": "B",
         "span": {
-         "from": 586,
-         "to": 589
+         "from": 263,
+         "to": 266
         }
        },
        "span": {
-        "from": 583,
-        "to": 589
+        "from": 260,
+        "to": 266
        }
       },
       {
@@ -132,19 +132,19 @@
             "kind": "Name",
             "value": "a",
             "span": {
-             "from": 592,
-             "to": 593
+             "from": 269,
+             "to": 270
             }
            }
           ],
           "span": {
-           "from": 592,
-           "to": 593
+           "from": 269,
+           "to": 270
           }
          },
          "span": {
-          "from": 592,
-          "to": 593
+          "from": 269,
+          "to": 270
          }
         },
         {
@@ -158,19 +158,19 @@
             "kind": "Name",
             "value": "b",
             "span": {
-             "from": 597,
-             "to": 598
+             "from": 274,
+             "to": 275
             }
            }
           ],
           "span": {
-           "from": 597,
-           "to": 598
+           "from": 274,
+           "to": 275
           }
          },
          "span": {
-          "from": 597,
-          "to": 598
+          "from": 274,
+          "to": 275
          }
         }
        ],
@@ -178,25 +178,25 @@
         "->"
        ],
        "span": {
-        "from": 592,
-        "to": 598
+        "from": 269,
+        "to": 275
        }
       }
      ],
      "span": {
-      "from": 526,
-      "to": 600
+      "from": 202,
+      "to": 277
      }
     },
     "span": {
-     "from": 521,
-     "to": 600
+     "from": 197,
+     "to": 277
     }
    }
   ],
   "span": {
    "from": 0,
-   "to": 601
+   "to": 278
   }
  },
  "diagnostics": []
