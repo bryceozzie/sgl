@@ -39,7 +39,7 @@
  * boot path.
  */
 
-import type { EdgeId, GraphEdge, GraphNode, LabelId, LabelSpec, NodeId, SemanticGraph, Size } from '@sgl/core';
+import type { EdgeId, GraphEdge, GraphNode, LabelId, LabelSpec, NodeId, SemanticGraph, Size, SourceSpan } from '@sgl/core';
 import type { EngineNote, LabelPlacement, LayoutContext, LayoutEngine, LayoutInput, LayoutResult, NodeLayout, NodeSizing } from './contract.js';
 import { applyHostFallbacks, placeLabels, routeStraight } from './fallbacks.js';
 import { workerText } from './host.js';
@@ -51,6 +51,9 @@ export interface LayoutScope {
   readonly node: NodeId;
   readonly engine: string;
   readonly options: Readonly<Record<string, unknown>>;
+  /** The span of the container's `@layout` `engine` key, where `SGL4013`
+   *  is reported (fix round 1, item 1); the container's own span without it. */
+  readonly span?: SourceSpan;
 }
 
 /** The boundaries of one request, in `graph.order` (DD-14 C8). */
@@ -225,14 +228,36 @@ export async function composeLayout(
   // 2. Post-order: every box's size is known before its parent's view is built.
   const sizes = new Map<NodeId, Size>();
   const stored = new Map<NodeId, LayoutResult>();
-  const failed = new Map<NodeId, EngineNote>();
+  const failed = new Map<NodeId, string>();
   const assigned = new Set<EdgeId>();
+  const dissolve = (id: NodeId, detail: string): void => {
+    active.delete(id);
+    sizes.delete(id);
+    stored.delete(id);
+    failed.set(id, detail);
+  };
+  /** Runs one scope; a box it placed at another size than its own engine gave
+   *  it is dissolved and the scope run again (fix round 1, item 3): a box is
+   *  never drawn at a size its parent did not place. */
+  const runLayer = async (scope: NodeId | null, engine: LayoutEngine | undefined, opts: Readonly<Record<string, unknown>>): Promise<{ readonly view: LayoutInput; readonly outcome: ScopeOutcome }> => {
+    for (;;) {
+      const boxes = innerBoxes(graph, scope, sizes, active);
+      const view = layoutView(input, scope, boxes);
+      const outcome = await runScope(engine, view, opts, ctx);
+      if (!outcome.ok) return { view, outcome };
+      const resized = [...boxes].filter(([id, size]) => {
+        const f = outcome.result.nodes[id]?.frame;
+        return f !== undefined && (Math.abs(f.w - size.w) > 1 / 64 || Math.abs(f.h - size.h) > 1 / 64);
+      });
+      if (resized.length === 0) return { view, outcome };
+      for (const [id] of resized) dissolve(id, "resized by its parent's engine");
+    }
+  };
   for (let i = boundaries.length - 1; i >= 0; i -= 1) {
     checkAbort(ctx.signal);
     const id = boundaries[i]!;
     const scope = byNode.get(id)!;
-    const view = layoutView(input, id, innerBoxes(graph, id, sizes, active));
-    const outcome = await runScope(engines(scope.engine), view, scope.options, ctx);
+    const { view, outcome } = await runLayer(id, engines(scope.engine), scope.options);
     const frame = outcome.ok ? outcome.result.nodes[id]?.frame : undefined;
     if (outcome.ok && frame !== undefined) {
       const local = moved(outcome.result, -frame.x, -frame.y, outcome.determinism === 'quantized');
@@ -242,21 +267,43 @@ export async function composeLayout(
       continue;
     }
     // C28: dissolve. Its layer joins its parent's view; its inner boxes stay.
-    active.delete(id);
-    const parent = enclosing(id);
-    const parentEngine = parent === null ? root.id : byNode.get(parent)!.engine;
-    const node = graph.nodes[id]!;
-    const detail = outcome.ok ? 'returned invalid geometry' : outcome.detail;
-    failed.set(id, { code: 'SGL4013', span: node.span, params: { id: scope.engine, node: id, detail: workerText(detail), parent: parentEngine } });
+    dissolve(id, outcome.ok ? 'returned invalid geometry' : outcome.detail);
   }
 
-  // 3. The root.
+  // 3. The root. Its own failure is today's: a throw rejects, a bad shape is
+  //    returned for the host to reject.
   checkAbort(ctx.signal);
-  const rootView = layoutView(input, null, innerBoxes(graph, null, sizes, active));
-  const rootRaw = await root.layout(rootView, { ...ctx, options });
-  if (describeShapeError(rootRaw) !== null) return rootRaw;
+  let rootView: LayoutInput;
+  let rootRaw: LayoutResult;
+  for (;;) {
+    const boxes = innerBoxes(graph, null, sizes, active);
+    rootView = layoutView(input, null, boxes);
+    rootRaw = await root.layout(rootView, { ...ctx, options });
+    if (describeShapeError(rootRaw) !== null) return rootRaw;
+    const resized = [...boxes].filter(([id, size]) => {
+      const f = rootRaw.nodes[id]?.frame;
+      return f !== undefined && (Math.abs(f.w - size.w) > 1 / 64 || Math.abs(f.h - size.h) > 1 / 64);
+    });
+    if (resized.length === 0) break;
+    for (const [id] of resized) dissolve(id, "resized by its parent's engine");
+  }
+  checkAbort(ctx.signal);
   const rootResult = applyHostFallbacks(rootView, rootRaw, root.capabilities, ctx.metrics);
   for (const e of rootView.graph.edges) assigned.add(e.id);
+
+  // `{parent}` is the engine that really laid each dissolved box out: its
+  // nearest enclosing boundary that is still one after every failure (fix
+  // round 1, item 1), or the root's.
+  const notesOf = new Map<NodeId, EngineNote>();
+  for (const [id, detail] of failed) {
+    const scope = byNode.get(id)!;
+    const parent = enclosing(id);
+    notesOf.set(id, {
+      code: 'SGL4013',
+      span: scope.span ?? graph.nodes[id]!.span,
+      params: { id: scope.engine, node: id, detail: workerText(detail), parent: parent === null ? root.id : byNode.get(parent)!.engine },
+    });
+  }
 
   // 4. Pre-order: move each box by its place in its (already placed) parent.
   const nodes: Record<NodeId, NodeLayout> = { ...rootResult.nodes };
@@ -264,7 +311,7 @@ export async function composeLayout(
   const labels: LabelPlacement[] = [...rootResult.labels];
   const notes: EngineNote[] = [...(rootResult.notes ?? [])];
   for (const id of boundaries) {
-    const note = failed.get(id);
+    const note = notesOf.get(id);
     if (note !== undefined) notes.push(note);
     const local = stored.get(id);
     const placed = nodes[id];

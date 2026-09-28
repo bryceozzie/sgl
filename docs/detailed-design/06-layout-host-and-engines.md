@@ -263,7 +263,11 @@ fixed size. `@sgl/layout-api/compose` is its own entry and is on no boot path; b
 - **Failure** (C28): a boundary whose engine throws, is not registered, or returns a result the
   shape check or `validateResult` (an error) refuses is **dissolved**: its layer joins its parent's
   view, its inner boundaries stay boundaries, and the composer adds one `SGL4013` note (§9) at the
-  container. The root's engine failing is §3's `SGL4011` (it throws) or §5's `SGL4002`.
+  container's `@layout` `engine` key (`LayoutScope.span`; the container's span without one),
+  naming the engine that really laid it out. A box its parent's engine placed at another size than
+  its own (by more than 1/64 px) is dissolved the same way ("resized by its parent's engine") and
+  the parent run again. The root's engine failing is §3's `SGL4011` (it throws) or §5's `SGL4002`.
+  `ctx.signal` is checked after the root's engine too.
 - **Notes** (C29): the root's, then each box's in document order, with any `SGL4013` at its box;
   the host's `engineNotes` caps them once for the request.
 - **Abort** (C27): `ctx.signal` is checked before every scope, so a superseded request stops at
@@ -529,7 +533,7 @@ For each corpus graph (empty, one node, one edge, self-loop, parallel edges, 3-d
 4. Completes within the engine's timeout on the 1 000-node graph.
 5. Engines claiming `labelPlacement: true` return a `LabelPlacement` for every label.
 6. **Every edge is attached** (fix round 1, item 11): each routed edge's `start` lies within `arrowSize + 1` px of its source's frame (or its port's point, for a port-terminated end), and its `end` likewise of its target's — `arrowSize` because the host pulls a directed end back by exactly that (§4.4). An edge drawn in the wrong coordinate system (a container offset lost or doubled) fails it; nothing else did. `detachedEdges`; `grid` and `elk` pass it over the corpus. `layout-elk/test/elk.test.ts` also checks, per directed edge, that the end sits `arrowSize` ± 0.5 px off its node's frame (the reserve applied exactly once).
-7. **The engine honours `scope`** (DD-14 C35, `feat/b8-compose`): for every container with a visible child, the engine run on that container's view (§4a) with `scope` = the container places exactly the view's visible nodes, the container's own frame included, and passes `validateResult`. `scopeProblem`; on by default for every case without a plan (`scopes: false` turns it off). `grid`, `fixed` and `elk` pass it over the corpus and the 1 000-node graph; an engine that fails it is dissolved wherever a document names it on a container (§4a).
+7. **The engine honours `scope`** (DD-14 C35, `feat/b8-compose`, strengthened in its fix round 1). For every container with a visible child, two runs (`scopeProblem`). **(a)** As the composer runs a boundary: the container's view (§4a) with `scope` = the container, each inner container directly in its layer given as a box, a leaf whose `sizing.fixed` is `SCOPE_CHECK_BOX` (37.25 × 23.5) and whose `intrinsic` is 1 × 1; through the host fallbacks, the result places exactly the view's visible nodes (the container's own frame included), each box at exactly that size, and passes `validateResult`. **(b)** The document's whole input with `scope` = the container, the engine alone: it places exactly the container and its visible descendants. It proves that the engine lays out the subtree it is given as its own top node, keeps a box's fixed size, and does not lay out anything outside its scope when the graph holds more. It does not prove the layout inside is good (checks 1–6 do, on the composed results), nor anything about crossing edges. An engine that ignores `scope` fails (b); one that ignores a box's `fixed` fails (a). On by default for every case without a plan (`scopes: false` turns it off). `grid`, `fixed` and `elk` pass it over the corpus and the 1 000-node graph; an engine that fails it is dissolved wherever a document names it on a container (§4a).
 
 **Plans** (DD-14 C40). `runHostSequence` takes an optional `{ plan, engines }` and then runs `composeLayout` and `quantize`, as a request with that plan does; a case may carry a plan (`ConformanceCase.plan`, `ConformanceOptions.engines`), and checks 1–6 are made on the composed result. Check 3's pin exemption then asks the engine that placed the node.
 

@@ -335,9 +335,15 @@ root, and `payments.api -> psp` leaves it.
   it throws (including a lazy chunk that will not load), returns a shape `describeShapeError`
   refuses, or returns a result `validateResult` rejects (`SGL4002`) against its view. The boundary
   is dissolved: its layer joins its parent's view, and its own inner boundaries stay boundaries. The
-  composer adds one note, **`SGL4013`** (warning) at the container's span: "Layout engine `{id}`
+  composer adds one note, **`SGL4013`** (warning) at the container's `@layout` `engine` key (as
+  `SGL4012`'s is; the plan carries the key's span, and the container's span is used only when there
+  is no key; orchestrator decision, `feat/b8-compose` fix round 1): "Layout engine `{id}`
   failed for `{node}` ({detail}); it is laid out by `{parent}` instead." `detail` goes through
-  `workerText`. A failure of the root's engine is today's `SGL4011`/`SGL4002`, and the previous
+  `workerText`. `{parent}` is the engine that really lays the box out: its nearest enclosing
+  boundary that did not fail too, or the root's. A box its parent's engine places at another size
+  than its own engine gave it (more than 1/64 px off) fails the same way, with the detail "resized
+  by its parent's engine", and the parent is run again without it: a box is never drawn at a size
+  its parent did not place (fix round 1). A failure of the root's engine is today's `SGL4011`/`SGL4002`, and the previous
   layout stays. *Degrade to what the document would do without the key: the diagram still draws,
   and the squiggle says why.* §13 ⚑6. **Human decision 2026-09-28: accepted.**
 - **C29. Notes from every scope are merged in scope order**, then `engineNotes` applies the one
@@ -408,7 +414,11 @@ root, and `payments.api -> psp` leaves it.
 - **C39. F16's title detour needs nothing new.** In the parent's view a box is a leaf with no
   title, so ELK never routes through the box's title; the port rule (C16 step 4) keeps legs out of
   it. Inside an `elk` box, `avoidTitle` works on that run's own edges, as today. `titleCrossings`
-  runs on the composed result, so a leg through a title would be counted.
+  runs on the composed result, so a leg through a title would be counted. **Branch 1's known state:**
+  with crossing edges straight end to end (§11.1 deviation 1), such an edge can cross a sibling's
+  frame or a box's title (in the goldens, `storefront.bff -> payments.api` crosses
+  `payments.ledger`, and `client -> rack.top` crosses `rack`'s title); branch 3's ports and legs
+  fix it.
 - **C40. Conformance** (DD-06 §8). `runHostSequence` takes an optional plan, so the suite runs what
   a request runs. Checks 1–6 run on the composed result: check 3 compares siblings as today (a box
   is a node with a frame), check 6 checks that each lifted edge ends at its real endpoint. Check 7
@@ -586,7 +596,7 @@ once the human approved them (§14), and so was spec §4's text (§3.8).
   `scopeProblem`, runs on every container of every case without a plan, by default
   (`ConformanceOptions.scopes: false` turns it off). `grid`, `fixed` and `elk` pass it over the
   corpus and the 1 000-node graph.
-- Tests: `layout-api/test/compose.test.ts` (26 units, stub engines: the views, the edge rules,
+- Tests: `layout-api/test/compose.test.ts` (34 units after fix round 1, stub engines: the views, the edge rules,
   translation and snapping, crossing edges, notes, degrade on a throw, a bad shape, `SGL4002` and
   an unregistered id with `SGL4013`, a nested box surviving its parent's failure, the root's
   failure, abort between scopes, hidden boxes, the plan in `runHostSequence` and
@@ -601,7 +611,11 @@ once the human approved them (§14), and so was spec §4's text (§3.8).
    edge"), rather than C15's lifted edge in the parent's view with its route discarded. Under an
    `elk` parent a crossing edge therefore plays no part in ranking yet (in `checkout.sgl`, `psp`
    lands above `payments`); branch 3's lift and ports change that, and its goldens with it. An edge
-   into a box's own port from inside the box (C22) is drawn end to end too, until branch 3's leg.
+   into a box's own port from inside the box (C22) is drawn end to end too, to the point its parent
+   placed, until branch 3's leg. A straight crossing edge can also cut through a sibling's frame or
+   a box's title: `storefront.bff -> payments.api` crosses `payments.ledger` in the `grid-in-elk`
+   golden, and `client -> rack.top` crosses `rack`'s title in `fixed-in-elk`. That is branch 1's
+   known state (C39), fixed by branch 3's ports.
 2. **The goldens are in `layout-elk/test/__goldens__/composed/`**, not `layout-api`'s:
    `@sgl/layout-api` may not depend on the engines, and `layout-elk`'s tests already have all
    three. The fixtures are inline in the test, not `corpus/layout/engine-*.sgl`: until branch 2,
@@ -626,6 +640,19 @@ once the human approved them (§14), and so was spec §4's text (§3.8).
    check's text, "returned invalid geometry" (a view `validateResult` rejects; its own detail is
    not kept), or "not registered in this worker"; a dissolved box's own notes are dropped. An
    engine's own `AbortError` after the signal fired propagates rather than degrading the box.
+7. **A box is sized from its frame only** (fix round 1, item 4; orchestrator decision: keep it).
+   Content its engine puts outside the box's frame, such as a `fixed` child pinned at a negative
+   offset, stays outside it and can overlap the box's siblings in the parent. This is what `fixed`
+   alone does, where the author gets `SGL4003`; the composed result gets the same `SGL4003` from
+   the host's validation (`layout-elk/test/compose.test.ts`).
+
+**Fix round 1** (orchestrator review; no blocker). `{parent}` is resolved after every box has run,
+from the boundaries still standing (it named a boundary that later failed itself); `SGL4013` is at
+the `engine` key (`LayoutScope.span`); a box its parent resized is dissolved and the parent run
+again; `ctx.signal` is also checked after the root's engine; check 7 is stronger (DD-06 §8): inner
+containers are boxes of an odd fixed size that must be kept, and a second run on the whole graph
+with `scope` set tells a scoped layout from one that ignores `scope`. New unit tests pin a
+crossing edge to a box's own port, the `assigned` rule and the label order.
 
 ---
 

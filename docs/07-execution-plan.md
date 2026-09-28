@@ -2250,7 +2250,14 @@ Deviations are in DD-14 §11.1: crossing edges are in no view yet, so under `elk
 the goldens are in `layout-elk` with inline fixtures (branch 2 moves them to `corpus/`); `tree` is
 not on `main`, so its check 7 and a `tree`-in-`grid` golden wait for whichever merges second; C31
 holds for every coordinate but not for the unquantized unit normals (last-bit differences). DD-06
-gains §4a (the composer), check 7 in §8 and `SGL4013` in §9.
+gains §4a (the composer), check 7 in §8 and `SGL4013` in §9. **Fix round 1** (orchestrator review,
+no blocker): `SGL4013` names the engine that really laid a box out when nested boxes fail, and sits
+at the `@layout` `engine` key (the plan's `span`); a box its parent's engine resizes is dissolved
+with `SGL4013` and the parent run again; `ctx.signal` is also checked after the root; check 7 now
+gives inner containers an odd fixed box size and runs once more on the whole graph with `scope`
+set, so an engine that ignores `scope` or a box's size fails it; new unit tests for a crossing edge
+to a box's own port, the edge-assignment rule and the label order; and a test pinning `SGL4003` for
+content pinned outside a `fixed` box (kept, DD-14 §11.1 deviation 7). No golden changed.
 
 ### 2.1 Open findings
 

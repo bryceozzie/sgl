@@ -13,12 +13,13 @@ import {
 } from '@sgl/core';
 import { describe, expect, it } from 'vitest';
 import { composeLayout, layoutView, type LayoutPlan } from '../src/compose.js';
-import { conformanceContext, runConformance, runHostSequence } from '../src/conformance.js';
+import { conformanceContext, detachedEdges, runConformance, runHostSequence } from '../src/conformance.js';
 import {
   LAYOUT_API_VERSION,
   type LayoutContext,
   type LayoutEngine,
   type LayoutInput,
+  type EdgeLayout,
   type LayoutResult,
   type NodeLayout,
   type NodeSizing,
@@ -137,14 +138,29 @@ function inputOf(spec: Spec): LayoutInput {
 /** `col`: every layer in one column, `gap` apart, starting at the padding;
  *  a leaf is `fixed ?? intrinsic`. The scope node (if any) at `origin`.
  *  Straight routing and label placement are left to the host. */
-function column(id: string, opts: { origin?: { x: number; y: number }; gap?: number; determinism?: 'bitwise' | 'quantized'; pins?: boolean } = {}): LayoutEngine & { calls: (NodeId | null)[] } {
+interface ColumnOptions {
+  readonly origin?: { x: number; y: number };
+  readonly gap?: number;
+  readonly determinism?: 'bitwise' | 'quantized';
+  readonly pins?: boolean;
+  /** Places each node's ports on its east side, evenly. */
+  readonly ports?: boolean;
+  /** Routes every edge of its view itself: two segments via the midpoint. */
+  readonly routes?: boolean;
+  /** Grows a leaf with a fixed size by this much (a parent that resizes a box). */
+  readonly resize?: number;
+  /** Takes a leaf's intrinsic size even when it has a fixed one. */
+  readonly ignoreFixed?: boolean;
+}
+
+function column(id: string, opts: ColumnOptions = {}): LayoutEngine & { calls: (NodeId | null)[] } {
   const calls: (NodeId | null)[] = [];
   return {
     id,
     name: id,
     version: '0.0.0',
     apiVersion: LAYOUT_API_VERSION,
-    capabilities: { containers: true, edgeRouting: 'straight', ports: false, labelPlacement: false, incremental: false, determinism: opts.determinism ?? 'bitwise', ...(opts.pins === true && { pins: true }) },
+    capabilities: { containers: true, edgeRouting: opts.routes === true ? 'orthogonal' : 'straight', ports: opts.ports === true, labelPlacement: false, incremental: false, determinism: opts.determinism ?? 'bitwise', ...(opts.pins === true && { pins: true }) },
     calls,
     async layout(input: LayoutInput, ctx: LayoutContext): Promise<LayoutResult> {
       calls.push(input.scope);
@@ -155,7 +171,11 @@ function column(id: string, opts: { origin?: { x: number; y: number }; gap?: num
         const n = graph.nodes[nid]!;
         const kids = n.children.filter((k) => graph.nodes[k]?.hidden === false);
         const s = sizing[nid]!;
-        if (kids.length === 0) return { w: s.fixed?.w ?? s.intrinsic.w, h: s.fixed?.h ?? s.intrinsic.h };
+        if (kids.length === 0) {
+          if (opts.ignoreFixed === true) return s.intrinsic;
+          if (s.fixed?.w !== undefined && opts.resize !== undefined) return { w: s.fixed.w + opts.resize, h: s.fixed.h ?? s.intrinsic.h };
+          return { w: s.fixed?.w ?? s.intrinsic.w, h: s.fixed?.h ?? s.intrinsic.h };
+        }
         const sizes = kids.map(sizeOf);
         return {
           w: Math.max(...sizes.map((z) => z.w)) + s.padding[3] + s.padding[1],
@@ -171,10 +191,15 @@ function column(id: string, opts: { origin?: { x: number; y: number }; gap?: num
           const frame = { x: x0, y, w: size.w, h: size.h };
           const kids = n.children.filter((k) => graph.nodes[k]?.hidden === false);
           const s = sizing[nid]!;
-          out[nid] =
-            kids.length > 0
-              ? { frame, contentFrame: { x: x0 + s.padding[3], y: y + s.padding[0], w: size.w - s.padding[3] - s.padding[1], h: size.h - s.padding[0] - s.padding[2] } }
-              : { frame };
+          const ports =
+            opts.ports === true && n.ports.length > 0
+              ? Object.fromEntries(n.ports.map((p, i) => [p.id, { point: { x: frame.x + frame.w, y: frame.y + ((i + 1) * frame.h) / (n.ports.length + 1) }, normal: { x: 1, y: 0 } }]))
+              : undefined;
+          out[nid] = {
+            frame,
+            ...(kids.length > 0 && { contentFrame: { x: x0 + s.padding[3], y: y + s.padding[0], w: size.w - s.padding[3] - s.padding[1], h: size.h - s.padding[0] - s.padding[2] } }),
+            ...(ports !== undefined && { ports }),
+          };
           if (kids.length > 0) place(kids, x0 + s.padding[3], y + s.padding[0]);
           y += size.h + gap;
         }
@@ -182,7 +207,19 @@ function column(id: string, opts: { origin?: { x: number; y: number }; gap?: num
       const o = opts.origin ?? { x: 0, y: 0 };
       if (input.scope === null) place(graph.rootChildren, o.x, o.y);
       else place([input.scope], o.x, o.y);
-      return { bounds: { x: 0, y: 0, w: 0, h: 0 }, nodes: out, edges: {}, labels: [] };
+      const edges: Record<string, EdgeLayout> = {};
+      if (opts.routes === true) {
+        for (const e of graph.edges) {
+          const a = out[e.from.node]?.frame;
+          const b = out[e.to.node]?.frame;
+          if (a === undefined || b === undefined || e.from.node === e.to.node) continue;
+          const start = { x: a.x + a.w / 2, y: a.y + a.h };
+          const end = { x: b.x + b.w / 2, y: b.y };
+          const mid = { x: start.x, y: (start.y + end.y) / 2 };
+          edges[e.id] = { start, end, route: [{ t: 'L', to: mid }, { t: 'L', to: end }] };
+        }
+      }
+      return { bounds: { x: 0, y: 0, w: 0, h: 0 }, nodes: out, edges, labels: [] };
     },
   };
 }
@@ -540,7 +577,7 @@ describe("conformance check 7: an engine honours `scope` (DD-14 C35)", () => {
       },
     };
     const report = await runConformance(childrenOnly, [{ name: 'doc', input }], { metrics: METRICS, now: () => 0 });
-    expect(report.failures).toContain("doc: check 7 (scope 'b': missing 'b')");
+    expect(report.failures).toContain("doc: check 7 (scope 'b': missing 'b'; whole graph: missing 'b')");
   });
 
   it('an engine that throws for a scope fails it', async () => {
@@ -561,10 +598,101 @@ describe("conformance check 7: an engine honours `scope` (DD-14 C35)", () => {
     };
     const report = await runConformance(extra, [{ name: 'doc', input }], { metrics: METRICS, now: () => 0 });
     expect(report.failures.filter((f) => f.includes('check 7'))).toEqual([
-      "doc: check 7 (scope 'b': extra 'zz')",
-      "doc: check 7 (scope 'c': extra 'zz')",
-      "doc: check 7 (scope 'c.k': extra 'zz')",
+      "doc: check 7 (scope 'b': extra 'zz'; whole graph: extra 'zz')",
+      "doc: check 7 (scope 'c': extra 'zz'; whole graph: extra 'zz')",
+      "doc: check 7 (scope 'c.k': extra 'zz'; whole graph: extra 'zz')",
     ]);
+  });
+
+  it('an engine that ignores `scope` fails it: given the whole graph and a scope, it lays out everything (M12)', async () => {
+    const col = column('t.col');
+    const ignoring: LayoutEngine = { ...col, layout: (i, c) => col.layout({ ...i, scope: null }, c) };
+    const report = await runConformance(ignoring, [{ name: 'doc', input }], { metrics: METRICS, now: () => 0 });
+    expect(report.failures).toEqual([
+      "doc: check 7 (scope 'b': whole graph: extra 'a', 'c', 'c.k', 'c.k.z')",
+      "doc: check 7 (scope 'c': whole graph: extra 'a', 'b', 'b.x', 'b.y')",
+      "doc: check 7 (scope 'c.k': whole graph: extra 'a', 'b', 'b.x', 'b.y', 'c')",
+    ]);
+  });
+
+  it("an engine that ignores a box's `sizing.fixed` fails it: inner containers are boxes of an odd size", async () => {
+    const report = await runConformance(column('t.col', { ignoreFixed: true }), [{ name: 'doc', input }], { metrics: METRICS, now: () => 0 });
+    expect(report.failures).toEqual(["doc: check 7 (scope 'c': box 'c.k' is 1x1, not 37.25x23.5)"]);
+  });
+});
+
+describe('fix round 1', () => {
+  it('item 1: nested failures name the engine that really lays the box out, and SGL4013 sits at the `engine` key', async () => {
+    const root = column('t.root', { gap: 5 });
+    const leaf = column('t.leaf', { gap: 1 });
+    const bad1 = failing('t.bad1', 'throw');
+    const bad2 = failing('t.bad2', 'throw');
+    const input = inputOf({ tree: { o: ['o.b'], 'o.b': ['o.b.i', 'o.b.z'], 'o.b.i': ['o.b.i.k', 'o.b.i.m'] } });
+    const p: LayoutPlan = [
+      { node: n('o'), engine: 't.bad1', options: {}, span: { from: 100, to: 106 } },
+      { node: n('o.b'), engine: 't.bad2', options: {} },
+      { node: n('o.b.i'), engine: 't.leaf', options: {} },
+    ];
+    const r = await composeLayout(root, input, {}, p, registry(root, leaf, bad1, bad2), ctx());
+    expect(engineNotes(r.notes).map((d) => `${JSON.stringify(d.span)} ${d.message}`)).toEqual([
+      '{"from":100,"to":106} Layout engine `t.bad1` failed for `o` (boom  x  line two); it is laid out by `t.root` instead.',
+      '{"from":3,"to":6} Layout engine `t.bad2` failed for `o.b` (boom  x  line two); it is laid out by `t.root` instead.',
+    ]);
+    expect(r.nodes[n('o.b.i.m')]!.frame.y - r.nodes[n('o.b.i.k')]!.frame.y).toBe(11);
+  });
+
+  it('item 1: three levels, the middle one surviving: both failures name it', async () => {
+    const root = column('t.root');
+    const mid = column('t.mid');
+    const leaf = column('t.leaf');
+    const input = inputOf({ tree: { a: ['a.b'], 'a.b': ['a.b.c'], 'a.b.c': ['a.b.c.d'], 'a.b.c.d': ['a.b.c.d.e'] } });
+    const r = await composeLayout(root, input, {}, plan(['a', 't.mid'], ['a.b', 't.bad1'], ['a.b.c', 't.bad2'], ['a.b.c.d', 't.leaf']), registry(root, mid, leaf, failing('t.bad1', 'throw'), failing('t.bad2', 'throw')), ctx());
+    expect(engineNotes(r.notes).map((d) => d.message.replace(/ \(.*\)/, ''))).toEqual([
+      'Layout engine `t.bad1` failed for `a.b`; it is laid out by `t.mid` instead.',
+      'Layout engine `t.bad2` failed for `a.b.c`; it is laid out by `t.mid` instead.',
+    ]);
+    expect(mid.calls).toEqual(['a']);
+    expect(leaf.calls).toEqual(['a.b.c.d']);
+  });
+
+  it("item 3: a box its parent's engine resizes is dissolved into the parent, with SGL4013, and no edge is left detached", async () => {
+    const outer = column('t.outer', { resize: 5 });
+    const inner = column('t.inner');
+    const input = inputOf({ ...BASIC, edges: [['b.x', 'b.y', 'inside'], ['a', 'b.x', 'cross']] });
+    const r = await composeLayout(outer, input, {}, plan(['b', 't.inner']), registry(outer, inner), ctx());
+    expect(engineNotes(r.notes).map((d) => d.message)).toEqual(["Layout engine `t.inner` failed for `b` (resized by its parent's engine); it is laid out by `t.outer` instead."]);
+    expect(outer.calls).toEqual([null, null]);
+    // `t.outer` laid `b` out as a container: its own gap (10) and padding.
+    expect(r.nodes[n('b')]!.frame).toEqual({ x: 0, y: 20, w: 28, h: 44 });
+    expect(detachedEdges(input.graph, quantize(r, 64), METRICS.arrowSize)).toEqual([]);
+  });
+
+  it("item 6: an abort during the root's own layout stops the request", async () => {
+    const controller = new AbortController();
+    abortNow = () => controller.abort();
+    const run = composeLayout(failing('t.r', 'abort'), inputOf(BASIC), {}, plan(['b', 't.inner']), registry(column('t.inner')), ctx(controller));
+    await expect(run).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it("item 7: a crossing edge to the box's own port ends at the port its parent placed (C22)", async () => {
+    const outer = column('t.outer', { ports: true });
+    const inner = column('t.inner');
+    const input = inputOf({ ...BASIC, ports: { b: ['p'] }, edges: [['b.y', 'b#p', 'toport']] });
+    const r = await composeLayout(outer, input, {}, plan(['b', 't.inner']), registry(outer, inner), ctx());
+    const port = r.nodes[n('b')]!.ports!['p']!;
+    expect(port.point).toEqual({ x: 28, y: 20 + 44 / 2 });
+    const end = r.edges[asEdgeId('toport')]!.end;
+    expect(Math.hypot(end.x - port.point.x, end.y - port.point.y)).toBeCloseTo(8, 9);
+  });
+
+  it("item 7: an edge a box's view holds is its engine's (routed once, labelled once); labels come out by id", async () => {
+    const outer = column('t.outer');
+    const inner = column('t.inner', { routes: true });
+    const input = inputOf({ ...BASIC, edges: [['b.x', 'b.y', 'inside'], ['a', 'b.y', 'cross']], edgeLabels: ['inside', 'cross'] });
+    const r = await composeLayout(outer, input, {}, plan(['b', 't.inner']), registry(outer, inner), ctx());
+    expect(r.edges[asEdgeId('inside')]!.route).toHaveLength(2);
+    expect(r.edges[asEdgeId('cross')]!.route).toHaveLength(1);
+    expect(r.labels.map((l) => l.labelId)).toEqual(['l:a', 'l:b', 'l:b.x', 'l:b.y', 'l:c', 'l:cross', 'l:inside']);
   });
 });
 

@@ -1,5 +1,5 @@
 import { asNodeId, type NodeId } from '@sgl/core';
-import type { LayoutEngine, LayoutInput, LayoutResult } from '@sgl/layout-api';
+import { validateResult, type LayoutEngine, type LayoutInput, type LayoutResult } from '@sgl/layout-api';
 import type { LayoutPlan } from '@sgl/layout-api/compose';
 import { detachedEdges, runConformance, runHostSequence } from '@sgl/layout-api/conformance';
 import { fixedEngine, gridEngine } from '@sgl/layout-std';
@@ -234,6 +234,29 @@ describe('what the composed fixtures show', () => {
     expect(b!.x + b!.w).toBeLessThan(c!.x);
     expect(frameOf(result, 'row').y).toBeGreaterThan(frameOf(result, 'top').y);
     expect(frameOf(result, 'bottom').y).toBeGreaterThan(frameOf(result, 'row').y);
+  });
+});
+
+describe('fix round 1, item 4: a box is sized from its frame only', () => {
+  it('content pinned outside a `fixed` box in a `grid` document stays outside it, and SGL4003 says so, as under `fixed` alone', async () => {
+    const source = `@layout: { engine: grid }
+a: "A"
+rack: {
+  @label: "Rack"
+  @layout: { engine: fixed }
+  out: { @label: "Out", @pin: { x: -60, y: 0 } }
+  in: { @label: "In", @pin: { x: 0, y: 0 } }
+}
+b: "B"
+`;
+    const input = layoutInputForSource(source);
+    const { result } = await runHostSequence(gridEngine, input, {}, METRICS, { plan: planOf(input), engines: engineById });
+    const rack = result.nodes[n('rack')]!.contentFrame!;
+    expect(frameOf(result, 'rack.out').x).toBe(rack.x - 60);
+    expect(validateResult(result, input.graph, gridEngine.id).map((d) => `${d.code} ${d.message}`)).toEqual(['SGL4003 `rack.out` extends outside its container after layout.']);
+    // `fixed` alone does the same.
+    const alone = await runHostSequence(fixedEngine, input, {}, METRICS);
+    expect(validateResult(alone.result, input.graph, fixedEngine.id).map((d) => d.code)).toEqual(['SGL4003']);
   });
 });
 

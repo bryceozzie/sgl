@@ -46,7 +46,7 @@
  * set is the `corpus/` documents.
  */
 
-import type { EdgeId, GraphNode, LabelId, NodeId, PathSeg, Point, Rect, SemanticGraph } from '@sgl/core';
+import type { EdgeId, GraphNode, LabelId, NodeId, PathSeg, Point, Rect, SemanticGraph, Size } from '@sgl/core';
 import type { LayoutContext, LayoutEngine, LayoutInput, LayoutResult, ResolvedThemeMetricsView } from './contract.js';
 import { composeLayout, layoutView, placingEngines, type LayoutPlan } from './compose.js';
 import { applyHostFallbacks } from './fallbacks.js';
@@ -279,11 +279,25 @@ function scopeContainers(graph: SemanticGraph): readonly NodeId[] {
   return graph.order.filter((id) => graph.nodes[id]?.children.some((k) => graph.nodes[k]?.hidden === false) === true);
 }
 
+/** Check 7's box size: odd, on the 1/64 grid, and unlike any sizing an
+ *  engine could arrive at by itself. */
+export const SCOPE_CHECK_BOX: Size = { w: 37.25, h: 23.5 };
+
 /**
- * Check 7 (DD-14 C35) for one container: the engine, run as the composer
- * runs a boundary (its view, `scope` = the container, the host fallbacks),
- * places exactly the view's visible nodes and passes `validateResult`.
- * `null` when it does; otherwise what went wrong.
+ * Check 7 (DD-14 C35; fix round 1, item 2) for one container, two runs:
+ *
+ * 1. **As the composer runs a boundary.** The container's view (`layoutView`),
+ *    `scope` = the container, the inner containers directly in its layer
+ *    given as boxes: leaves whose `sizing.fixed` is `SCOPE_CHECK_BOX` and whose
+ *    `intrinsic` is 1 x 1. Through the host fallbacks, the result places
+ *    exactly the view's visible nodes, the container's own frame included,
+ *    each box at exactly `SCOPE_CHECK_BOX`, and passes `validateResult`.
+ * 2. **On the whole graph.** The document's own input with `scope` = the
+ *    container, the engine alone: it places exactly the container and its
+ *    visible descendants. This is what tells a scoped layout from a
+ *    whole-graph one, since a view holds nothing outside its scope.
+ *
+ * `null` when both hold; otherwise what went wrong.
  */
 export async function scopeProblem(
   engine: LayoutEngine,
@@ -292,7 +306,32 @@ export async function scopeProblem(
   options: Readonly<Record<string, unknown>>,
   metrics: ResolvedThemeMetricsView,
 ): Promise<string | null> {
-  const view = layoutView(input, scope, new Map());
+  const { graph } = input;
+  const quote = (ids: readonly string[]): string => ids.map((id) => `'${id}'`).join(', ');
+  const nodeSet = (want: readonly NodeId[], got: LayoutResult): string[] => {
+    const wanted = new Set<string>(want);
+    const missing = want.filter((id) => got.nodes[id] === undefined);
+    const extra = Object.keys(got.nodes)
+      .filter((id) => !wanted.has(id))
+      .sort();
+    return [...(missing.length > 0 ? [`missing ${quote(missing)}`] : []), ...(extra.length > 0 ? [`extra ${quote(extra)}`] : [])];
+  };
+
+  // 1. The view, with its inner containers as boxes.
+  const boxes = new Map<NodeId, Size>();
+  const stack = [...(graph.nodes[scope]?.children ?? [])].reverse();
+  while (stack.length > 0) {
+    const id = stack.pop()!;
+    const node = graph.nodes[id];
+    if (node === undefined || node.hidden) continue;
+    if (node.children.some((k) => graph.nodes[k]?.hidden === false)) boxes.set(id, SCOPE_CHECK_BOX);
+    else for (let i = node.children.length - 1; i >= 0; i -= 1) stack.push(node.children[i]!);
+  }
+  const base = layoutView(input, scope, boxes);
+  const sizing = { ...base.sizing };
+  for (const id of boxes.keys()) sizing[id] = { ...sizing[id]!, intrinsic: { w: 1, h: 1 } };
+  const view: LayoutInput = { ...base, sizing };
+  const parts: string[] = [];
   let result: LayoutResult;
   try {
     result = (await runHostSequence(engine, view, options, metrics)).result;
@@ -301,16 +340,29 @@ export async function scopeProblem(
   }
   const shape = describeShapeError(result);
   if (shape !== null) return shape;
-  const want = new Set<string>(view.graph.order);
-  const missing = view.graph.order.filter((id) => result.nodes[id] === undefined);
-  const extra = Object.keys(result.nodes)
-    .filter((id) => !want.has(id))
-    .sort();
-  const quote = (ids: readonly string[]): string => ids.map((id) => `'${id}'`).join(', ');
-  const parts = [...(missing.length > 0 ? [`missing ${quote(missing)}`] : []), ...(extra.length > 0 ? [`extra ${quote(extra)}`] : [])];
-  if (parts.length > 0) return parts.join('; ');
-  const error = validateResult(result, view.graph, engine.id).find((d) => d.severity === 'error');
-  return error === undefined ? null : error.message;
+  parts.push(...nodeSet(view.graph.order, result));
+  for (const id of boxes.keys()) {
+    const f = result.nodes[id]?.frame;
+    if (f !== undefined && (f.w !== SCOPE_CHECK_BOX.w || f.h !== SCOPE_CHECK_BOX.h)) parts.push(`box '${id}' is ${f.w}x${f.h}, not ${SCOPE_CHECK_BOX.w}x${SCOPE_CHECK_BOX.h}`);
+  }
+  if (parts.length === 0) {
+    const error = validateResult(result, view.graph, engine.id).find((d) => d.severity === 'error');
+    if (error !== undefined) parts.push(error.message);
+  }
+
+  // 2. The whole graph, with `scope` set.
+  const subtree = graph.order.filter((id) => {
+    for (let at: NodeId | null = id; at !== null; at = graph.nodes[at]?.parent ?? null) if (at === scope) return true;
+    return false;
+  });
+  try {
+    const raw = await engine.layout({ ...input, scope }, conformanceContext(options, metrics));
+    const whole = describeShapeError(raw) ?? nodeSet(subtree, raw).join('; ');
+    if (whole !== '') parts.push(`whole graph: ${whole}`);
+  } catch (err) {
+    parts.push(`whole graph: threw: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  return parts.length === 0 ? null : parts.join('; ');
 }
 
 function pinnedNode(graph: SemanticGraph, id: NodeId): boolean {
