@@ -12,7 +12,7 @@ import {
   type Size,
 } from '@sgl/core';
 import { describe, expect, it } from 'vitest';
-import { composeLayout, layoutView, type LayoutPlan } from '../src/compose.js';
+import { composeInWorker, composeLayout, LayoutCache, layoutView, type LayoutPlan } from '../src/compose.js';
 import { conformanceContext, detachedEdges, runConformance, runHostSequence } from '../src/conformance.js';
 import {
   LAYOUT_API_VERSION,
@@ -693,6 +693,233 @@ describe('fix round 1', () => {
     expect(r.edges[asEdgeId('inside')]!.route).toHaveLength(2);
     expect(r.edges[asEdgeId('cross')]!.route).toHaveLength(1);
     expect(r.labels.map((l) => l.labelId)).toEqual(['l:a', 'l:b', 'l:b.x', 'l:b.y', 'l:c', 'l:cross', 'l:inside']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The per-box cache (DD-14 C32, `perf/b8-cache`).
+// ---------------------------------------------------------------------------
+
+describe('the per-box cache (DD-14 C32)', () => {
+  /** root: `a`, boxes `b` (`b.x`, `b.y`) and `c` (`c.x`), and `d`. */
+  const TWO: Spec = { tree: { a: [], b: ['b.x', 'b.y'], c: ['c.x'], d: [] }, edges: [['b.x', 'b.y'], ['a', 'c.x'], ['a', 'd']], edgeLabels: ['b.x>b.y'] };
+  const PLAN = plan(['b', 't.box'], ['c', 't.box']);
+
+  /** Every node's and edge's span moved by `d`: an edit earlier in the text. */
+  const shifted = (input: LayoutInput, d: number): LayoutInput => {
+    const nodes: Record<string, GraphNode> = {};
+    for (const [id, node] of Object.entries(input.graph.nodes)) nodes[id] = { ...node, span: { from: node.span.from + d, to: node.span.to + d } };
+    const edges = input.graph.edges.map((e) => ({ ...e, span: { from: e.span.from + d, to: e.span.to + d } }));
+    return { ...input, graph: { ...input.graph, nodes: nodes as SemanticGraph['nodes'], edges } };
+  };
+
+  /** Composes `input` with and without `cache`; they must agree exactly
+   *  (`toStrictEqual` compares numbers with `Object.is`, so `-0` too), and
+   *  the fresh run's box calls are returned. */
+  const both = async (root: LayoutEngine, box: LayoutEngine & { calls: (NodeId | null)[] }, input: LayoutInput, cache: LayoutCache, p: LayoutPlan = PLAN) => {
+    const before = box.calls.length;
+    const cached = await composeLayout(root, input, {}, p, registry(root, box), ctx(), cache);
+    const calls = box.calls.slice(before);
+    const fresh = await composeLayout(root, input, {}, p, registry(root, box), ctx());
+    expect(JSON.stringify(cached)).toBe(JSON.stringify(fresh));
+    expect(cached).toStrictEqual(fresh);
+    return calls;
+  };
+
+  it('a repeated request runs no box engine, and its result is exactly the uncached one', async () => {
+    const root = column('t.root');
+    const box = column('t.box', { gap: 3 });
+    const cache = new LayoutCache();
+    const input = inputOf(TWO);
+    expect(await both(root, box, input, cache)).toEqual(['c', 'b']);
+    expect(await both(root, box, input, cache)).toEqual([]);
+    expect(await both(root, box, input, cache)).toEqual([]);
+    expect(cache.size).toBe(2);
+    expect([cache.hits, cache.misses]).toEqual([4, 2]);
+  });
+
+  it('an edit inside one box lays out that box alone; the other is reused, moved into place', async () => {
+    const root = column('t.root');
+    const box = column('t.box', { gap: 3 });
+    const cache = new LayoutCache();
+    await both(root, box, inputOf(TWO), cache);
+    // `b` gains a child: it grows, so `c` moves down, and is reused there.
+    const edited = inputOf({ ...TWO, tree: { ...TWO.tree, b: ['b.x', 'b.y', 'b.z'] } });
+    expect(await both(root, box, edited, cache)).toEqual(['b']);
+  });
+
+  it('an edit outside every box, which moves every span after it, lays out no box', async () => {
+    const root = column('t.root');
+    const box = column('t.box', { gap: 3 });
+    const cache = new LayoutCache();
+    await both(root, box, inputOf(TWO), cache);
+    const edited = shifted(inputOf({ ...TWO, tree: { e: [], ...TWO.tree } }), 17);
+    expect(await both(root, box, edited, cache)).toEqual([]);
+  });
+
+  it("an edit to one box's options, engine version, or the theme's metrics lays out what it reaches", async () => {
+    const root = column('t.root');
+    const box = column('t.box', { gap: 3 });
+    const cache = new LayoutCache();
+    const input = inputOf(TWO);
+    await both(root, box, input, cache);
+    expect(await both(root, box, input, cache, plan(['b', 't.box', { gap: 9 }], ['c', 't.box']))).toEqual(['b']);
+    const next = { ...box, version: '0.0.1', calls: box.calls };
+    expect(await both(root, next, input, cache)).toEqual(['c', 'b']);
+    const before = box.calls.length;
+    await composeLayout(root, input, {}, PLAN, registry(root, box), { ...ctx(), metrics: { ...METRICS, arrowSize: 9 } }, cache);
+    expect(box.calls.slice(before)).toEqual(['c', 'b']);
+  });
+
+  it("an inner box that changes size lays out its parent box again; a sibling's contents do not", async () => {
+    const root = column('t.root');
+    const box = column('t.box', { gap: 3 });
+    const cache = new LayoutCache();
+    const nested: Spec = { tree: { o: ['o.i', 'o.k'], 'o.i': ['o.i.x'], s: ['s.x'] } };
+    const p = plan(['o', 't.box'], ['o.i', 't.box'], ['s', 't.box']);
+    expect(await both(root, box, inputOf(nested), cache, p)).toEqual(['s', 'o.i', 'o']);
+    expect(await both(root, box, inputOf({ tree: { ...nested.tree, 'o.i': ['o.i.x', 'o.i.y'] } }), cache, p)).toEqual(['o.i', 'o']);
+    // A leaf of `o` itself changes `o` alone.
+    expect(await both(root, box, inputOf({ tree: { ...nested.tree, o: ['o.i', 'o.k', 'o.m'] } }), cache, p)).toEqual(['o']);
+  });
+
+  it('a result with notes is reused only when the spans are the same too; one without, whatever the spans', async () => {
+    const noting = column('t.note');
+    const note: LayoutEngine & { calls: (NodeId | null)[] } = {
+      ...noting,
+      async layout(i, c) {
+        const r = await noting.layout(i, c);
+        return i.scope === n('b') ? { ...r, notes: [{ code: 'SGL4020', span: i.graph.nodes[n('b.x')]!.span, params: { node: 'b.x' } }] } : r;
+      },
+    };
+    const root = column('t.root');
+    const cache = new LayoutCache();
+    const p = plan(['b', 't.note'], ['c', 't.note']);
+    await both(root, note, inputOf(TWO), cache, p);
+    expect(await both(root, note, shifted(inputOf(TWO), 5), cache, p)).toEqual(['b']);
+    expect(await both(root, note, shifted(inputOf(TWO), 5), cache, p)).toEqual([]);
+  });
+
+  it('a box whose engine draws on ctx.random, ctx.log or ctx.measure is never stored; nor is a failure', async () => {
+    const root = column('t.root');
+    for (const use of ['random', 'log', 'measure'] as const) {
+      const base = column('t.box');
+      const impure: LayoutEngine & { calls: (NodeId | null)[] } = {
+        ...base,
+        async layout(i, c) {
+          if (use === 'random') c.random();
+          else if (use === 'log') c.log('info', 'hello');
+          else await c.measure.layoutRunsAsync([], {});
+          return base.layout(i, c);
+        },
+      };
+      const cache = new LayoutCache();
+      const context = { ...ctx(), measure: { layoutRuns: () => ({}), layoutRunsAsync: () => Promise.resolve({}) } };
+      for (let i = 0; i < 2; i += 1) await composeLayout(root, inputOf(TWO), {}, PLAN, registry(root, impure), context, cache);
+      expect(base.calls, use).toEqual(['c', 'b', 'c', 'b']);
+      expect(cache.size, use).toBe(0);
+    }
+    const bad = failing('t.box', 'throw');
+    const cache = new LayoutCache();
+    for (let i = 0; i < 2; i += 1) await composeLayout(root, inputOf(TWO), {}, PLAN, registry(root, bad), ctx(), cache);
+    expect(bad.calls).toBe(4);
+    expect(cache.size).toBe(0);
+  });
+
+  it('keeps what the last two finished requests used; a request stopped part-way ends no generation', async () => {
+    const root = column('t.root');
+    const box = column('t.box', { gap: 3 });
+    const cache = new LayoutCache();
+    const a = inputOf(TWO);
+    const b = inputOf({ ...TWO, tree: { ...TWO.tree, b: ['b.x'] } });
+    const c = inputOf({ ...TWO, tree: { ...TWO.tree, b: ['b.y'] } });
+    await both(root, box, a, cache); // b@a, c
+    await both(root, box, b, cache); // b@b; b@a is kept one more request
+    expect(await both(root, box, a, cache)).toEqual([]); // an edit undone hits
+    await both(root, box, c, cache); // b@c; b@b was last used two requests ago
+    expect(cache.size).toBe(3); // b@a, b@c, c
+    await both(root, box, c, cache); // now b@a was too
+    expect(cache.size).toBe(2);
+    expect(await both(root, box, b, cache)).toEqual(['b']);
+    expect(await both(root, box, a, cache)).toEqual(['b']);
+
+    // Superseded: the controller fires once the first box ran.
+    const fresh = new LayoutCache();
+    await composeLayout(root, a, {}, PLAN, registry(root, box), ctx(), fresh);
+    const controller = new AbortController();
+    const stopping = { ...box, calls: box.calls, layout: async (i: LayoutInput, x: LayoutContext) => { const r = await box.layout(i, x); controller.abort(); return r; } };
+    for (let i = 0; i < 3; i += 1) await expect(composeLayout(root, b, {}, PLAN, registry(root, stopping), ctx(controller), fresh)).rejects.toThrow(/abort/i);
+    expect(fresh.size).toBe(3); // b@a and c are still there
+    const before = box.calls.length;
+    await composeLayout(root, a, {}, PLAN, registry(root, box), ctx(), fresh);
+    expect(box.calls.slice(before)).toEqual([]);
+  });
+
+  it('when full, stores nothing new and keeps what it has: a scan larger than the cache still hits (07 §2.1 F24)', async () => {
+    const root = column('t.root');
+    const box = column('t.box');
+    const cache = new LayoutCache({ entries: 3, bytes: Number.POSITIVE_INFINITY });
+    const spec: Spec = { tree: Object.fromEntries(['p', 'q', 'r', 's', 't'].map((id) => [id, [`${id}.x`]])) };
+    const p = plan(['p', 't.box'], ['q', 't.box'], ['r', 't.box'], ['s', 't.box'], ['t', 't.box']);
+    expect(await both(root, box, inputOf(spec), cache, p)).toEqual(['t', 's', 'r', 'q', 'p']);
+    for (let i = 0; i < 3; i += 1) expect(await both(root, box, inputOf(spec), cache, p)).toEqual(['q', 'p']);
+    expect(cache.size).toBe(3);
+
+    const small = new LayoutCache({ entries: 100, bytes: 1 });
+    await both(root, box, inputOf(spec), small, p);
+    expect([small.size, small.bytes]).toEqual([0, 0]);
+    const sized = new LayoutCache();
+    await both(root, box, inputOf(spec), sized, p);
+    expect(sized.bytes).toBeGreaterThan(0);
+    const room = new LayoutCache({ entries: 100, bytes: sized.bytes - 1 });
+    await both(root, box, inputOf(spec), room, p);
+    expect(room.size).toBe(4);
+  });
+
+  it("is cleared when the document's engine changes", async () => {
+    const root = column('t.root');
+    const other = column('t.other');
+    const box = column('t.box', { gap: 3 });
+    const cache = new LayoutCache();
+    await both(root, box, inputOf(TWO), cache);
+    expect(await both(other, box, inputOf(TWO), cache)).toEqual(['c', 'b']);
+    expect(await both(other, box, inputOf(TWO), cache)).toEqual([]);
+    expect(await both(root, box, inputOf(TWO), cache)).toEqual(['c', 'b']);
+  });
+
+  it('keys are exact: -0 is not 0, and a missing key is not an undefined one', async () => {
+    const root = column('t.root');
+    const box = column('t.box', { gap: 3 });
+    const cache = new LayoutCache();
+    const input = inputOf(TWO);
+    const withSizing = (s: NodeSizing): LayoutInput => ({ ...input, sizing: { ...input.sizing, [n('b.x')]: s } });
+    const base = input.sizing[n('b.x')]!;
+    await both(root, box, withSizing({ ...base, contentInset: [0, 1, 1, 1] }), cache);
+    expect(await both(root, box, withSizing({ ...base, contentInset: [-0, 1, 1, 1] }), cache)).toEqual(['b']);
+    await both(root, box, withSizing(base), cache);
+    expect(await both(root, box, withSizing({ ...base, aspectRatio: undefined } as unknown as NodeSizing), cache)).toEqual(['b']);
+  });
+
+  it('what it hands out is a copy: changing a composed result changes nothing cached', async () => {
+    const root = column('t.root');
+    const box = column('t.box', { gap: 3 });
+    const cache = new LayoutCache();
+    const first = await composeLayout(root, inputOf(TWO), {}, PLAN, registry(root, box), ctx(), cache);
+    const expected = JSON.stringify(first);
+    (first.nodes[n('b.x')]!.frame as { x: number }).x = 999;
+    const second = await composeLayout(root, inputOf(TWO), {}, PLAN, registry(root, box), ctx(), cache);
+    (second.nodes[n('c.x')]!.frame as { y: number }).y = 999;
+    expect(JSON.stringify(await composeLayout(root, inputOf(TWO), {}, PLAN, registry(root, box), ctx(), cache))).toBe(expected);
+    expect(box.calls).toEqual(['c', 'b']);
+  });
+
+  it("composeInWorker keeps one cache across the worker's requests", async () => {
+    const root = column('t.root');
+    const box = column('t.worker-box', { gap: 3 });
+    const p = plan(['b', 't.worker-box'], ['c', 't.worker-box']);
+    await composeInWorker(root, inputOf(TWO), {}, p, registry(root, box), ctx());
+    await composeInWorker(root, inputOf(TWO), {}, p, registry(root, box), ctx());
+    expect(box.calls).toEqual(['c', 'b']);
   });
 });
 

@@ -46,7 +46,8 @@ interface WorkerGlobalScopeLike {
 const scope = self as unknown as WorkerGlobalScopeLike;
 
 // B8 (DD-14 C23, C47): the composer is the lazy `compose` chunk, loaded on
-// the first request whose document names a container engine.
+// the first request whose document names a container engine. It keeps the
+// worker's per-box layout cache (DD-14 C32), so a respawned worker's is empty.
 const runtime = createWorkerRuntime(
   registry,
   {
@@ -54,7 +55,7 @@ const runtime = createWorkerRuntime(
       scope.postMessage(message);
     },
   },
-  () => import('@sgl/layout-api/compose').then((m) => m.composeLayout),
+  () => import('@sgl/layout-api/compose').then((m) => m.composeInWorker),
 );
 
 scope.addEventListener('message', (ev: { readonly data: HostToWorker }) => {

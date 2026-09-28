@@ -6,7 +6,8 @@ import { elkEngine } from '../../src/index.js';
  * The worker entry for `compose.browser.test.ts` (B8 branch 2): the real
  * engines `layout.worker.ts` registers that a plan can name here (`elk`,
  * `grid`, `fixed`), behind the real runtime, with the composer loaded by a
- * dynamic `import()` on the first request with a plan, as in the app.
+ * dynamic `import()` on the first request with a plan, as in the app, with
+ * the worker's per-box cache (`composeInWorker`, DD-14 C32).
  */
 
 const registry = new EngineRegistry();
@@ -28,7 +29,7 @@ const runtime = createWorkerRuntime(
       scope.postMessage(message);
     },
   },
-  () => import('../../../layout-api/src/compose.js').then((m) => m.composeLayout),
+  () => import('../../../layout-api/src/compose.js').then((m) => m.composeInWorker),
 );
 scope.addEventListener('message', (ev) => {
   runtime.receive(ev.data);

@@ -32,6 +32,11 @@
  * at the next boundary (C27). No clock, no `ctx.random` of its own; every
  * traversal is ordered by `graph.order` (C31).
  *
+ * **The per-box cache** (`LayoutCache`, C32, `perf/b8-cache`): in the worker,
+ * a box whose view, options and engine are unchanged since one of the last
+ * two requests reuses its result instead of running its engine again, so a
+ * keystroke re-lays out only the boxes it changed (and the root's layer).
+ *
  * **Branch 1 (`feat/b8-compose`):** crossing edges are straight end to end
  * under every parent (DD-14 C13's option (a)); the boundary ports and legs
  * are branch 3's. Nothing in the app calls this yet: the plan, the protocol
@@ -168,12 +173,44 @@ type ScopeOutcome = { readonly ok: true; readonly result: LayoutResult; readonly
 
 /** One scope's engine on its view, the worker's sequence (DD-06 §3):
  *  `layout -> applyHostFallbacks`, then checked against the view. An abort is
- *  not a failure: it propagates. */
-async function runScope(engine: LayoutEngine | undefined, view: LayoutInput, options: Readonly<Record<string, unknown>>, ctx: LayoutContext): Promise<ScopeOutcome> {
+ *  not a failure: it propagates.
+ *
+ *  With a `cache` (DD-14 C32), a box whose key is cached is not laid out: its
+ *  stored outcome is returned, a copy. Only a success is stored, and only
+ *  when the engine did not call `ctx.random`, `ctx.measure.layoutRunsAsync` or
+ *  `ctx.log`: its result is then a function of the key alone (a random draw
+ *  would also depend on the draws before it in the request). */
+async function runScope(engine: LayoutEngine | undefined, view: LayoutInput, options: Readonly<Record<string, unknown>>, ctx: LayoutContext, cache?: LayoutCache): Promise<ScopeOutcome> {
   if (engine === undefined) return { ok: false, detail: 'not registered in this worker' };
+  const key = cache === undefined ? '' : cacheKey(engine, view, options, ctx.metrics);
+  const hit = cache?.lookup(key, view);
+  if (hit !== undefined) return { ok: true, result: structuredClone(hit.result), determinism: hit.determinism };
+  let pure = true;
+  const scoped: LayoutContext =
+    cache === undefined
+      ? { ...ctx, options }
+      : {
+          ...ctx,
+          options,
+          random: () => {
+            pure = false;
+            return ctx.random();
+          },
+          measure: {
+            layoutRuns: (runs, box) => ctx.measure.layoutRuns(runs, box),
+            layoutRunsAsync: (runs, box) => {
+              pure = false;
+              return ctx.measure.layoutRunsAsync(runs, box);
+            },
+          },
+          log: (level, message, nodeId) => {
+            pure = false;
+            ctx.log(level, message, nodeId);
+          },
+        };
   let raw: LayoutResult;
   try {
-    raw = await engine.layout(view, { ...ctx, options });
+    raw = await engine.layout(view, scoped);
   } catch (err) {
     if (ctx.signal.aborted) throw err;
     return { ok: false, detail: err instanceof Error ? err.message : String(err) };
@@ -188,7 +225,148 @@ async function runScope(engine: LayoutEngine | undefined, view: LayoutInput, opt
     invalid ||= code === 'SGL4002';
   });
   if (invalid) return { ok: false, detail: 'returned invalid geometry' };
+  if (pure) cache?.store(key, view, structuredClone(result), engine.capabilities.determinism);
   return { ok: true, result, determinism: engine.capabilities.determinism };
+}
+
+// ---------------------------------------------------------------------------
+// The per-box cache (DD-14 C32; `perf/b8-cache`).
+// ---------------------------------------------------------------------------
+
+interface CacheEntry {
+  /** The box's checked result on its view (after the host fallbacks), before
+   *  the composer moves it. Never handed out: `runScope` returns a copy. */
+  readonly result: LayoutResult;
+  readonly determinism: string;
+  /** The view's node and edge spans, kept only when the result has notes: a
+   *  note's span is the one place a result can carry a span (`fixed`'s
+   *  `SGL4020`), so only then must the spans match too. */
+  readonly spans: string | undefined;
+  /** Estimated size in bytes: the key, the result's JSON and the spans, two
+   *  bytes a character. */
+  readonly bytes: number;
+  /** The generation of the last request that used it. */
+  used: number;
+}
+
+/** The cache's bounds (DD-14 C32): at most this many boxes, and this many
+ *  bytes by `CacheEntry.bytes`. n2000's 200 boxes take ~400 entries (two
+ *  generations) and ~4 MB. */
+export interface LayoutCacheLimits {
+  readonly entries: number;
+  readonly bytes: number;
+}
+
+export const LAYOUT_CACHE_LIMITS: LayoutCacheLimits = { entries: 2_000, bytes: 32 * 1024 * 1024 };
+
+/**
+ * Each box's laid-out result, by its **key** (`cacheKey`): everything its
+ * engine and the host fallbacks read (the engine's id, version, API version
+ * and capabilities, the box's options, the theme's metrics, and its whole
+ * view: nodes, sizes (an inner box's included), labels and their measured
+ * sizes, edges, order), as exact JSON. Spans are left out, so an edit
+ * elsewhere in the text, which moves every span after it, does not miss (a
+ * result with notes also keeps its spans, and a hit needs them equal). Keys
+ * are content, compared in full; never object identity across requests.
+ *
+ * **Policy: the last two requests** (C32, the A9 import cache's rule). An
+ * entry used by a request that ran to the end, or by the one before it, is
+ * kept; the rest are dropped when a request finishes. A superseded request
+ * that stopped part-way ends no generation, so fast typing does not age out
+ * the boxes it never reached. One edit at a time changes one box's key, and
+ * the old entry stays one more generation (typing a character and deleting it
+ * hits). **When full, a new entry is not stored** rather than evicting one
+ * not yet reached in this request: a request scans its boxes in the same
+ * order every time, and any recency policy over a scan larger than the cache
+ * misses on every box (07 §2.1 F24's lesson with an LRU); keeping what is in
+ * gives a larger document its partial hits.
+ *
+ * The cache is cleared when the document's own engine changes, and lives in
+ * the worker's lazy `compose` chunk (`composeInWorker`), so a respawned worker
+ * starts with an empty one.
+ */
+export class LayoutCache {
+  readonly #entries = new Map<string, CacheEntry>();
+  #bytes = 0;
+  #generation = 0;
+  #root: string | undefined;
+  /** Boxes found, and laid out, since the cache was made (for tests and the bench). */
+  hits = 0;
+  misses = 0;
+
+  constructor(readonly limits: LayoutCacheLimits = LAYOUT_CACHE_LIMITS) {}
+
+  get size(): number {
+    return this.#entries.size;
+  }
+
+  get bytes(): number {
+    return this.#bytes;
+  }
+
+  clear(): void {
+    this.#entries.clear();
+    this.#bytes = 0;
+  }
+
+  /** A request begins, laid out under `root` (its engine's id and version). */
+  begin(root: string): void {
+    if (this.#root !== root) this.clear();
+    this.#root = root;
+  }
+
+  lookup(key: string, view: LayoutInput): CacheEntry | undefined {
+    const entry = this.#entries.get(key);
+    if (entry !== undefined && (entry.spans === undefined || entry.spans === spansOf(view))) {
+      entry.used = this.#generation;
+      this.hits += 1;
+      return entry;
+    }
+    this.misses += 1;
+    return undefined;
+  }
+
+  store(key: string, view: LayoutInput, result: LayoutResult, determinism: string): void {
+    const spans = (result.notes?.length ?? 0) > 0 ? spansOf(view) : undefined;
+    const bytes = 2 * (key.length + JSON.stringify(result).length + (spans?.length ?? 0));
+    const old = this.#entries.get(key);
+    const total = this.#bytes - (old?.bytes ?? 0) + bytes;
+    if ((old === undefined && this.#entries.size >= this.limits.entries) || total > this.limits.bytes) return;
+    this.#entries.set(key, { result, determinism, spans, bytes, used: this.#generation });
+    this.#bytes = total;
+  }
+
+  /** A request ran to the end: drop what neither it nor the one before used. */
+  finish(): void {
+    for (const [key, entry] of this.#entries) {
+      if (entry.used >= this.#generation - 1) continue;
+      this.#entries.delete(key);
+      this.#bytes -= entry.bytes;
+    }
+    this.#generation += 1;
+  }
+}
+
+/** A box's cache key (`LayoutCache`): exact JSON of everything that decides
+ *  its result, its nodes' and edges' spans left out. `-0`, `undefined` and
+ *  non-finite numbers are kept apart from `0`, a missing key and `null`, and a
+ *  string that starts with the marker is escaped, so two different inputs
+ *  never share a key. */
+function cacheKey(engine: LayoutEngine, view: LayoutInput, options: Readonly<Record<string, unknown>>, metrics: LayoutContext['metrics']): string {
+  const own = new Set<unknown>(view.graph.edges);
+  for (const id of Object.keys(view.graph.nodes)) own.add(view.graph.nodes[id as NodeId]);
+  return JSON.stringify([engine.id, engine.version, engine.apiVersion, engine.capabilities, options, metrics, view], function (this: unknown, k: string, v: unknown) {
+    if (k === 'span' && own.has(this)) return undefined;
+    if (typeof v === 'number') return Object.is(v, -0) ? '\u0000-0' : Number.isFinite(v) ? v : `\u0000${v}`;
+    if (v === undefined) return '\u0000u';
+    return typeof v === 'string' && v.startsWith('\u0000') ? `\u0000${v}` : v;
+  });
+}
+
+/** Every node's and edge's span in a view, as one string. */
+function spansOf(view: LayoutInput): string {
+  const { nodes, edges } = view.graph;
+  return JSON.stringify([Object.keys(nodes).sort().map((id) => nodes[id as NodeId]!.span), edges.map((e) => e.span)]);
 }
 
 function checkAbort(signal: AbortSignal): void {
@@ -220,6 +398,11 @@ function moved(result: LayoutResult, dx: number, dy: number, snap: boolean): Lay
  * The result is raw, as an engine's is after the host fallbacks: the caller
  * validates it against the full graph and quantizes it (`host.ts`,
  * `runHostSequence`).
+ *
+ * With a `cache` (DD-14 C32; the worker's is `composeInWorker`'s), a box
+ * whose key is cached reuses its stored result instead of running its engine;
+ * the composed result is byte for byte what it is without one. The root's
+ * layer is always laid out.
  */
 export async function composeLayout(
   root: LayoutEngine,
@@ -228,10 +411,12 @@ export async function composeLayout(
   plan: LayoutPlan,
   engines: (id: string) => LayoutEngine | undefined,
   ctx: LayoutContext,
+  cache?: LayoutCache,
 ): Promise<LayoutResult> {
   // A malformed plan fails the request with one fixed reason (the worker
   // posts it; the host's SGL4011), never a raw TypeError.
   if (!wellFormedPlan(plan)) throw new Error('the request carried a malformed plan');
+  cache?.begin(`${root.id}@${root.version}`);
   const { graph } = input;
 
   // 1. The boundaries: visible scopes with a visible child, one per node, in
@@ -268,7 +453,7 @@ export async function composeLayout(
     for (;;) {
       const boxes = innerBoxes(graph, scope, sizes, active);
       const view = layoutView(input, scope, boxes);
-      const outcome = await runScope(engine, view, opts, ctx);
+      const outcome = await runScope(engine, view, opts, ctx, cache);
       if (!outcome.ok) return { view, outcome };
       const resized = [...boxes].filter(([id, size]) => {
         const f = outcome.result.nodes[id]?.frame;
@@ -370,8 +555,17 @@ export async function composeLayout(
   const orderedEdges: Record<EdgeId, LayoutResult['edges'][EdgeId]> = {};
   for (const e of graph.edges) if (merged.edges[e.id] !== undefined) orderedEdges[e.id] = merged.edges[e.id]!;
   labels.sort((a, b) => (a.labelId < b.labelId ? -1 : a.labelId > b.labelId ? 1 : 0));
+  cache?.finish();
   return { ...merged, nodes: orderedNodes, edges: orderedEdges, labels };
 }
+
+/** The worker's cache: one per worker, because this module is loaded once per
+ *  worker (the lazy `compose` chunk), so a respawned worker starts empty. */
+const WORKER_CACHE = new LayoutCache();
+
+/** `composeLayout` with the worker's cache (DD-14 C32): what the worker's
+ *  lazy loader hands the runtime (`apps/web/src/layout.worker.ts`). */
+export const composeInWorker: typeof composeLayout = (root, input, options, plan, engines, ctx) => composeLayout(root, input, options, plan, engines, ctx, WORKER_CACHE);
 
 /** The active boxes directly inside `scope`'s layer that are laid out, with
  *  their sizes. */
