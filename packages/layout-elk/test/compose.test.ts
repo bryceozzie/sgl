@@ -379,5 +379,5 @@ describe('C31: a grid box in a grid document composes to what grid alone gives',
     const strip = (x: LayoutResult) => JSON.stringify({ ...x, edges: Object.fromEntries(Object.entries(x.edges).map(([id, e]) => [id, { ...e, startNormal: 0, endNormal: 0 }])) });
     expect(strip(composed.result)).toBe(strip(today.result));
     expect(JSON.stringify(normalsRounded(composed.result))).toBe(JSON.stringify(normalsRounded(today.result)));
-  });
+  }, 30_000); // n2000 twice: ~1.3 s quiet; the default 5 s is too close under a loaded run (07 §2)
 });

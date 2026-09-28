@@ -78,8 +78,8 @@ export async function waitForNodeCount(page: Page, count: number): Promise<void>
 
 /** Exactly `count` nodes and containers rendered live — for waiting on a
  *  *particular* document's render, where "at least" would already hold. */
-export async function waitForExactNodeCount(page: Page, count: number): Promise<void> {
-  await expect(renderedSvg(page).locator(NODES)).toHaveCount(count);
+export async function waitForExactNodeCount(page: Page, count: number, options?: { readonly timeout?: number }): Promise<void> {
+  await expect(renderedSvg(page).locator(NODES)).toHaveCount(count, options);
 }
 
 /** Every node/container's own shape `d` (DD-07 §4) — geometry, keyed by id so

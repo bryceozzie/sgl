@@ -141,6 +141,7 @@ describe('determinism', () => {
 describe('escaping: the output stays well-formed XML with one <style>', () => {
   const parser = new XMLParser({ ignoreAttributes: false, preserveOrder: false });
 
+  // A 30 s timeout (07 §2): the whole corpus renders here, ~1.8 s quiet.
   it('every corpus document, embedded', async () => {
     for (const doc of listCorpusDocs()) {
       const { svg } = (await renderCorpusDoc(doc)).rendered;

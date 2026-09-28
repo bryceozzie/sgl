@@ -52,6 +52,9 @@ describe('render(): corpus goldens (grid engine x every built-in theme, DD-07 §
   }
 });
 
+// The corpus loops below carry 30 s timeouts (07 §2): n2000 renders in
+// ~1.3 s quiet (twice, ~2 s, for determinism), and the default 5 s is too
+// close under a full parallel run on a loaded machine.
 describe('render(): never throws, over the whole corpus including malformed/unresolved/injection', () => {
   for (const doc of DOCS) {
     it(`${doc}: renders to a well-formed SVG string with no crash`, async () => {
@@ -60,7 +63,7 @@ describe('render(): never throws, over the whole corpus including malformed/unre
       expect(rendered.svg.endsWith('</svg>')).toBe(true);
       expect(Number.isFinite(rendered.bounds.w)).toBe(true);
       expect(Number.isFinite(rendered.bounds.h)).toBe(true);
-    });
+    }, 30_000);
   }
 });
 
@@ -71,7 +74,7 @@ describe('render(): double-run determinism (DD-00 §3, DD-07 §11)', () => {
       const b = await renderCorpusDoc(doc, neutralLight);
       expect(a.rendered.svg).toBe(b.rendered.svg);
       expect(a.rendered.styleBlock).toBe(b.rendered.styleBlock);
-    });
+    }, 30_000);
   }
 
   for (const theme of THEMES.slice(1)) {
@@ -80,7 +83,7 @@ describe('render(): double-run determinism (DD-00 §3, DD-07 §11)', () => {
         const a = await renderCorpusDoc(doc, theme);
         const b = await renderCorpusDoc(doc, theme);
         expect(a.rendered.svg).toBe(b.rendered.svg);
-      });
+      }, 30_000);
     }
   }
 });

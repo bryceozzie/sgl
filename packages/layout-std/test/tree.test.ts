@@ -9,7 +9,7 @@ import {
   type LayoutResult,
 } from '@sgl/layout-api';
 import { conformanceContext, runHostSequence, siblingOverlaps } from '@sgl/layout-api/conformance';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { CLEAN_DOCS } from '../../core/test/corpus-docs.js';
 import { layoutInputFor, layoutInputForSource, METRICS } from '../../layout-elk/test/corpus-input.js';
 import { listCorpusDocs } from '../../theme/test/corpus.js';
@@ -722,29 +722,48 @@ describe('tree: explicit stacks, linear time (N28, N30)', () => {
     expect(frame(s, 's1999').x).toBeGreaterThan(frame(s, 's0').x);
   });
 
-  it('grows linearly: a star 4× larger takes well under 16× as long (best of five)', async () => {
+  // Hardened for a loaded machine (07 §2): the step is 8×, not 4×; each
+  // timing is the best of three in CPU time (process.cpuUsage), not wall
+  // time; the verdict is the median of three ratios. At 500 → 2 000 the small
+  // run was ~2 ms, so noise alone moved a linear ratio to 10.2–10.6 against a
+  // limit of 10, while a naive apportion (every left sibling's contour
+  // walked, quadratic) gave only 12–14 there. At 1 000 → 8 000 in CPU time,
+  // linear is 12–19× (GC helper threads grow with the heap) quiet or with 12
+  // CPU hogs on 4 cores, and that quadratic mutation 61–69×; a limit of 32
+  // separates them. (Wall time under the same load reached 28× for linear.)
+  describe('grows linearly', () => {
     const starOf = (count: number) => {
       const lines = ['hub: "Hub"'];
       for (let i = 0; i < count; i += 1) lines.push(`s${i}: "S"`, `hub -> s${i}`, `s${i}c: "C"`, `s${i} -> s${i}c`);
       return layoutInputForSource(`${lines.join('\n')}\n`);
     };
-    const small = starOf(500);
-    const large = starOf(2000);
-    const best = async (input: LayoutInput) => {
-      let min = Number.POSITIVE_INFINITY;
-      for (let i = 0; i < 5; i += 1) {
-        const t0 = performance.now();
-        await raw(input);
-        min = Math.min(min, performance.now() - t0);
-      }
-      return min;
-    };
-    await best(large); // warm the chunk and the JIT on both sizes
-    await best(small);
-    const ratio = (await best(large)) / Math.max(await best(small), 0.5);
-    // Linear is 4×; Walker's naive apportion would be quadratic, 16×.
-    expect(ratio).toBeLessThan(10);
-  }, 60_000);
+    let small: LayoutInput;
+    let large: LayoutInput;
+    beforeAll(() => {
+      small = starOf(1000);
+      large = starOf(8000);
+    }, 60_000);
+
+    it('a star 8× larger takes well under 64× as long (median of three ratios, each best of three)', async () => {
+      const best = async (input: LayoutInput) => {
+        let min = Number.POSITIVE_INFINITY;
+        for (let i = 0; i < 3; i += 1) {
+          const t0 = process.cpuUsage();
+          await raw(input);
+          const { user, system } = process.cpuUsage(t0);
+          min = Math.min(min, (user + system) / 1000);
+        }
+        return min;
+      };
+      await raw(large); // warm the chunk and the JIT on both sizes
+      await raw(small);
+      const ratios: number[] = [];
+      for (let round = 0; round < 3; round += 1) ratios.push((await best(large)) / Math.max(await best(small), 0.5));
+      const median = [...ratios].sort((a, b) => a - b)[1]!;
+      // Linear is 8× in principle; a quadratic apportion is 64×.
+      expect(median, ratios.map((r) => r.toFixed(1)).join(', ')).toBeLessThan(32);
+    }, 120_000);
+  });
 });
 
 describe('tree over the corpus (DD-12 §12)', () => {

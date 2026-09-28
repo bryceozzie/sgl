@@ -1,5 +1,5 @@
 import { asNodeId, NO_SPAN, type GraphNode, type SemanticGraph } from '@sgl/core';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LayoutInput, LayoutResult, ResolvedThemeMetricsView } from '../src/contract.js';
 import { ABORT_ESCALATION_MS, createWorkerHost, DEFAULT_TIMEOUT_MS, engineNotes, MAX_ENGINE_NOTES } from '../src/host.js';
 import type { HostToWorker, WorkerToHost } from '../src/protocol.js';
@@ -286,10 +286,17 @@ describe('createWorkerHost (DD-06 §3, Stage H decision D1)', () => {
     });
 
     // Fix round 1, item 1: a sparse or huge array must not freeze the main thread.
+    // Hardened for a loaded machine (07 §2): the best of three runs, in CPU
+    // time (process.cpuUsage), which a busy scheduler does not inflate.
     const elapsedMs = (f: () => unknown): number => {
-      const t0 = process.hrtime.bigint();
-      f();
-      return Number(process.hrtime.bigint() - t0) / 1e6;
+      let best = Number.POSITIVE_INFINITY;
+      for (let i = 0; i < 3; i++) {
+        const t0 = process.cpuUsage();
+        f();
+        const { user, system } = process.cpuUsage(t0);
+        best = Math.min(best, (user + system) / 1000);
+      }
+      return best;
     };
 
     it('a sparse array of length 1e9 is read in under 50 ms', () => {
@@ -315,11 +322,22 @@ describe('createWorkerHost (DD-06 §3, Stage H decision D1)', () => {
       expect(engineNotes([{ code: 'SGL4022', span: SPAN, params: { count: 7 } }])).toEqual([]);
     });
 
-    it('a params object with a million keys costs no more than its placeholders', () => {
-      const params: Record<string, string> = { node: 'a' };
-      for (let i = 0; i < 1e6; i++) params[`k${i}`] = 'x';
-      const notes = Array.from({ length: 100 }, () => ({ code: 'SGL4003', span: SPAN, params }));
-      expect(elapsedMs(() => engineNotes(notes))).toBeLessThan(50);
+    describe('a params object with a million keys', () => {
+      // Reading a note looks up only its template's placeholders; the
+      // regression is a walk over every key of `params` (100 notes × 1e6
+      // keys). Building the object (~1.5 s, over 5 s under load) is setup,
+      // in `beforeAll` with its own timeout, not in the test's.
+      let notes: readonly unknown[];
+      beforeAll(() => {
+        const params: Record<string, string> = { node: 'a' };
+        for (let i = 0; i < 1e6; i++) params[`k${i}`] = 'x';
+        notes = Array.from({ length: 100 }, () => ({ code: 'SGL4003', span: SPAN, params }));
+      }, 60_000);
+
+      it('costs no more than its placeholders', () => {
+        expect(engineNotes(notes)).toHaveLength(100);
+        expect(elapsedMs(() => engineNotes(notes))).toBeLessThan(50);
+      });
     });
   });
 

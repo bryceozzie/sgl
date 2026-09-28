@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import type { Diagnostic } from '../src/diagnostics.js';
 import { compileImports, createImportCache, createImportLinker, resolveImports, type ImportCache } from '../src/imports.js';
 import { fromJson, toJson } from '../src/json.js';
@@ -512,25 +512,37 @@ describe('a failed import inside an import is a warning at every depth (fix roun
 });
 
 describe('compileImports stays linear with a failed import (fix round 1, item 2)', () => {
-  it('16 000 edges into a failed namespace finish in under 500 ms', () => {
+  // The quadratic version walked the whole model once per SGL2001 (16 000
+  // edges: ~16 s); edges are now indexed by span once (`edgesBySpan`). Hardened
+  // for a loaded machine (07 §2): the parse and link that build the input
+  // (~1.5 s) run in `beforeAll`, outside the timed region and the test's
+  // timeout; each run is timed in CPU time (process.cpuUsage), which a busy
+  // scheduler does not inflate; the best of three after a warm-up is kept.
+  // Linear is 120–160 ms, quiet or under load; rebuilding the index per
+  // diagnostic (a mutation that reintroduces the quadratic walk) took ~145 s.
+  // 2 s (was 500 ms of wall time) is >10x linear and 8x below the original
+  // 16 s.
+  let model: DocumentModel;
+  beforeAll(() => {
     const edges = Array.from({ length: 16_000 }, (_, i) => `a -> gone.n${i}`).join('\n');
     const { ast } = parse(`@imports: [{ path: "./nope.sgl", as: gone }]\na\n${edges}\n`);
-    const { model } = resolveImports(ast, createImportLinker(memoryHost({}), { self: 'main' }));
-    // A warm-up, then the best of three: the quadratic version took ~16 s,
-    // the linear one ~0.15 s alone, and under the whole suite's parallel
-    // load a single run was once 0.55 s.
+    model = resolveImports(ast, createImportLinker(memoryHost({}), { self: 'main' })).model;
+  }, 60_000);
+
+  it('16 000 edges into a failed namespace finish in under 2 s of CPU time (best of three)', () => {
     compileImports(model);
     const times: number[] = [];
     let diagnostics: readonly Diagnostic[] = [];
     for (let i = 0; i < 3; i += 1) {
-      const start = performance.now();
+      const start = process.cpuUsage();
       diagnostics = compileImports(model).diagnostics;
-      times.push(performance.now() - start);
+      const { user, system } = process.cpuUsage(start);
+      times.push((user + system) / 1000);
     }
-    expect(Math.min(...times)).toBeLessThan(500);
+    expect(Math.min(...times), times.map((t) => t.toFixed(0)).join(', ')).toBeLessThan(2000);
     expect(diagnostics).toHaveLength(16_000);
     expect(diagnostics.every((d) => d.code === 'SGL2024')).toBe(true);
-  });
+  }, 60_000);
 });
 
 describe('a duplicate `as` counts as failed (fix round 1, item 3)', () => {

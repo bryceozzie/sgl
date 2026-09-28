@@ -189,6 +189,7 @@ describe('contrast helper', () => {
 describe('C5 high-contrast: WCAG 2.2 AAA text (≥ 7:1) and non-text (≥ 3:1) over the rendered corpus', () => {
   const tokens = tokenColoursOf(highContrast);
 
+  // A 30 s timeout (07 §2): the whole corpus renders here, ~1.4 s quiet.
   it('every text/background and stroke/background pair the corpus renders clears its threshold', async () => {
     const all: Pair[] = [];
     let skipped = 0;
@@ -206,7 +207,7 @@ describe('C5 high-contrast: WCAG 2.2 AAA text (≥ 7:1) and non-text (≥ 3:1) o
     expect(skipped).toBeLessThan(all.length / 5);
     const failing = all.filter((p) => p.ratio < p.min).map((p) => `${p.doc} (${p.id}): ${p.what} ${p.fg} on ${p.bg} = ${p.ratio.toFixed(2)} < ${p.min}`);
     expect(failing).toEqual([]);
-  });
+  }, 30_000);
 
   it('the theme\'s own token colours clear the thresholds pairwise where the cascade can pair them', () => {
     const { value } = resolveTheme(highContrast, (id) => BUILT_IN[id]);

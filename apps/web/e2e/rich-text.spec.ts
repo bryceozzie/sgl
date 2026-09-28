@@ -13,12 +13,52 @@ const isRichText = (r: Request): boolean => /\/assets\/rich-text-[^/]*\.js$/.tes
 /** One of A18's seven run faces (DD-11 T26): Inter 700, an Inter italic, IBM Plex Mono. */
 const isRunFace = (r: Request): boolean => /\/assets\/(inter-latin-700-normal|inter-latin-\d+-italic|ibm-plex-mono-latin-\d+-normal)-[^/]*\.woff2$/.test(new URL(r.url()).pathname);
 
-/** The width of a node's own shape, as drawn. */
-async function shapeWidth(page: Page, id: string): Promise<number> {
-  return renderedSvg(page)
-    .locator(`g[id="n-${id}"] > path.n-shape`)
-    .evaluate((p) => (p as SVGGraphicsElement).getBBox().width);
+/*
+ * Reading what the browser computes (07 §2). Once the text is on screen, a
+ * later render of the same document can still replace the whole tree: on a
+ * busy machine the run faces arrive after a first frame drawn with the
+ * labels unmeasured (the node at its minimum width), and the measured frame
+ * follows (a product finding, 07 §2). A locator's `evaluate` resolves the element, then runs
+ * in a second round trip; an element replaced in between is detached, and
+ * `getComputedStyle` of a detached element is all empty strings — the empty
+ * font-family seen under load. So each read below is one `page.evaluate` of
+ * the live tree (a single task, nothing replaced mid-read), polled until the
+ * settled render shows what the test expects.
+ */
+
+/** Computed faces of the first element matching each selector in the live
+ *  render, read in one task; `null` for a selector with no match yet. */
+function computedFaces(page: Page, selectors: Readonly<Record<string, string>>): Promise<Record<string, { weight: string; style: string; family: string } | null>> {
+  return page.evaluate((selectors) => {
+    const svg = document.querySelector('.canvas-host g.rendered[data-origin="live"] > svg');
+    const out: Record<string, { weight: string; style: string; family: string } | null> = {};
+    for (const [key, selector] of Object.entries(selectors)) {
+      const el = svg?.querySelector(selector);
+      if (el === null || el === undefined) out[key] = null;
+      else {
+        const s = getComputedStyle(el);
+        out[key] = { weight: s.fontWeight, style: s.fontStyle, family: s.fontFamily };
+      }
+    }
+    return out;
+  }, selectors);
 }
+
+/** Shape widths of the given nodes in the live render, read in one task. */
+function shapeWidths(page: Page, ids: readonly string[]): Promise<(number | null)[]> {
+  return page.evaluate(
+    (ids) =>
+      ids.map((id) => {
+        const p = document.querySelector<SVGGraphicsElement>(`.canvas-host g.rendered[data-origin="live"] > svg g[id="n-${id}"] > path.n-shape`);
+        return p === null ? null : p.getBBox().width;
+      }),
+    ids,
+  );
+}
+
+/** A generous bound for a render to settle on a loaded machine; a render
+ *  that never settles still fails. */
+const SETTLE = { timeout: 30_000 };
 
 test('a document without markup in a label or a label to wrap never fetches the chunk or a run face, across boot and edits', async ({ page }) => {
   const fetched: string[] = [];
@@ -44,8 +84,13 @@ test('a label to wrap loads the chunk, and its node is laid out within @size.max
   await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
   await setSource(page, 'a: { @label: "Payments ledger reconciliation service", @size: { maxWidth: 150 } }\nb: "Payments ledger reconciliation service"\na -> b\n');
   await waitForExactNodeCount(page, 2);
-  await expect.poll(() => shapeWidth(page, 'a')).toBeLessThanOrEqual(150);
-  expect(await shapeWidth(page, 'b')).toBeGreaterThan(150);
+  // Both from one render: `a` within its maxWidth, `b` (no maxWidth) wider.
+  await expect
+    .poll(async () => {
+      const [a, b] = await shapeWidths(page, ['a', 'b']);
+      return a !== null && b !== null && a <= 150 && b > 150 ? 'settled' : JSON.stringify({ a, b });
+    }, SETTLE)
+    .toBe('settled');
   expect(fetched).toHaveLength(1);
 });
 
@@ -64,18 +109,13 @@ test('markup in a label loads the chunk, and each mark is drawn in its own face:
   await expect(renderedSvg(page).locator('g.el text')).toHaveText('async');
   expect(fetched).toHaveLength(1);
   // Computed on the drawn tspans: the run rules beat what <text> inherits.
-  const computed = (selector: string) =>
-    renderedSvg(page)
-      .locator(selector)
-      .evaluate((el) => {
-        const s = getComputedStyle(el);
-        return { weight: s.fontWeight, style: s.fontStyle, family: s.fontFamily };
-      });
-  expect(await computed('g[id="n-api"] tspan.r-strong')).toMatchObject({ weight: '700', style: 'normal' });
-  expect((await computed('g[id="n-api"] tspan.r-strong')).family).toMatch(/^Inter/);
-  expect(await computed('g[id="n-api"] tspan.r-code')).toMatchObject({ weight: '400', style: 'normal' });
-  expect((await computed('g[id="n-api"] tspan.r-code')).family).toMatch(/^"IBM Plex Mono"/);
-  expect(await computed('g.el tspan.r-em')).toMatchObject({ weight: '400', style: 'italic' });
+  await expect
+    .poll(() => computedFaces(page, { strong: 'g[id="n-api"] tspan.r-strong', code: 'g[id="n-api"] tspan.r-code', em: 'g.el tspan.r-em' }), SETTLE)
+    .toMatchObject({
+      strong: { weight: '700', style: 'normal', family: expect.stringMatching(/^Inter/) },
+      code: { weight: '400', style: 'normal', family: expect.stringMatching(/^"IBM Plex Mono"/) },
+      em: { weight: '400', style: 'italic' },
+    });
   expect(await renderedSvg(page).locator('g[id="n-calc"] tspan[class]').count()).toBe(0);
   // (That the faces are loaded before the runs are measured is
   // `test/rich-font-gate.browser.test.ts`'s: after the paint they always are.)
@@ -89,10 +129,9 @@ test('code is never italic, as the browser computes it: `b` inside *a `b`* is up
   const code = renderedSvg(page).locator('g[id="n-a"] tspan.r-code');
   await expect(code).toHaveText('b');
   expect(await code.getAttribute('class')).toBe('r-em r-code');
-  const style = await code.evaluate((el) => ({ style: getComputedStyle(el).fontStyle, family: getComputedStyle(el).fontFamily }));
-  expect(style.style).toBe('normal');
-  expect(style.family).toMatch(/^"IBM Plex Mono"/);
-  expect(await renderedSvg(page).locator('g[id="n-a"] tspan.r-em:not(.r-code)').evaluate((el) => getComputedStyle(el).fontStyle)).toBe('italic');
+  await expect
+    .poll(() => computedFaces(page, { code: 'g[id="n-a"] tspan.r-code', em: 'g[id="n-a"] tspan.r-em:not(.r-code)' }), SETTLE)
+    .toMatchObject({ code: { style: 'normal', family: expect.stringMatching(/^"IBM Plex Mono"/) }, em: { style: 'italic' } });
 });
 
 /**
@@ -154,7 +193,7 @@ test('typing **x** gives a tspan with computed font-weight 700 (DD-11 T60)', asy
   await waitForExactNodeCount(page, 1);
   const tspan = renderedSvg(page).locator('g[id="n-a"] tspan.r-strong');
   await expect(tspan).toHaveText('x');
-  expect(await tspan.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('700');
+  await expect.poll(() => computedFaces(page, { strong: 'g[id="n-a"] tspan.r-strong' }), SETTLE).toMatchObject({ strong: { weight: '700' } });
 });
 
 test('a wrapped label is drawn on its measured lines, each within the wrap width (no overflow)', async ({ page }) => {
@@ -162,11 +201,21 @@ test('a wrapped label is drawn on its measured lines, each within the wrap width
   await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
   await setSource(page, 'a: { @label: "Payments **ledger** reconciliation *service* for `EU`", @size: { maxWidth: 150 } }\n');
   await waitForExactNodeCount(page, 1);
-  const lines = renderedSvg(page).locator('g[id="n-a"] text > tspan');
-  await expect.poll(() => lines.count()).toBeGreaterThan(1);
-  const shape = await shapeWidth(page, 'a');
-  expect(shape).toBeLessThanOrEqual(150);
-  // Every drawn line is narrower than its node, as the browser lays the glyphs out.
-  const widths = await lines.evaluateAll((els) => els.map((el) => (el as SVGTextContentElement).getComputedTextLength()));
-  for (const w of widths) expect(w).toBeLessThanOrEqual(shape);
+  // The shape and its lines from one render: more than one line, the node
+  // within its maxWidth, and every drawn line narrower than its node, as
+  // the browser lays the glyphs out.
+  const drawn = () =>
+    page.evaluate(() => {
+      const node = document.querySelector('.canvas-host g.rendered[data-origin="live"] > svg g[id="n-a"]');
+      const shape = node?.querySelector<SVGGraphicsElement>(':scope > path.n-shape');
+      if (node === null || node === undefined || shape === null || shape === undefined) return null;
+      const lines = [...node.querySelectorAll<SVGTextContentElement>('text > tspan')].map((el) => el.getComputedTextLength());
+      return { shape: shape.getBBox().width, lines };
+    });
+  await expect
+    .poll(async () => {
+      const d = await drawn();
+      return d !== null && d.lines.length > 1 && d.shape <= 150 && d.lines.every((w) => w <= d.shape) ? 'settled' : JSON.stringify(d);
+    }, SETTLE)
+    .toBe('settled');
 });
