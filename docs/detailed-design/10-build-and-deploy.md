@@ -75,7 +75,7 @@ grammar      regenerate, diff must be empty
 test:unit    vitest (Node) — core, theme, layout-api, render-svg, layout-std
 test:browser vitest browser mode (Chromium, Firefox) — measure, layout-elk, host
 test:e2e     playwright (Chromium, Firefox, WebKit) — apps/web
-size         size-limit on the core chunk (< 182 kB gz, hard 300)       — implemented, Stage K
+size         size-limit on the core chunk (< 184 kB gz since 2026-09-28, hard 300)       — implemented, Stage K
 build        packages then app
 audit        pnpm audit --prod (fails on high)
 ```

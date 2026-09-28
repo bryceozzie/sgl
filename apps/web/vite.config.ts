@@ -45,7 +45,7 @@ function sglHeaders(): Plugin {
 }
 
 // DD-10 §2. Manual chunks keep the lazily-loaded engines and the editor out of the
-// core bundle, which is what the 182 kB core budget (NFR 4.1; 180 kB until the human raised it on 2026-09-26) is measured against.
+// core bundle, which is what the 184 kB core budget (NFR 4.1; the human raised it from 180 to 182 kB on 2026-09-26 and to 184 kB on 2026-09-28) is measured against.
 // Written as a function so a chunk stays declared before anything imports it.
 //
 // Stage K: the `elk` chunk holds elkjs only. `@sgl/layout-elk`'s own code (its

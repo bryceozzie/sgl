@@ -45,7 +45,7 @@ The interfaces from [Architecture §4](../03-architecture.md#4-layout-engine-plu
 > and is now, without a JSON-Schema validator: `layoutConfigDiagnostics(ast,
 > engineSchemas)` (`layout-api/src/layout-config.ts`) warns, at the key, for
 > (a) a container-level `@layout.engine` naming another engine than the
-> effective one (per-container engines are B8/B9; until then this warns and the
+> effective one (per-container engines are B8, DD-14; until B8 ships this warns and the
 > whole document is laid out by one engine), and (b) any `@layout.{key}` —
 > root, container, or `@direction` sugar — that the effective engine declares
 > in neither `optionsSchema` nor `hintsSchema` (key names only; values are not
@@ -534,7 +534,7 @@ For each corpus graph (empty, one node, one edge, self-loop, parallel edges, 3-d
 | `SGL4001` | error | Layout engine `{id}` did not finish within {ms} ms and was stopped. Showing the previous layout. |
 | `SGL4002` | error | Layout engine `{id}` returned invalid geometry ({detail}). Showing the previous layout. |
 | `SGL4003` | warning | `{node}` extends outside its container after layout. |
-| `SGL4010` | warning | `@layout.{key}` is not an option of engine `{id}`; ignored. — **implemented** (Stage K fix round 1, item 23): a container-level `@layout.engine` naming another engine (B8/B9), and any `@layout` key the effective engine does not declare (§2) |
+| `SGL4010` | warning | `@layout.{key}` is not an option of engine `{id}`; ignored. — **implemented** (Stage K fix round 1, item 23): a container-level `@layout.engine` naming another engine (until B8 ships; DD-14 C11 ends this case, and B9 is not involved), and any `@layout` key the effective engine does not declare (§2) |
 | `SGL4011` | error | Layout engine `{id}` failed: {message}. |
 | `SGL4020` | warning | `{node}` has no `@pin`; `fixed` placed it below the pinned nodes. **Implemented** (`feat/b5-fixed`, DD-12 N9, H1, H5): a `fixed` engine note (§3), one per unpinned node, at its span. Fixture: `corpus/layout/pin-half.sgl` |
 | `SGL4021` | warning | `@pin` is not honoured by engine `{id}`; ignored. **Implemented** (`feat/b5-pin`, DD-12 N6, H4, H5): from `layoutConfigDiagnostics`, on the main thread, at the key. It fires once per node (by path), at its first pin key, when the engine does not declare `capabilities.pins`, and not for a pin the resolver dropped with `SGL2011` (fix round 1). Fixture: `corpus/layout/pin-under-elk.sgl` |

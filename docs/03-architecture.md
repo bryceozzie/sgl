@@ -190,7 +190,7 @@ export interface GraphNode {
     readonly fixed?: Partial<Size>; // author set @size.width/height
     readonly aspectRatio?: number;
   };
-  readonly pin?: Point;             // author-pinned; engines MUST honour
+  readonly pin?: Point;             // author-pinned; honoured by engines declaring the pins capability, else SGL4021 (DD-12 H4)
   readonly hints: Readonly<Record<string, unknown>>;  // @layout.* bag
   readonly classes: readonly string[];
 }
@@ -213,7 +213,9 @@ export interface LayoutContext {
   readonly previous?: LayoutResult;        // for incremental engines
   log(level: 'info' | 'warn' | 'error', message: string, nodeId?: NodeId): void;
 
-  /** RESERVED in apiVersion 1. Delegates a subtree to another engine (per-container layouts).
+  /** RESERVED in apiVersion 1. Lets an engine delegate a subtree to another engine
+   *  (engine-initiated delegation, B9). Per-container `@layout.engine` (B8) does not use it: the
+   *  host composes those layouts (ADR-0002 amendment 2026-09-28, DD-14).
    *  Published in v1 and implemented later: adding an optional context method is not a breaking
    *  change for engines, but declaring it now means engines written against apiVersion 1 stay
    *  valid when it lands, with no version bump. */
@@ -282,6 +284,8 @@ pre-measure every label
   ◄─── LayoutResult ──────────────────────┘
 ```
 
+*The `sublayout` RPC is reserved for engine-initiated delegation (B9) and is not implemented. Per-container engines (B8) do not use it: a request carries a plan, and the host in the worker runs each container's engine on its own scope, bottom-up, and composes the results (ADR-0002 amendment 2026-09-28; [DD-14](detailed-design/14-container-engines.md) §5).*
+
 **Sandbox = a `sandbox="allow-scripts"` iframe with a null origin, hosting a Web Worker.** The iframe gives a fresh origin with no access to app storage or cookies; the worker gives no DOM and a killable thread; a restrictive CSP (`connect-src 'none'`) removes network access. Built-in, trusted engines skip the iframe and run in a plain Worker for lower overhead.
 
 Enforcement:
@@ -301,7 +305,7 @@ Enforcement:
 | `force` | **Cut from v1.0** (backlog B22, Could; human decision 2026-09-27, DD-12 H3). If built: seeded Barnes–Hut n-body. Snapping to a grid does **not** make it deterministic (a last-bit difference early on is amplified, not absorbed): it is `best-effort` (ADR-0004), made reproducible only by baking the result into `@pin`s | Undirected networks |
 | `fixed` | Honours `@pin` (relative to the parent's content box) and `@size` exactly; packs unpinned nodes below the pinned ones, with a warning each (`SGL4020`). DD-12 §4 | Hand-placed diagrams, generated coordinates |
 
-`layered` is also the reference implementation for third parties: it exercises every part of the API (containers, ports, label placement, orthogonal routing, sublayout delegation).
+`layered` is also the reference implementation for third parties: it exercises every part of the API (containers, ports, label placement, orthogonal routing, and sublayout delegation once B9 exists).
 
 ### 4.6 Conformance suite
 
@@ -635,5 +639,5 @@ Cheap to design in now, expensive to retrofit — so these constrain phase 1 eve
 - **Stage 4 (IR compile) takes a view selector**, rather than assuming one graph per document — this is what makes "one model, many views" (I1) possible later.
 - **`@order` applies to edges**, not just nodes — sequence diagrams (I3) need message ordering.
 - **Labels are structured**, never a bare string — UML/ER compartments (I4) fall out of `@sgl/text`.
-- **`ctx.sublayout()` is published in apiVersion 1**, implemented later (B8/B9).
+- **`ctx.sublayout()` is published in apiVersion 1**, implemented later (B9). B8 does not need it: the host composes per-container engines (ADR-0002 amendment 2026-09-28).
 - **Theme tokens carry semantic role information**, so contrast validation (C15) can know what is drawn on what.
