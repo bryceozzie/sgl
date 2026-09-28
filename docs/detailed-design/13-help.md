@@ -774,6 +774,14 @@ Reviewable branches, in order. Each is one reviewer's work, and each passes the 
      each other, nested pins, `SGL4020` for an unpinned node), and keep one `SGL4021` under `elk`.
      Root `@layout` options are still described as checked but not yet applied: whichever of this
      and `fix/root-layout-options` merges second updates that.
+   - **`feat/b5-tree`** (P21: B5 merged second): `tree` joined `HARNESS_ENGINES` and
+     `HELP_ENGINES` (their tests against `REGISTERED_ENGINES` failed until it did), and
+     `key/layout.engine`'s values and aliases. The prose: the quick start's engine list,
+     `@layout.engine` (with a tree example; edges outside the tree are straight), the hints
+     (`@layout.root`, a container's `@layout.direction`), `@direction` (a container turns its
+     subtree under `tree`) and `@order`, which `tree` reads (§13 item 2's "nothing uses them"
+     no longer holds for it). No engine or option entry was written: `engine` and `option` are
+     not enforced kinds until `feat/help-content-2`, which writes them for every engine.
    - `build/node-modules.d.ts` declares the three Node functions the plugin uses; this app has no
      `@types/node`.
    - **Found while writing the prose (help follows the build, P2):** a root `@layout` option and

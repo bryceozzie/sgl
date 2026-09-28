@@ -37,11 +37,11 @@ See also: [Layout engine](#help/key/layout.engine), [Engine hints](#help/key/lay
 
 ## @layout.engine {#key/layout.engine}
 
-The engine that lays out the document, by its short name, `elk`, `grid` or `fixed`, or its full id, such as `sgl.grid`. It overrides the Engine picker.
+The engine that lays out the document, by its short name, `elk`, `grid`, `fixed` or `tree`, or its full id, such as `sgl.grid`. It overrides the Engine picker.
 
-Aliases: engine, elk, grid, fixed
+Aliases: engine, elk, grid, fixed, tree
 
-Write it at the document root, as `@layout: { engine: grid }` or `@layout.engine: grid`. `elk` draws layered diagrams with routed edges; `grid` places nodes in rows and columns; `fixed` places each node at its `@pin`.
+Write it at the document root, as `@layout: { engine: grid }` or `@layout.engine: grid`. `elk` draws layered diagrams with routed edges; `grid` places nodes in rows and columns; `fixed` places each node at its `@pin`; `tree` draws each container's children as a tidy tree, parents centred above their children, joined by elbow edges.
 
 ```sgl example title="The short form" engine=grid
 @layout.engine: grid
@@ -50,13 +50,26 @@ api
 db
 ```
 
+```sgl example title="A tree" engine=tree
+@layout: { engine: tree }
+ceo: "CEO"
+cto: "CTO"
+cfo: "CFO"
+dev: "Developers"
+ceo -> cto
+ceo -> cfo
+cto -> dev
+```
+
+Under `tree`, an edge that is not part of the tree, such as a second parent or an edge back up a cycle, is drawn as a straight line.
+
 See also: [Layout](#help/key/layout)
 
 ## Engine hints {#key/layout.*}
 
 `@layout.<hint>` on a node, container or edge passes a hint to the engine. Which hints exist depends on the engine; its engine page lists them.
 
-Aliases: hint, layout hint, columns, priority
+Aliases: hint, layout hint, columns, priority, root
 
 Diagnostics: SGL4010
 
@@ -79,6 +92,19 @@ db
 cache
 api -> db: { @layout.priority: 5 }
 api -> cache
+```
+
+Under `tree`, a node's `@layout.root: true` makes it the root of a tree even when an edge points to it, and a container's `@layout.direction` turns the tree inside it.
+
+```sgl example title="A root chosen by a hint" engine=tree
+@layout: { engine: tree }
+client
+api: { @layout.root: true }
+auth
+db
+client -> api
+api -> auth
+api -> db
 ```
 
 ```sgl example title="A hint elk does not have" expect=SGL4010

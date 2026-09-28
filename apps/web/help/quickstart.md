@@ -56,7 +56,7 @@ orders -> ledger
 
 ## Engine, theme and sharing
 
-- **Engine** in the toolbar chooses how the diagram is laid out: `elk` draws layered diagrams, `grid` places nodes in rows and columns, and `fixed` puts each node where its `@pin` says.
+- **Engine** in the toolbar chooses how the diagram is laid out: `elk` draws layered diagrams, `grid` places nodes in rows and columns, `fixed` puts each node where its `@pin` says, and `tree` draws a hierarchy as a tidy tree, parents above their children.
 - **Theme** chooses the colours.
 - A document can choose for itself with `@layout: { engine: grid }` and `@theme`, and the toolbar then says so.
 - **Share** makes a link that carries the whole document inside it. Nothing is uploaded.
