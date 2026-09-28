@@ -14,7 +14,7 @@
   },
   "children": [
     {
-      "id": "order service",
+      "id": "n:order service",
       "width": 104.18400000000001,
       "height": 36,
       "labels": [
@@ -29,7 +29,7 @@
       ]
     },
     {
-      "id": "metrics\\.v2",
+      "id": "n:metrics\\.v2",
       "width": 83.22800000000001,
       "height": 36,
       "labels": [
@@ -44,7 +44,7 @@
       ]
     },
     {
-      "id": "🚀",
+      "id": "n:🚀",
       "width": 83.25399999999999,
       "height": 36,
       "labels": [
@@ -59,7 +59,7 @@
       ]
     },
     {
-      "id": "rtl",
+      "id": "n:rtl",
       "width": 114.35000000000001,
       "height": 36,
       "labels": [
@@ -74,7 +74,7 @@
       ]
     },
     {
-      "id": "mixed",
+      "id": "n:mixed",
       "width": 130.92499999999995,
       "height": 36,
       "labels": [
@@ -89,7 +89,7 @@
       ]
     },
     {
-      "id": "multiline",
+      "id": "n:multiline",
       "width": 73.868,
       "height": 49.800000000000004,
       "labels": [
@@ -106,12 +106,12 @@
   ],
   "edges": [
     {
-      "id": "e-6a7b252557e4c923",
+      "id": "e:e-6a7b252557e4c923",
       "sources": [
-        "order service"
+        "n:order service"
       ],
       "targets": [
-        "metrics\\.v2"
+        "n:metrics\\.v2"
       ],
       "labels": [
         {
@@ -125,32 +125,32 @@
       ]
     },
     {
-      "id": "e-d33bd50921525076",
+      "id": "e:e-d33bd50921525076",
       "sources": [
-        "🚀"
+        "n:🚀"
       ],
       "targets": [
-        "rtl"
+        "n:rtl"
       ],
       "labels": []
     },
     {
-      "id": "e-436805ac67632802",
+      "id": "e:e-436805ac67632802",
       "sources": [
-        "rtl"
+        "n:rtl"
       ],
       "targets": [
-        "mixed"
+        "n:mixed"
       ],
       "labels": []
     },
     {
-      "id": "e-b06622fe03dabe8b",
+      "id": "e:e-b06622fe03dabe8b",
       "sources": [
-        "mixed"
+        "n:mixed"
       ],
       "targets": [
-        "multiline"
+        "n:multiline"
       ],
       "labels": []
     }

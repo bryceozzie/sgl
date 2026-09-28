@@ -2,7 +2,7 @@ import { asNodeId, type EdgeId, type LabelId, type NodeId } from '@sgl/core';
 import { validateResult, type LayoutInput, type NodeSizing } from '@sgl/layout-api';
 import { describe, expect, it } from 'vitest';
 import { ELK_DEFAULT_OPTIONS, ELK_PORT_CONSTRAINTS, elkDescriptor, normalizeElkOptions, type ElkOptions } from '../src/descriptor.js';
-import { fromElkGraph, labelBox, leafSize, toElkGraph, type ElkNode } from '../src/mapping.js';
+import { elkNodeId, fromElkGraph, labelBox, leafSize, portId, toElkGraph, type ElkNode } from '../src/mapping.js';
 import { layoutInputFor, layoutInputForSource, METRICS, withContainerMin } from './corpus-input.js';
 
 /**
@@ -19,8 +19,13 @@ function allElkNodes(node: ElkNode): ElkNode[] {
   return [node, ...(node.children ?? []).flatMap(allElkNodes)];
 }
 
+/** F32: the author's id of a node ELK was sent (`n:<id>`, DD-06 §6.1). */
+const authorId = (n: ElkNode): NodeId => n.id.slice(2) as NodeId;
+const N = (id: string): string => elkNodeId(id as NodeId);
+const E = (id: EdgeId): string => `e:${id}`;
+
 function findElk(root: ElkNode, id: string): ElkNode {
-  const found = allElkNodes(root).find((n) => n.id === id);
+  const found = allElkNodes(root).find((n) => n.id === N(id));
   if (found === undefined) throw new Error(`no ElkNode '${id}'`);
   return found;
 }
@@ -127,7 +132,7 @@ describe('toElkGraph (DD-06 §6.1)', () => {
     const graph = toElkGraph(input, opts(), METRICS);
     const leaf = graph.children?.[0];
     expect(leaf).toBeDefined();
-    const sizing = sizingOf(input, leaf!.id);
+    const sizing = sizingOf(input, authorId(leaf!));
     expect({ w: leaf!.width, h: leaf!.height }).toEqual(leafSize(sizing));
     expect(leaf!.labels?.[0]?.layoutOptions).toEqual({ 'elk.nodeLabels.placement': '[H_CENTER, V_CENTER, INSIDE]' });
   });
@@ -139,12 +144,12 @@ describe('toElkGraph (DD-06 §6.1)', () => {
       const containers = allElkNodes(graph).filter((n) => n.id !== 'root' && (n.children?.length ?? 0) > 0);
       expect(containers.length).toBeGreaterThan(0);
       for (const c of containers) {
-        const sizing = sizingOf(input, c.id);
+        const sizing = sizingOf(input, authorId(c));
         // No label: ELK would otherwise reserve a left column and add the band a second time.
         expect(c.labels).toBeUndefined();
         const [t, r, b, l] = sizing.padding;
         expect(c.layoutOptions?.['elk.padding']).toBe(`[top=${t},left=${l},bottom=${b},right=${r}]`);
-        const title = input.labelSizes[input.graph.nodes[c.id as NodeId]!.labelId!]!;
+        const title = input.labelSizes[input.graph.nodes[authorId(c)]!.labelId!]!;
         const minW = title.w + sizing.contentInset[1] + sizing.contentInset[3];
         expect(c.layoutOptions).toMatchObject({
           'elk.nodeSize.constraints': 'MINIMUM_SIZE',
@@ -173,9 +178,9 @@ describe('toElkGraph (DD-06 §6.1)', () => {
     };
     for (const shape of ['cylinder', 'package']) {
       const elk = byShape(shape);
-      const node = input.graph.nodes[elk.id as NodeId]!;
+      const node = input.graph.nodes[authorId(elk)]!;
       const size = input.labelSizes[node.labelId!]!;
-      const [t, , b] = sizingOf(input, elk.id).contentInset;
+      const [t, , b] = sizingOf(input, authorId(elk)).contentInset;
       expect(t).toBeGreaterThan(b);
       expect(elk.labels?.[0]?.height).toBe(size.h + (t - b));
       expect(elk.labels?.[0]?.width).toBe(size.w);
@@ -194,24 +199,24 @@ describe('toElkGraph (DD-06 §6.1)', () => {
     }
   });
 
-  it('maps ports (FIXED_SIDE, zero-size, id node#port) and port-terminated edges', () => {
+  it('maps ports (FIXED_SIDE, zero-size, id p<length>:node#port) and port-terminated edges', () => {
     const input = layoutInputFor('ports.sgl');
     const graph = toElkGraph(input, opts(), METRICS);
     const router = findElk(graph, 'router');
     expect(router.layoutOptions).toEqual({ 'elk.portConstraints': 'FIXED_SIDE' });
     expect(router.ports).toEqual([
-      { id: 'router#in', width: 0, height: 0, layoutOptions: { 'elk.port.side': 'WEST' } },
-      { id: 'router#out', width: 0, height: 0, layoutOptions: { 'elk.port.side': 'EAST' } },
-      { id: 'router#mgmt', width: 0, height: 0, layoutOptions: { 'elk.port.side': 'NORTH' } },
-      { id: 'router#drain', width: 0, height: 0, layoutOptions: { 'elk.port.side': 'SOUTH' } },
+      { id: 'p6:router#in', width: 0, height: 0, layoutOptions: { 'elk.port.side': 'WEST' } },
+      { id: 'p6:router#out', width: 0, height: 0, layoutOptions: { 'elk.port.side': 'EAST' } },
+      { id: 'p6:router#mgmt', width: 0, height: 0, layoutOptions: { 'elk.port.side': 'NORTH' } },
+      { id: 'p6:router#drain', width: 0, height: 0, layoutOptions: { 'elk.port.side': 'SOUTH' } },
     ]);
     const edges = graph.edges ?? [];
     expect(edges.map((e) => [e.sources[0], e.targets[0]])).toEqual([
-      ['client', 'router#in'],
-      ['router#out', 'switch#uplink'],
-      ['switch#down', 'server'],
-      ['console', 'router#mgmt'],
-      ['router#drain', 'server'],
+      ['n:client', 'p6:router#in'],
+      ['p6:router#out', 'p6:switch#uplink'],
+      ['p6:switch#down', 'n:server'],
+      ['n:console', 'p6:router#mgmt'],
+      ['p6:router#drain', 'n:server'],
     ]);
   });
 
@@ -237,9 +242,9 @@ describe('toElkGraph (DD-06 §6.1)', () => {
     const graph = toElkGraph(input, opts(), METRICS);
     const ids = new Set(allElkNodes(graph).map((n) => n.id));
     for (const id of Object.keys(input.graph.nodes) as NodeId[]) {
-      expect(ids.has(id)).toBe(!input.graph.nodes[id]!.hidden);
+      expect(ids.has(N(id))).toBe(!input.graph.nodes[id]!.hidden);
     }
-    expect((graph.edges ?? []).map((e) => e.id)).toEqual(input.graph.edges.filter((e) => !e.hidden).map((e) => e.id));
+    expect((graph.edges ?? []).map((e) => e.id)).toEqual(input.graph.edges.filter((e) => !e.hidden).map((e) => E(e.id)));
     for (const n of allElkNodes(graph)) if (n.id !== 'root') expect(n.edges).toBeUndefined();
   });
 
@@ -279,30 +284,30 @@ describe('fromElkGraph (DD-06 §6.2)', () => {
     width: 400,
     height: 300,
     children: [
-      { id: x, x: 17, y: 5, width: 60, height: 30, labels: [{ text: 'l:x', width: 9, height: 13, x: 31, y: 2 }] },
+      { id: N(x), x: 17, y: 5, width: 60, height: 30, labels: [{ text: 'l:x', width: 9, height: 13, x: 31, y: 2 }] },
       {
-        id: outer,
+        id: N(outer),
         x: 100,
         y: 50,
         width: 200,
         height: 150,
-        children: [{ id: inner, x: 20, y: 40, width: 70, height: 30, labels: [{ text: 'l:inner', width: 30, height: 13, x: 3, y: 11 }] }],
+        children: [{ id: N(inner), x: 20, y: 40, width: 70, height: 30, labels: [{ text: 'l:inner', width: 30, height: 13, x: 3, y: 11 }] }],
       },
     ],
     edges: [
       {
-        id: e1!.id,
-        sources: [x],
-        targets: [inner],
+        id: E(e1!.id),
+        sources: [N(x)],
+        targets: [N(inner)],
         container: 'root',
         sections: [{ startPoint: { x: 47, y: 35 }, bendPoints: [{ x: 47, y: 60 }, { x: 155, y: 60 }], endPoint: { x: 155, y: 90 } }],
         labels: [{ text: 'l:e', width: 25, height: 12, x: 60, y: 61 }],
       },
       {
-        id: e2!.id,
-        sources: [inner],
-        targets: [x],
-        container: outer,
+        id: E(e2!.id),
+        sources: [N(inner)],
+        targets: [N(x)],
+        container: N(outer),
         sections: [{ startPoint: { x: 5, y: 5 }, endPoint: { x: 5, y: 1 } }],
         labels: [{ text: 'l:e2', width: 21, height: 11, x: 7, y: 9 }],
       },
@@ -367,7 +372,7 @@ describe('fromElkGraph (DD-06 §6.2)', () => {
   it('maps a coordinate ELK left out to NaN, never 0, so validateResult rejects it with SGL4002 (fix round 1, item 5)', () => {
     const strip = (n: ElkNode, id: string, key: 'x' | 'y'): ElkNode => {
       const kids = n.children?.map((c) => strip(c, id, key));
-      const self = n.id === id ? Object.fromEntries(Object.entries(n).filter(([k]) => k !== key)) : n;
+      const self = n.id === N(id) ? Object.fromEntries(Object.entries(n).filter(([k]) => k !== key)) : n;
       return { ...(self as ElkNode), ...(kids !== undefined && { children: kids }) };
     };
     for (const [id, key] of [[x, 'x'], [inner, 'y']] as const) {
@@ -378,7 +383,7 @@ describe('fromElkGraph (DD-06 §6.2)', () => {
     // A node label's and an edge label's missing x.
     const noLabelX: ElkNode = {
       ...elkOut,
-      children: [{ id: x, x: 17, y: 5, width: 60, height: 30, labels: [{ text: 'l:x', width: 9, height: 13, y: 2 }] }, elkOut.children![1]!],
+      children: [{ id: N(x), x: 17, y: 5, width: 60, height: 30, labels: [{ text: 'l:x', width: 9, height: 13, y: 2 }] }, elkOut.children![1]!],
       edges: [{ ...elkOut.edges![0]!, labels: [{ text: 'l:e', width: 25, height: 12, y: 61 }] }, elkOut.edges![1]!],
     };
     const labelled = fromElkGraph(input, noLabelX);
@@ -386,7 +391,7 @@ describe('fromElkGraph (DD-06 §6.2)', () => {
   });
 
   it('leaves out an edge ELK returned without a section, so the host routes it', () => {
-    const noSection: ElkNode = { ...elkOut, edges: [{ id: e2!.id, sources: [inner], targets: [x] }] };
+    const noSection: ElkNode = { ...elkOut, edges: [{ id: E(e2!.id), sources: [N(inner)], targets: [N(x)] }] };
     expect(Object.keys(fromElkGraph(input, noSection).edges)).toEqual([]);
   });
 
@@ -400,17 +405,17 @@ describe('fromElkGraph (DD-06 §6.2)', () => {
       children: portsInput.graph.rootChildren.map((id) =>
         id === sw
           ? {
-              id,
+              id: N(id),
               x: 10,
               y: 20,
               width: 50,
               height: 30,
               ports: [
-                { id: 'switch#uplink', x: 0, y: 15, width: 0, height: 0 },
-                { id: 'switch#down', x: 50, y: 15, width: 0, height: 0 },
+                { id: portId(sw, 'uplink'), x: 0, y: 15, width: 0, height: 0 },
+                { id: portId(sw, 'down'), x: 50, y: 15, width: 0, height: 0 },
               ],
             }
-          : { id, x: 0, y: 0, width: 1, height: 1 },
+          : { id: N(id), x: 0, y: 0, width: 1, height: 1 },
       ),
       edges: [],
     };
@@ -421,10 +426,15 @@ describe('fromElkGraph (DD-06 §6.2)', () => {
   });
 
   it('refuses an id it never sent (a violated invariant, reported by the worker as SGL4011)', () => {
-    const bogus: ElkNode = { id: 'root', children: [{ id: 'nope', x: 0, y: 0, width: 1, height: 1 }] };
-    expect(() => fromElkGraph(input, bogus)).toThrow(/unknown node 'nope'/);
-    const bogusEdge: ElkNode = { ...elkOut, edges: [{ id: 'e:nope' as EdgeId, sources: [x], targets: [x] }] };
+    const bogus: ElkNode = { id: 'root', children: [{ id: 'n:nope', x: 0, y: 0, width: 1, height: 1 }] };
+    expect(() => fromElkGraph(input, bogus)).toThrow(/unknown node 'n:nope'/);
+    const bogusEdge: ElkNode = { ...elkOut, edges: [{ id: 'e:nope', sources: [N(x)], targets: [N(x)] }] };
     expect(() => fromElkGraph(input, bogusEdge)).toThrow(/unknown edge/);
+    // F32: an author id without its namespace is not one ELK was sent.
+    const bare: ElkNode = { ...elkOut, children: [{ ...elkOut.children![0]!, id: x }, elkOut.children![1]!] };
+    expect(() => fromElkGraph(input, bare)).toThrow(/unknown node 'x'/);
+    const bareEdge: ElkNode = { ...elkOut, edges: [{ ...elkOut.edges![0]!, id: e1!.id }] };
+    expect(() => fromElkGraph(input, bareEdge)).toThrow(/unknown edge/);
   });
 });
 
@@ -446,9 +456,9 @@ describe('fromElkGraph: a route through its own container\'s title is detoured r
   function laidOut(innerW: number, runs: Partial<Record<Run, number>>, dx = 0) {
     const at = (x: number) => 100 + x;
     const edge = (id: EdgeId, sources: string[], targets: string[], x: number, from: number, to: number) => ({
-      id,
-      sources,
-      targets,
+      id: E(id),
+      sources: sources.map((s) => (s.startsWith('p') ? s : N(s))),
+      targets: targets.map((t) => (t.startsWith('p') ? t : N(t))),
       container: 'root',
       sections: [{ startPoint: { x: at(x), y: from }, endPoint: { x: at(x) + dx, y: to } }],
     });
@@ -457,23 +467,23 @@ describe('fromElkGraph: a route through its own container\'s title is detoured r
       width: 400,
       height: 500,
       children: [
-        { id: asNodeId('x'), x: 100, y: 10, width: 300, height: 30, labels: [{ text: 'l:x', width: 9, height: 13, x: 0, y: 0 }] },
-        { id: asNodeId('y'), x: 100, y: 400, width: 300, height: 30, labels: [{ text: 'l:y', width: 9, height: 13, x: 0, y: 0 }] },
+        { id: N('x'), x: 100, y: 10, width: 300, height: 30, labels: [{ text: 'l:x', width: 9, height: 13, x: 0, y: 0 }] },
+        { id: N('y'), x: 100, y: 400, width: 300, height: 30, labels: [{ text: 'l:y', width: 9, height: 13, x: 0, y: 0 }] },
         {
-          id: outer,
+          id: N(outer),
           x: 100,
           y: 100,
           width: 260,
           height: 200,
           children: [
             {
-              id: inner,
+              id: N(inner),
               x: 16,
               y: top,
               width: innerW,
               height: 36,
               labels: [{ text: 'l:outer.inner', width: 9, height: 13, x: 0, y: 0 }],
-              ports: runs.port === undefined ? [] : [{ id: `${inner}#p`, x: runs.port - 16, y: 0, width: 0, height: 0 }],
+              ports: runs.port === undefined ? [] : [{ id: portId(inner, 'p'), x: runs.port - 16, y: 0, width: 0, height: 0 }],
             },
           ],
         },
@@ -481,7 +491,7 @@ describe('fromElkGraph: a route through its own container\'s title is detoured r
       edges: [
         ...(runs.down === undefined ? [] : [edge(down!.id, ['x'], [inner], runs.down, 40, 100 + top)]),
         ...(runs.up === undefined ? [] : [edge(up!.id, [inner], ['x'], runs.up, 100 + top, 40)]),
-        ...(runs.port === undefined ? [] : [edge(port!.id, ['x'], [`${inner}#p`], runs.port, 40, 100 + top)]),
+        ...(runs.port === undefined ? [] : [edge(port!.id, ['x'], [portId(inner, 'p')], runs.port, 40, 100 + top)]),
         ...(runs.unrelated === undefined ? [] : [edge(unrelated!.id, ['x'], ['y'], runs.unrelated, 40, 400)]),
       ],
     };

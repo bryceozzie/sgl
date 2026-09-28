@@ -14,7 +14,7 @@
   },
   "children": [
     {
-      "id": "visible",
+      "id": "n:visible",
       "width": 72,
       "height": 36,
       "labels": [
@@ -29,7 +29,7 @@
       ]
     },
     {
-      "id": "other",
+      "id": "n:other",
       "width": 72,
       "height": 36,
       "labels": [
@@ -44,7 +44,7 @@
       ]
     },
     {
-      "id": "another",
+      "id": "n:another",
       "width": 72,
       "height": 36,
       "labels": [
@@ -61,12 +61,12 @@
   ],
   "edges": [
     {
-      "id": "e-5353c6cb522d2c65",
+      "id": "e:e-5353c6cb522d2c65",
       "sources": [
-        "visible"
+        "n:visible"
       ],
       "targets": [
-        "other"
+        "n:other"
       ],
       "labels": []
     }

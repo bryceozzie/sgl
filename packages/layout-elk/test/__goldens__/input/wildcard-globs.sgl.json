@@ -14,7 +14,7 @@
   },
   "children": [
     {
-      "id": "switch",
+      "id": "n:switch",
       "width": 72,
       "height": 36,
       "labels": [
@@ -29,7 +29,7 @@
       ]
     },
     {
-      "id": "lane1",
+      "id": "n:lane1",
       "layoutOptions": {
         "elk.spacing.nodeNode": "40",
         "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -41,7 +41,7 @@
       },
       "children": [
         {
-          "id": "lane1.cam1",
+          "id": "n:lane1.cam1",
           "width": 72,
           "height": 36,
           "labels": [
@@ -56,7 +56,7 @@
           ]
         },
         {
-          "id": "lane1.cam2",
+          "id": "n:lane1.cam2",
           "width": 72,
           "height": 36,
           "labels": [
@@ -71,7 +71,7 @@
           ]
         },
         {
-          "id": "lane1.cam-hd",
+          "id": "n:lane1.cam-hd",
           "width": 72,
           "height": 36,
           "labels": [
@@ -86,7 +86,7 @@
           ]
         },
         {
-          "id": "lane1.camera",
+          "id": "n:lane1.camera",
           "width": 72,
           "height": 36,
           "labels": [
@@ -101,7 +101,7 @@
           ]
         },
         {
-          "id": "lane1.mic1",
+          "id": "n:lane1.mic1",
           "width": 72,
           "height": 36,
           "labels": [
@@ -116,7 +116,7 @@
           ]
         },
         {
-          "id": "lane1.door1",
+          "id": "n:lane1.door1",
           "width": 72,
           "height": 36,
           "labels": [
@@ -133,7 +133,7 @@
       ]
     },
     {
-      "id": "stores",
+      "id": "n:stores",
       "layoutOptions": {
         "elk.spacing.nodeNode": "40",
         "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -145,7 +145,7 @@
       },
       "children": [
         {
-          "id": "stores.orders-db",
+          "id": "n:stores.orders-db",
           "width": 79.62700000000001,
           "height": 36,
           "labels": [
@@ -160,7 +160,7 @@
           ]
         },
         {
-          "id": "stores.users-db",
+          "id": "n:stores.users-db",
           "width": 74.57000000000001,
           "height": 36,
           "labels": [
@@ -175,7 +175,7 @@
           ]
         },
         {
-          "id": "stores.cache",
+          "id": "n:stores.cache",
           "width": 72,
           "height": 36,
           "labels": [
@@ -190,7 +190,7 @@
           ]
         },
         {
-          "id": "stores.order service",
+          "id": "n:stores.order service",
           "width": 99.12700000000001,
           "height": 36,
           "labels": [
@@ -207,7 +207,7 @@
       ]
     },
     {
-      "id": "mixed",
+      "id": "n:mixed",
       "layoutOptions": {
         "elk.spacing.nodeNode": "40",
         "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -219,7 +219,7 @@
       },
       "children": [
         {
-          "id": "mixed.camAhd",
+          "id": "n:mixed.camAhd",
           "width": 72,
           "height": 36,
           "labels": [
@@ -234,7 +234,7 @@
           ]
         },
         {
-          "id": "mixed.camBhd",
+          "id": "n:mixed.camBhd",
           "width": 72,
           "height": 36,
           "labels": [
@@ -249,7 +249,7 @@
           ]
         },
         {
-          "id": "mixed.camB",
+          "id": "n:mixed.camB",
           "width": 72,
           "height": 36,
           "labels": [
@@ -264,7 +264,7 @@
           ]
         },
         {
-          "id": "mixed.cam",
+          "id": "n:mixed.cam",
           "width": 72,
           "height": 36,
           "labels": [
@@ -283,52 +283,52 @@
   ],
   "edges": [
     {
-      "id": "e-3c6a77508717ebb0",
+      "id": "e:e-3c6a77508717ebb0",
       "sources": [
-        "lane1.cam1"
+        "n:lane1.cam1"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-93351e61e84b317b",
+      "id": "e:e-93351e61e84b317b",
       "sources": [
-        "lane1.cam2"
+        "n:lane1.cam2"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-30a1fbedae6ba760",
+      "id": "e:e-30a1fbedae6ba760",
       "sources": [
-        "lane1.cam-hd"
+        "n:lane1.cam-hd"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-b1f41b60ecb5c8ab",
+      "id": "e:e-b1f41b60ecb5c8ab",
       "sources": [
-        "lane1.camera"
+        "n:lane1.camera"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-30a1fcedae6ba913",
+      "id": "e:e-30a1fcedae6ba913",
       "sources": [
-        "lane1.cam-hd"
+        "n:lane1.cam-hd"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": [
         {
@@ -342,242 +342,242 @@
       ]
     },
     {
-      "id": "e-c437b3ebcf028583",
+      "id": "e:e-c437b3ebcf028583",
       "sources": [
-        "stores.orders-db"
+        "n:stores.orders-db"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-208e4cf54c0092b8",
+      "id": "e:e-208e4cf54c0092b8",
       "sources": [
-        "stores.users-db"
+        "n:stores.users-db"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-c437b2ebcf0283d0",
+      "id": "e:e-c437b2ebcf0283d0",
       "sources": [
-        "stores.orders-db"
+        "n:stores.orders-db"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-e45d836b6c2944bc",
+      "id": "e:e-e45d836b6c2944bc",
       "sources": [
-        "stores.order service"
+        "n:stores.order service"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-cf78ddec09373fae",
+      "id": "e:e-cf78ddec09373fae",
       "sources": [
-        "mixed.camAhd"
+        "n:mixed.camAhd"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-757e9768b56c6d1d",
+      "id": "e:e-757e9768b56c6d1d",
       "sources": [
-        "mixed.camBhd"
+        "n:mixed.camBhd"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-47776fd878c64117",
+      "id": "e:e-47776fd878c64117",
       "sources": [
-        "lane1.cam1"
+        "n:lane1.cam1"
       ],
       "targets": [
-        "mixed.camAhd"
+        "n:mixed.camAhd"
       ],
       "labels": []
     },
     {
-      "id": "e-e6eccffe8370aab0",
+      "id": "e:e-e6eccffe8370aab0",
       "sources": [
-        "lane1.cam1"
+        "n:lane1.cam1"
       ],
       "targets": [
-        "mixed.camBhd"
+        "n:mixed.camBhd"
       ],
       "labels": []
     },
     {
-      "id": "e-adda24527e8599b8",
+      "id": "e:e-adda24527e8599b8",
       "sources": [
-        "lane1.cam2"
+        "n:lane1.cam2"
       ],
       "targets": [
-        "mixed.camAhd"
+        "n:mixed.camAhd"
       ],
       "labels": []
     },
     {
-      "id": "e-0d0fa642014a1dff",
+      "id": "e:e-0d0fa642014a1dff",
       "sources": [
-        "lane1.cam2"
+        "n:lane1.cam2"
       ],
       "targets": [
-        "mixed.camBhd"
+        "n:mixed.camBhd"
       ],
       "labels": []
     },
     {
-      "id": "e-e3f58f56b5404f87",
+      "id": "e:e-e3f58f56b5404f87",
       "sources": [
-        "lane1.cam-hd"
+        "n:lane1.cam-hd"
       ],
       "targets": [
-        "mixed.camAhd"
+        "n:mixed.camAhd"
       ],
       "labels": []
     },
     {
-      "id": "e-84bae0b38b3182a0",
+      "id": "e:e-84bae0b38b3182a0",
       "sources": [
-        "lane1.cam-hd"
+        "n:lane1.cam-hd"
       ],
       "targets": [
-        "mixed.camBhd"
+        "n:mixed.camBhd"
       ],
       "labels": []
     },
     {
-      "id": "e-2cdffc5b29573468",
+      "id": "e:e-2cdffc5b29573468",
       "sources": [
-        "lane1.camera"
+        "n:lane1.camera"
       ],
       "targets": [
-        "mixed.camAhd"
+        "n:mixed.camAhd"
       ],
       "labels": []
     },
     {
-      "id": "e-8b410afe52ad00af",
+      "id": "e:e-8b410afe52ad00af",
       "sources": [
-        "lane1.camera"
+        "n:lane1.camera"
       ],
       "targets": [
-        "mixed.camBhd"
+        "n:mixed.camBhd"
       ],
       "labels": []
     },
     {
-      "id": "e-3c6a78508717ed63",
+      "id": "e:e-3c6a78508717ed63",
       "sources": [
-        "lane1.cam1"
+        "n:lane1.cam1"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-93351d61e84b2fc8",
+      "id": "e:e-93351d61e84b2fc8",
       "sources": [
-        "lane1.cam2"
+        "n:lane1.cam2"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-30a1fdedae6baac6",
+      "id": "e:e-30a1fdedae6baac6",
       "sources": [
-        "lane1.cam-hd"
+        "n:lane1.cam-hd"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-b1f41a60ecb5c6f8",
+      "id": "e:e-b1f41a60ecb5c6f8",
       "sources": [
-        "lane1.camera"
+        "n:lane1.camera"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-3c6a79508717ef16",
+      "id": "e:e-3c6a79508717ef16",
       "sources": [
-        "lane1.cam1"
+        "n:lane1.cam1"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-93352061e84b34e1",
+      "id": "e:e-93352061e84b34e1",
       "sources": [
-        "lane1.cam2"
+        "n:lane1.cam2"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-30a1feedae6bac79",
+      "id": "e:e-30a1feedae6bac79",
       "sources": [
-        "lane1.cam-hd"
+        "n:lane1.cam-hd"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-b1f41d60ecb5cc11",
+      "id": "e:e-b1f41d60ecb5cc11",
       "sources": [
-        "lane1.camera"
+        "n:lane1.camera"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-c437b5ebcf0288e9",
+      "id": "e:e-c437b5ebcf0288e9",
       "sources": [
-        "stores.orders-db"
+        "n:stores.orders-db"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     },
     {
-      "id": "e-208e4df54c00946b",
+      "id": "e:e-208e4df54c00946b",
       "sources": [
-        "stores.users-db"
+        "n:stores.users-db"
       ],
       "targets": [
-        "switch"
+        "n:switch"
       ],
       "labels": []
     }

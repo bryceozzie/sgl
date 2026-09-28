@@ -192,7 +192,7 @@ export function toElkGraph(input: LayoutInput, options: ElkOptions, metrics: Res
         nodeOptions['elk.nodeSize.minimum'] = vertical ? `(${num(h)},${num(w)})` : `(${num(w)},${num(h)})`;
       }
       return {
-        id,
+        id: elkNodeId(id),
         layoutOptions: { ...level, ...nodeOptions },
         ...(ports.length > 0 && { ports }),
         children: visibleChildren(node.children).map(toElkNode),
@@ -201,7 +201,7 @@ export function toElkGraph(input: LayoutInput, options: ElkOptions, metrics: Res
 
     const size = leafSize(sizing);
     return {
-      id,
+      id: elkNodeId(id),
       width: size.w,
       height: size.h,
       ...(Object.keys(nodeOptions).length > 0 && { layoutOptions: nodeOptions }),
@@ -238,9 +238,9 @@ function toElkEdge(input: LayoutInput, edge: GraphEdge): ElkEdge {
   const hints = hintsOf(edge.config);
   const priority = hints['priority'];
   return {
-    id: edge.id,
-    sources: [edge.from.port !== undefined ? portId(edge.from.node, edge.from.port) : edge.from.node],
-    targets: [edge.to.port !== undefined ? portId(edge.to.node, edge.to.port) : edge.to.node],
+    id: `e:${edge.id}`,
+    sources: [edge.from.port !== undefined ? portId(edge.from.node, edge.from.port) : elkNodeId(edge.from.node)],
+    targets: [edge.to.port !== undefined ? portId(edge.to.node, edge.to.port) : elkNodeId(edge.to.node)],
     labels:
       edge.labelId === null || labelSize === undefined
         ? []
@@ -294,9 +294,18 @@ function nodeLabel(labelId: LabelId, label: Size, sizing: NodeSizing): ElkLabel 
   };
 }
 
-/** ELK port ids are global, so a port is named after its node (DD-06 §6.1). */
+/**
+ * F32 (DD-06 §6.1): ELK ids are global, and an author may name a node
+ * anything, `root` or `a#in` included. So every id the adapter sends is
+ * namespaced by kind: `n:<node>`, `e:<edge>`, and a port
+ * `p<length of node>:<node>#<port>` (the length makes it injective whatever
+ * either name contains). The root, `root`, has none of these prefixes, so no
+ * author id can meet it or another kind's id. Labels carry no id.
+ */
+export const elkNodeId = (node: NodeId): string => `n:${node}`;
+
 export function portId(node: NodeId, port: string): string {
-  return `${node}#${port}`;
+  return `p${node.length}:${node}#${port}`;
 }
 
 function hintsOf(config: GraphNode['config']): Readonly<Record<string, unknown>> {
@@ -350,8 +359,8 @@ export function fromElkGraph(input: LayoutInput, out: ElkNode, arrowSize?: numbe
   const bands: TitleBand[] = [];
 
   const walk = (elk: ElkNode, parent: Point): void => {
-    const id = elk.id as NodeId;
-    const node = graph.nodes[id];
+    const id = elk.id.slice(2) as NodeId;
+    const node = elk.id.startsWith('n:') ? graph.nodes[id] : undefined;
     const sizing = input.sizing[id];
     const abs: Point = { x: parent.x + coord(elk.x), y: parent.y + coord(elk.y) };
     origin.set(elk.id, abs);
@@ -402,7 +411,7 @@ export function fromElkGraph(input: LayoutInput, out: ElkNode, arrowSize?: numbe
   const edgeById = new Map<EdgeId, GraphEdge>(graph.edges.map((e) => [e.id, e]));
   const routes: Route[] = [];
   for (const elkEdge of out.edges ?? []) {
-    const edge = edgeById.get(elkEdge.id as EdgeId);
+    const edge = elkEdge.id.startsWith('e:') ? edgeById.get(elkEdge.id.slice(2) as EdgeId) : undefined;
     if (edge === undefined) throw new Error(`elk: ELK returned unknown edge '${elkEdge.id}'.`);
     const offset = origin.get(elkEdge.container ?? ELK_ROOT_ID) ?? { x: 0, y: 0 };
     const points = edgePoints(elkEdge, offset);
