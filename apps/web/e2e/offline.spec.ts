@@ -81,8 +81,9 @@ async function exerciseOffline(page: Page, online: Record<string, string>): Prom
 
   // Every engine, offline (K8; fixed since feat/b5-fixed, static in the
   // worker, H9; tree since feat/b5-tree, whose layout code is the lazy
-  // `std-trees` chunk, fetched now, from the precache, N52): elk → grid →
-  // fixed → tree → elk, each a real render.
+  // `std-trees` chunk, fetched now, from the precache, N52; radial since
+  // feat/b5-radial, from the same chunk): elk → grid → fixed → tree →
+  // radial → elk, each a real render.
   const elkGeometry = await layoutGeometryHash(page);
   await switchEngine(page, 'sgl.grid', elkGeometry);
   await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
@@ -92,6 +93,10 @@ async function exerciseOffline(page: Page, online: Record<string, string>): Prom
   await switchEngine(page, 'sgl.tree', await layoutGeometryHash(page));
   await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
   await expect.poll(() => diagnosticCodes(page)).not.toContain('SGL4011'); // the chunk loaded
+  // radial (feat/b5-radial) runs from the same chunk, already loaded.
+  await switchEngine(page, 'sgl.radial', await layoutGeometryHash(page));
+  await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
+  await expect.poll(() => diagnosticCodes(page)).not.toContain('SGL4011');
   await switchEngine(page, 'sgl.elk', await layoutGeometryHash(page));
   expect(await layoutGeometryHash(page)).toBe(elkGeometry);
 

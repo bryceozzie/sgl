@@ -21,6 +21,8 @@ export const DEFAULT_ENGINE_TIMEOUT_MS: Readonly<Record<string, number>> = {
   'sgl.fixed': 2_000,
   // DD-12 N37: covers loading the lazy `std-trees` chunk on a slow device.
   'sgl.tree': 5_000,
+  // DD-12 N47: the same chunk as `tree`.
+  'sgl.radial': 5_000,
 };
 
 /** The MVP's seed for `ctx.random` (DD-00 §3, ADR-0004). `LayoutHost.run()` is a

@@ -6,8 +6,8 @@
 **Inputs:** `LayoutInput` (DD-06 §2). **Outputs:** `LayoutResult`.
 
 **Status: design (2026-09-27), from `main` at `755bfd0`. Branches 1 (`feat/b5-pin`), 2
-(`feat/b5-fixed`), 3 (`fix/root-layout-options`) and 4 (`feat/b5-tree`, 2026-09-28) are
-implemented (§13); branch 5 is not.**
+(`feat/b5-fixed`), 3 (`fix/root-layout-options`), 4 (`feat/b5-tree`, 2026-09-28) and 5
+(`feat/b5-radial`, 2026-09-28) are implemented (§13).**
 **Human decisions (2026-09-27): every §15 recommendation was accepted, H1–H9.** The documents they
 change (language spec §4 and §9, the backlog, ADR-0004, Architecture §4.5, 01, 06, 07) are updated
 on this branch (§18). The orchestrator also decided that bare engine names are accepted (N22), as a
@@ -437,6 +437,13 @@ get no diagnostic, because an author can overlap them on purpose. Both rows go i
   keeps each node's bounding circle inside its own wedge, so nodes on one ring cannot overlap, and
   nodes on different rings are a ring gap apart.* Eades' further limit (children's wedges no wider
   than `2·arccos(R_k / R_{k+1})`, against crossings between subtrees) is left out of v1.
+  *Fix round 1 (B5 branch 5, the orchestrator's decision): a non-root node's children span at most
+  ½ turn, centred on its own angle (the middle of its wedge); the root's span the whole turn. So an
+  only child's children fan away from the centre instead of wrapping round it, and no tree-arc
+  spoke crosses its root or an ancestor. The span lies inside the node's wedge, so wedges at one
+  depth stay disjoint. The ring gap (`rankSpacing` above) is at least `2 × arrowSize + 8`, as
+  `tree`'s band gap, so every spoke has room for its arrowhead. A node's weight is never zero: a
+  subtree whose leaves weigh nothing weighs its own `diag + nodeSpacing`, or 1.*
 - **N43. The components of a forest are separate discs, packed in a row.** They go left to right, in
   their roots' declaration order, top-aligned, `nodeSpacing` apart. An isolated node is a disc of
   its own. *elk's `radial` stacks every extra component at one point (§9.3).*
@@ -864,7 +871,96 @@ begins.
    - **Size:** core **180.03 kB** (180 034 B), +48 B over the branch with `main` merged
      (179 986 B), all of it `engine-options.ts` reading the descriptor; +435 B over `main`.
 5. **`feat/b5-radial`**. `trig.ts`, `radial.ts` into the same chunk. Options and form, goldens,
-   conformance, the cross-browser `bitwise` test, and e2e.
+   conformance, the cross-browser `bitwise` test, and e2e. **Implemented** on `feat/b5-radial`
+   (2026-09-28, from `main` at `1fd4b22`); the deviations are below the list.
+
+   **As built, and its deviations:**
+   - **The files.** `trig.ts` (`sinTurn`, `cosTurn`), `radial.ts` (`layoutRadial`,
+     `normalizeRadialOptions`), both re-exported by `std-trees.ts`; `radialDescriptor` in
+     `descriptor.ts`, which shares one `SPACINGS` schema object and one `root` hint with
+     `treeDescriptor`; `radialEngine = lazyEngine(radialDescriptor, …)` in `lazy.ts`, pure like
+     `treeEngine`. The two stubs each load the chunk on their own first call; the module is
+     imported once, so the second fetches nothing (`e2e/radial.spec.ts`). Host timeout 5 000 ms.
+     `visibleChildren`, `leafSize`, `levelSize` (a container's size from its content, padding,
+     `min` and title) and `frameOf` moved from `tree.ts` to `forest.ts`, unchanged, to be shared;
+     no `tree` golden moved.
+   - **The polynomial (N44 said degree 13).** A degree-13 Taylor polynomial is off by up to 2e-14
+     at π/4, over §12's 1e-14 (the accuracy tests fail with the x¹⁵ term dropped). `trig.ts`
+     evaluates Taylor to x¹⁵ for sine and x¹⁶ for cosine by Horner's rule, after an exact
+     quadrant reduction (`q = round(4t)`, `t − q/4`) and one scaling to radians. A minimax fit
+     would do at degree 13, but Taylor's coefficients are `1/n!` and need no fitting tool to
+     check. Measured against `Math.sin`/`Math.cos`: worst 6.9e-16 over [0, 1] turn (10⁶ points),
+     2.5e-15 over [−3, 3]; exact at the quarter turns, no `-0`, within one ulp of √½ at the
+     eighth turns.
+   - **Rings (N42) and discs (N43) as written.** The discs go in their roots' **declaration**
+     order, as N43 says, not in the order `spanningForest` finds the roots (which `tree` uses):
+     a `@layout.root` hint on a later node makes it a root without moving its disc to the front
+     (`layout/tree-root.sgl`). A zero total weight (zero-size leaves at `nodeSpacing: 0`) splits
+     a wedge equally, and a node with no room to keep (`diag + nodeSpacing = 0`) adds no ring
+     constraint. The content box is the frames' own extent, so a disc's left-most and top-most
+     frames sit exactly at 0.
+   - **Hints.** `root` only. A container's `@direction` is `SGL4010` under `radial` (it is not a
+     hint of it); `@order` is honoured among siblings, as under `tree`, because the forest is
+     shared.
+   - **Conformance check 7 (DD-14 C35) runs for `radial`** in `runConformance`'s default run
+     (`main` at `707dd0c`, with B8 branch 1, merged in), and `conformance.test.ts` asserts it
+     ran, as `tree`'s suite does: on all 100 containers of the 1 000-node graph, on
+     `checkout.sgl`'s two and on `tree-direction.sgl`'s three, with no failure (with it switched
+     off, the assertions fail). Beyond it, a scoped run on the whole graph is checked to be the
+     document's own layout of that container, moved to (0, 0). `layout-elk/test/compose.test.ts`
+     has a `radial-in-grid` composed golden beside `tree-in-grid`.
+   - **The cross-browser test.** Chromium's V8 is Node's engine, so `radial.browser.test.ts`
+     proves the worker path and the chunk, not that another engine's arithmetic agrees. That is
+     the job of the bit-pattern golden (`__goldens__/trig.txt`, 85 angles), which
+     `trig.browser.test.ts` checks in every browser the project runs.
+   - **Tests.** `trig.test.ts`, `trig.browser.test.ts`; `radial.test.ts` (the descriptor and
+     options; no implementation-approximated `Math` function or `**` in `radial.ts`, `trig.ts`
+     or `forest.ts`; 12 o'clock and clockwise; wedges in proportion to weight; one ring per depth,
+     a ring gap apart; neighbours' bounding circles `nodeSpacing` apart on a ring; no overlap on
+     random trees at default and tight spacings; `@order`, cycles, forests, root hints,
+     containers, titles, `scope`; the host's straight edges and labels; a 2 000-node path and
+     star; a bitwise double run, raw and quantized, over the corpus; goldens in
+     `__goldens__/radial/` for `CLEAN_DOCS` and the six `layout/tree-*.sgl`);
+     `conformance.test.ts` (checks 1–7 at the default and at 2 px spacings); `radial.browser.test.ts` (five cases, raw inside the worker and quantized through
+     it); apps/web `engine-options`, `engine-options-radial-defaults` (the form follows the
+     descriptor), `pipeline` and `reference` tests; e2e `radial.spec.ts`, criterion 1 under
+     `radial`, and `radial` offline in criterion 5.
+   - **Help (DD-13 P21, this branch merged second):** `radial` joined `HELP_ENGINES` and
+     `HARNESS_ENGINES`, `key/layout.engine`'s values and aliases (with a checked example), the
+     hints (`@layout.root`), `@order`, `@direction` and the quick start.
+   - **Size:** core **180.15 kB** of 184 (180 154 B), +120 B over `main` (180 034 B) at `1fd4b22`; after merging `main` at `707dd0c` (B8 branch 1; 180.07 kB), 180.18 kB (180 176 B). The delta is the
+     descriptor on the page and in the worker, the F11 rules and the timeout row. §11 estimated
+     0.60. The `std-trees` chunk is 4.71 kB gzipped (12.06 kB raw), +1.04 kB for `radial` and
+     `trig` (§11: ~1.3), measured with Node's zlib (3.67 kB for `tree` alone by the same
+     measure).
+   **Fix round 1, as built** (2026-09-28; `main` at `707dd0c`, B8 branch 1, merged in first):
+   1. **A zero-weight subtree gave NaN** (a zero-size leaf at `nodeSpacing: 0`: an empty wedge,
+      then a division by `sin 0`). A weight is never zero (N42's note); the equal-split branch
+      went with it. Tests: that input is finite and valid; zero-size leaves at `nodeSpacing: 0`
+      get distinct angles, 1/6, 1/2, 5/6 (M11).
+   2. **Spokes through the root.** Eades' bound, ½ turn centred on the node, for every non-root
+      node's children (N42's note). `radial.test.ts` counts edge runs through a leaf that is not
+      their end, split into tree-arc spokes (0 over `r -> c -> g0..g11`, `a -> b -> c -> f0..f9`,
+      the six `layout/tree-*.sgl`, the corpus and 8 random trees) and other edges, pinned to go only
+      down as for `tree` (F34): `tree-diamond` 2 (`right -> bottom`, a second parent), `tree-root`
+      1 (`client -> api`, `api` a root by its hint), the others 0.
+   3. **`sinTurn(−t)` was not `−sinTurn(t)` at the eighth turns** (`Math.round` rounds a tie up).
+      Both reduce `|t|` and reapply the sign: odd and even bit for bit, tested at ±k/8, their
+      neighbouring doubles and large turns.
+   4. **More pinned angles**: the negative eighth turns, the doubles either side of each k/8 in
+      [−1, 1], and large turns to 2⁵³. The golden's 85 old rows did not change; 53 were appended.
+   5. **The built chunk's trig is checked**: `apps/web/test/std-trees-chunk.test.ts` loads
+      `dist/assets/std-trees-*.js` in a child Node process and requires `trig.txt`'s bits. For
+      that the chunk exports `sinTurn`/`cosTurn`, and `lazy.ts` reads the layout function by a
+      computed name, so Rollup keeps every export.
+   6. **A ring-gap floor** of `2 × arrowSize + 8` (N42's note). Edge labels can still overlap
+      nodes: the host places them at a spoke's midpoint (07 §2.1 F36), not fixed here.
+   7. **The wedge test uses mixed label widths**, so weighting by count (M4) fails a unit test.
+   8. **The defaults come from `radialDescriptor`'s schema**, not repeated literals.
+   - **Radial goldens changed** (item 2 only): `chains.sgl`, `ports.sgl`, `layout/tree-cycle.sgl`,
+     `layout/tree-forest.sgl`. No other golden moved.
+   - **Size:** core **180.20 kB** (180 195 B), +19 B over the branch before the round; the
+     `std-trees` chunk 4.90 kB gzipped (12.30 kB raw).
 6. *(Done on this branch, H3: the backlog splits B5, and `force` is B22, Could; 07 §2.1 F10's owner
    is `force`.)*
 

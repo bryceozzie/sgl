@@ -2313,6 +2313,42 @@ mixed-widths case; the form's defaults come from `treeDescriptor`. F35 found (qu
 `parallel-selfloop`, `wildcard-paths`); no other. Core **180.03 kB** of 184, +48 B over the branch
 with `main` merged. DD-12 §8.2, §13 (fix round 1), DD-06 §7b, DD-10 §2.
 
+**B5 branch 5, `radial`** (`feat/b5-radial`, from `main` at `1fd4b22`; not merged). `radial`
+(`sgl.radial`, bare name `radial`; `radial.ts`, `radialDescriptor`): Eades' wedge layout over
+`tree`'s spanning forest, per container; each tree's root at its disc's centre, ring = depth,
+wedges by the leaves' diagonals plus `nodeSpacing`, from 12 o'clock clockwise; the smallest rings
+that keep every node's bounding circle in its wedge and rings a ring gap apart; a forest's discs in
+a row in their roots' declaration order; straight edges and labels by the host; options
+`nodeSpacing`, `rankSpacing` (Ring spacing in the F11 form, defaults from the descriptor), hint
+`root`; host timeout 5 000 ms. **`bitwise` (H8):** `trig.ts`'s own `sinTurn`/`cosTurn` (exact
+quadrant reduction, Taylor to x¹⁵/x¹⁶ by Horner; worst error 6.9e-16 over a turn; DD-12 N44 said
+degree 13, which misses §12's 1e-14), with an 85-angle bit-pattern golden checked in Node and in
+Chromium. Its code is in the lazy `std-trees` chunk beside `tree`'s; `check-core-chunks.mjs`'s
+module list adds `radial.ts` and `trig.ts`. Shared helpers moved from `tree.ts` to `forest.ts`,
+unchanged. Tests: `trig.test.ts`, `radial.test.ts` (units, a bitwise double run over the corpus,
+goldens in `__goldens__/radial/`), conformance checks 1–7 at two spacings (check 7 since `main` at
+`707dd0c`, B8 branch 1, was merged in), a `radial-in-grid` composed golden, `trig.browser.test.ts`, `radial.browser.test.ts` (raw inside the worker), apps/web
+form, defaults, pipeline and reference tests, e2e `radial.spec.ts`, criterion 1 under `radial`,
+`radial` offline in criterion 5. Help (P21): `radial` in the engine lists, `@layout.engine`,
+the hints, `@order`, `@direction` and the quick start. **Goldens:** new only
+(`layout-std/test/__goldens__/radial/`, `__goldens__/trig.txt`, `layout-elk/test/__goldens__/composed/radial-in-grid.json`); no existing golden changed. Core
+**180.15 kB** of 184 (180 154 B), +120 B over `main` at `1fd4b22`; 180.18 kB (180 176 B) after merging `main` at `707dd0c` (180.07 kB); the `std-trees` chunk 4.71 kB gzipped (+1.04
+kB). DD-12 §13 branch 5, DD-06 §7c and §8, DD-10 §2, DD-13 §13.
+
+**B5 branch 5, fix round 1** (on `feat/b5-radial`, `main` at `707dd0c` merged in first; not merged).
+Conformance check 7 now runs for `radial` in the default run and is asserted, and a
+`radial-in-grid` composed golden sits beside `tree-in-grid`. A zero-weight subtree no longer gives
+NaN (no weight is zero). A non-root node's children span at most ½ turn centred on its angle
+(Eades' bound, the orchestrator's decision), so no tree-arc spoke crosses a node: counted in
+`radial.test.ts`, 0 for spokes; non-tree chords pinned as F34 (`tree-diamond` 2, `tree-root` 1). The
+ring gap is at least `2 × arrowSize + 8`. `sinTurn`/`cosTurn` are odd/even bit for bit (they reduce
+`|t|`); the trig golden gains 53 angles (negative eighths, neighbours of each k/8, large turns), its
+85 old rows unchanged; a new test checks the **built** `std-trees` chunk's trig against it. The
+wedge test uses mixed widths (M4); the defaults come from the descriptor. F36 recorded (edge labels
+over nodes). Goldens: `radial/` `chains`, `ports`, `layout/tree-cycle`, `layout/tree-forest` (item
+2); no other. Core **180.20 kB** of 184 (180 195 B); `std-trees` 4.90 kB gzipped. DD-12 N42 and §13
+(fix round 1), DD-06 §7c.
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
@@ -2336,6 +2372,7 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F32** | **A node named `root` collides with ELK's internal root id,** and elk mislays that node's edges (`packages/layout-elk/src/mapping.ts`). Found by `feat/b5-tree` (2026-09-28). The adapter should namespace ELK ids so no author id can collide. | Orchestrator (small fix in the elk adapter) |
 | **F33** | **A lazy engine chunk that fails to load stays failed until reload:** the browser caches the failed `import()`, so the worker's retry never succeeds (elk and `std-trees` alike), despite a code comment saying elk's failed load is not cached. Found by `feat/b5-tree` (2026-09-28). Either correct the comment and document it, or re-import through a cache-busting path. **It covers `std-trees` too** (`treeEngine`, `packages/layout-std/src/lazy.ts`): its comment was corrected in B5 branch 4's fix round 1, and `e2e/tree.spec.ts` records a tree request failing with `SGL4011` after the network is back, until a reload. | Orchestrator |
 | **F34** | **`tree` draws non-tree edges straight through unrelated nodes:** a cycle's broken arc, a second parent or a skip-level edge is left to the host's straight route (DD-06 §4.2), which ignores the nodes between its ends (`layout/tree-cycle.sgl`: `c -> a` crosses `B`). DD-12 §8.2 records it as a known limitation. `packages/layout-std/test/tree.test.ts` pins the count of edge runs through a leaf that is not their end per `layout/tree-*.sgl` fixture (`tree-cycle` 1, the others 0), so it can only go down. Remedy: obstacle-avoiding routing for the host's fallback or for `tree`'s non-tree edges. Found by B5 branch 4's review (fix round 1, 2026-09-28). | Orchestrator, after B5 |
+| **F36** | **`radial`'s edge labels can overlap nodes:** the host places an edge label at its straight route's arc-length midpoint (DD-06 §4.1), with no regard for the nodes around it; on a ring, a spoke's midpoint can fall on a neighbouring node, or a chord's across the disc. Found by B5 branch 5's review (fix round 1, 2026-09-28); no code changed. Remedy: host label placement that avoids frames, or a radial-specific placement along the spoke. | Orchestrator |
 | **F35** | **Quantizing to 1/64 px can make touching siblings overlap:** at `nodeSpacing: 0` two siblings whose frames touch exactly can, once `quantize` rounds each frame's position and size (DD-06 §5), overlap by up to a 1/64 px step. Host-wide, not `tree`'s: any engine that places frames edge to edge meets it. Found by B5 branch 4's review (fix round 1, 2026-09-28); no code changed. Remedy: quantize the edges of a frame rather than its position and size, or let conformance check 3 allow a 1/64 px overlap. | Orchestrator |
 | **F29** | **Spec §9's worked example puts `@layout: { engine: grid }` on a container, which this build does not support** (per-container engines are B8). Under `elk` it gives two `SGL4010` warnings. Found by help branch 2 (2026-09-27). **Human decision 2026-09-27: keep the example and build B8 (per-container engines) sooner.** | B8's implementer (prioritised in Stage L; design [DD-14](detailed-design/14-container-engines.md), decided 2026-09-28): `feat/b8-compose` (the composer), then `feat/b8-wire`, which clears this row |
 | **F30** | **Three keys are accepted and kept, but nothing uses them:** `@order`, `@tooltip` and `@size.aspectRatio`. The help says so. Each needs either an implementation or `SGL2010` ("no effect in this version") so authors are not misled. Found by help branch 2 (2026-09-27). | Orchestrator triage (small code fix per key) |

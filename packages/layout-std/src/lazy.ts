@@ -1,5 +1,5 @@
 import type { LayoutContext, LayoutEngine, LayoutInput, LayoutResult } from '@sgl/layout-api';
-import { treeDescriptor, type EngineDescriptor } from './descriptor.js';
+import { radialDescriptor, treeDescriptor, type EngineDescriptor } from './descriptor.js';
 
 /**
  * Engines whose layout code is the lazy `std-trees` chunk (DD-12 N52, H9):
@@ -38,8 +38,21 @@ export function lazyEngine(descriptor: EngineDescriptor, load: () => Promise<Lay
   };
 }
 
+/** The chunk's layout function `name`. The name is a parameter, not a
+ *  property written out, so the bundler cannot tell which exports are used
+ *  and keeps them all: the chunk also exports `sinTurn`/`cosTurn`, which
+ *  `apps/web/test/std-trees-chunk.test.ts` checks, as built, against the
+ *  trig golden (B5 branch 5, fix round 1, item 5). */
+const fromTrees = async (name: 'layoutTree' | 'layoutRadial'): Promise<LayoutFn> => (await import('./std-trees.js'))[name];
+
 /** `tree` (DD-12 §8): Buchheim–Walker over the spanning forest, elbow edges.
  *  Pure, so a bundle that imports this package without registering `tree`
  *  (the page, via `/descriptor`, or a test worker) carries neither the stub
  *  nor the chunk. */
-export const treeEngine: LayoutEngine = /* @__PURE__ */ lazyEngine(treeDescriptor, async () => (await import('./std-trees.js')).layoutTree);
+export const treeEngine: LayoutEngine = /* @__PURE__ */ lazyEngine(treeDescriptor, () => fromTrees('layoutTree'));
+
+/** `radial` (DD-12 §9): a wedge layout over the same spanning forest, from
+ *  the same chunk (N52); pure, as `treeEngine` is. The two stubs load the
+ *  chunk each on its own first call, but a module is imported once, so the
+ *  second costs no fetch. */
+export const radialEngine: LayoutEngine = /* @__PURE__ */ lazyEngine(radialDescriptor, () => fromTrees('layoutRadial'));

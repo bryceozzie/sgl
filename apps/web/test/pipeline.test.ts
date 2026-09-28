@@ -243,6 +243,15 @@ describe('pipeline (DD-08 §3)', () => {
       expect(env.pipeline.diags.value.map((d) => [d.code, source.slice(d.span.from, d.span.to)])).toEqual([['SGL4010', '@direction']]);
     });
 
+    it('reach radial too (feat/b5-radial): its spacings from the document; direction is not its option, SGL4010', async () => {
+      const source = '@layout: { engine: radial, rankSpacing: 120, direction: right }\na: "A"\n';
+      const env = setup(source, { engineSchemas });
+      await completeOneLayout(env, 'a');
+      expect(env.pending.at(-1)!.engineId).toBe('sgl.radial');
+      expect(env.pending.at(-1)!.options).toEqual({ nodeSpacing: 40, rankSpacing: 120 });
+      expect(env.pipeline.diags.value.map((d) => [d.code, source.slice(d.span.from, d.span.to)])).toEqual([['SGL4010', 'direction']]);
+    });
+
     it('reach tree too (feat/b5-tree): direction and edgeRouting from the document; an elk-only value is SGL2011', async () => {
       const source = '@layout: { engine: tree, direction: right, edgeRouting: straight, nodePlacement: LINEAR_SEGMENTS }\na: "A"\n';
       const env = setup(source, { engineSchemas });
@@ -665,6 +674,23 @@ describe('@pin under the registered engines (DD-12 N6, H4)', () => {
     expect(env.pipeline.diags.value).toEqual([]);
     // Tree does not honour pins (DD-12 N39): SGL4021, as under elk and grid.
     const pinned = setup('@layout: { engine: tree }\na: { @pin: { x: 1, y: 2 } }\n', { ...registered, defaultEngineId: 'sgl.elk' });
+    expect(pinned.pipeline.diags.value.map((d) => d.code)).toEqual(['SGL4021']);
+  });
+
+  it('radial is registered, by id and bare name, with its root hint; a container @direction is not its hint (feat/b5-radial)', () => {
+    const radial = REGISTERED_ENGINES.find((e) => e.id === 'sgl.radial');
+    expect(radial).toMatchObject({ id: 'sgl.radial', name: 'Radial', determinism: 'bitwise' });
+    expect(radial?.pins).toBeUndefined();
+    const source = '@layout: { engine: radial }\nr: { @layout: { root: true } }\na: "A"\n';
+    const env = setup(source, { ...registered, defaultEngineId: 'sgl.elk' });
+    expect(env.pipeline.effectiveEngineId.value).toBe('sgl.radial');
+    expect(env.pipeline.diags.value).toEqual([]);
+    // DD-12 N47: `root` is its only hint; a container's `@direction` is SGL4010.
+    const turned = '@layout: { engine: radial }\nbox: {\n  @direction: right\n  a\n}\n';
+    const other = setup(turned, { ...registered, defaultEngineId: 'sgl.elk' });
+    expect(other.pipeline.diags.value.map((d) => [d.code, turned.slice(d.span.from, d.span.to)])).toEqual([['SGL4010', '@direction']]);
+    // Radial does not honour pins (N47): SGL4021.
+    const pinned = setup('@layout: { engine: radial }\na: { @pin: { x: 1, y: 2 } }\n', { ...registered, defaultEngineId: 'sgl.elk' });
     expect(pinned.pipeline.diags.value.map((d) => d.code)).toEqual(['SGL4021']);
   });
 

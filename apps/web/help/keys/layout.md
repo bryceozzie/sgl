@@ -70,11 +70,11 @@ See also: [Layout engine](#help/key/layout.engine), [Engine hints](#help/key/lay
 
 ## @layout.engine {#key/layout.engine}
 
-The engine that lays out the document, by its short name, `elk`, `grid`, `fixed` or `tree`, or its full id, such as `sgl.grid`. It overrides the Engine picker.
+The engine that lays out the document, by its short name, `elk`, `grid`, `fixed`, `tree` or `radial`, or its full id, such as `sgl.grid`. It overrides the Engine picker.
 
-Aliases: engine, elk, grid, fixed, tree
+Aliases: engine, elk, grid, fixed, tree, radial
 
-Write it at the document root, as `@layout: { engine: grid }` or `@layout.engine: grid`. `elk` draws layered diagrams with routed edges; `grid` places nodes in rows and columns; `fixed` places each node at its `@pin`; `tree` draws each container's children as a tidy tree, parents centred above their children, joined by elbow edges.
+Write it at the document root, as `@layout: { engine: grid }` or `@layout.engine: grid`. `elk` draws layered diagrams with routed edges; `grid` places nodes in rows and columns; `fixed` places each node at its `@pin`; `tree` draws each container's children as a tidy tree, parents centred above their children, joined by elbow edges; `radial` puts each tree's root at the centre and its descendants on rings around it, one ring per level.
 
 ```sgl example title="The short form" engine=grid
 @layout.engine: grid
@@ -95,6 +95,23 @@ cto -> dev
 ```
 
 Under `tree`, an edge that is not part of the tree, such as a second parent or an edge back up a cycle, is drawn as a straight line.
+
+```sgl example title="The same hierarchy, radial" engine=radial
+@layout: { engine: radial }
+hub: "Hub"
+a: "North"
+b: "East"
+c: "South"
+d: "West"
+a1: "Leaf"
+hub -> a
+hub -> b
+hub -> c
+hub -> d
+a -> a1
+```
+
+Under `radial`, each subtree gets a slice of the circle in proportion to its size, starting at 12 o'clock and going clockwise, and every edge is a straight line. Separate trees are drawn side by side, each around its own centre.
 
 See also: [Layout](#help/key/layout)
 
@@ -127,7 +144,7 @@ api -> db: { @layout.priority: 5 }
 api -> cache
 ```
 
-Under `tree`, a node's `@layout.root: true` makes it the root of a tree even when an edge points to it, and a container's `@layout.direction` turns the tree inside it.
+Under `tree` and `radial`, a node's `@layout.root: true` makes it the root of a tree even when an edge points to it (under `radial`, the centre of its rings). Under `tree`, a container's `@layout.direction` turns the tree inside it.
 
 ```sgl example title="A root chosen by a hint" engine=tree
 @layout: { engine: tree }
