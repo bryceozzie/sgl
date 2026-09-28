@@ -7,6 +7,7 @@ import {
   buildLayoutInput,
   engineNotes,
   layoutConfigDiagnostics,
+  rootLayoutOptions,
   quantize,
   validateResult,
   type LayoutContext,
@@ -155,15 +156,19 @@ export async function runPipeline(
   // SGL4010 (Stage K fix round 1, item 23) and SGL4021 (DD-12 N6), as the
   // app's pipeline emits them: the document's `@layout` keys and `@pin`s
   // against the engine laying it out.
-  const d3b = layoutConfigDiagnostics(ast, {
+  const schemas = {
     id: engine.id,
     ...(engine.optionsSchema && { optionsSchema: engine.optionsSchema }),
     ...(engine.hintsSchema && { hintsSchema: engine.hintsSchema }),
     ...(engine.capabilities.pins === true && { pins: true }),
-  }, d2);
+  };
+  const d3b = layoutConfigDiagnostics(ast, schemas, d2);
+  // DD-12 H6: the root `@layout` options override the caller's, as the app's
+  // override its form's. No `accepts` here: the harness has no form rules.
+  const root = rootLayoutOptions(ast, model.root.config, schemas);
   const { value: theme, diagnostics: d4 } = resolveTheme(themeDoc, (id) => BUILT_IN[id]);
   const { value: styled, diagnostics: d5 } = styleGraph(graph, theme, model.classes);
-  const { input, result, table, diagnostics: d6 } = await layOut(styled, engine, options);
+  const { input, result, table, diagnostics: d6 } = await layOut(styled, engine, { ...options, ...root.options });
   const rendered = render(styled, result, theme, table);
   return {
     styled,
@@ -172,7 +177,7 @@ export async function runPipeline(
     table,
     theme,
     rendered,
-    diagnostics: [...d1, ...d2, ...d3, ...d3b, ...d4, ...d5, ...d6, ...rendered.diagnostics],
+    diagnostics: [...d1, ...d2, ...d3, ...d3b, ...root.diagnostics, ...d4, ...d5, ...d6, ...rendered.diagnostics],
   };
 }
 

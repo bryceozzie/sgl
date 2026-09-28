@@ -21,7 +21,7 @@ import { ELK_DEFAULT_OPTIONS, normalizeElkOptions } from '../src/descriptor.js';
 import { elkEngine } from '../src/index.js';
 import { loadElk } from '../src/load-elk.js';
 import { fromElkGraph, toElkGraph, type ElkNode } from '../src/mapping.js';
-import { layoutInputFor, layoutInputForSource, METRICS, withContainerMin } from './corpus-input.js';
+import { documentOptionsFor, layoutInputFor, layoutInputForSource, METRICS, withContainerMin } from './corpus-input.js';
 
 /**
  * The real elkjs over the whole corpus (Stage K gate, T2): every document lays
@@ -118,14 +118,22 @@ describe('elk over the corpus (DD-06 §6, Stage K gate)', () => {
     }, 30_000);
   }
 
+  // The goldens take each document's root `@layout` options, as the app sends
+  // them (DD-12 H6): only `checkout.sgl` sets one (`direction: right`).
+  it("the goldens' options: only checkout.sgl's root @layout sets one", () => {
+    expect(CLEAN_DOCS.filter((doc) => Object.keys(documentOptionsFor(doc)).length > 0).map((doc) => [doc, documentOptionsFor(doc)])).toEqual([
+      ['checkout.sgl', { direction: 'right' }],
+    ]);
+  });
+
   for (const doc of CLEAN_DOCS) {
     it(`${doc}: input golden (the ElkNode JSON sent to ELK)`, async () => {
-      const graph = toElkGraph(layoutInputFor(doc), ELK_DEFAULT_OPTIONS, METRICS);
+      const graph = toElkGraph(layoutInputFor(doc), normalizeElkOptions(documentOptionsFor(doc)), METRICS);
       await expect(`${JSON.stringify(graph, null, 2)}\n`).toMatchFileSnapshot(`./__goldens__/input/${doc}.json`);
     });
 
     it(`${doc}: output golden (the engine's LayoutResult, quantized)`, async () => {
-      const raw = await engineOutput(layoutInputFor(doc));
+      const raw = await engineOutput(layoutInputFor(doc), documentOptionsFor(doc));
       await expect(`${JSON.stringify(quantize(raw, 64), null, 2)}\n`).toMatchFileSnapshot(`./__goldens__/result/${doc}.json`);
     });
 

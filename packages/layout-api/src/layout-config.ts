@@ -1,4 +1,4 @@
-import { layoutDiagnostic, type Diagnostic, type Document, type Entry, type SourceSpan, type Value } from '@sgl/core';
+import { diagnostic, layoutDiagnostic, type ConfigBag, type Diagnostic, type Document, type Entry, type SourceSpan, type Value } from '@sgl/core';
 import type { JSONSchema7 } from './contract.js';
 
 /**
@@ -13,7 +13,9 @@ import type { JSONSchema7 } from './contract.js';
  * - (b) any `@layout.{key}` — root or container, `@direction` sugar included —
  *   that the effective engine declares neither as an option (`optionsSchema`)
  *   nor as a hint (`hintsSchema`), e.g. `columns` under `elk`. A container's
- *   `@layout` keys are hints (DD-06 §2), so the hint schema counts too.
+ *   `@layout` keys are hints (DD-06 §2), so the hint schema counts too. The
+ *   root's are options (DD-12 H6; `rootLayoutOptions` sends them to the
+ *   engine), so at the root only `optionsSchema` counts.
  *
  * **Why here.** `@sgl/core` knows nothing about engines, and the engine's
  * schemas live on its descriptor, which only a caller that knows the
@@ -43,6 +45,9 @@ export interface EngineSchemas {
   readonly hintsSchema?: JSONSchema7;
   /** The engine's `capabilities.pins` (DD-12 N6); absent means `false`. */
   readonly pins?: boolean;
+  /** DD-12 H6: whether a root `@layout` option's value is one the engine
+   *  takes (`rootLayoutOptions`). Absent: any value of a declared option. */
+  readonly accepts?: (key: string, value: unknown) => boolean;
 }
 
 interface LayoutKey {
@@ -53,7 +58,8 @@ interface LayoutKey {
 
 export function layoutConfigDiagnostics(ast: Document, engine: EngineSchemas, resolved: readonly Diagnostic[] = []): readonly Diagnostic[] {
   const out: Diagnostic[] = [];
-  const declared = declaredKeys(engine);
+  const declared = declaredKeys(engine, [engine.optionsSchema, engine.hintsSchema]);
+  const options = declaredKeys(engine, [engine.optionsSchema]);
   // SGL4021 (fix round 1, items 6 and 7): each node's first pin key in source
   // order, by its path, so a node declared twice is warned about once; `null`
   // once the resolver has dropped one of its pins (SGL2011 at that key), which
@@ -78,7 +84,8 @@ export function layoutConfigDiagnostics(ast: Document, engine: EngineSchemas, re
           }
           continue;
         }
-        if (declared !== null && !declared.has(k.key)) out.push(layoutDiagnostic('SGL4010', k.span, { key: k.key, id: engine.id }));
+        const known = path === null ? options : declared;
+        if (known !== null && !known.has(k.key)) out.push(layoutDiagnostic('SGL4010', k.span, { key: k.key, id: engine.id }));
       }
     }
   };
@@ -107,12 +114,48 @@ function namesEngine(value: Value, id: string): boolean {
   return name.trim() === '' || name === id || (id.startsWith('sgl.') && name === id.slice('sgl.'.length));
 }
 
-function declaredKeys(engine: EngineSchemas): ReadonlySet<string> | null {
+function declaredKeys(engine: EngineSchemas, schemas: readonly (JSONSchema7 | undefined)[]): ReadonlySet<string> | null {
   if (engine.optionsSchema === undefined && engine.hintsSchema === undefined) return null;
   const keys = new Set<string>();
-  for (const schema of [engine.optionsSchema, engine.hintsSchema]) {
+  for (const schema of schemas) {
     const props = schema?.['properties'];
     if (typeof props === 'object' && props !== null) for (const k of Object.keys(props)) keys.add(k);
   }
   return keys;
+}
+
+/**
+ * DD-12 H6 (N40; language spec §4): the options a document's root `@layout`
+ * sets for `engine` — every key but `engine` that the engine declares in its
+ * `optionsSchema`, with its resolved value (variables substituted, the
+ * `@direction` sugar folded in), keys sorted. For that document they override
+ * the editor's options (the app merges them over its form's bag).
+ *
+ * A key the engine does not declare is not here (it is `layoutConfigDiagnostics`'
+ * `SGL4010`). A value `engine.accepts` refuses is not here either: it is one
+ * `SGL2011` at the key that set it (the last one, since later wins), and the
+ * editor's value applies. Neither DD-06 nor DD-12 says what an invalid value
+ * is; `SGL2011` is the resolver's "expects …; ignored", the code a malformed
+ * `@pin` already gets.
+ */
+export function rootLayoutOptions(
+  ast: Document,
+  root: ConfigBag,
+  engine: EngineSchemas,
+): { readonly options: Readonly<Record<string, unknown>>; readonly diagnostics: readonly Diagnostic[] } {
+  const options: Record<string, unknown> = {};
+  const diagnostics: Diagnostic[] = [];
+  const layout = root['layout'];
+  const declared = declaredKeys(engine, [engine.optionsSchema]);
+  if (typeof layout !== 'object' || layout === null || declared === null) return { options, diagnostics };
+  const bag = layout as ConfigBag;
+  const refused = new Map<string, SourceSpan | null>();
+  for (const key of Object.keys(bag).sort()) {
+    if (key === 'engine' || !declared.has(key)) continue;
+    if (engine.accepts?.(key, bag[key]) === false) refused.set(key, null);
+    else options[key] = bag[key];
+  }
+  for (const entry of ast.entries) if (entry.kind === 'ConfigEntry') for (const k of layoutKeys(entry)) if (refused.has(k.key)) refused.set(k.key, k.span);
+  for (const [key, span] of refused) if (span !== null) diagnostics.push(diagnostic('SGL2011', span, { key: `layout.${key}`, type: `a value engine \`${engine.id}\` accepts` }));
+  return { options, diagnostics };
 }

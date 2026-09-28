@@ -2,7 +2,7 @@
   "id": "root",
   "layoutOptions": {
     "elk.algorithm": "layered",
-    "elk.direction": "DOWN",
+    "elk.direction": "RIGHT",
     "elk.hierarchyHandling": "INCLUDE_CHILDREN",
     "elk.randomSeed": "1",
     "elk.edgeRouting": "ORTHOGONAL",
@@ -37,7 +37,7 @@
         "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
         "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
         "elk.nodeSize.constraints": "MINIMUM_SIZE",
-        "elk.nodeSize.minimum": "(0,88.90736000000001)"
+        "elk.nodeSize.minimum": "(88.90736000000001,0)"
       },
       "children": [
         {
@@ -81,7 +81,7 @@
         "elk.nodeLabels.padding": "[top=0,left=0,bottom=0,right=0]",
         "elk.padding": "[top=37.6,left=16,bottom=16,right=16]",
         "elk.nodeSize.constraints": "MINIMUM_SIZE",
-        "elk.nodeSize.minimum": "(0,89.62016)"
+        "elk.nodeSize.minimum": "(89.62016,0)"
       },
       "children": [
         {

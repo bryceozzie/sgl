@@ -2,7 +2,7 @@ import { elkDescriptor } from '@sgl/layout-elk/descriptor';
 import { fixedEngine, gridEngine } from '@sgl/layout-std';
 import { describe, expect, it } from 'vitest';
 import { editOption, engineForm, formValues, withOption } from '../src/state/engine-form.js';
-import { defaultOptionsFor, optionsForEngine } from '../src/state/engine-options.js';
+import { acceptsOption, defaultOptionsFor, optionsForEngine } from '../src/state/engine-options.js';
 
 /** F11 (DD-08 §10, Stage K decision K9): one hand-built form per engine,
  *  DOM-free. `toolbar/EngineOptions.tsx` only renders this. */
@@ -104,5 +104,33 @@ describe('engine options form (F11)', () => {
     expect(engineForm('org.example.other')).toBeNull();
     expect(defaultOptionsFor('org.example.other')).toEqual({});
     expect(formValues('org.example.other', { a: 1 })).toEqual({});
+  });
+});
+
+/** DD-12 H6: a document's root `@layout` options, over the form. */
+describe('document options (DD-12 H6)', () => {
+  it("a document's value is accepted exactly when the engine's form would keep it", () => {
+    expect(acceptsOption('sgl.elk', 'direction', 'right')).toBe(true);
+    expect(acceptsOption('sgl.elk', 'direction', 'sideways')).toBe(false);
+    expect(acceptsOption('sgl.elk', 'nodeSpacing', 30)).toBe(true);
+    for (const v of [-1, 501, '30', Number.NaN]) expect(acceptsOption('sgl.elk', 'nodeSpacing', v)).toBe(false);
+    expect(acceptsOption('sgl.grid', 'columns', 'auto')).toBe(true);
+    expect(acceptsOption('sgl.grid', 'columns', 3)).toBe(true);
+    for (const v of [0, 2.5, 51, 'x']) expect(acceptsOption('sgl.grid', 'columns', v)).toBe(false);
+    expect(acceptsOption('sgl.fixed', 'gap', 0)).toBe(true);
+    expect(acceptsOption('sgl.fixed', 'gap', 201)).toBe(false);
+    // An engine with no hand-built form takes any value of a declared option.
+    expect(acceptsOption('org.example.other', 'anything', { a: 1 })).toBe(true);
+  });
+
+  it('the form shows the effective value: the document\'s over the stored bag', () => {
+    expect(formValues('sgl.elk', { direction: 'down', rankSpacing: 90 }, { direction: 'right' })).toEqual({
+      direction: 'right',
+      nodeSpacing: 40,
+      rankSpacing: 90,
+      edgeRouting: 'ORTHOGONAL',
+      nodePlacement: 'BRANDES_KOEPF',
+    });
+    expect(formValues('sgl.grid', {}, { columns: 3 })).toEqual({ columns: 3, gap: 24, align: 'center' });
   });
 });

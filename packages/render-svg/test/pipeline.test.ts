@@ -451,3 +451,14 @@ describe('wildcards in parent path segments render through the real pipeline (la
     expect(expanded.rendered.svg).toBe(byHand.rendered.svg);
   });
 });
+
+describe("the harness sends the document's root @layout options, as the app does (DD-12 H6)", () => {
+  it("`@layout: { columns: 1 }` under grid stacks the nodes in one column; a caller's own options are overridden", async () => {
+    const xs = async (source: string, options: Readonly<Record<string, unknown>> = {}) => {
+      const { result } = await runPipeline(source, neutralLight, undefined, options);
+      return new Set(['a', 'b', 'c'].map((id) => result.nodes[id as keyof typeof result.nodes]!.frame.x));
+    };
+    expect((await xs('a\nb\nc\n')).size).toBe(2); // automatic: 2 columns for 3 nodes
+    expect((await xs('@layout: { columns: 1 }\na\nb\nc\n', { columns: 3 })).size).toBe(1);
+  });
+});
