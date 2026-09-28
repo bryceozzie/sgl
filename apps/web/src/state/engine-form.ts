@@ -1,5 +1,5 @@
 import { ELK_DIRECTIONS, ELK_EDGE_ROUTINGS, ELK_ENGINE_ID, ELK_NODE_PLACEMENTS } from '@sgl/layout-elk/descriptor';
-import { COLUMNS_MAX, engineOptionRules, FIXED_ENGINE_ID, GAP_MAX, GRID_ENGINE_ID, SPACING_MAX, TREE_ENGINE_ID, type OptionValue } from './engine-options.js';
+import { COLUMNS_MAX, engineOptionRules, FIXED_ENGINE_ID, GAP_MAX, GRID_ENGINE_ID, RADIAL_ENGINE_ID, SPACING_MAX, TREE_ENGINE_ID, type OptionValue } from './engine-options.js';
 
 /**
  * F11 (DD-08 §10): the per-engine options form, as DOM-free data and pure
@@ -49,12 +49,14 @@ export interface EngineForm {
 const choices = (values: readonly string[], labels: Readonly<Record<string, string>>) =>
   values.map((value) => ({ value, label: labels[value] ?? value }));
 
+// Spacings in px, 0–500: the defaults are 40 and 70, and at 500 px two
+// neighbours no longer read as one diagram at any zoom the canvas offers.
+const NODE_SPACING: OptionField = { kind: 'number', key: 'nodeSpacing', label: 'Node spacing', min: 0, max: SPACING_MAX, step: 1 };
+
 /** Direction and the two spacings: `elk`'s fields, which `tree` shares (DD-12 N37). */
 const FLOW_FIELDS: readonly OptionField[] = [
   { kind: 'select', key: 'direction', label: 'Direction', choices: choices(ELK_DIRECTIONS, { down: 'Down', up: 'Up', left: 'Left', right: 'Right' }) },
-  // Spacings in px, 0–500: the defaults are 40 and 70, and at 500 px two
-  // neighbours no longer read as one diagram at any zoom the canvas offers.
-  { kind: 'number', key: 'nodeSpacing', label: 'Node spacing', min: 0, max: SPACING_MAX, step: 1 },
+  NODE_SPACING,
   { kind: 'number', key: 'rankSpacing', label: 'Rank spacing', min: 0, max: SPACING_MAX, step: 1 },
 ];
 
@@ -99,6 +101,11 @@ const FIELDS: Readonly<Record<string, { readonly title: string; readonly fields:
       ...FLOW_FIELDS,
       { kind: 'select', key: 'edgeRouting', label: 'Edges', choices: [{ value: 'orthogonal', label: 'Elbows' }, { value: 'straight', label: 'Straight' }] },
     ],
+  },
+  // DD-12 N47: tree's spacings; `rankSpacing` is the gap between rings.
+  [RADIAL_ENGINE_ID]: {
+    title: 'Radial options',
+    fields: [NODE_SPACING, { kind: 'number', key: 'rankSpacing', label: 'Ring spacing', min: 0, max: SPACING_MAX, step: 1 }],
   },
 };
 

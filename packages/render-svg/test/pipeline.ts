@@ -17,7 +17,7 @@ import {
   type ResolvedThemeMetricsView,
   type StyledGraphInput,
 } from '@sgl/layout-api';
-import { fixedEngine, gridEngine, treeEngine } from '@sgl/layout-std';
+import { fixedEngine, gridEngine, radialEngine, treeEngine } from '@sgl/layout-std';
 import { labelRunKey, premeasure, StaticMetricsMeasurer, type MeasureTable } from '@sgl/measure';
 import { layoutWrapped } from '@sgl/text/wrap';
 import { BUILT_IN, neutralLight, resolveTheme, styleGraph, unknownThemeDiagnostics, type ResolvedTheme, type StyledGraph, type ThemeDoc } from '@sgl/theme';
@@ -126,8 +126,9 @@ async function layOut(
  *  its directory (A9, `corpus/imports/`), through the import-aware resolve
  *  and compile, as the app does for a document with `@imports`. */
 /** The engines this harness can run: `grid`, every golden's engine,
- *  `fixed` (feat/b5-fixed) and `tree` (feat/b5-tree). */
-const HARNESS_ENGINES: readonly LayoutEngine[] = [gridEngine, fixedEngine, treeEngine];
+ *  `fixed` (feat/b5-fixed), `tree` (feat/b5-tree) and `radial`
+ *  (feat/b5-radial; no corpus document names it yet). */
+const HARNESS_ENGINES: readonly LayoutEngine[] = [gridEngine, fixedEngine, treeEngine, radialEngine];
 
 /** The engine a document names at its root `@layout.engine`, by id or bare
  *  name (DD-12 N22), when the harness has it; otherwise `grid`. So the pin
