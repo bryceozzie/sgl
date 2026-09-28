@@ -374,6 +374,18 @@ get no diagnostic, because an author can overlap them on purpose. Both rows go i
   engine is for. Declaring `edgeRouting: 'orthogonal'` while leaving some edges unrouted is already
   allowed: `routeStraight` fills only what an engine left out (DD-06 §3).* The option `edgeRouting:
   straight` turns elbows off.
+
+  *As built (fix round 1):* every edge between a tree arc's own two nodes gets an elbow, not only
+  the first: a parallel, or a back edge from child to parent, runs beside the first, offset by a
+  fixed step, so no two of them are drawn on one line (§13 branch 4). Under orthogonal routing the
+  gap between bands is at least `2 × arrowSize + 8`, so an elbow always ends on a run along the
+  depth axis.
+
+  **Known limitation: no obstacle routing.** The host's straight route for a non-tree edge (a
+  cycle's broken arc, a second parent, a skip-level edge) ignores the nodes between its ends and
+  can pass through them: in `layout/tree-cycle.sgl`, `c -> a` crosses `B`. Not fixed in B5 branch 4
+  (07 §2.1 F34). `tree.test.ts` pins today's count of edge runs through a leaf that is not their
+  end, per `layout/tree-*.sgl` fixture, so it can only go down.
 - **N35. Labels are the host's (`labelPlacement: false`).** An edge label goes at the elbow's
   arc-length midpoint, which is on its horizontal run.
 - **N36. No ports (`ports: false`).** Elbows attach at the centre line.
@@ -743,8 +755,8 @@ begins.
 4. **`feat/b5-tree`**. **Implemented** on `feat/b5-tree` (2026-09-28, from `main` at `9f47545`,
    before branch 3 merged; `main` at `9c543c8` merged in since); the deviations are below the list.
    - `forest.ts` (§7) and `tree.ts`.
-   - The lazy `std-trees` chunk infrastructure (N52): the worker's `manualChunks`, `.size-limit.js`,
-     `check-core-chunks.mjs`, and the offline e2e.
+   - The lazy `std-trees` chunk infrastructure (N52): `.size-limit.js`, `check-core-chunks.mjs`,
+     and the offline e2e.
    - Options and form, goldens, conformance, units and e2e.
 
    **As built, and its deviations:**
@@ -768,20 +780,23 @@ begins.
    - **Root order (N27).** The roots are listed in the order they are found: the `@layout.root`
      hints, then the nodes with no incoming arc, then each cycle's first node. That is also the
      trees' order left to right. The BFS runs from the first two groups at once.
-   - **One elbow per tree arc (N34).** Of the edges between the arc's own two nodes, the first in
-     `graph.edges` order gets the elbow; a parallel duplicate is left to the host, so two edges are
-     not drawn on top of each other. An edge between a container and its own descendant makes no
-     arc at any level (it lies under one child), so it is the host's too.
+   - **Elbows (N34).** Of the edges between a tree arc's own two nodes, the first in
+     `graph.edges` order gets the elbow on the centre lines. *(Corrected in fix round 1: this said
+     a parallel duplicate was left to the host "so two edges are not drawn on top of each other";
+     the host's straight route was collinear with the elbow whenever the child sat below its
+     parent. Every such edge now gets an elbow of its own, below.)* An edge between a container and
+     its own descendant makes no arc at any level (it lies under one child), so it is the host's.
    - **A container's direction is inherited (N38):** a container without its own `@direction`
      takes its parent's; the root takes the option.
    - **"Trees sit side by side, `nodeSpacing` apart" (N30)** holds where their contours are
      closest, as Buchheim separates contours level by level; two trees' bounding boxes can be
      closer than that across levels.
-   - **A failed chunk load (as elk's).** `lazyEngine` forgets a rejected load, so the next
-     request calls `load` again, and the request fails with `SGL4011`, the previous picture kept.
-     In a browser the retry does not fetch: the module map keeps a failed dynamic import for the
-     life of the worker. The chunk loads with the next worker (a reload, or a respawn).
-     `load-elk.ts`'s "a failed load is not cached" is true of its promise in the same way.
+   - **A failed chunk load (as elk's).** The request fails with `SGL4011`, the previous picture
+     kept. `lazyEngine` drops the rejected promise, so the next request calls `load` again, but in
+     a browser that is no retry: the module map keeps a failed dynamic import for the life of the
+     worker, so it fails again without a fetch, even with the network back. The chunk loads with
+     the next worker (a reload, or a respawn). 07 §2.1 F33, not fixed; `lazy.ts`'s comment says so
+     since fix round 1, and `e2e/tree.spec.ts` records it.
    - **Found: a node named `root` breaks `elk`.** `ELK_ROOT_ID` is `'root'` and node ids go to ELK
      raw, so a document node `root` collides with ELK's root and conformance check 6 fails on its
      edges. `layout/tree-order.sgl` avoids the name. Reported, not fixed.
@@ -807,6 +822,47 @@ begins.
      descriptor and `lazyEngine`). §11 estimated 0.70. The lazy `std-trees` chunk is 3.17 kB gz
      (7.32 kB raw); §11 estimated ~2.2. After merging `main` at `9c543c8` (branch 3 and F31,
      179 599 B): core **179.98 kB** (179 984 B), +385 B over that `main`.
+
+   **Fix round 1, as built** (2026-09-28; `main` at `44f50d0` merged in first, core limit 184 kB):
+   - **Every edge between a tree arc's two nodes gets an elbow** (`tree.ts`). The pair's edges, in
+     either direction, are ranked: the arc's direct edge 0, then the others in `graph.edges` order
+     +1, −1, +2, …. Rank `r` leaves and enters `r` steps to the side of the centre lines (the step
+     at most 8 px and less than either node's half breadth over the number of ranks, so it stays
+     inside both), each end on the outline (`anchorPoint` towards the offset), and crosses the gap
+     `r` smaller steps (at most 4 px, inside the gap) nearer the parent when it lies on the
+     child's side, nearer the child otherwise, so the elbows nest. A back edge runs the same path
+     from the child, its normals reversed. Test: over the tree fixtures and five parallel/back-edge
+     inputs, in all four directions, no two routes share a collinear run longer than 2 px, except
+     two elbows of *different* arcs, which share their parent's trunk by design.
+   - **`rankSpacing: 0`** collapsed the elbow into one run across, and the host's arrow reserve
+     then bent the last segment diagonally. Under orthogonal routing the gap between bands is now
+     at least `2 × arrowSize + 8` (24 px at the default 8), so the first and last runs always
+     follow the depth axis; `straight` keeps `rankSpacing` as given. Test: at `rankSpacing: 0`, in
+     every direction, every elbow's first and last runs match its normals, raw and finished.
+   - **Non-tree edges through nodes: recorded, not fixed** (§8.2, 07 §2.1 F34). `tree.test.ts`
+     counts edge runs through a leaf that is not their end and pins the count per fixture
+     (`tree-cycle` 1, the others 0), to go only down.
+   - **`check-core-chunks.mjs` checks the module graph** (DD-10 §2): every module of the
+     `std-trees` chunk (`forest.ts`, `tree.ts`) is in that chunk and in no other, so in no chunk
+     the page or the worker reaches statically. Mutation M14 (the worker importing `liftArcs`
+     statically) passed the old check and fails this one twice.
+   - **A reference for Buchheim–Walker**: the paper's recursive algorithm, written out in
+     `tree.test.ts`, against `tree.ts` on 40 random 40-node trees whose labels are 1–3 or 30–49
+     characters. Mutation M9 (no `change[wl]` update in `moveSubtree`) fails it.
+   - **The failed load (F33)**: `lazy.ts`'s comment corrected; the e2e selects `tree` again with
+     the network back and no reload and expects `SGL4011`, then reloads.
+   - **`tree.browser.test.ts`** compares Node's raw output with the raw output computed inside
+     the test's worker (a `raw-tree` message), not on the page, and adds `mixed-widths`, a
+     generated 60-node tree with labels of 1–3 or 30–50 characters.
+   - **The form's defaults are `treeDescriptor`'s** (`engine-options.ts`), not `elk`'s; a test
+     swaps the descriptor's defaults and the form follows.
+   - **Found: quantizing to 1/64 px can make touching siblings overlap** at `nodeSpacing: 0`
+     (host-wide; 07 §2.1 F35). No code change.
+   - **Goldens:** only `layout-std/test/__goldens__/tree/` changed, routes and labels, no frame:
+     `chains.sgl` (`a -> b` twice, `c <-> d` twice), `parallel-selfloop.sgl` (`a -> b` four
+     times), `wildcard-paths.sgl` (`cam1 -> cam2` and `cam2 -> cam1` in `lane1`).
+   - **Size:** core **180.03 kB** (180 034 B), +48 B over the branch with `main` merged
+     (179 986 B), all of it `engine-options.ts` reading the descriptor; +435 B over `main`.
 5. **`feat/b5-radial`**. `trig.ts`, `radial.ts` into the same chunk. Options and form, goldens,
    conformance, the cross-browser `bitwise` test, and e2e.
 6. *(Done on this branch, H3: the backlog splits B5, and `force` is B22, Could; 07 §2.1 F10's owner

@@ -478,7 +478,7 @@ optionsSchema: { direction: enum down|up|left|right (down), nodeSpacing: number,
 hintsSchema:   { direction: enum down|up|left|right, root: boolean }
 ```
 
-`treeDescriptor` is in `@sgl/layout-std/descriptor`. **The layout code is lazy** (DD-12 H9, N52): `treeEngine` (`lazy.ts`) is the descriptor plus a `layout()` that imports `./std-trees.js` (`forest.ts` and `tree.ts`) on its first call, so the worker emits it as the `std-trees-*.js` chunk and fetches it on the first tree request (DD-10 §2). A failed load fails that request with `SGL4011` (§3) and the previous layout stays, as for `elk`; it is not cached by `lazyEngine`, but a browser keeps a failed dynamic import for the life of the worker, so the chunk is fetched again by the next worker. Host timeout 5 000 ms. The options form (DD-08 §10) has Direction, Node spacing and Rank spacing (`elk`'s fields, 0–500) and Edges (Elbows or Straight).
+`treeDescriptor` is in `@sgl/layout-std/descriptor`. **The layout code is lazy** (DD-12 H9, N52): `treeEngine` (`lazy.ts`) is the descriptor plus a `layout()` that imports `./std-trees.js` (`forest.ts` and `tree.ts`) on its first call, so the worker emits it as the `std-trees-*.js` chunk and fetches it on the first tree request (DD-10 §2). A failed load fails that request with `SGL4011` (§3) and the previous layout stays, as for `elk`. `lazyEngine` drops the rejected promise, but a browser keeps a failed dynamic import for the life of the worker, so every later tree request in that worker fails too, even with the network back; the chunk loads in the next worker (07 §2.1 F33, not fixed). Host timeout 5 000 ms. The options form (DD-08 §10) has Direction, Node spacing and Rank spacing (`elk`'s fields, 0–500) and Edges (Elbows or Straight).
 
 Each container is laid out on its own, post-order (DD-12 N24), from the spanning forest of its visible children (`forest.ts`):
 
@@ -493,20 +493,25 @@ spanningForest:    roots = @layout.root hints, then children with no incoming ar
                    ascending, then declaration order; no @order sorts last. Parent = first to reach.
 placeLevel(c):     Buchheim–Jünger–Leipert over the forest under a virtual root (breadth s = w for
                    down/up, h for left/right; neighbours (s(a) + s(b)) / 2 + nodeSpacing apart);
-                   level k's band starts at Σ_{j<k} (T_j + rankSpacing), each node centred in its band;
+                   level k's band starts at Σ_{j<k} (T_j + gap), each node centred in its band; gap =
+                   rankSpacing, but at least 2 × arrowSize + 8 under orthogonal routing (fix round 1);
                    direction applied last (swap for left/right, flip for up/left), content re-based
                    at (0, 0); size = max(min, title + contentInset.l + r, padding + content)
-elbows:            a tree arc's direct edge, unless edgeRouting is straight: from the parent's
-                   outline (anchorPoint along its centre line) to the middle of the gap between the
-                   two bands, across to the child's centre line, and to the child's outline;
+elbows:            unless edgeRouting is straight, every edge between a tree arc's own two nodes,
+                   the direct edge first, then the others (forward or back) in graph.edges order,
+                   ranked 0, +1, -1, +2, …: rank 0 runs from the parent's outline (anchorPoint along
+                   its centre line) to the middle of the gap between the two bands, across to the
+                   child's centre line, and to the child's outline; rank r runs r steps (≤ 8 px,
+                   inside both nodes) to the side and crosses r smaller steps nearer the parent or
+                   the child, so no two share a line; a back edge runs the path from the child;
                    zero-length segments dropped; normals along the flow
 ```
 
 - **Direction.** A container's own `@direction` (its `layout.direction` hint) applies to its children; a container without one takes its parent's; the root takes the `direction` option.
-- **Edges.** Only the elbows are the engine's; every other edge (a second parent, a cycle's back arc, a lifted edge, a self-loop, a parallel duplicate) is routed straight by the host (§4.2), and `finishEngineRoutes` reserves the elbows' arrowheads (§4.4). Labels are the host's (§4.1): an edge label sits at the elbow's arc-length midpoint, on its run across.
+- **Edges.** Only the elbows are the engine's; every other edge (a second parent, a cycle's back arc, a lifted edge, a self-loop) is routed straight by the host (§4.2), and can cross an unrelated node (no obstacle routing: DD-12 §8.2, 07 §2.1 F34); and `finishEngineRoutes` reserves the elbows' arrowheads (§4.4). Labels are the host's (§4.1): an edge label sits at the elbow's arc-length midpoint, on its run across.
 - **Every walk uses an explicit stack or queue**, never recursion, so a 2 000-long path does not overflow a worker's stack. `+ - * /`, `max` and `min` only: `bitwise`.
 
-Tests: `layout-std/test/forest.test.ts`, `tree.test.ts` (units, tidy-tree invariants on random trees, a bitwise double run raw and quantized over the corpus, goldens in `__goldens__/tree/` for `CLEAN_DOCS` and `layout/tree-*.sgl`), `lazy.test.ts` (the chunk loads once; a failed load is `SGL4011`, then retried), `conformance.test.ts`, `test/browser/tree.browser.test.ts` (Chromium equals Node byte for byte, raw and through a real worker), and `apps/web/e2e/tree.spec.ts`.
+Tests: `layout-std/test/forest.test.ts`, `tree.test.ts` (units, tidy-tree invariants on random trees, a bitwise double run raw and quantized over the corpus, goldens in `__goldens__/tree/` for `CLEAN_DOCS` and `layout/tree-*.sgl`), `lazy.test.ts` (the chunk loads once; a failed load is `SGL4011`, then `load` runs again), `conformance.test.ts`, `test/browser/tree.browser.test.ts` (Chromium equals Node byte for byte: the raw output computed inside a real worker, and the finished result through one), and `apps/web/e2e/tree.spec.ts`. Fix round 1 added: no two routes share a collinear run over 2 px (parallel and back edges), `rankSpacing: 0`'s elbows, a pinned count of edge runs through unrelated leaves, and a plain recursive Buchheim–Walker as a reference on random trees of mixed widths.
 
 ---
 

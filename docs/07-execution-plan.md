@@ -2269,6 +2269,21 @@ header that still say "B8/B9" are `feat/b8-wire`'s (DD-14 §11). Next: `feat/b8-
 - **Docs:** DD-12 §13 (as built, with deviations), DD-06 §3, §7b, §8, §10, DD-10 §2, DD-13 §13, the
   corpus README.
 
+**B5 branch 4, fix round 1** (on `feat/b5-tree`, `main` at `44f50d0` merged in; not merged). Every
+edge between a tree arc's own two nodes now gets an elbow, a parallel or back edge offset
+sideways by its rank, so none is drawn on another (DD-12's claim that the host's route avoided
+that was wrong); under orthogonal routing the band gap is at least `2 × arrowSize + 8`, so
+`rankSpacing: 0` no longer bends the arrowhead. Non-tree edges through unrelated nodes are recorded
+(§8.2, F34) and their count pinned per `tree-*` fixture. `check-core-chunks.mjs` now reads the
+build's module graph (`apps/web/build/chunk-modules.ts`), so no module of `std-trees` can reach the
+page or the worker statically (mutation M14 fails it). A recursive reference Buchheim–Walker on
+mixed-width random trees kills mutation M9. F33's behaviour is recorded in the e2e and `lazy.ts`'s
+comment corrected; `tree.browser.test.ts` compares raw output inside the worker, with a
+mixed-widths case; the form's defaults come from `treeDescriptor`. F35 found (quantize overlap at
+`nodeSpacing: 0`). Goldens: three `tree` goldens, routes and labels only (`chains`,
+`parallel-selfloop`, `wildcard-paths`); no other. Core **180.03 kB** of 184, +48 B over the branch
+with `main` merged. DD-12 §8.2, §13 (fix round 1), DD-06 §7b, DD-10 §2.
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
@@ -2290,7 +2305,9 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F26** | **E15 (drag to pin) cannot write a dragged position back yet: the host throws away the translation it applies.** `quantize` (DD-06 §5, F14) moves every result so that its content box, plus the margin, starts at `(0, 0)`, and discards the offset (`x0`, `y0`). A pin is relative to its parent's content box, and root pins are relative to each other, the drawing framed to fit its content (DD-12 H2; human decision 2026-09-27), so a canvas position cannot be turned back into a root pin without that offset. Proposed remedy (DD-12 N3): an optional `origin` on `LayoutResult`. B5 does not need it. | E15 (Could), when built |
 | **F28** | **DD-06 §8's conformance check 3 (no two sibling frames overlap) assumes the engine chooses every position.** Under `fixed`, nodes the author pinned may overlap on purpose. **Settled in the suite by `feat/b5-fixed`:** the corpus now has pins, so `runConformance`'s check 3 skips a pair of siblings that both have a `@pin` when the engine declares `pins` (`pinOf`); a pinned node against one the engine placed is still checked (`layout-api/test/conformance.test.ts`, both halves). What remains is the SDK's published conformance guide, which must say the same before third parties rely on it. | Stage M (B18), the guide's text only |
 | **F32** | **A node named `root` collides with ELK's internal root id,** and elk mislays that node's edges (`packages/layout-elk/src/mapping.ts`). Found by `feat/b5-tree` (2026-09-28). The adapter should namespace ELK ids so no author id can collide. | Orchestrator (small fix in the elk adapter) |
-| **F33** | **A lazy engine chunk that fails to load stays failed until reload:** the browser caches the failed `import()`, so the worker's retry never succeeds (elk and `std-trees` alike), despite a code comment saying elk's failed load is not cached. Found by `feat/b5-tree` (2026-09-28). Either correct the comment and document it, or re-import through a cache-busting path. | Orchestrator |
+| **F33** | **A lazy engine chunk that fails to load stays failed until reload:** the browser caches the failed `import()`, so the worker's retry never succeeds (elk and `std-trees` alike), despite a code comment saying elk's failed load is not cached. Found by `feat/b5-tree` (2026-09-28). Either correct the comment and document it, or re-import through a cache-busting path. **It covers `std-trees` too** (`treeEngine`, `packages/layout-std/src/lazy.ts`): its comment was corrected in B5 branch 4's fix round 1, and `e2e/tree.spec.ts` records a tree request failing with `SGL4011` after the network is back, until a reload. | Orchestrator |
+| **F34** | **`tree` draws non-tree edges straight through unrelated nodes:** a cycle's broken arc, a second parent or a skip-level edge is left to the host's straight route (DD-06 §4.2), which ignores the nodes between its ends (`layout/tree-cycle.sgl`: `c -> a` crosses `B`). DD-12 §8.2 records it as a known limitation. `packages/layout-std/test/tree.test.ts` pins the count of edge runs through a leaf that is not their end per `layout/tree-*.sgl` fixture (`tree-cycle` 1, the others 0), so it can only go down. Remedy: obstacle-avoiding routing for the host's fallback or for `tree`'s non-tree edges. Found by B5 branch 4's review (fix round 1, 2026-09-28). | Orchestrator, after B5 |
+| **F35** | **Quantizing to 1/64 px can make touching siblings overlap:** at `nodeSpacing: 0` two siblings whose frames touch exactly can, once `quantize` rounds each frame's position and size (DD-06 §5), overlap by up to a 1/64 px step. Host-wide, not `tree`'s: any engine that places frames edge to edge meets it. Found by B5 branch 4's review (fix round 1, 2026-09-28); no code changed. Remedy: quantize the edges of a frame rather than its position and size, or let conformance check 3 allow a 1/64 px overlap. | Orchestrator |
 | **F29** | **Spec §9's worked example puts `@layout: { engine: grid }` on a container, which this build does not support** (per-container engines are B8). Under `elk` it gives two `SGL4010` warnings. Found by help branch 2 (2026-09-27). **Human decision 2026-09-27: keep the example and build B8 (per-container engines) sooner.** | B8's implementer (prioritised in Stage L; design [DD-14](detailed-design/14-container-engines.md), decided 2026-09-28): `feat/b8-compose` (the composer), then `feat/b8-wire`, which clears this row |
 | **F30** | **Three keys are accepted and kept, but nothing uses them:** `@order`, `@tooltip` and `@size.aspectRatio`. The help says so. Each needs either an implementation or `SGL2010` ("no effect in this version") so authors are not misled. Found by help branch 2 (2026-09-27). | Orchestrator triage (small code fix per key) |
 
