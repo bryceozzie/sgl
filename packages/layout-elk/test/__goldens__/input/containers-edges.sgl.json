@@ -14,7 +14,7 @@
   },
   "children": [
     {
-      "id": "outside",
+      "id": "n:outside",
       "width": 72,
       "height": 36,
       "labels": [
@@ -29,7 +29,7 @@
       ]
     },
     {
-      "id": "alpha",
+      "id": "n:alpha",
       "layoutOptions": {
         "elk.spacing.nodeNode": "40",
         "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -41,7 +41,7 @@
       },
       "children": [
         {
-          "id": "alpha.one",
+          "id": "n:alpha.one",
           "width": 72,
           "height": 36,
           "labels": [
@@ -56,7 +56,7 @@
           ]
         },
         {
-          "id": "alpha.two",
+          "id": "n:alpha.two",
           "width": 72,
           "height": 36,
           "labels": [
@@ -73,7 +73,7 @@
       ]
     },
     {
-      "id": "beta",
+      "id": "n:beta",
       "layoutOptions": {
         "elk.spacing.nodeNode": "40",
         "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -85,7 +85,7 @@
       },
       "children": [
         {
-          "id": "beta.three",
+          "id": "n:beta.three",
           "width": 72,
           "height": 36,
           "labels": [
@@ -100,7 +100,7 @@
           ]
         },
         {
-          "id": "beta.four",
+          "id": "n:beta.four",
           "width": 72,
           "height": 36,
           "labels": [
@@ -119,62 +119,62 @@
   ],
   "edges": [
     {
-      "id": "e-f2aac71dd31bb0c6",
+      "id": "e:e-f2aac71dd31bb0c6",
       "sources": [
-        "outside"
+        "n:outside"
       ],
       "targets": [
-        "alpha"
+        "n:alpha"
       ],
       "labels": []
     },
     {
-      "id": "e-07477e7f41d96eed",
+      "id": "e:e-07477e7f41d96eed",
       "sources": [
-        "alpha"
+        "n:alpha"
       ],
       "targets": [
-        "beta"
+        "n:beta"
       ],
       "labels": []
     },
     {
-      "id": "e-a4e4b400f96e5f47",
+      "id": "e:e-a4e4b400f96e5f47",
       "sources": [
-        "alpha.two"
+        "n:alpha.two"
       ],
       "targets": [
-        "beta.three"
+        "n:beta.three"
       ],
       "labels": []
     },
     {
-      "id": "e-5389f0636f6aa357",
+      "id": "e:e-5389f0636f6aa357",
       "sources": [
-        "beta.four"
+        "n:beta.four"
       ],
       "targets": [
-        "alpha.one"
+        "n:alpha.one"
       ],
       "labels": []
     },
     {
-      "id": "e-b592fb1820a1522e",
+      "id": "e:e-b592fb1820a1522e",
       "sources": [
-        "outside"
+        "n:outside"
       ],
       "targets": [
-        "beta.three"
+        "n:beta.three"
       ],
       "labels": []
     },
     {
-      "id": "e-0f949df0cb5f2817",
+      "id": "e:e-0f949df0cb5f2817",
       "sources": [
-        "alpha.one"
+        "n:alpha.one"
       ],
       "targets": [
-        "alpha.two"
+        "n:alpha.two"
       ],
       "labels": []
     }

@@ -14,7 +14,7 @@
   },
   "children": [
     {
-      "id": "edge",
+      "id": "n:edge",
       "width": 72,
       "height": 36,
       "labels": [
@@ -29,7 +29,7 @@
       ]
     },
     {
-      "id": "storefront",
+      "id": "n:storefront",
       "layoutOptions": {
         "elk.spacing.nodeNode": "40",
         "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -41,7 +41,7 @@
       },
       "children": [
         {
-          "id": "storefront.web",
+          "id": "n:storefront.web",
           "width": 72,
           "height": 36,
           "labels": [
@@ -56,7 +56,7 @@
           ]
         },
         {
-          "id": "storefront.bff",
+          "id": "n:storefront.bff",
           "width": 72,
           "height": 36,
           "labels": [
@@ -73,7 +73,7 @@
       ]
     },
     {
-      "id": "payments",
+      "id": "n:payments",
       "layoutOptions": {
         "elk.spacing.nodeNode": "40",
         "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -85,7 +85,7 @@
       },
       "children": [
         {
-          "id": "payments.api",
+          "id": "n:payments.api",
           "width": 72,
           "height": 36,
           "labels": [
@@ -100,7 +100,7 @@
           ]
         },
         {
-          "id": "payments.ledger",
+          "id": "n:payments.ledger",
           "width": 72,
           "height": 49.800000000000004,
           "labels": [
@@ -115,7 +115,7 @@
           ]
         },
         {
-          "id": "payments.outbox",
+          "id": "n:payments.outbox",
           "width": 72,
           "height": 49.800000000000004,
           "labels": [
@@ -132,7 +132,7 @@
       ]
     },
     {
-      "id": "psp",
+      "id": "n:psp",
       "width": 72,
       "height": 36,
       "labels": [
@@ -149,22 +149,22 @@
   ],
   "edges": [
     {
-      "id": "e-87441157bd4f5902",
+      "id": "e:e-87441157bd4f5902",
       "sources": [
-        "edge"
+        "n:edge"
       ],
       "targets": [
-        "storefront.web"
+        "n:storefront.web"
       ],
       "labels": []
     },
     {
-      "id": "e-9b7b78b27b104012",
+      "id": "e:e-9b7b78b27b104012",
       "sources": [
-        "storefront.bff"
+        "n:storefront.bff"
       ],
       "targets": [
-        "payments.api"
+        "n:payments.api"
       ],
       "labels": [
         {
@@ -178,12 +178,12 @@
       ]
     },
     {
-      "id": "e-b226b1373bf1da7f",
+      "id": "e:e-b226b1373bf1da7f",
       "sources": [
-        "payments.api"
+        "n:payments.api"
       ],
       "targets": [
-        "psp"
+        "n:psp"
       ],
       "labels": [
         {
@@ -197,12 +197,12 @@
       ]
     },
     {
-      "id": "e-d20dab6abc46ae7d",
+      "id": "e:e-d20dab6abc46ae7d",
       "sources": [
-        "storefront.web"
+        "n:storefront.web"
       ],
       "targets": [
-        "storefront.bff"
+        "n:storefront.bff"
       ],
       "labels": [
         {
@@ -216,22 +216,22 @@
       ]
     },
     {
-      "id": "e-fee3fa2995887984",
+      "id": "e:e-fee3fa2995887984",
       "sources": [
-        "payments.api"
+        "n:payments.api"
       ],
       "targets": [
-        "payments.ledger"
+        "n:payments.ledger"
       ],
       "labels": []
     },
     {
-      "id": "e-7cfa36e0eac91b9c",
+      "id": "e:e-7cfa36e0eac91b9c",
       "sources": [
-        "payments.api"
+        "n:payments.api"
       ],
       "targets": [
-        "payments.outbox"
+        "n:payments.outbox"
       ],
       "labels": [
         {

@@ -14,7 +14,7 @@
   },
   "children": [
     {
-      "id": "a",
+      "id": "n:a",
       "width": 72,
       "height": 36,
       "labels": [
@@ -29,7 +29,7 @@
       ]
     },
     {
-      "id": "b",
+      "id": "n:b",
       "width": 72,
       "height": 36,
       "labels": [
@@ -46,22 +46,22 @@
   ],
   "edges": [
     {
-      "id": "e-c338aaaef4585103",
+      "id": "e:e-c338aaaef4585103",
       "sources": [
-        "a"
+        "n:a"
       ],
       "targets": [
-        "a"
+        "n:a"
       ],
       "labels": []
     },
     {
-      "id": "e-c338a9aef4584f50",
+      "id": "e:e-c338a9aef4584f50",
       "sources": [
-        "a"
+        "n:a"
       ],
       "targets": [
-        "a"
+        "n:a"
       ],
       "labels": [
         {
@@ -75,32 +75,32 @@
       ]
     },
     {
-      "id": "e-43cd40b7c998acd4",
+      "id": "e:e-43cd40b7c998acd4",
       "sources": [
-        "a"
+        "n:a"
       ],
       "targets": [
-        "b"
+        "n:b"
       ],
       "labels": []
     },
     {
-      "id": "e-43cd41b7c998ae87",
+      "id": "e:e-43cd41b7c998ae87",
       "sources": [
-        "a"
+        "n:a"
       ],
       "targets": [
-        "b"
+        "n:b"
       ],
       "labels": []
     },
     {
-      "id": "e-43cd42b7c998b03a",
+      "id": "e:e-43cd42b7c998b03a",
       "sources": [
-        "a"
+        "n:a"
       ],
       "targets": [
-        "b"
+        "n:b"
       ],
       "labels": [
         {
@@ -114,22 +114,22 @@
       ]
     },
     {
-      "id": "e-363a0deebc7e54e2",
+      "id": "e:e-363a0deebc7e54e2",
       "sources": [
-        "a"
+        "n:a"
       ],
       "targets": [
-        "b"
+        "n:b"
       ],
       "labels": []
     },
     {
-      "id": "e-a5d657184404e66e",
+      "id": "e:e-a5d657184404e66e",
       "sources": [
-        "b"
+        "n:b"
       ],
       "targets": [
-        "b"
+        "n:b"
       ],
       "labels": []
     }

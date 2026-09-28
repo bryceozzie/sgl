@@ -14,7 +14,7 @@
   },
   "children": [
     {
-      "id": "router",
+      "id": "n:router",
       "width": 72,
       "height": 36,
       "layoutOptions": {
@@ -32,7 +32,7 @@
       ],
       "ports": [
         {
-          "id": "router#in",
+          "id": "p6:router#in",
           "width": 0,
           "height": 0,
           "layoutOptions": {
@@ -40,7 +40,7 @@
           }
         },
         {
-          "id": "router#out",
+          "id": "p6:router#out",
           "width": 0,
           "height": 0,
           "layoutOptions": {
@@ -48,7 +48,7 @@
           }
         },
         {
-          "id": "router#mgmt",
+          "id": "p6:router#mgmt",
           "width": 0,
           "height": 0,
           "layoutOptions": {
@@ -56,7 +56,7 @@
           }
         },
         {
-          "id": "router#drain",
+          "id": "p6:router#drain",
           "width": 0,
           "height": 0,
           "layoutOptions": {
@@ -66,7 +66,7 @@
       ]
     },
     {
-      "id": "switch",
+      "id": "n:switch",
       "width": 72,
       "height": 36,
       "layoutOptions": {
@@ -84,7 +84,7 @@
       ],
       "ports": [
         {
-          "id": "switch#uplink",
+          "id": "p6:switch#uplink",
           "width": 0,
           "height": 0,
           "layoutOptions": {
@@ -92,7 +92,7 @@
           }
         },
         {
-          "id": "switch#down",
+          "id": "p6:switch#down",
           "width": 0,
           "height": 0,
           "layoutOptions": {
@@ -102,7 +102,7 @@
       ]
     },
     {
-      "id": "client",
+      "id": "n:client",
       "width": 72,
       "height": 36,
       "labels": [
@@ -117,7 +117,7 @@
       ]
     },
     {
-      "id": "server",
+      "id": "n:server",
       "width": 72,
       "height": 36,
       "labels": [
@@ -132,7 +132,7 @@
       ]
     },
     {
-      "id": "console",
+      "id": "n:console",
       "width": 72,
       "height": 36,
       "labels": [
@@ -149,52 +149,52 @@
   ],
   "edges": [
     {
-      "id": "e-fe56bf3c070deb64",
+      "id": "e:e-fe56bf3c070deb64",
       "sources": [
-        "client"
+        "n:client"
       ],
       "targets": [
-        "router#in"
+        "p6:router#in"
       ],
       "labels": []
     },
     {
-      "id": "e-2add81bdced6c5bd",
+      "id": "e:e-2add81bdced6c5bd",
       "sources": [
-        "router#out"
+        "p6:router#out"
       ],
       "targets": [
-        "switch#uplink"
+        "p6:switch#uplink"
       ],
       "labels": []
     },
     {
-      "id": "e-7da7ff22733c2d24",
+      "id": "e:e-7da7ff22733c2d24",
       "sources": [
-        "switch#down"
+        "p6:switch#down"
       ],
       "targets": [
-        "server"
+        "n:server"
       ],
       "labels": []
     },
     {
-      "id": "e-dcc0effb40c10f5e",
+      "id": "e:e-dcc0effb40c10f5e",
       "sources": [
-        "console"
+        "n:console"
       ],
       "targets": [
-        "router#mgmt"
+        "p6:router#mgmt"
       ],
       "labels": []
     },
     {
-      "id": "e-75caf3b8ae7e05d7",
+      "id": "e:e-75caf3b8ae7e05d7",
       "sources": [
-        "router#drain"
+        "p6:router#drain"
       ],
       "targets": [
-        "server"
+        "n:server"
       ],
       "labels": []
     }

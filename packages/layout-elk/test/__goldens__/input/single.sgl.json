@@ -14,7 +14,7 @@
   },
   "children": [
     {
-      "id": "db",
+      "id": "n:db",
       "width": 72,
       "height": 36,
       "labels": [

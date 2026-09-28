@@ -14,7 +14,7 @@
   },
   "children": [
     {
-      "id": "frontend",
+      "id": "n:frontend",
       "layoutOptions": {
         "elk.spacing.nodeNode": "40",
         "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -26,7 +26,7 @@
       },
       "children": [
         {
-          "id": "frontend.web",
+          "id": "n:frontend.web",
           "layoutOptions": {
             "elk.spacing.nodeNode": "40",
             "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -38,7 +38,7 @@
           },
           "children": [
             {
-              "id": "frontend.web.home",
+              "id": "n:frontend.web.home",
               "width": 72,
               "height": 36,
               "labels": [
@@ -53,7 +53,7 @@
               ]
             },
             {
-              "id": "frontend.web.search",
+              "id": "n:frontend.web.search",
               "width": 72,
               "height": 36,
               "labels": [
@@ -68,7 +68,7 @@
               ]
             },
             {
-              "id": "frontend.web.cart",
+              "id": "n:frontend.web.cart",
               "width": 72,
               "height": 36,
               "labels": [
@@ -83,7 +83,7 @@
               ]
             },
             {
-              "id": "frontend.web.checkout",
+              "id": "n:frontend.web.checkout",
               "width": 76.02600000000001,
               "height": 36,
               "labels": [
@@ -98,7 +98,7 @@
               ]
             },
             {
-              "id": "frontend.web.profile",
+              "id": "n:frontend.web.profile",
               "width": 72,
               "height": 36,
               "labels": [
@@ -113,7 +113,7 @@
               ]
             },
             {
-              "id": "frontend.web.orders",
+              "id": "n:frontend.web.orders",
               "width": 72,
               "height": 36,
               "labels": [
@@ -128,7 +128,7 @@
               ]
             },
             {
-              "id": "frontend.web.support",
+              "id": "n:frontend.web.support",
               "width": 72,
               "height": 36,
               "labels": [
@@ -143,7 +143,7 @@
               ]
             },
             {
-              "id": "frontend.web.admin",
+              "id": "n:frontend.web.admin",
               "width": 72,
               "height": 36,
               "labels": [
@@ -158,7 +158,7 @@
               ]
             },
             {
-              "id": "frontend.web.reports",
+              "id": "n:frontend.web.reports",
               "width": 72,
               "height": 36,
               "labels": [
@@ -175,7 +175,7 @@
           ]
         },
         {
-          "id": "frontend.mobile",
+          "id": "n:frontend.mobile",
           "layoutOptions": {
             "elk.spacing.nodeNode": "40",
             "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -187,7 +187,7 @@
           },
           "children": [
             {
-              "id": "frontend.mobile.ios",
+              "id": "n:frontend.mobile.ios",
               "width": 72,
               "height": 36,
               "labels": [
@@ -202,7 +202,7 @@
               ]
             },
             {
-              "id": "frontend.mobile.android",
+              "id": "n:frontend.mobile.android",
               "width": 72,
               "height": 36,
               "labels": [
@@ -217,7 +217,7 @@
               ]
             },
             {
-              "id": "frontend.mobile.push",
+              "id": "n:frontend.mobile.push",
               "width": 72,
               "height": 36,
               "labels": [
@@ -232,7 +232,7 @@
               ]
             },
             {
-              "id": "frontend.mobile.sync",
+              "id": "n:frontend.mobile.sync",
               "width": 72,
               "height": 36,
               "labels": [
@@ -247,7 +247,7 @@
               ]
             },
             {
-              "id": "frontend.mobile.cache",
+              "id": "n:frontend.mobile.cache",
               "width": 72,
               "height": 36,
               "labels": [
@@ -262,7 +262,7 @@
               ]
             },
             {
-              "id": "frontend.mobile.auth",
+              "id": "n:frontend.mobile.auth",
               "width": 72,
               "height": 36,
               "labels": [
@@ -277,7 +277,7 @@
               ]
             },
             {
-              "id": "frontend.mobile.onboarding",
+              "id": "n:frontend.mobile.onboarding",
               "width": 89.03900000000002,
               "height": 36,
               "labels": [
@@ -292,7 +292,7 @@
               ]
             },
             {
-              "id": "frontend.mobile.settings",
+              "id": "n:frontend.mobile.settings",
               "width": 72,
               "height": 36,
               "labels": [
@@ -311,7 +311,7 @@
       ]
     },
     {
-      "id": "backend",
+      "id": "n:backend",
       "layoutOptions": {
         "elk.spacing.nodeNode": "40",
         "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -323,7 +323,7 @@
       },
       "children": [
         {
-          "id": "backend.api",
+          "id": "n:backend.api",
           "layoutOptions": {
             "elk.spacing.nodeNode": "40",
             "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -335,7 +335,7 @@
           },
           "children": [
             {
-              "id": "backend.api.gateway",
+              "id": "n:backend.api.gateway",
               "width": 72.412,
               "height": 36,
               "labels": [
@@ -350,7 +350,7 @@
               ]
             },
             {
-              "id": "backend.api.users",
+              "id": "n:backend.api.users",
               "width": 72,
               "height": 36,
               "labels": [
@@ -365,7 +365,7 @@
               ]
             },
             {
-              "id": "backend.api.orders",
+              "id": "n:backend.api.orders",
               "width": 72,
               "height": 36,
               "labels": [
@@ -380,7 +380,7 @@
               ]
             },
             {
-              "id": "backend.api.payments",
+              "id": "n:backend.api.payments",
               "width": 80.35500000000002,
               "height": 36,
               "labels": [
@@ -395,7 +395,7 @@
               ]
             },
             {
-              "id": "backend.api.inventory",
+              "id": "n:backend.api.inventory",
               "width": 76.74100000000001,
               "height": 36,
               "labels": [
@@ -410,7 +410,7 @@
               ]
             },
             {
-              "id": "backend.api.shipping",
+              "id": "n:backend.api.shipping",
               "width": 72.412,
               "height": 36,
               "labels": [
@@ -425,7 +425,7 @@
               ]
             },
             {
-              "id": "backend.api.notifications",
+              "id": "n:backend.api.notifications",
               "width": 92.64,
               "height": 36,
               "labels": [
@@ -440,7 +440,7 @@
               ]
             },
             {
-              "id": "backend.api.search",
+              "id": "n:backend.api.search",
               "width": 72,
               "height": 36,
               "labels": [
@@ -455,7 +455,7 @@
               ]
             },
             {
-              "id": "backend.api.recommendations",
+              "id": "n:backend.api.recommendations",
               "width": 127.311,
               "height": 36,
               "labels": [
@@ -472,7 +472,7 @@
           ]
         },
         {
-          "id": "backend.data",
+          "id": "n:backend.data",
           "layoutOptions": {
             "elk.spacing.nodeNode": "40",
             "elk.layered.spacing.nodeNodeBetweenLayers": "70",
@@ -484,7 +484,7 @@
           },
           "children": [
             {
-              "id": "backend.data.primary",
+              "id": "n:backend.data.primary",
               "width": 72,
               "height": 36,
               "labels": [
@@ -499,7 +499,7 @@
               ]
             },
             {
-              "id": "backend.data.replica",
+              "id": "n:backend.data.replica",
               "width": 72,
               "height": 36,
               "labels": [
@@ -514,7 +514,7 @@
               ]
             },
             {
-              "id": "backend.data.warehouse",
+              "id": "n:backend.data.warehouse",
               "width": 87.583,
               "height": 36,
               "labels": [
@@ -529,7 +529,7 @@
               ]
             },
             {
-              "id": "backend.data.cache",
+              "id": "n:backend.data.cache",
               "width": 72,
               "height": 36,
               "labels": [
@@ -544,7 +544,7 @@
               ]
             },
             {
-              "id": "backend.data.queue",
+              "id": "n:backend.data.queue",
               "width": 72,
               "height": 36,
               "labels": [
@@ -559,7 +559,7 @@
               ]
             },
             {
-              "id": "backend.data.blob",
+              "id": "n:backend.data.blob",
               "width": 72,
               "height": 36,
               "labels": [
@@ -574,7 +574,7 @@
               ]
             },
             {
-              "id": "backend.data.search",
+              "id": "n:backend.data.search",
               "width": 72,
               "height": 36,
               "labels": [
@@ -589,7 +589,7 @@
               ]
             },
             {
-              "id": "backend.data.backup",
+              "id": "n:backend.data.backup",
               "width": 72,
               "height": 36,
               "labels": [
@@ -610,142 +610,142 @@
   ],
   "edges": [
     {
-      "id": "e-e46eb8dd5238e1e6",
+      "id": "e:e-e46eb8dd5238e1e6",
       "sources": [
-        "frontend.web.home"
+        "n:frontend.web.home"
       ],
       "targets": [
-        "frontend.web.search"
+        "n:frontend.web.search"
       ],
       "labels": []
     },
     {
-      "id": "e-b26e2618c1a88e1b",
+      "id": "e:e-b26e2618c1a88e1b",
       "sources": [
-        "frontend.web.search"
+        "n:frontend.web.search"
       ],
       "targets": [
-        "frontend.web.cart"
+        "n:frontend.web.cart"
       ],
       "labels": []
     },
     {
-      "id": "e-3d5537aaa91d0843",
+      "id": "e:e-3d5537aaa91d0843",
       "sources": [
-        "frontend.web.cart"
+        "n:frontend.web.cart"
       ],
       "targets": [
-        "frontend.web.checkout"
+        "n:frontend.web.checkout"
       ],
       "labels": []
     },
     {
-      "id": "e-d1c6966c80d738f6",
+      "id": "e:e-d1c6966c80d738f6",
       "sources": [
-        "frontend.web.checkout"
+        "n:frontend.web.checkout"
       ],
       "targets": [
-        "backend.api.orders"
+        "n:backend.api.orders"
       ],
       "labels": []
     },
     {
-      "id": "e-de6b0e913a941714",
+      "id": "e:e-de6b0e913a941714",
       "sources": [
-        "frontend.web.checkout"
+        "n:frontend.web.checkout"
       ],
       "targets": [
-        "backend.api.payments"
+        "n:backend.api.payments"
       ],
       "labels": []
     },
     {
-      "id": "e-df1051e75b27b164",
+      "id": "e:e-df1051e75b27b164",
       "sources": [
-        "frontend.mobile.ios"
+        "n:frontend.mobile.ios"
       ],
       "targets": [
-        "backend.api.gateway"
+        "n:backend.api.gateway"
       ],
       "labels": []
     },
     {
-      "id": "e-7a2bea8d665101a6",
+      "id": "e:e-7a2bea8d665101a6",
       "sources": [
-        "frontend.mobile.android"
+        "n:frontend.mobile.android"
       ],
       "targets": [
-        "backend.api.gateway"
+        "n:backend.api.gateway"
       ],
       "labels": []
     },
     {
-      "id": "e-39b661bc8bf640a7",
+      "id": "e:e-39b661bc8bf640a7",
       "sources": [
-        "backend.api.gateway"
+        "n:backend.api.gateway"
       ],
       "targets": [
-        "backend.api.users"
+        "n:backend.api.users"
       ],
       "labels": []
     },
     {
-      "id": "e-008a5d6a68b7aa50",
+      "id": "e:e-008a5d6a68b7aa50",
       "sources": [
-        "backend.api.orders"
+        "n:backend.api.orders"
       ],
       "targets": [
-        "backend.data.primary"
+        "n:backend.data.primary"
       ],
       "labels": []
     },
     {
-      "id": "e-fecd6779f40f2a36",
+      "id": "e:e-fecd6779f40f2a36",
       "sources": [
-        "backend.api.payments"
+        "n:backend.api.payments"
       ],
       "targets": [
-        "backend.data.primary"
+        "n:backend.data.primary"
       ],
       "labels": []
     },
     {
-      "id": "e-778d181669820f97",
+      "id": "e:e-778d181669820f97",
       "sources": [
-        "backend.data.primary"
+        "n:backend.data.primary"
       ],
       "targets": [
-        "backend.data.replica"
+        "n:backend.data.replica"
       ],
       "labels": []
     },
     {
-      "id": "e-3ff92aeb077b83cb",
+      "id": "e:e-3ff92aeb077b83cb",
       "sources": [
-        "backend.api.search"
+        "n:backend.api.search"
       ],
       "targets": [
-        "backend.data.search"
+        "n:backend.data.search"
       ],
       "labels": []
     },
     {
-      "id": "e-81f0e053a6ce27ba",
+      "id": "e:e-81f0e053a6ce27ba",
       "sources": [
-        "backend.api.notifications"
+        "n:backend.api.notifications"
       ],
       "targets": [
-        "backend.data.queue"
+        "n:backend.data.queue"
       ],
       "labels": []
     },
     {
-      "id": "e-9fe36a32ada67c29",
+      "id": "e:e-9fe36a32ada67c29",
       "sources": [
-        "frontend.mobile.push"
+        "n:frontend.mobile.push"
       ],
       "targets": [
-        "backend.api.notifications"
+        "n:backend.api.notifications"
       ],
       "labels": []
     }

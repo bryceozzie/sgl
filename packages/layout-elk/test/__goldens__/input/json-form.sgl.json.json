@@ -14,7 +14,7 @@
   },
   "children": [
     {
-      "id": "gateway",
+      "id": "n:gateway",
       "width": 99.868,
       "height": 36,
       "labels": [
@@ -29,7 +29,7 @@
       ]
     },
     {
-      "id": "cache",
+      "id": "n:cache",
       "width": 72,
       "height": 49.800000000000004,
       "labels": [
@@ -44,7 +44,7 @@
       ]
     },
     {
-      "id": "notes",
+      "id": "n:notes",
       "width": 368.11,
       "height": 36,
       "labels": [
@@ -61,12 +61,12 @@
   ],
   "edges": [
     {
-      "id": "e-1a68a89c6143642d",
+      "id": "e:e-1a68a89c6143642d",
       "sources": [
-        "gateway"
+        "n:gateway"
       ],
       "targets": [
-        "cache"
+        "n:cache"
       ],
       "labels": [
         {

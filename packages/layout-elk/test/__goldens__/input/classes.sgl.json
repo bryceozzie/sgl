@@ -14,7 +14,7 @@
   },
   "children": [
     {
-      "id": "plain",
+      "id": "n:plain",
       "width": 72,
       "height": 36,
       "labels": [
@@ -29,7 +29,7 @@
       ]
     },
     {
-      "id": "left",
+      "id": "n:left",
       "width": 72,
       "height": 36,
       "labels": [
@@ -44,7 +44,7 @@
       ]
     },
     {
-      "id": "right",
+      "id": "n:right",
       "width": 72,
       "height": 36,
       "labels": [
@@ -59,7 +59,7 @@
       ]
     },
     {
-      "id": "diamond",
+      "id": "n:diamond",
       "width": 73.85499999999999,
       "height": 36,
       "labels": [
@@ -74,7 +74,7 @@
       ]
     },
     {
-      "id": "both",
+      "id": "n:both",
       "width": 72,
       "height": 36,
       "labels": [
@@ -89,7 +89,7 @@
       ]
     },
     {
-      "id": "override",
+      "id": "n:override",
       "width": 72,
       "height": 36,
       "labels": [
@@ -104,7 +104,7 @@
       ]
     },
     {
-      "id": "routed",
+      "id": "n:routed",
       "width": 72,
       "height": 36,
       "layoutOptions": {
@@ -122,7 +122,7 @@
       ],
       "ports": [
         {
-          "id": "routed#in",
+          "id": "p6:routed#in",
           "width": 0,
           "height": 0,
           "layoutOptions": {
@@ -130,7 +130,7 @@
           }
         },
         {
-          "id": "routed#out",
+          "id": "p6:routed#out",
           "width": 0,
           "height": 0,
           "layoutOptions": {
@@ -140,7 +140,7 @@
       ]
     },
     {
-      "id": "routedOverride",
+      "id": "n:routedOverride",
       "width": 110.697,
       "height": 36,
       "layoutOptions": {
@@ -158,7 +158,7 @@
       ],
       "ports": [
         {
-          "id": "routedOverride#in",
+          "id": "p14:routedOverride#in",
           "width": 0,
           "height": 0,
           "layoutOptions": {
@@ -166,7 +166,7 @@
           }
         },
         {
-          "id": "routedOverride#out",
+          "id": "p14:routedOverride#out",
           "width": 0,
           "height": 0,
           "layoutOptions": {
@@ -178,42 +178,42 @@
   ],
   "edges": [
     {
-      "id": "e-fe297c3f0d279af4",
+      "id": "e:e-fe297c3f0d279af4",
       "sources": [
-        "plain"
+        "n:plain"
       ],
       "targets": [
-        "left"
+        "n:left"
       ],
       "labels": []
     },
     {
-      "id": "e-2847a08bfb69307a",
+      "id": "e:e-2847a08bfb69307a",
       "sources": [
-        "left"
+        "n:left"
       ],
       "targets": [
-        "diamond"
+        "n:diamond"
       ],
       "labels": []
     },
     {
-      "id": "e-4de4a934f2ea2378",
+      "id": "e:e-4de4a934f2ea2378",
       "sources": [
-        "right"
+        "n:right"
       ],
       "targets": [
-        "both"
+        "n:both"
       ],
       "labels": []
     },
     {
-      "id": "e-a3ae2354924ebedc",
+      "id": "e:e-a3ae2354924ebedc",
       "sources": [
-        "both"
+        "n:both"
       ],
       "targets": [
-        "override"
+        "n:override"
       ],
       "labels": []
     }
