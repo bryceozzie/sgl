@@ -10,3 +10,6 @@
 
 export { layoutRadial } from './radial.js';
 export { layoutTree } from './tree.js';
+// Fix round 1, item 5: exported so the built chunk's trigonometry can be
+// checked against the golden (`apps/web/test/std-trees-chunk.test.ts`).
+export { cosTurn, sinTurn } from './trig.js';
