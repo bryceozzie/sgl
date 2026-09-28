@@ -50,8 +50,8 @@ Prior art referenced: **Mm**=Mermaid · **D2**=D2 · **GV**=Graphviz · **PU**=P
 | B5 | Built-in `tree`, `radial`, `fixed` engines | GV twopi/circo/neato | Rounds out the set; `fixed` is the escape hatch. `force` was part of this row until 2026-09-27 and is now B22 (DD-12) | **M** | M |
 | B6 | Sandboxed execution (iframe + Worker, timeout, abort) | — | Non-negotiable once third-party code loads | **M** | M |
 | B7 | Engine options schema driving a generated settings UI | — | Makes engines self-documenting | **S** | S |
-| B8 | Per-container engine selection | — | Mixed layouts; big differentiator | **S** | **C** |
-| B9 | Sublayout delegation between engines | — | The mechanism B8 needs | **S** | **C** |
+| B8 | Per-container engine selection | — | Mixed layouts; big differentiator. Restored to Should, human decision 2026-09-27 (F29): keep spec §9's container engine and build B8 sooner; this agrees with 01's FR-Y9. The host composes the layouts, not `ctx.sublayout` (ADR-0002 amendment 2026-09-28; [DD-14](detailed-design/14-container-engines.md)) | **S** | S |
+| B9 | Sublayout delegation between engines | — | Engine-initiated delegation through `ctx.sublayout`. B8 no longer needs it: the host composes per-container engines (ADR-0002 amendment 2026-09-28, DD-14 C33) | **S** | **C** |
 | B10 | Capability negotiation with host-supplied fallbacks | — | Makes a 60-line engine viable. Key to adoption | **M** | M |
 | B11 | Manual pinning that auto-layout respects | tl, Ex | The most-requested escape hatch in every tool | **S** | S |
 | B12 | `@direction` (down/up/left/right) | Mm, D2, GV rankdir | Universally expected | **M** | M |
@@ -216,6 +216,8 @@ Rows where the two differ show the call in bold.
 
 *Amended 2026-09-27 (human decision): E19, in-app help, was added as a Must (DD-13). It is not in the counts above.*
 
+*Amended 2026-09-27 (human decision, F29): B8, per-container engines, is back to Should, agreeing with FR-Y9. The counts above are as reviewed on 2026-09-14.*
+
 ### Promoted into Must
 
 A8 variables · A9 imports · A18 markdown labels · D6 PNG export · D7 clipboard ·
@@ -231,7 +233,7 @@ I9 legends
 
 ### Demoted
 
-B8 per-container engines (S→C) · B9 sublayout delegation (S→C) · C9 sketch mode (S→C) ·
+B8 per-container engines (S→C; restored to S 2026-09-27, F29) · B9 sublayout delegation (S→C) · C9 sketch mode (S→C) ·
 D12 animated SVG (C→N) · H4 comments (N→C, i.e. reopened)
 
 ---
@@ -275,10 +277,14 @@ validation.
 One consequence: sequence messages are **ordered**, and `@order` is currently a node-only key.
 Edges need it too. Add `@order` to the edge attribute table in the language spec.
 
-### 3. Keep the sublayout seam even though B8/B9 dropped to Could
+### 3. Keep the sublayout seam even though B9 dropped to Could
 
-Per-container engine selection (B8) and sublayout delegation (B9) are Could now. Keep
-`ctx.sublayout()` in the **v1 `LayoutContext` type** anyway, documented as reserved.
+Sublayout delegation (B9) is Could. Keep `ctx.sublayout()` in the **v1 `LayoutContext` type**
+anyway, documented as reserved.
+
+*Amended 2026-09-28 (human decision, DD-14 C33): per-container engine selection (B8, Should again
+since F29) does not go through `ctx.sublayout`. The host composes each container's layout on its
+own scope (ADR-0002 amendment). The seam stays reserved for engine-initiated delegation (B9).*
 
 Adding an optional method to the context later is not a breaking change for engines — they simply
 never call it — but publishing it in v1 means engines written against `apiVersion: 1` stay valid
@@ -333,7 +339,7 @@ though they are Should:
 | I1 — one model, many views | Stage 4 (IR compile) takes a **view selector** parameter, rather than assuming one graph per document |
 | I3 — sequence diagrams | `@order` on edges; stable edge identity independent of declaration order |
 | I4 — UML/ER shapes | Labels are structured (compartments), not a single string — falls out of `@sgl/text` |
-| B8/B9 — mixed layouts | `ctx.sublayout()` reserved in the v1 engine contract |
+| B8/B9 — mixed layouts | `ctx.sublayout()` reserved in the v1 engine contract (for B9; B8 is composed by the host, ADR-0002 amendment 2026-09-28) |
 | E16 / F12 — diff and history | Stable content-derived IDs (D3, already Must) plus canonical formatting (A14) |
 | C15 — contrast validation | Theme tokens carry enough semantic role information to know what is drawn on what |
 

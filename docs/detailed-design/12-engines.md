@@ -86,9 +86,10 @@ These facts shape the design. Each is also in §17 where it contradicts a docume
   - *Moving a container is one edit.* E15 (drag to pin) writes one `@pin`, not one per descendant.
   - *Imported subtrees keep their shape.* A9 grafts a library under `as:`. With absolute pins, a
     pinned library lands wherever its author drew it and overlaps the importer's nodes.
-  - *B8/B9 need it.* Once a `fixed` container can sit inside an `elk` diagram (per-container
-    engines), `ctx.sublayout` returns geometry for that scope. Only relative pins can be honoured
-    there.
+  - *B8 needs it.* Once a `fixed` container can sit inside an `elk` diagram (per-container
+    engines), the host lays that container out on its own scope and places it as one box
+    (ADR-0002 amendment 2026-09-28, DD-14; not `ctx.sublayout`, which stays reserved for B9). Only
+    relative pins can be honoured there.
   - *The root is relative already.* The host re-origins every result (§2 item 6), so an "absolute"
     pin at the root means "relative to the other root pins" in any case.
 
@@ -796,7 +797,7 @@ The items marked *(done)* were made on this branch after H1–H9 (§18).
 
 | Option | For | Against |
 |---|---|---|
-| **(a) Top-left of the frame, relative to the parent's content box (root: the diagram origin). Recommended; a spec change** | A container moves with one edit (E15); imported subtrees keep their shape (A9); works inside a future per-container engine (B8/B9) | Contradicts the spec's word "absolute"; nested pins must be added up to find a position |
+| **(a) Top-left of the frame, relative to the parent's content box (root: the diagram origin). Recommended; a spec change** | A container moves with one edit (E15); imported subtrees keep their shape (A9); works inside a future per-container engine (B8) | Contradicts the spec's word "absolute"; nested pins must be added up to find a position |
 | (b) Top-left, absolute in diagram space (the spec as written) | What the spec says; one number per node, with no sums | Moving a container means rewriting every descendant; a pinned import lands on the importer's nodes; cannot work under B8 |
 | (c) Either, but pin the *centre* | A node stays centred when its label changes | Unlike SVG, Excalidraw and draw.io; E15's write-back needs the size |
 

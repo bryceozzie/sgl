@@ -6,8 +6,9 @@ ports), `@sgl/layout-std` (none required), `apps/web` (the plan, the request, th
 **Inputs:** `LayoutInput` (DD-06 §2), the resolved `DocumentModel` and AST, the registered engines'
 descriptors. **Outputs:** one `LayoutResult`, as today.
 
-**Status: design only (2026-09-27), from `main` at `9f47545`. No code is changed by this document.**
-It assumes `fix/root-layout-options` (`5dfc16f`, DD-12 H6) is merged first: B8 reuses its
+**Status: decided (2026-09-28). Designed 2026-09-27 from `main` at `9f47545`; the human accepted
+every recommendation on 2026-09-28 (⚑1–⚑8, §13). No code is changed by this document**: §11's
+branches implement it. The documents it amends were updated on this branch (§14). It assumes `fix/root-layout-options` (`5dfc16f`, DD-12 H6) is merged first: B8 reuses its
 `rootLayoutOptions` seam and its `EngineSchemas.accepts`.
 
 **Why now.** Human decision F29 (2026-09-27): keep spec §9's worked example, which puts
@@ -16,9 +17,10 @@ key is `SGL4010` (twice under `elk`: `engine`, and `columns`, which `elk` does n
 whole document is laid out by the root's engine.
 
 The decisions are numbered **C1–C49**. Each has a recommendation and a one-line reason in italics.
-Decisions marked **⚑** go to the human; §13 gives each one's options. Where this document changes
-another document, the change is listed in §12 and made by the branch that implements it. The
-exceptions are §14's factual fixes, made on this branch.
+Decisions marked **⚑** went to the human; §13 gives each one's options. **All eight were accepted as
+recommended (human decision 2026-09-28).** Where this document changes another document, the change
+is listed in §12 and made by the branch that implements it. The exceptions are §14's changes,
+made on this branch: the factual fixes, and the decided ADR-0002 amendment and spec text.
 
 ---
 
@@ -70,7 +72,8 @@ exceptions are §14's factual fixes, made on this branch.
    `elk` goldens take it through `elkEngine` directly, with the full input.
 9. **Budget.** Core is **179.19 kB of 182** on `main`, **179.50** with `fix/root-layout-options`.
    DD-12 plans ~1.3 kB more for `tree` and `radial`, and DD-13 ~0.4 kB for the Help button. That
-   leaves about **0.8 kB** for everything else in Stage L.
+   leaves about **0.8 kB** for everything else in Stage L. *(Since 2026-09-28 the limit is
+   **184 kB**, human decision, ⚑7; `main` `90689df`.)*
 
 ---
 
@@ -87,7 +90,7 @@ exceptions are §14's factual fixes, made on this branch.
   direction: right }` inside a `down` `elk` document lays that container out rightwards on its own.
   *Predictable: the key always means one thing, whatever surrounds it. It is also the only way to
   give an `elk` container its own direction (§3.4). The cost is that an edge crossing that
-  container is drawn by §4, not by one ELK run.* §13 ⚑1.
+  container is drawn by §4, not by one ELK run.* §13 ⚑1. **Human decision 2026-09-28: accepted.**
 - **C3. Every node is placed by exactly one engine: the engine of its innermost enclosing boundary,
   or the root's.** A boundary container is *placed* by its parent's engine and *sized* by its own.
   *This is the rule the diagnostics (C11), the pins (C10) and the help all follow.*
@@ -118,6 +121,7 @@ exceptions are §14's factual fixes, made on this branch.
   the engine's defaults. *"A container that names an engine is the root of its own small document"
   is the easiest rule to teach, and inheriting within one engine keeps a document's feel: a
   `direction: right` container inside an `elk` document keeps the toolbar's spacing.* §13 ⚑2.
+  **Human decision 2026-09-28: accepted.**
 - **C7. The toolbar's Options ▾ apply to the root's engine only** (C44). A boundary using the root's
   engine inherits them through C6.
 - **C8. The plan is built on the main thread.** `layoutPlan(ast, model, root, engines)`
@@ -135,7 +139,7 @@ exceptions are §14's factual fixes, made on this branch.
   direction inside a container, give it an engine: `@layout: { engine: elk, direction: right }`".
   `tree`'s `direction` hint (DD-12 N37, N38) is unaffected: it is a hint. *A key that does nothing
   should say so; the alternative, an implicit boundary, would change edges without the author
-  asking.* §13 ⚑3.
+  asking.* §13 ⚑3. **Human decision 2026-09-28: accepted.**
 
 ### 3.5 `@pin` inside a boundary
 
@@ -158,7 +162,7 @@ exceptions are §14's factual fixes, made on this branch.
 - **C12. An engine name that is not registered, on a container, is `SGL4012` (warning) at the key:
   "Layout engine `{name}` is not available; `{node}` is laid out by `{id}`."** The container is
   then not a boundary. *The root's unknown engine stays `SGL4011` with no layout, because the root
-  has nothing to fall back to; a container has its parent.* §13 ⚑6.
+  has nothing to fall back to; a container has its parent.* §13 ⚑6. **Human decision 2026-09-28: accepted.**
 
 ### 3.7 Edge cases
 
@@ -171,7 +175,7 @@ exceptions are §14's factual fixes, made on this branch.
 - **An imported document's own root `@layout`** is not carried onto its `as:` container. That would
   be a language change and is not proposed here.
 
-### 3.8 Proposed spec text (for the human; not applied)
+### 3.8 Spec text (approved: human decision 2026-09-28, ⚑8; applied to spec §4 on this branch)
 
 Spec §4, the `@layout.*` row, **Notes** column:
 
@@ -212,7 +216,7 @@ root, and `payments.api -> psp` leaves it.
 `INCLUDE_CHILDREN`. It covers one pair of engines out of the nine. (d) is a project of its own.
 
 - **C13. ⚑ Recommended: (b), with (a) where the parent's engine leaves routing to the host.**
-  §13 ⚑4. *The parent must know about the edge, or its placement ignores the diagram's main flow:
+  §13 ⚑4. **Human decision 2026-09-28: accepted.** *The parent must know about the edge, or its placement ignores the diagram's main flow:
   that is (a)'s real failure under `elk`. Under a straight-routing parent, (a) is already the
   best-looking answer (one straight line, no kink) and costs nothing.* **Fallback:** if branch 3's
   spike finds ELK does not honour fixed port positions on a leaf inside an `INCLUDE_CHILDREN`
@@ -335,7 +339,7 @@ root, and `payments.api -> psp` leaves it.
   failed for `{node}` ({detail}); it is laid out by `{parent}` instead." `detail` goes through
   `workerText`. A failure of the root's engine is today's `SGL4011`/`SGL4002`, and the previous
   layout stays. *Degrade to what the document would do without the key: the diagram still draws,
-  and the squiggle says why.* §13 ⚑6.
+  and the squiggle says why.* §13 ⚑6. **Human decision 2026-09-28: accepted.**
 - **C29. Notes from every scope are merged in scope order**, then `engineNotes` applies the one
   `MAX_ENGINE_NOTES` cap and `SGL4022` to the whole request (DD-06 §3). A sub-result's `SGL4003`
   from its view's validation is dropped; the full validation in `host.ts` reports it once.
@@ -375,7 +379,8 @@ root, and `payments.api -> psp` leaves it.
   `ctx.sublayout`. Host composition is better for B8: every engine gets nesting with no code (a
   60-line engine included, ADR-0002's point), and determinism, failure, timeouts and caching live
   in one place. `ctx.sublayout` stays in the type, still rejecting, for engine-initiated delegation
-  (B9, still Could), which B8 no longer needs. ADR-0002 is amended. §13 ⚑5.
+  (B9, still Could), which B8 no longer needs. ADR-0002 is amended. §13 ⚑5. **Human decision 2026-09-28: accepted.**
+  The amendment is ADR-0002's "Amendment 2026-09-28" section.
 - **C34. No new capability. `apiVersion` stays 1.** A `nested?` capability was considered and is
   not needed: the inner role only needs `scope`, which is in the contract since v1 ("`null` = the
   whole document"), and the outer role sees ordinary leaves. The one addition,
@@ -454,8 +459,10 @@ Estimates, gzipped and marginal, from the measured sizes of like code (`fixed` i
   exclusion, a `check-core-chunks.mjs` check (not reachable from the entry, nor statically from
   the worker), an offline e2e case. Boot cost **~0.5–0.7 kB**. All static would be ~2.3–2.8 kB,
   which does not fit. Stage L's forecast with it: 179.50 (after `fix/root-layout-options`) + ~1.3
-  (`tree`, `radial`) + ~0.4 (Help button) + ~0.65 (B8) ≈ **181.85 of 182**. §13 ⚑7. The branch
-  measures its real cost and stops if it exceeds its line by more than 50% (DD-12 §11's rule).
+  (`tree`, `radial`) + ~0.4 (Help button) + ~0.65 (B8) ≈ **181.85 kB**, now **of 184**. §13 ⚑7.
+  **Human decision 2026-09-28: accepted.** The composer is lazy, and the core limit is raised to **184 kB** (hard
+  ceiling 300 kB unchanged; committed on `main` at `90689df`). The branch measures its real cost
+  and stops if it exceeds its line by more than 50% (DD-12 §11's rule).
 
 ### 8.2 Time
 
@@ -541,8 +548,14 @@ begins. Prerequisite: `fix/root-layout-options` is on `main`. B8 does not depend
    `run(plan)`, the plan's timeout, the skip key; the lazy `compose` chunk (manualChunks,
    `.size-limit.js`, `check-core-chunks.mjs`, offline case); the render-svg harness and the
    `engine-*` fixtures; `nested-engine.sgl` (C46); the help (C45); the §8.2 bench variants; e2e
-   including spec §9 with no diagnostics. Spec §4 text if approved (§3.8); DD-06, DD-08, 07. After
-   this branch, B8 works and F29 is cleared, with straight crossing edges. ~3–4 days.
+   including spec §9 with no diagnostics. DD-06, DD-08, 07. **Also the code comments and the
+   corpus header that still say per-container engines are "B8/B9" or unimplemented** (§15 item 6;
+   left for the code branches, not changed on this design branch): `corpus/layout/nested-engine.sgl`'s
+   header (with C46), `packages/layout-api/src/layout-config.ts`'s module comment (lines 10–11),
+   `packages/layout-api/test/layout-config.test.ts`'s header comment (line 7), and
+   `apps/web/src/state/pipeline.ts`'s comment at the `layoutConfigDiagnostics` call (line 562). The
+   help's `key/layout.md` and `key/direction.md` (C45). After this branch, B8 works and F29 is
+   cleared, with straight crossing edges. ~3–4 days.
 3. **`feat/b8-ports`**. First commit: a spike recording what ELK does with `FIXED_POS` ports on a
    leaf under `INCLUDE_CHILDREN`, and with a per-container `elk.direction` (C38). Then
    `LayoutInput.portPositions`, `elk`'s mapping, the port rule, legs, the arrow and label rules
@@ -551,16 +564,15 @@ begins. Prerequisite: `fix/root-layout-options` is on `main`. B8 does not depend
 4. **`perf/b8-cache`** (only if branch 2's bench shows `elk` boxes cost what C49 fears). C32's
    cache, with a keystroke bench. ~1–2 days.
 
-ADR-0002's amendment (C33, if approved) and the Architecture §4.2/§4.4 notes go in branch 2.
+ADR-0002's amendment (C33) and the Architecture §4.2/§4.4 notes were made on this design branch
+once the human approved them (§14), and so was spec §4's text (§3.8).
 
 ---
 
 ## 12. Changes to other documents (made by the implementing branches)
 
-- **Language spec** §4: the `@layout.*` row and the new paragraph (§3.8), if approved (⚑8).
-- **ADR-0002** §3: an amendment (C33), if approved (⚑5). **Architecture** §4.2 (the `sublayout`
-  comment) and §4.4 (the RPC arrow) get a note pointing here.
-- **04**: B9's "Why" becomes "engine-initiated delegation; B8 no longer needs it" (C33).
+- **Language spec** §4, **ADR-0002**, **Architecture** §4.2/§4.4 and **04**'s B8/B9 rows: done on
+  this branch after the human's decisions (§14).
 - **DD-06**: §2 (the plan, `portPositions`, `scope` is load-bearing), §3 (`plan` in the protocol,
   the timeout, the lazy chunk), §4 (the composed sequence), §6.1 (`FIXED_POS`), §8 (check 7, plans),
   §9 (`SGL4010`'s scope, `SGL4012`, `SGL4013`).
@@ -571,16 +583,20 @@ ADR-0002's amendment (C33, if approved) and the Architecture §4.2/§4.4 notes g
 
 ---
 
-## 13. ⚑ Decisions for the human
+## 13. ⚑ Decisions for the human (all accepted, 2026-09-28)
 
 **⚑1 (C2): does a container that names the same engine as its parent get its own layout?**
+**Human decision 2026-09-28: accepted.** (a): a container naming an engine always gets its own layout, even the same
+engine as its parent's.
 
 | Option | For | Against |
 |---|---|---|
 | **(a) Yes, always a boundary. Recommended** | The key means one thing everywhere; the only way to give an `elk` container its own direction | An `elk` box in an `elk` document is a second ELK run, and edges into it are drawn by §4, not ELK's own hierarchy |
 | (b) Only when the engine differs; the same engine means hints | Crossing edges stay in one ELK run | A container cannot change `elk`'s direction; the same text means different things depending on the root |
 
-**⚑2 (C6): where does a boundary's options come from?**
+**⚑2 (C6): where does a boundary's options come from?** **Human decision 2026-09-28: accepted.** (a): boundary
+options work as root options do; an unset one inherits from the nearest enclosing container or root
+using the same engine, otherwise the engine's default.
 
 | Option | For | Against |
 |---|---|---|
@@ -591,33 +607,43 @@ ADR-0002's amendment (C33, if approved) and the Architecture §4.2/§4.4 notes g
 the engine around it, checked against its hints only; an option-only key such as `@direction`
 under `elk` becomes `SGL4010`, and the help says to name an engine. Recommended.** (b) An implicit
 boundary with the inherited engine when a key needs one: no warning, but the edges change without
-the author asking. (c) As today: accepted, no effect, no warning.
+the author asking. (c) As today: accepted, no effect, no warning. **Human decision 2026-09-28: accepted.** (a): the
+keys are hints to the surrounding engine, checked against its hints only; an ignored key is
+`SGL4010`.
 
 **⚑4 (C13): edges across a boundary.** (a) The host draws them straight, end to end, and the
 parent never sees them. (b) **The parent's engine sees the edge lifted to the box and routes it to
 a fixed port on the box; the host adds a short straight leg inside; under a parent whose engine
 does not route (`grid`, `fixed`, `radial`), (a). Recommended, with (a) as the fallback.**
 (c) ELK's own hierarchy, for `elk` in `elk` only; it throws on 10 corpus documents today.
-(d) A host router across levels; several kB and research.
+(d) A host router across levels; several kB and research. **Human decision 2026-09-28: accepted.** (b), with (a) as the
+fallback: under `elk` a fixed port on the box's side plus a host-drawn straight leg inside; under
+`grid` and `fixed`, straight; the fallback is straight everywhere.
 
 **⚑5 (C33): amend ADR-0002.** (a) **Per-container engines are composed by the host;
 `ctx.sublayout` stays reserved for engine-initiated delegation (B9, Could). Recommended.**
 (b) Build `ctx.sublayout` and have every engine delegate its boundaries itself: each engine needs
-code for it, and a 60-line engine gets no nesting.
+code for it, and a 60-line engine gets no nesting. **Human decision 2026-09-28: accepted.** (a): ADR-0002 is amended
+(its "Amendment 2026-09-28" section); `ctx.sublayout` stays reserved for B9.
 
 **⚑6 (C12, C28): two new warnings.** `SGL4012` "Layout engine `{name}` is not available; `{node}`
 is laid out by `{id}`." and `SGL4013` "Layout engine `{id}` failed for `{node}` ({detail}); it is
 laid out by `{parent}` instead." **Recommended: allocate both, and degrade a failed or unknown
 container engine to its parent's engine.** The alternative is to fail the whole layout as the
-root does (`SGL4011`), which blanks a diagram for one box's failure.
+root does (`SGL4011`), which blanks a diagram for one box's failure. **Human decision 2026-09-28: accepted.** `SGL4012`
+and `SGL4013` are approved, and an unknown or failed container engine degrades to its parent's.
 
 **⚑7 (C47): the budget.** (a) **The composer in a lazy worker chunk: ~0.5–0.7 kB at boot. Stage
 L's forecast is then ~181.85 of 182 kB. Recommended.** (b) All static: ~2.3–2.8 kB, which needs the
 limit raised to about 184 kB. Either way, the remaining Stage L work (the Help drawer, F-rows) has
 almost no room left; a decision on the limit for the rest of Stage L may be wanted now.
+**Human decision 2026-09-28: accepted.** (a), and more: the composer lives in a lazy chunk in the worker, **and** the core
+bundle limit is raised to **184 kB** for the rest of Stage L (committed on `main` at `90689df`;
+DD-09 §2).
 
 **⚑8 (§3.8): the spec text.** Spec §2 and §9 already promise a container's own engine; §4 does not
-say what it means. **Recommended: add §3.8's row text and paragraph, in branch 2.**
+say what it means. **Recommended: add §3.8's row text and paragraph, in branch 2.** **Human decision 2026-09-28: accepted.**
+§3.8's text is approved, and was applied to spec §4 on this branch (§14).
 
 ---
 
@@ -626,7 +652,21 @@ say what it means. **Recommended: add §3.8's row text and paragraph, in branch 
 1. **DD-00 §1**: the DD-12 row said "Design only"; `fixed` and `@pin` are implemented (branches 1
    and 2). The DD-13 row said "Design only"; help branches 1 and 2 are implemented. Both corrected;
    a DD-14 row is added.
-2. **07 §2**: a paragraph for this design branch; §2.1 F29's owner points here.
+2. **07 §2**: a paragraph for this design branch, then one for the decisions; §2.1 F29's owner
+   points here and at `feat/b8-compose` and `feat/b8-wire`.
+
+After the human's decisions (2026-09-28), also on this branch:
+
+3. **Spec §4**: §3.8's approved row text and paragraph (⚑8). §9's worked example is unchanged: the
+   human kept it on purpose, and B8 makes it render with no diagnostics.
+4. **ADR-0002**: an "Amendment 2026-09-28" section (⚑5, C33). **Architecture** §4.2 (the
+   `sublayout` comment, and the `pin` comment, §15 item 5), §4.4 (the RPC arrow), §4.5's `layered`
+   note and §12's phase-1 obligation. **04**: the B8 row (Should, F29), the B9 row, the triage
+   note's §3 and §8, and the outcome's amendments (§15 items 1 and 3). **DD-12** N2's third reason
+   (§15 item 1).
+5. **DD-06** §2's amendment note and §9's `SGL4010` row, **DD-08** §3's example-document note and
+   **07** §2's Stage K item 23: "until B8/B9" (§15 item 6). The code comments and the corpus header
+   are left for branch 2 (§11).
 
 ---
 
@@ -636,22 +676,27 @@ say what it means. **Recommended: add §3.8's row text and paragraph, in branch 
    say per-container engines work through `ctx.sublayout`**, and 04's B9 row calls it "the
    mechanism B8 needs". This design composes in the host and leaves `ctx.sublayout` reserved (⚑5).
    DD-12 N2's third reason ("`ctx.sublayout` returns geometry for that scope") names the same
-   mechanism; its conclusion, that relative pins work in a box, holds either way.
+   mechanism; its conclusion, that relative pins work in a box, holds either way. **Resolved on this
+   branch** (⚑5 accepted; §14 item 4).
 2. **A container's option keys are accepted and ignored with no warning.** `layoutConfigDiagnostics`
    checks a container's keys against options *and* hints (DD-06 §2's amendment says "a
    container's `@layout` keys are hints, so the hint schema counts too", and counts options as
    well), but `elk` reads only `portConstraints` and `priority` from a node, and `grid` only
    `columns`. Spec §4 says `@direction` on a container is sugar for `@layout.direction`; under
-   `elk` it does nothing and says nothing (⚑3).
+   `elk` it does nothing and says nothing (⚑3). **Resolved by ⚑3's decision**; the code is branch 2's
+   (C9, C11).
 3. **01 FR-Y9 is a Should; 04's B8 row is a Could** (04's triage demoted it, S→C), and F29
    now prioritises it in Stage L. The MoSCoW is the human's; this document does not change it.
+   **Resolved:** the human's "build B8 sooner" (F29, 2026-09-27) makes B8 at least a Should; 04's
+   row now says **Should** (human decision 2026-09-27, F29), agreeing with FR-Y9.
 4. **`EngineCapabilities.containers` is declared by every engine and read by nothing.** The
    contract implies the host acts on `containers: false`; it does not (C37).
 5. **Architecture §4.2's `GraphNode` sketch says of `pin`: "engines MUST honour".** DD-12 H4 made
    it a capability, and an engine without it warns (`SGL4021`). DD-06 §2 already records that the
-   sketch is not the shipped type; the sentence is still misleading.
+   sketch is not the shipped type; the sentence is still misleading. **Fixed on this branch.**
 6. **07 §2 (Stage K fix round 1, item 23) and DD-06 §9's `SGL4010` row say "until B8/B9"**, and
    `corpus/layout/nested-engine.sgl`'s header says the same. After B8 a container's engine works
-   and B9 is not involved; branch 2 updates all three (C46).
+   and B9 is not involved. **The two documents are fixed on this branch; the corpus header, and the
+   code comments that say the same, are branch 2's** (§11, C46).
 7. **The help's `key/layout.md` example "A container cannot change the engine"** (expecting
    `SGL4010` twice) becomes false with B8; branch 2 rewrites it (C45, P21).
