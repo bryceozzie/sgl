@@ -8,7 +8,7 @@ compiler, the previews), with small exports from `@sgl/core`, `@sgl/theme` and `
 module that E6 (autocomplete) can reuse later.
 
 **Status: design only (2026-09-27), from `main` at `4432974`. No code is changed by this document.**
-**Implementation:** branches 1, `feat/help-reference`, and 2, `feat/help-content`, are implemented (§13, with their deviations).
+**Implementation:** branches 1, `feat/help-reference`, 2, `feat/help-content`, and 4, `feat/help-drawer`, are implemented (§13, with their deviations).
 **Human decisions (2026-09-27): every §14 recommendation was accepted, HD1–HD6.** The human also
 settled §17: `@style` with a value that is not an object warns `SGL2011` (branch 0,
 `fix/style-shorthand`, §13), and the spec and 01 were corrected to match the code on this branch.
@@ -821,6 +821,56 @@ Reviewable branches, in order. Each is one reviewer's work, and each passes the 
    - `.size-limit.js`, `check-core-chunks.mjs`.
    - `help-search.test.ts`, `help-preview.browser.test.ts`, e2e 1–5, the CSP and offline cases.
    - HD3's diagnostics-row link and HD6's first visit.
+
+   **Implemented** on `feat/help-drawer` (from `main` at `900f93b`). No golden moved; no new
+   dependency; no CSP change. Boot **+586 B** gzipped (180 255 → 180 841 B of 184 kB; the stop
+   line was +0.6 kB). Files: `toolbar/HelpButton.tsx` (the button and the mount point),
+   `state/first-visit.ts`, `help/help.tsx` (the drawer), `help/search.ts`, `help/categories.ts`,
+   `help/render.tsx`, `help/facts.tsx`, `help/links.ts`, `help/help-preview.ts`,
+   `help/help-content.ts` and `reference/reference.ts` (the two chunks' entries), `help/help.css`.
+   Lazy chunks, gzipped: `help` 6.56 kB, `help-*.css` 1.32 kB, `help-content` 13.30 kB,
+   `reference` 1.80 kB, `help-preview` 1.05 kB. Tests: `help-search.test.ts`, `help-links.test.ts`,
+   `first-visit.test.ts`, `help-preview.test.ts` (Node), `help-render.browser.test.ts` and
+   `help-preview.browser.test.ts` (Chromium), `e2e/help.spec.ts`, and cases in `offline.spec.ts`,
+   `csp.spec.ts` and `pwa.spec.ts`. Deviations and gaps filled:
+   - **No `Pipeline.loadSource`.** Each preview is a **fresh `createPipeline`** whose initial
+     document is the example (so `pipeline.ts` still does the parsing), disposed when it has
+     rendered or failed. "This preview is finished" is then unambiguous, and nothing is added to the
+     boot path. The cost is P26's fast path: a theme switch renders a visible preview again in full
+     (cached per theme), not paint only.
+   - **The drawer shows the whole entry** (facts, summary, all prose, every example, See also), not
+     P38's compact view: the help page and its "More in the help page →" link are branch 5, which
+     trims the drawer when it lands.
+   - **The boot path mounts nothing until the `help` chunk has loaded** (it is precached:
+     milliseconds). The `<aside>`, its heading, × and Escape are the chunk's; "Loading help…" shows
+     while `help-content` and `reference` load (P33's spinner). A chunk that fails toasts (the app's
+     `CHUNK_FAILED`) and the drawer stays closed, or says it could not load.
+   - **HD3 is a button**, "Help" with the name "Help for SGL2010", not a `#help/diag/<code>` link:
+     the route is branch 5. It opens `diag/<code>`, which exists for every catalogue code as a
+     generated entry (severity, stage, message), so the button is never hidden. Until branch 3
+     writes the codes' prose, that entry links ("Explained in:") the entries whose `Diagnostics:`
+     line names the code, the nearest prose (`explainedBy`).
+   - **HD6's first visit** is a boot that made its document (`created`): the example, or a share
+     link's document for someone with nothing stored, who is new to SGL too. That it was shown is
+     remembered in `localStorage` (`sgl-help-shown`), read synchronously at boot; storage that throws
+     is tolerated (the check answers true, nothing is remembered). The e2e config seeds the flag, so
+     other specs start as returning visitors.
+   - **Focus:** the Help button focuses the search box; a row's Help and every link or result
+     followed focus the entry's heading; a first visit moves nothing. The back button reads
+     "← Results", "← Back" (to the previous entry) or "← Help home". A pointer-down outside does not
+     close the drawer (P39).
+   - **Search (P36):** a prefix of a dotted segment counts as a prefix (`maxw` in `size.maxWidth`),
+     which with ties by id puts `key/size.maxWidth` before `style/maxWidth`. A code with no prose is
+     also searched by its message template's words.
+   - **Chunks (P46):** `help-preview` is a fifth, loaded on the first preview. `reference` imports
+     `IMPORT_CATALOGUE` from `@sgl/core/imports`, so that entry is now a chunk of its own (5.33 kB),
+     shared by `imports` and `reference`, and opening help fetches it. A follow-up could move the
+     catalogue out of `@sgl/core/imports`. `check-core-chunks.mjs` finds each help chunk by its
+     module in the build's graph and fails if any module of `src/help/`, `src/reference/` or the
+     content is carried by any other chunk.
+   - **The boot cost** is above §9's estimate because the lazy chunks read the registries, the
+     pipeline and the worker host from the boot chunks, which must export them (the `grid` chunk
+     +74 B of that).
 5. **`feat/help-page`.**
    - The `#help` route and the page view, deep links, Back, print CSS, and the `#help/keys` and
      `#help/diagnostics` indexes.

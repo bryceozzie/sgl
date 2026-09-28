@@ -2367,6 +2367,36 @@ generated edge id), and a property over names built from those fragments, each t
 with plain names; `mapping.test.ts` updated to the new ids. Core **180.14 kB** of 184, +66 B over
 `main` (180 071 → 180 137 B). DD-06 §6.1 (the pseudocode and note 10), §6.2.
 
+**Help branch 4, `feat/help-drawer`** (Stage L, E19, DD-13 §13 branch 4; branched from `main` at
+`900f93b`; not merged; no golden changed; no new dependency; no CSP change). The **Help drawer**:
+a **Help** button at the end of the toolbar (no shortcut, HD5) opens an `<aside>` labelled "Help"
+as a third column (the editor keeps its width). Its contents are the lazy **`help`** chunk
+(`src/help/help.tsx`, with `help-*.css`), which loads **`help-content`** (the compiled Markdown) and
+**`reference`** (`buildReference`) with itself: an in-house fuzzy **search** (`search.ts`: names,
+written forms, titles, aliases, summary words; boundary, prefix and exact bonuses; a leading `@`
+ignored; grouped by category, at most 50), the eight **categories**, and an **entry view** that
+renders the compiled tree as Preact elements (`render.tsx`; no `innerHTML`) under a generated
+**facts panel** (`facts.tsx`), with `#help/<id>` links followed inside the drawer (`links.ts`).
+Examples have **Copy** and **Open as new document** (Open's path; HD2, no Insert) and a
+**preview**: the lazy **`help-preview`** chunk runs each example through a fresh `createPipeline`
+on help's own layout host (a second layout worker, disposed 60 s after help closes), one at a
+time, cached by (example, theme, engine). **HD3:** each diagnostics row has a Help button opening
+`diag/<code>`, which exists for every catalogue code as generated facts and, until branch 3, links
+the entries whose `Diagnostics:` line names the code. **HD6:** a boot that made its document opens
+the drawer at the quick start without moving focus, remembered in `localStorage`
+(`sgl-help-shown`; the e2e config seeds it for the other specs). Escape and × close the drawer,
+focus back on Help; a click outside does not (DD-13 P39). A help chunk that fails to load toasts.
+`.size-limit.js` excludes the chunks; `check-core-chunks.mjs` checks by the module graph that no
+help or reference module is in a boot, worker or other chunk. Tests: `help-search`, `help-links`,
+`first-visit`, `help-preview` (Node), `help-render.browser`, `help-preview.browser` (Chromium),
+`e2e/help.spec.ts` (12 cases), an offline case, a CSP case; `pwa.spec.ts` now tells the boot CSS
+from `help-*.css`, and `offline.spec.ts` counts two `imports-*.js` files (`@sgl/core/imports` is now
+shared with `reference`). Core **180.84 kB** of 184 (180 841 B), +586 B over `main`; lazy, gzipped:
+`help` 6.56 kB, `help-*.css` 1.32 kB, `help-content` 13.30 kB, `reference` 1.80 kB, `help-preview`
+1.05 kB. Deviations are in DD-13 §13 branch 4: no `Pipeline.loadSource` (a pipeline per example),
+the whole entry in the drawer until the page exists, HD3 as a button. DD-08 §2, §12 and a new §16;
+DD-10 §2.
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
