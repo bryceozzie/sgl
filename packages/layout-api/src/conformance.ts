@@ -19,7 +19,18 @@
  * 5. an engine claiming `labelPlacement: true` returns a `LabelPlacement` for
  *    every visible label;
  * 6. every edge end is within `arrowSize` of its node's frame, or its port
- *    (fix round 1, item 11).
+ *    (fix round 1, item 11);
+ * 7. the engine honours `scope` (DD-14 C35): for every container with a
+ *    visible child, the engine run on that container's view (`layoutView`,
+ *    `@sgl/layout-api/compose`) with `scope` = the container places exactly
+ *    the view's nodes, the container's own frame included, and passes
+ *    `validateResult`. This is what makes an engine safe to name on a
+ *    container: one that fails it is dissolved there (DD-14 C28).
+ *
+ * A case may carry a plan (DD-14 C40): it is then run as a request with that
+ * plan runs (`composeLayout`, the engines from `ConformanceOptions.engines`),
+ * and checks 1–6 are made on the composed result. Check 7 is the engine's
+ * own and is made on cases without a plan.
  *
  * Check 1 fails on *error* diagnostics only; a warning such as `SGL4003` is
  * reported in `validation` but passes.
@@ -35,8 +46,9 @@
  * set is the `corpus/` documents.
  */
 
-import type { EdgeId, GraphNode, LabelId, NodeId, PathSeg, Point, Rect, SemanticGraph } from '@sgl/core';
+import type { EdgeId, GraphNode, LabelId, NodeId, PathSeg, Point, Rect, SemanticGraph, Size } from '@sgl/core';
 import type { LayoutContext, LayoutEngine, LayoutInput, LayoutResult, ResolvedThemeMetricsView } from './contract.js';
+import { composeLayout, layoutView, placingEngines, type LayoutPlan } from './compose.js';
 import { applyHostFallbacks } from './fallbacks.js';
 import { pinOf } from './pin.js';
 import { DEFAULT_ENGINE_TIMEOUT_MS, DEFAULT_TIMEOUT_MS } from './host.js';
@@ -45,6 +57,9 @@ import { describeShapeError, quantize, validateResult } from './validate.js';
 export interface ConformanceCase {
   readonly name: string;
   readonly input: LayoutInput;
+  /** Per-container engines (DD-14 C40): the case is composed, as a request
+   *  with this plan is. Needs `ConformanceOptions.engines`. */
+  readonly plan?: LayoutPlan;
 }
 
 export interface ConformanceOptions {
@@ -59,6 +74,10 @@ export interface ConformanceOptions {
   /** A millisecond clock for check 4 (injected: `performance.now` is banned
    *  below `apps/web`, DD-00 §3). */
   readonly now: () => number;
+  /** Looks up a plan's engines by id (the worker's registry). */
+  readonly engines?: (id: string) => LayoutEngine | undefined;
+  /** Check 7. Default `true`. */
+  readonly scopes?: boolean;
 }
 
 export interface HierarchyCrossing {
@@ -81,6 +100,8 @@ export interface CaseReport {
   readonly missingLabels: readonly LabelId[];
   /** Check 6: edge ends further than `arrowSize` from their node. */
   readonly detached: readonly DetachedEnd[];
+  /** Check 7: the containers it was made on (none for a case with a plan). */
+  readonly scopes: readonly NodeId[];
   /** The K4 warning (not a failure). */
   readonly crossings: readonly HierarchyCrossing[];
   /** The quantized result of the first run, for callers that assert more. */
@@ -122,13 +143,22 @@ export function conformanceContext(options: Readonly<Record<string, unknown>>, m
 
 /** What a real request produces: `engine.layout -> applyHostFallbacks ->
  *  quantize(…, 64)` — `worker-runtime.ts` then `host.ts`, in one process.
- *  `raw` is the engine's own output, before any fallback. */
+ *  `raw` is the engine's own output, before any fallback.
+ *
+ *  With a non-empty plan (DD-14 C40), what a request with that plan
+ *  produces: `composeLayout` (which applies the fallbacks per view), then
+ *  `quantize`; `raw` is the composed result. An empty plan is today's path. */
 export async function runHostSequence(
   engine: LayoutEngine,
   input: LayoutInput,
   options: Readonly<Record<string, unknown>>,
   metrics: ResolvedThemeMetricsView,
+  compose?: { readonly plan: LayoutPlan; readonly engines: (id: string) => LayoutEngine | undefined },
 ): Promise<{ readonly raw: LayoutResult; readonly result: LayoutResult }> {
+  if (compose !== undefined && compose.plan.length > 0) {
+    const composed = await composeLayout(engine, input, options, compose.plan, compose.engines, conformanceContext(options, metrics));
+    return { raw: composed, result: describeShapeError(composed) === null ? quantize(composed, 64) : composed };
+  }
   const raw = await engine.layout(input, conformanceContext(options, metrics));
   if (describeShapeError(raw) !== null) return { raw, result: raw };
   return { raw, result: quantize(applyHostFallbacks(input, raw, engine.capabilities, metrics), 64) };
@@ -146,10 +176,11 @@ export async function runConformance(
   const crossingCounts: Record<string, number> = {};
 
   for (const c of cases) {
+    const compose = c.plan === undefined ? undefined : { plan: c.plan, engines: opts.engines ?? (() => undefined) };
     const t0 = opts.now();
-    const first = await runHostSequence(engine, c.input, options, opts.metrics);
+    const first = await runHostSequence(engine, c.input, options, opts.metrics, compose);
     const ms = opts.now() - t0;
-    const second = await runHostSequence(engine, c.input, options, opts.metrics);
+    const second = await runHostSequence(engine, c.input, options, opts.metrics, compose);
 
     const validation = validateResult(first.result, c.input.graph, engine.id);
     for (const d of validation) if (d.severity === 'error') failures.push(`${c.name}: check 1 (validateResult): ${d.message}`);
@@ -163,7 +194,15 @@ export async function runConformance(
 
     // F28 (DD-12 §17 item 9): an engine that places nodes at their `@pin`
     // may put two of them on top of each other, because the author did.
-    const pinned = engine.capabilities.pins === true ? (id: NodeId) => pinnedNode(c.input.graph, id) : undefined;
+    // Under a plan, the engine that placed the node is the one asked (DD-14 C10).
+    const placer = c.plan === undefined ? () => engine.id : placingEngines(c.input.graph, c.plan, engine.id);
+    const pinsOf = (id: string): boolean => (id === engine.id ? engine : opts.engines?.(id))?.capabilities.pins === true;
+    const pinned =
+      c.plan === undefined
+        ? engine.capabilities.pins === true
+          ? (id: NodeId) => pinnedNode(c.input.graph, id)
+          : undefined
+        : (id: NodeId) => pinsOf(placer(id)) && pinnedNode(c.input.graph, id);
     const siblingOverlaps = describeShapeError(first.result) === null ? siblingLeafOverlaps(c.input.graph, first.result, pinned) : [];
     for (const [a, b] of siblingOverlaps) failures.push(`${c.name}: check 3 (siblings '${a}' and '${b}' overlap)`);
 
@@ -179,7 +218,13 @@ export async function runConformance(
     const crossings = describeShapeError(first.result) === null ? hierarchyCrossings(c.input.graph, first.result) : [];
     if (crossings.length > 0) crossingCounts[c.name] = crossings.length;
 
-    reports.push({ name: c.name, validation, deterministic, siblingOverlaps, ms, withinTimeout, missingLabels, detached, crossings, result: first.result });
+    const scopes = c.plan === undefined && opts.scopes !== false ? scopeContainers(c.input.graph) : [];
+    for (const scope of scopes) {
+      const problem = await scopeProblem(engine, c.input, scope, options, opts.metrics);
+      if (problem !== null) failures.push(`${c.name}: check 7 (scope '${scope}': ${problem})`);
+    }
+
+    reports.push({ name: c.name, validation, deterministic, siblingOverlaps, ms, withinTimeout, missingLabels, detached, scopes, crossings, result: first.result });
   }
 
   if (opts.timedCase !== undefined && !cases.some((c) => c.name === opts.timedCase)) {
@@ -227,6 +272,98 @@ export function siblingLeafOverlaps(
 }
 
 export const siblingOverlaps = siblingLeafOverlaps;
+
+/** Check 7's containers: every visible node with a visible child, in
+ *  `graph.order`. */
+function scopeContainers(graph: SemanticGraph): readonly NodeId[] {
+  return graph.order.filter((id) => graph.nodes[id]?.children.some((k) => graph.nodes[k]?.hidden === false) === true);
+}
+
+/** Check 7's box size: odd, on the 1/64 grid, and unlike any sizing an
+ *  engine could arrive at by itself. */
+export const SCOPE_CHECK_BOX: Size = { w: 37.25, h: 23.5 };
+
+/**
+ * Check 7 (DD-14 C35; fix round 1, item 2) for one container, two runs:
+ *
+ * 1. **As the composer runs a boundary.** The container's view (`layoutView`),
+ *    `scope` = the container, the inner containers directly in its layer
+ *    given as boxes: leaves whose `sizing.fixed` is `SCOPE_CHECK_BOX` and whose
+ *    `intrinsic` is 1 x 1. Through the host fallbacks, the result places
+ *    exactly the view's visible nodes, the container's own frame included,
+ *    each box at exactly `SCOPE_CHECK_BOX`, and passes `validateResult`.
+ * 2. **On the whole graph.** The document's own input with `scope` = the
+ *    container, the engine alone: it places exactly the container and its
+ *    visible descendants. This is what tells a scoped layout from a
+ *    whole-graph one, since a view holds nothing outside its scope.
+ *
+ * `null` when both hold; otherwise what went wrong.
+ */
+export async function scopeProblem(
+  engine: LayoutEngine,
+  input: LayoutInput,
+  scope: NodeId,
+  options: Readonly<Record<string, unknown>>,
+  metrics: ResolvedThemeMetricsView,
+): Promise<string | null> {
+  const { graph } = input;
+  const quote = (ids: readonly string[]): string => ids.map((id) => `'${id}'`).join(', ');
+  const nodeSet = (want: readonly NodeId[], got: LayoutResult): string[] => {
+    const wanted = new Set<string>(want);
+    const missing = want.filter((id) => got.nodes[id] === undefined);
+    const extra = Object.keys(got.nodes)
+      .filter((id) => !wanted.has(id))
+      .sort();
+    return [...(missing.length > 0 ? [`missing ${quote(missing)}`] : []), ...(extra.length > 0 ? [`extra ${quote(extra)}`] : [])];
+  };
+
+  // 1. The view, with its inner containers as boxes.
+  const boxes = new Map<NodeId, Size>();
+  const stack = [...(graph.nodes[scope]?.children ?? [])].reverse();
+  while (stack.length > 0) {
+    const id = stack.pop()!;
+    const node = graph.nodes[id];
+    if (node === undefined || node.hidden) continue;
+    if (node.children.some((k) => graph.nodes[k]?.hidden === false)) boxes.set(id, SCOPE_CHECK_BOX);
+    else for (let i = node.children.length - 1; i >= 0; i -= 1) stack.push(node.children[i]!);
+  }
+  const base = layoutView(input, scope, boxes);
+  const sizing = { ...base.sizing };
+  for (const id of boxes.keys()) sizing[id] = { ...sizing[id]!, intrinsic: { w: 1, h: 1 } };
+  const view: LayoutInput = { ...base, sizing };
+  const parts: string[] = [];
+  let result: LayoutResult;
+  try {
+    result = (await runHostSequence(engine, view, options, metrics)).result;
+  } catch (err) {
+    return `threw: ${err instanceof Error ? err.message : String(err)}`;
+  }
+  const shape = describeShapeError(result);
+  if (shape !== null) return shape;
+  parts.push(...nodeSet(view.graph.order, result));
+  for (const id of boxes.keys()) {
+    const f = result.nodes[id]?.frame;
+    if (f !== undefined && (f.w !== SCOPE_CHECK_BOX.w || f.h !== SCOPE_CHECK_BOX.h)) parts.push(`box '${id}' is ${f.w}x${f.h}, not ${SCOPE_CHECK_BOX.w}x${SCOPE_CHECK_BOX.h}`);
+  }
+  if (parts.length === 0) {
+    const error = validateResult(result, view.graph, engine.id).find((d) => d.severity === 'error');
+    if (error !== undefined) parts.push(error.message);
+  }
+
+  // 2. The whole graph, with `scope` set.
+  const subtree = graph.order.filter((id) => {
+    for (let at: NodeId | null = id; at !== null; at = graph.nodes[at]?.parent ?? null) if (at === scope) return true;
+    return false;
+  });
+  try {
+    const raw = await engine.layout({ ...input, scope }, conformanceContext(options, metrics));
+    const whole = describeShapeError(raw) ?? nodeSet(subtree, raw).join('; ');
+    if (whole !== '') parts.push(`whole graph: ${whole}`);
+  } catch (err) {
+    parts.push(`whole graph: threw: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  return parts.length === 0 ? null : parts.join('; ');
+}
 
 function pinnedNode(graph: SemanticGraph, id: NodeId): boolean {
   const node = graph.nodes[id];

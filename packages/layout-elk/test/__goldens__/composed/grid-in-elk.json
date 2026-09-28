@@ -1,0 +1,413 @@
+{
+  "bounds": {
+    "x": 0,
+    "y": 0,
+    "w": 668.25,
+    "h": 379.5
+  },
+  "nodes": {
+    "edge": {
+      "frame": {
+        "x": 144,
+        "y": 309.203125,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "storefront": {
+      "frame": {
+        "x": 291,
+        "y": 271.59375,
+        "w": 361.25,
+        "h": 91.90625
+      },
+      "contentFrame": {
+        "x": 307,
+        "y": 309.203125,
+        "w": 329.25,
+        "h": 38.296875
+      }
+    },
+    "storefront.web": {
+      "frame": {
+        "x": 307,
+        "y": 309.203125,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "storefront.bff": {
+      "frame": {
+        "x": 564.25,
+        "y": 309.203125,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "payments": {
+      "frame": {
+        "x": 16,
+        "y": 92,
+        "w": 200,
+        "h": 177.203125
+      },
+      "contentFrame": {
+        "x": 32,
+        "y": 129.59375,
+        "w": 168,
+        "h": 123.59375
+      }
+    },
+    "payments.api": {
+      "frame": {
+        "x": 32,
+        "y": 136.5,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "payments.ledger": {
+      "frame": {
+        "x": 128,
+        "y": 129.59375,
+        "w": 72,
+        "h": 49.796875
+      }
+    },
+    "payments.outbox": {
+      "frame": {
+        "x": 32,
+        "y": 203.40625,
+        "w": 72,
+        "h": 49.796875
+      }
+    },
+    "psp": {
+      "frame": {
+        "x": 80,
+        "y": 16,
+        "w": 72,
+        "h": 36
+      }
+    }
+  },
+  "edges": {
+    "e-87441157bd4f5902": {
+      "start": {
+        "x": 216,
+        "y": 327.203125
+      },
+      "end": {
+        "x": 299,
+        "y": 327.203125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 299,
+            "y": 327.203125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "clip": "none"
+    },
+    "e-9b7b78b27b104012": {
+      "start": {
+        "x": 564.25,
+        "y": 315.515625
+      },
+      "end": {
+        "x": 111.609375,
+        "y": 168.65625
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 111.609375,
+            "y": 168.65625
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0.9511805145130795,
+        "y": 0.3086351062511088
+      },
+      "endNormal": {
+        "x": -0.9511805145130795,
+        "y": -0.3086351062511088
+      },
+      "clip": "none"
+    },
+    "e-b226b1373bf1da7f": {
+      "start": {
+        "x": 75.171875,
+        "y": 136.5
+      },
+      "end": {
+        "x": 105.875,
+        "y": 59.4375
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 105.875,
+            "y": 59.4375
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -0.3700610534654712,
+        "y": 0.9290074363039436
+      },
+      "endNormal": {
+        "x": 0.3700610534654712,
+        "y": -0.9290074363039436
+      },
+      "clip": "none"
+    },
+    "e-d20dab6abc46ae7d": {
+      "start": {
+        "x": 379,
+        "y": 327.203125
+      },
+      "end": {
+        "x": 556.25,
+        "y": 327.203125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 556.25,
+            "y": 327.203125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "clip": "none"
+    },
+    "e-fee3fa2995887984": {
+      "start": {
+        "x": 104,
+        "y": 154.5
+      },
+      "end": {
+        "x": 120,
+        "y": 154.5
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 120,
+            "y": 154.5
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "clip": "none"
+    },
+    "e-7cfa36e0eac91b9c": {
+      "start": {
+        "x": 68,
+        "y": 172.5
+      },
+      "end": {
+        "x": 68,
+        "y": 195.40625
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 68,
+            "y": 195.40625
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0,
+        "y": -1
+      },
+      "endNormal": {
+        "x": 0,
+        "y": 1
+      },
+      "clip": "none"
+    }
+  },
+  "labels": [
+    {
+      "labelId": "l:e-7cfa36e0eac91b9c",
+      "frame": {
+        "x": 42.484375,
+        "y": 176.796875,
+        "w": 28.734375,
+        "h": 14.296875
+      },
+      "align": "middle",
+      "baseline": "middle",
+      "occlusion": "plate"
+    },
+    {
+      "labelId": "l:e-9b7b78b27b104012",
+      "frame": {
+        "x": 306.515625,
+        "y": 224.328125,
+        "w": 69.703125,
+        "h": 14.296875
+      },
+      "align": "middle",
+      "baseline": "middle",
+      "occlusion": "plate"
+    },
+    {
+      "labelId": "l:e-b226b1373bf1da7f",
+      "frame": {
+        "x": 78.25,
+        "y": 94.9375,
+        "w": 45.25,
+        "h": 14.296875
+      },
+      "align": "middle",
+      "baseline": "middle",
+      "occlusion": "plate"
+    },
+    {
+      "labelId": "l:e-d20dab6abc46ae7d",
+      "frame": {
+        "x": 449,
+        "y": 332.203125,
+        "w": 45.25,
+        "h": 14.296875
+      },
+      "align": "middle",
+      "baseline": "top",
+      "occlusion": "plate"
+    },
+    {
+      "labelId": "l:edge",
+      "frame": {
+        "x": 165.921875,
+        "y": 318.75,
+        "w": 28.15625,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:payments",
+      "frame": {
+        "x": 32,
+        "y": 108,
+        "w": 57.625,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:payments.api",
+      "frame": {
+        "x": 59.328125,
+        "y": 146.046875,
+        "w": 17.34375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:payments.ledger",
+      "frame": {
+        "x": 145.9375,
+        "y": 148.859375,
+        "w": 36.125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:payments.outbox",
+      "frame": {
+        "x": 48.484375,
+        "y": 222.671875,
+        "w": 39.03125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:psp",
+      "frame": {
+        "x": 99.015625,
+        "y": 25.546875,
+        "w": 33.953125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:storefront",
+      "frame": {
+        "x": 307,
+        "y": 287.59375,
+        "w": 56.90625,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:storefront.bff",
+      "frame": {
+        "x": 587.96875,
+        "y": 318.75,
+        "w": 24.5625,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:storefront.web",
+      "frame": {
+        "x": 331.078125,
+        "y": 318.75,
+        "w": 23.84375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    }
+  ]
+}

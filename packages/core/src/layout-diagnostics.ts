@@ -31,6 +31,7 @@ export const LAYOUT_CATALOGUE = {
   SGL4003: { severity: 'warning', template: '`{node}` extends outside its container after layout.' },
   SGL4010: { severity: 'warning', template: '`@layout.{key}` is not an option of engine `{id}`; ignored.' },
   SGL4011: { severity: 'error', template: 'Layout engine `{id}` failed: {message}.' },
+  SGL4013: { severity: 'warning', template: 'Layout engine `{id}` failed for `{node}` ({detail}); it is laid out by `{parent}` instead.' },
   SGL4020: { severity: 'warning', template: '`{node}` has no `@pin`; `fixed` placed it below the pinned nodes.' },
   SGL4021: { severity: 'warning', template: '`@pin` is not honoured by engine `{id}`; ignored.' },
   SGL4022: { severity: 'info', template: '{count} more layout warnings not shown.' },

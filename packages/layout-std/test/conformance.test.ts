@@ -56,6 +56,9 @@ it('grid passes all five conformance checks over the corpus and the 1 000-node g
   expect(timed.withinTimeout).toBe(true);
   // `bitwise`: both the raw and the quantized results matched across runs.
   expect(report.cases.every((c) => c.deterministic === true)).toBe(true);
+  // Check 7 (DD-14 C35): grid honours `scope` on every container of every case.
+  expect(report.cases.find((c) => c.name === N1000)!.scopes).toHaveLength(100);
+  expect(report.cases.find((c) => c.name === 'checkout.sgl')!.scopes).toEqual(['storefront', 'payments']);
 }, 120_000);
 
 /**
@@ -85,6 +88,9 @@ it('fixed passes all six conformance checks over the corpus and the 1 000-node g
   expect(report.failures).toEqual([]);
   expect(timed.withinTimeout).toBe(true);
   expect(report.cases.every((c) => c.deterministic === true)).toBe(true);
+  // Check 7 (DD-14 C35): fixed honours `scope` on every container, pinned ones included.
+  expect(report.cases.find((c) => c.name === N1000)!.scopes).toHaveLength(100);
+  expect(report.cases.find((c) => c.name === 'layout/pin-nested.sgl')!.scopes.length).toBeGreaterThan(0);
   const warned = report.cases.filter((c) => c.validation.length > 0).map((c) => [c.name, c.validation.map((d) => d.code)]);
   expect(warned).toEqual([['layout/pin-negative.sgl', ['SGL4003']]]);
   // The overlap case really overlaps: without the exemption, check 3 would fail it.
@@ -119,6 +125,9 @@ it('tree passes all six conformance checks over the corpus and the 1 000-node gr
     expect(report.cases.every((c) => c.deterministic === true)).toBe(true);
     // No validation warning at all: every child inside its container.
     expect(report.cases.filter((c) => c.validation.length > 0).map((c) => c.name)).toEqual([]);
+    // Check 7 (DD-14 C35): tree honours `scope` on every container.
+    expect(report.cases.find((c) => c.name === N1000)!.scopes).toHaveLength(100);
+    expect(report.cases.find((c) => c.name === 'checkout.sgl')!.scopes).toEqual(['storefront', 'payments']);
   }
 }, 120_000);
 
