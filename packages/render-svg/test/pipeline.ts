@@ -20,7 +20,7 @@ import {
 import { fixedEngine, gridEngine } from '@sgl/layout-std';
 import { labelRunKey, premeasure, StaticMetricsMeasurer, type MeasureTable } from '@sgl/measure';
 import { layoutWrapped } from '@sgl/text/wrap';
-import { BUILT_IN, neutralLight, resolveTheme, styleGraph, type ResolvedTheme, type StyledGraph, type ThemeDoc } from '@sgl/theme';
+import { BUILT_IN, neutralLight, resolveTheme, styleGraph, unknownThemeDiagnostics, type ResolvedTheme, type StyledGraph, type ThemeDoc } from '@sgl/theme';
 import { fileSystemHost } from '../../core/test/fs-host.js';
 import { corpusPath, corpusSource, listCorpusDocs } from '../../theme/test/corpus.js';
 import { render, type RenderResult } from '../src/index.js';
@@ -166,6 +166,9 @@ export async function runPipeline(
   // DD-12 H6: the root `@layout` options override the caller's, as the app's
   // override its form's. No `accepts` here: the harness has no form rules.
   const root = rootLayoutOptions(ast, model.root.config, schemas);
+  // SGL5007 (F31), as the app's pipeline emits it: the document's own
+  // `@theme` names no built-in theme. The harness draws in `themeDoc` either way.
+  const d3c = unknownThemeDiagnostics(ast, model.root.config['theme']);
   const { value: theme, diagnostics: d4 } = resolveTheme(themeDoc, (id) => BUILT_IN[id]);
   const { value: styled, diagnostics: d5 } = styleGraph(graph, theme, model.classes);
   const { input, result, table, diagnostics: d6 } = await layOut(styled, engine, { ...options, ...root.options });
@@ -177,7 +180,7 @@ export async function runPipeline(
     table,
     theme,
     rendered,
-    diagnostics: [...d1, ...d2, ...d3, ...d3b, ...root.diagnostics, ...d4, ...d5, ...d6, ...rendered.diagnostics],
+    diagnostics: [...d1, ...d2, ...d3, ...d3b, ...root.diagnostics, ...d3c, ...d4, ...d5, ...d6, ...rendered.diagnostics],
   };
 }
 

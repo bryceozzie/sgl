@@ -2182,6 +2182,23 @@ of 182**, the same as `main` (this branch adds nothing to the boot path). Deviat
 `@direction` do not reach the engine yet (Options does; `fix/root-layout-options`), and spec §9's
 container `@layout: { engine: grid }` is `SGL4010` under `elk`; the help says so.
 
+**F31, `fix/unknown-theme`** (human decision 2026-09-27; branched from `main` at `c299642`, merged
+`main` at `9f47545`). A document whose root `@theme` names no built-in theme is now **`SGL5007`**
+(warning, "Unknown theme `{name}`; using the default."), the next free 5xxx code, at the key of the
+last root `@theme` entry; it still draws in the default theme. `unknownThemeDiagnostics(ast, name)`
+(`@sgl/theme`) builds it from the resolved name (so a `$variable` is checked by what it substitutes
+to; a non-string or non-root `@theme` stays the resolver's `SGL2011`/`SGL2012`), and both the app's
+pipeline and `render-svg`'s harness call it. `BUILT_IN` has no prototype (orchestrator decision): a
+name such as `constructor` resolved an `Object` method as a theme, and a stored record or share
+link's `t=` accepted it; now every lookup sees only the four themes. Fixture
+`corpus/theme/unknown-theme.sgl`; tests: `theme/test/unknown-theme.test.ts`, `render-svg`'s
+`pipeline.test.ts` (known, absent, typo; the drawing is unchanged), `apps/web/test/pipeline.test.ts`,
+`apps/web/test/theme-lookup.test.ts` (stored record and `t=`), `e2e/unknown-theme.spec.ts` (the panel
+and the squiggle). The help's `@theme` entry lists `SGL5007` with an example that expects it. DD-04 §6
+has the row. No golden moved: the fonts pin gains the fixture's entry, and its AST and tree pins are
+new. Core bundle **179.31 kB of 182** (179 315 B), +129 B over `main` (accepted by the orchestrator over the
+brief's +0.1 kB cap).
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
@@ -2204,7 +2221,6 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F28** | **DD-06 §8's conformance check 3 (no two sibling frames overlap) assumes the engine chooses every position.** Under `fixed`, nodes the author pinned may overlap on purpose. **Settled in the suite by `feat/b5-fixed`:** the corpus now has pins, so `runConformance`'s check 3 skips a pair of siblings that both have a `@pin` when the engine declares `pins` (`pinOf`); a pinned node against one the engine placed is still checked (`layout-api/test/conformance.test.ts`, both halves). What remains is the SDK's published conformance guide, which must say the same before third parties rely on it. | Stage M (B18), the guide's text only |
 | **F29** | **Spec §9's worked example puts `@layout: { engine: grid }` on a container, which this build does not support** (per-container engines are B8). Under `elk` it gives two `SGL4010` warnings. Found by help branch 2 (2026-09-27). **Human decision 2026-09-27: keep the example and build B8 (per-container engines) sooner.** | Whoever builds B8 (prioritised in Stage L) |
 | **F30** | **Three keys are accepted and kept, but nothing uses them:** `@order`, `@tooltip` and `@size.aspectRatio`. The help says so. Each needs either an implementation or `SGL2010` ("no effect in this version") so authors are not misled. Found by help branch 2 (2026-09-27). | Orchestrator triage (small code fix per key) |
-| **F31** | **An unknown `@theme` name falls back to the default theme with no warning.** A typo silently changes the look. Found by help branch 2 (2026-09-27). **Human decision 2026-09-27: a new theme-catalogue warning ("Unknown theme 'X'; using the default.") at the key, with a fixture, is approved.** | Orchestrator (a small code fix) |
 
 ---
 
