@@ -77,24 +77,25 @@ test('3: a stored record whose options the engine cannot use renders with what t
   await expect(page.getByLabel('Gap')).toHaveValue('24'); // … and the default gap: what grid was sent.
 });
 
-test('23: a container asking for its own engine under elk gets an SGL4010 warning with a squiggle; the diagram stays (human decision 2026-09-23)', async ({ page }) => {
+test('23, since B8: a container naming its own engine under elk is laid out by it, with no warning (DD-14; it was SGL4010 until B8)', async ({ page }) => {
   await page.goto('/');
   await waitForExactNodeCount(page, EXAMPLE_NODE_COUNT);
-  // The welcome example no longer nests an engine: a first visit shows no warning.
+  // The welcome example does not nest an engine: a first visit shows no warning.
   await expect(page.locator('.diagnostics-panel')).toHaveCount(0);
 
   const source = 'box: {\n  @label: "Box"\n  @layout: { engine: grid }\n  a: "A"\n  b: "B"\n  a -> b\n}\n';
   await setSource(page, source);
   await waitForExactNodeCount(page, visibleNodeCount(source));
-  await expect.poll(() => diagnosticCodes(page)).toEqual(['SGL4010']);
-  await expect(page.locator('.diagnostics-panel')).toContainText('`@layout.engine` is not an option of engine `sgl.elk`; ignored.');
-  // A warning squiggle, exactly over the key.
-  const warned = page.locator('.cm-content .cm-lintRange-warning');
-  await expect(warned).toHaveCount(1);
-  await expect(warned).toHaveText('engine');
-  // Still laid out by elk, and on screen.
+  await expect(page.locator('.cm-content .cm-lintRange-warning')).toHaveCount(0);
+  await expect(page.locator('.diagnostics-panel')).toHaveCount(0);
+  // The document is still elk's; the box is grid's (its two nodes side by side,
+  // where elk alone would stack them). `container-engines.spec.ts` has the rest.
   await expect(page.locator('.engine-picker select')).toHaveValue('sgl.elk');
-  await waitForExactNodeCount(page, visibleNodeCount(source));
+  const sideBySide = async (): Promise<boolean> => {
+    const ys = await page.locator('g.L-nodes > g.n path.n-shape').evaluateAll((ps) => ps.map((p) => (p as SVGGraphicsElement).getBBox().y));
+    return ys.length === 2 && ys[0] === ys[1];
+  };
+  await expect.poll(sideBySide).toBe(true);
 });
 
 test('DD-12 N22, N6: a bare `engine: grid` selects grid and lays out; a @pin under it is SGL4021 at the key, and the diagram stays', async ({ page }) => {
