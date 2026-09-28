@@ -37,7 +37,7 @@ const outFile = fileURLToPath(new URL('./grid-fixture.json', import.meta.url));
 
 const { compile, parse, resolve } = await import('../packages/core/dist/index.js');
 const { applyHostFallbacks, buildLayoutInput, placeLabels, quantize, routeStraight } = await import('../packages/layout-api/dist/index.js');
-const { fixedEngine, gridEngine, treeEngine } = await import('../packages/layout-std/dist/index.js');
+const { fixedEngine, gridEngine, radialEngine, treeEngine } = await import('../packages/layout-std/dist/index.js');
 const { labelRunKey, premeasure, StaticMetricsMeasurer } = await import('../packages/measure/dist/index.js');
 const { BUILT_IN, neutralLight, resolveTheme, styleGraph } = await import('../packages/theme/dist/index.js');
 
@@ -160,6 +160,22 @@ async function treeCases() {
   return out;
 }
 
+/** B5 branch 5 (DD-12 §12 item 3): `radial` through a real Worker, for
+ *  `radial.browser.test.ts` — nested discs (`tree-direction`), a forest of
+ *  discs in a row (`tree-forest`), the 40-node criterion-1 document, `n50`,
+ *  and the mixed-widths tree, whose uneven wedges make nearly every angle a
+ *  different one. `bitwise` (N44, H8), so the raw result is shipped too. */
+async function radialCases() {
+  const out = {};
+  const inputs = ['layout/tree-direction.sgl', 'layout/tree-forest.sgl', 'forty-three-level.sgl', 'n50.sgl'].map((name) => [name, inputFor(name)]);
+  inputs.push(['mixed-widths', inputForSource(mixedWidthsTree())]);
+  for (const [name, input] of inputs) {
+    const raw = await radialEngine.layout(input, { ...CTX, random: seededRandom(SEED) });
+    out[name] = { input, raw, expected: quantize(applyHostFallbacks(input, raw, radialEngine.capabilities, METRICS), 64) };
+  }
+  return out;
+}
+
 async function main() {
   // n50 — the smallest generated scale fixture. This test is proving the
   // worker/protocol plumbing works for the real engine, not re-proving grid's
@@ -184,7 +200,7 @@ async function main() {
   const withLabels = gridEngine.capabilities.labelPlacement ? routed : placeLabels(input, routed, METRICS);
   const expected = quantize(withLabels, 64);
 
-  writeFileSync(outFile, JSON.stringify({ input, metrics: METRICS, expected, fixed: await fixedCases(), tree: await treeCases() }), 'utf8');
+  writeFileSync(outFile, JSON.stringify({ input, metrics: METRICS, expected, fixed: await fixedCases(), tree: await treeCases(), radial: await radialCases() }), 'utf8');
   console.log('bench/generate-grid-fixture.js: wrote bench/grid-fixture.json');
 }
 
