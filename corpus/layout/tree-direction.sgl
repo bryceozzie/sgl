@@ -1,0 +1,32 @@
+// Mixed `@direction` (DD-12 §12, N38): the root level flows down (the
+// option's default); `sales`' own direction, `right`, applies to its
+// children, and `emea` inherits it; `ops` flows `up`. Containers are nested
+// trees (N24), and `hq -> sales.emea` is lifted to `hq -> sales` (N25). No
+// diagnostic.
+@layout: { engine: tree }
+hq: "Headquarters"
+sales: {
+  @label: "Sales"
+  @direction: right
+  lead: "Lead"
+  emea: {
+    @label: "EMEA"
+    uk: "UK"
+    de: "DE"
+    uk -> de
+  }
+  amer: "Americas"
+  lead -> emea
+  lead -> amer
+}
+ops: {
+  @label: "Operations"
+  @direction: up
+  chief: "Chief"
+  it: "IT"
+  hr: "HR"
+  chief -> it
+  chief -> hr
+}
+hq -> sales.emea
+hq -> ops

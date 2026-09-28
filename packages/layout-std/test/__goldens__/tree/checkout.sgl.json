@@ -1,0 +1,448 @@
+{
+  "bounds": {
+    "x": 0,
+    "y": 0,
+    "w": 248,
+    "h": 719
+  },
+  "nodes": {
+    "edge": {
+      "frame": {
+        "x": 88,
+        "y": 16,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "storefront": {
+      "frame": {
+        "x": 72,
+        "y": 122,
+        "w": 104,
+        "h": 195.59375
+      },
+      "contentFrame": {
+        "x": 88,
+        "y": 159.59375,
+        "w": 72,
+        "h": 142
+      }
+    },
+    "payments": {
+      "frame": {
+        "x": 16,
+        "y": 387.59375,
+        "w": 216,
+        "h": 209.40625
+      },
+      "contentFrame": {
+        "x": 32,
+        "y": 425.203125,
+        "w": 184,
+        "h": 155.796875
+      }
+    },
+    "psp": {
+      "frame": {
+        "x": 88,
+        "y": 667,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "payments.api": {
+      "frame": {
+        "x": 88,
+        "y": 425.203125,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "payments.ledger": {
+      "frame": {
+        "x": 32,
+        "y": 531.203125,
+        "w": 72,
+        "h": 49.796875
+      }
+    },
+    "payments.outbox": {
+      "frame": {
+        "x": 144,
+        "y": 531.203125,
+        "w": 72,
+        "h": 49.796875
+      }
+    },
+    "storefront.web": {
+      "frame": {
+        "x": 88,
+        "y": 159.59375,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "storefront.bff": {
+      "frame": {
+        "x": 88,
+        "y": 265.59375,
+        "w": 72,
+        "h": 36
+      }
+    }
+  },
+  "edges": {
+    "e-fee3fa2995887984": {
+      "start": {
+        "x": 124,
+        "y": 461.203125
+      },
+      "end": {
+        "x": 68,
+        "y": 523.203125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 124,
+            "y": 496.203125
+          }
+        },
+        {
+          "t": "L",
+          "to": {
+            "x": 68,
+            "y": 496.203125
+          }
+        },
+        {
+          "t": "L",
+          "to": {
+            "x": 68,
+            "y": 523.203125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0,
+        "y": -1
+      },
+      "endNormal": {
+        "x": 0,
+        "y": 1
+      },
+      "clip": "none"
+    },
+    "e-7cfa36e0eac91b9c": {
+      "start": {
+        "x": 124,
+        "y": 461.203125
+      },
+      "end": {
+        "x": 180,
+        "y": 523.203125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 124,
+            "y": 496.203125
+          }
+        },
+        {
+          "t": "L",
+          "to": {
+            "x": 180,
+            "y": 496.203125
+          }
+        },
+        {
+          "t": "L",
+          "to": {
+            "x": 180,
+            "y": 523.203125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0,
+        "y": -1
+      },
+      "endNormal": {
+        "x": 0,
+        "y": 1
+      },
+      "clip": "none"
+    },
+    "e-d20dab6abc46ae7d": {
+      "start": {
+        "x": 124,
+        "y": 195.59375
+      },
+      "end": {
+        "x": 124,
+        "y": 257.59375
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 124,
+            "y": 230.59375
+          }
+        },
+        {
+          "t": "L",
+          "to": {
+            "x": 124,
+            "y": 257.59375
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0,
+        "y": -1
+      },
+      "endNormal": {
+        "x": 0,
+        "y": 1
+      },
+      "clip": "none"
+    },
+    "e-87441157bd4f5902": {
+      "start": {
+        "x": 124,
+        "y": 52
+      },
+      "end": {
+        "x": 124,
+        "y": 151.59375
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 124,
+            "y": 151.59375
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0,
+        "y": -1
+      },
+      "endNormal": {
+        "x": 0,
+        "y": 1
+      },
+      "clip": "none"
+    },
+    "e-9b7b78b27b104012": {
+      "start": {
+        "x": 124,
+        "y": 301.59375
+      },
+      "end": {
+        "x": 124,
+        "y": 417.203125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 124,
+            "y": 417.203125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0,
+        "y": -1
+      },
+      "endNormal": {
+        "x": 0,
+        "y": 1
+      },
+      "clip": "none"
+    },
+    "e-b226b1373bf1da7f": {
+      "start": {
+        "x": 124,
+        "y": 461.203125
+      },
+      "end": {
+        "x": 124,
+        "y": 659
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 124,
+            "y": 659
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0,
+        "y": -1
+      },
+      "endNormal": {
+        "x": 0,
+        "y": 1
+      },
+      "clip": "none"
+    }
+  },
+  "labels": [
+    {
+      "labelId": "l:e-7cfa36e0eac91b9c",
+      "frame": {
+        "x": 133.640625,
+        "y": 500.203125,
+        "w": 28.734375,
+        "h": 14.296875
+      },
+      "align": "middle",
+      "baseline": "middle",
+      "occlusion": "plate"
+    },
+    {
+      "labelId": "l:e-9b7b78b27b104012",
+      "frame": {
+        "x": 78,
+        "y": 352.25,
+        "w": 69.703125,
+        "h": 14.296875
+      },
+      "align": "middle",
+      "baseline": "middle",
+      "occlusion": "plate"
+    },
+    {
+      "labelId": "l:e-b226b1373bf1da7f",
+      "frame": {
+        "x": 90.234375,
+        "y": 552.953125,
+        "w": 45.25,
+        "h": 14.296875
+      },
+      "align": "middle",
+      "baseline": "middle",
+      "occlusion": "plate"
+    },
+    {
+      "labelId": "l:e-d20dab6abc46ae7d",
+      "frame": {
+        "x": 90.234375,
+        "y": 219.453125,
+        "w": 45.25,
+        "h": 14.296875
+      },
+      "align": "middle",
+      "baseline": "middle",
+      "occlusion": "plate"
+    },
+    {
+      "labelId": "l:edge",
+      "frame": {
+        "x": 109.921875,
+        "y": 25.546875,
+        "w": 28.15625,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:payments",
+      "frame": {
+        "x": 32,
+        "y": 403.59375,
+        "w": 57.625,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:payments.api",
+      "frame": {
+        "x": 115.328125,
+        "y": 434.75,
+        "w": 17.34375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:payments.ledger",
+      "frame": {
+        "x": 49.9375,
+        "y": 550.46875,
+        "w": 36.125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:payments.outbox",
+      "frame": {
+        "x": 160.484375,
+        "y": 550.46875,
+        "w": 39.03125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:psp",
+      "frame": {
+        "x": 107.015625,
+        "y": 676.546875,
+        "w": 33.953125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:storefront",
+      "frame": {
+        "x": 88,
+        "y": 138,
+        "w": 56.90625,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:storefront.bff",
+      "frame": {
+        "x": 111.71875,
+        "y": 275.15625,
+        "w": 24.5625,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:storefront.web",
+      "frame": {
+        "x": 112.078125,
+        "y": 169.15625,
+        "w": 23.84375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import { ELK_DEFAULT_OPTIONS, ELK_ENGINE_ID, normalizeElkOptions } from '@sgl/layout-elk/descriptor';
+import { treeDescriptor } from '@sgl/layout-std/descriptor';
 
 /**
  * F11 (DD-08 §10): each engine's option defaults and the normalisation of an
@@ -23,6 +24,8 @@ import { ELK_DEFAULT_OPTIONS, ELK_ENGINE_ID, normalizeElkOptions } from '@sgl/la
 export const GRID_ENGINE_ID = 'sgl.grid';
 /** DD-12 §4 (feat/b5-fixed). */
 export const FIXED_ENGINE_ID = 'sgl.fixed';
+/** DD-12 §8 (feat/b5-tree). */
+export const TREE_ENGINE_ID = 'sgl.tree';
 
 export type OptionValue = string | number;
 
@@ -51,19 +54,42 @@ const FIXED_DEFAULTS: Readonly<Record<string, OptionValue>> = { gap: 24 };
 const validGap = (gap: unknown, fallback: number): number =>
   typeof gap === 'number' && Number.isFinite(gap) && gap >= 0 && gap <= GAP_MAX ? gap : fallback;
 
+/** `elk`'s options, normalised; the spacings stop at the form's maximum. */
+function elkValues(bag: Readonly<Record<string, unknown>>) {
+  const o = normalizeElkOptions(bag);
+  // The engine accepts any non-negative spacing; the form (and so the
+  // request, item 3) stops at its own maximum.
+  return {
+    ...o,
+    nodeSpacing: o.nodeSpacing <= SPACING_MAX ? o.nodeSpacing : ELK_DEFAULT_OPTIONS.nodeSpacing,
+    rankSpacing: o.rankSpacing <= SPACING_MAX ? o.rankSpacing : ELK_DEFAULT_OPTIONS.rankSpacing,
+  };
+}
+
+/** `tree`'s option schema: its enums and defaults (fix round 1, item 9). */
+const TREE_PROPS = (treeDescriptor.optionsSchema as { readonly properties: Readonly<Record<string, { readonly enum?: readonly string[]; readonly default: OptionValue }>> })
+  .properties;
+
+/** DD-12 N37: `tree` has `elk`'s `direction`, `nodeSpacing` and `rankSpacing`
+ *  (names, values and the form's 0–500 range), and its own `edgeRouting`,
+ *  `orthogonal` (elbows) or `straight`. Its defaults are its descriptor's
+ *  (fix round 1, item 9: they were `elk`'s, equal only by coincidence). */
+function treeValues(bag: Readonly<Record<string, unknown>>): Readonly<Record<string, OptionValue>> {
+  const choice = (key: string): OptionValue => {
+    const v = bag[key];
+    return typeof v === 'string' && (TREE_PROPS[key]!.enum ?? []).includes(v) ? v : TREE_PROPS[key]!.default;
+  };
+  const spacing = (key: string): OptionValue => {
+    const v = bag[key];
+    return typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= SPACING_MAX ? v : TREE_PROPS[key]!.default;
+  };
+  return { direction: choice('direction'), nodeSpacing: spacing('nodeSpacing'), rankSpacing: spacing('rankSpacing'), edgeRouting: choice('edgeRouting') };
+}
+
 const RULES: Readonly<Record<string, EngineOptionRules>> = {
   [ELK_ENGINE_ID]: {
     defaults: { ...ELK_DEFAULT_OPTIONS },
-    normalize: (bag) => {
-      const o = normalizeElkOptions(bag);
-      // The engine accepts any non-negative spacing; the form (and so the
-      // request, item 3) stops at its own maximum.
-      return {
-        ...o,
-        nodeSpacing: o.nodeSpacing <= SPACING_MAX ? o.nodeSpacing : ELK_DEFAULT_OPTIONS.nodeSpacing,
-        rankSpacing: o.rankSpacing <= SPACING_MAX ? o.rankSpacing : ELK_DEFAULT_OPTIONS.rankSpacing,
-      };
-    },
+    normalize: elkValues,
   },
   [GRID_ENGINE_ID]: {
     defaults: GRID_DEFAULTS,
@@ -80,6 +106,10 @@ const RULES: Readonly<Record<string, EngineOptionRules>> = {
   [FIXED_ENGINE_ID]: {
     defaults: FIXED_DEFAULTS,
     normalize: (bag) => ({ gap: validGap(bag['gap'], FIXED_DEFAULTS['gap'] as number) }),
+  },
+  [TREE_ENGINE_ID]: {
+    defaults: treeValues({}),
+    normalize: treeValues,
   },
 };
 

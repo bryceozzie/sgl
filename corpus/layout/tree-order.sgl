@@ -1,0 +1,13 @@
+// `@order` among tree siblings (DD-12 §12, N29): the successors of `head`
+// are visited `@order` ascending, then in declaration order, a node without
+// one after those with one: `third`, `second`, `first`, `last`. No diagnostic.
+@layout: { engine: tree }
+head: "Head"
+first: "First"
+second: { @label: "Second", @order: 2 }
+third: { @label: "Third", @order: 1 }
+last: "Last"
+head -> first
+head -> second
+head -> third
+head -> last

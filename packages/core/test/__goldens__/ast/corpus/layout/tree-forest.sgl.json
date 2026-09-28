@@ -1,0 +1,536 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "layout"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "engine",
+       "isConfig": false,
+       "keySpan": {
+        "from": 277,
+        "to": 283
+       },
+       "value": {
+        "kind": "Word",
+        "value": "tree",
+        "span": {
+         "from": 285,
+         "to": 289
+        }
+       },
+       "span": {
+        "from": 277,
+        "to": 289
+       }
+      }
+     ],
+     "span": {
+      "from": 275,
+      "to": 291
+     }
+    },
+    "keySpan": {
+     "from": 266,
+     "to": 273
+    },
+    "span": {
+     "from": 266,
+     "to": 291
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "ceo",
+    "keySpan": {
+     "from": 292,
+     "to": 295
+    },
+    "value": {
+     "kind": "String",
+     "value": "CEO",
+     "span": {
+      "from": 297,
+      "to": 302
+     }
+    },
+    "span": {
+     "from": 292,
+     "to": 302
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "cto",
+    "keySpan": {
+     "from": 303,
+     "to": 306
+    },
+    "value": {
+     "kind": "String",
+     "value": "CTO",
+     "span": {
+      "from": 308,
+      "to": 313
+     }
+    },
+    "span": {
+     "from": 303,
+     "to": 313
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "cfo",
+    "keySpan": {
+     "from": 314,
+     "to": 317
+    },
+    "value": {
+     "kind": "String",
+     "value": "CFO",
+     "span": {
+      "from": 319,
+      "to": 324
+     }
+    },
+    "span": {
+     "from": 314,
+     "to": 324
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "dev",
+    "keySpan": {
+     "from": 325,
+     "to": 328
+    },
+    "value": {
+     "kind": "String",
+     "value": "Developer",
+     "span": {
+      "from": 330,
+      "to": 341
+     }
+    },
+    "span": {
+     "from": 325,
+     "to": 341
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "ops",
+    "keySpan": {
+     "from": 342,
+     "to": 345
+    },
+    "value": {
+     "kind": "String",
+     "value": "Operations",
+     "span": {
+      "from": 347,
+      "to": 359
+     }
+    },
+    "span": {
+     "from": 342,
+     "to": 359
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "board",
+    "keySpan": {
+     "from": 360,
+     "to": 365
+    },
+    "value": {
+     "kind": "String",
+     "value": "Board",
+     "span": {
+      "from": 367,
+      "to": 374
+     }
+    },
+    "span": {
+     "from": 360,
+     "to": 374
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "audit",
+    "keySpan": {
+     "from": 375,
+     "to": 380
+    },
+    "value": {
+     "kind": "String",
+     "value": "Audit committee",
+     "span": {
+      "from": 382,
+      "to": 399
+     }
+    },
+    "span": {
+     "from": 375,
+     "to": 399
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "lone",
+    "keySpan": {
+     "from": 400,
+     "to": 404
+    },
+    "value": {
+     "kind": "String",
+     "value": "Advisor",
+     "span": {
+      "from": 406,
+      "to": 415
+     }
+    },
+    "span": {
+     "from": 400,
+     "to": 415
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "ceo",
+         "span": {
+          "from": 416,
+          "to": 419
+         }
+        }
+       ],
+       "span": {
+        "from": 416,
+        "to": 419
+       }
+      },
+      "span": {
+       "from": 416,
+       "to": 419
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "cto",
+         "span": {
+          "from": 423,
+          "to": 426
+         }
+        }
+       ],
+       "span": {
+        "from": 423,
+        "to": 426
+       }
+      },
+      "span": {
+       "from": 423,
+       "to": 426
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 416,
+     "to": 426
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "ceo",
+         "span": {
+          "from": 427,
+          "to": 430
+         }
+        }
+       ],
+       "span": {
+        "from": 427,
+        "to": 430
+       }
+      },
+      "span": {
+       "from": 427,
+       "to": 430
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "cfo",
+         "span": {
+          "from": 434,
+          "to": 437
+         }
+        }
+       ],
+       "span": {
+        "from": 434,
+        "to": 437
+       }
+      },
+      "span": {
+       "from": 434,
+       "to": 437
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 427,
+     "to": 437
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "cto",
+         "span": {
+          "from": 438,
+          "to": 441
+         }
+        }
+       ],
+       "span": {
+        "from": 438,
+        "to": 441
+       }
+      },
+      "span": {
+       "from": 438,
+       "to": 441
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "dev",
+         "span": {
+          "from": 445,
+          "to": 448
+         }
+        }
+       ],
+       "span": {
+        "from": 445,
+        "to": 448
+       }
+      },
+      "span": {
+       "from": 445,
+       "to": 448
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 438,
+     "to": 448
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "cto",
+         "span": {
+          "from": 449,
+          "to": 452
+         }
+        }
+       ],
+       "span": {
+        "from": 449,
+        "to": 452
+       }
+      },
+      "span": {
+       "from": 449,
+       "to": 452
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "ops",
+         "span": {
+          "from": 456,
+          "to": 459
+         }
+        }
+       ],
+       "span": {
+        "from": 456,
+        "to": 459
+       }
+      },
+      "span": {
+       "from": 456,
+       "to": 459
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 449,
+     "to": 459
+    }
+   },
+   {
+    "kind": "EdgeStmt",
+    "endpoints": [
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "board",
+         "span": {
+          "from": 460,
+          "to": 465
+         }
+        }
+       ],
+       "span": {
+        "from": 460,
+        "to": 465
+       }
+      },
+      "span": {
+       "from": 460,
+       "to": 465
+      }
+     },
+     {
+      "kind": "Endpoint",
+      "path": {
+       "kind": "PathExpr",
+       "root": false,
+       "parents": 0,
+       "segments": [
+        {
+         "kind": "Name",
+         "value": "audit",
+         "span": {
+          "from": 469,
+          "to": 474
+         }
+        }
+       ],
+       "span": {
+        "from": 469,
+        "to": 474
+       }
+      },
+      "span": {
+       "from": 469,
+       "to": 474
+      }
+     }
+    ],
+    "ops": [
+     "->"
+    ],
+    "span": {
+     "from": 460,
+     "to": 474
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 475
+  }
+ },
+ "diagnostics": []
+}

@@ -1,0 +1,363 @@
+{
+  "bounds": {
+    "x": 0,
+    "y": 0,
+    "w": 202.375,
+    "h": 706.390625
+  },
+  "nodes": {
+    "external": {
+      "frame": {
+        "x": 49.1875,
+        "y": 600.796875,
+        "w": 104,
+        "h": 89.59375
+      },
+      "contentFrame": {
+        "x": 65.1875,
+        "y": 638.40625,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform": {
+      "frame": {
+        "x": 16,
+        "y": 16,
+        "w": 170.375,
+        "h": 514.796875
+      },
+      "contentFrame": {
+        "x": 32,
+        "y": 53.59375,
+        "w": 138.375,
+        "h": 461.203125
+      }
+    },
+    "platform.ingress": {
+      "frame": {
+        "x": 32,
+        "y": 53.59375,
+        "w": 138.375,
+        "h": 195.59375
+      },
+      "contentFrame": {
+        "x": 48,
+        "y": 91.203125,
+        "w": 106.375,
+        "h": 142
+      }
+    },
+    "platform.services": {
+      "frame": {
+        "x": 49.1875,
+        "y": 319.203125,
+        "w": 104,
+        "h": 195.59375
+      },
+      "contentFrame": {
+        "x": 65.1875,
+        "y": 356.796875,
+        "w": 72,
+        "h": 142
+      }
+    },
+    "platform.services.api": {
+      "frame": {
+        "x": 65.1875,
+        "y": 356.796875,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform.services.worker": {
+      "frame": {
+        "x": 65.1875,
+        "y": 462.796875,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "platform.ingress.lb": {
+      "frame": {
+        "x": 48,
+        "y": 197.203125,
+        "w": 106.375,
+        "h": 36
+      }
+    },
+    "platform.ingress.waf": {
+      "frame": {
+        "x": 65.1875,
+        "y": 91.203125,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "external.cdn": {
+      "frame": {
+        "x": 65.1875,
+        "y": 638.40625,
+        "w": 72,
+        "h": 36
+      }
+    }
+  },
+  "edges": {
+    "e-838a69e88cc4c5f7": {
+      "start": {
+        "x": 101.1875,
+        "y": 392.796875
+      },
+      "end": {
+        "x": 101.1875,
+        "y": 454.796875
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 101.1875,
+            "y": 427.796875
+          }
+        },
+        {
+          "t": "L",
+          "to": {
+            "x": 101.1875,
+            "y": 454.796875
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0,
+        "y": -1
+      },
+      "endNormal": {
+        "x": 0,
+        "y": 1
+      },
+      "clip": "none"
+    },
+    "e-8312902bb75b3f5b": {
+      "start": {
+        "x": 101.1875,
+        "y": 127.203125
+      },
+      "end": {
+        "x": 101.1875,
+        "y": 189.203125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 101.1875,
+            "y": 162.203125
+          }
+        },
+        {
+          "t": "L",
+          "to": {
+            "x": 101.1875,
+            "y": 189.203125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0,
+        "y": -1
+      },
+      "endNormal": {
+        "x": 0,
+        "y": 1
+      },
+      "clip": "none"
+    },
+    "e-aa8a579440c55bf8": {
+      "start": {
+        "x": 101.1875,
+        "y": 498.796875
+      },
+      "end": {
+        "x": 101.1875,
+        "y": 630.40625
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 101.1875,
+            "y": 630.40625
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0,
+        "y": -1
+      },
+      "endNormal": {
+        "x": 0,
+        "y": 1
+      },
+      "clip": "none"
+    },
+    "e-8053b7646e964a44": {
+      "start": {
+        "x": 101.1875,
+        "y": 233.203125
+      },
+      "end": {
+        "x": 101.1875,
+        "y": 348.796875
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 101.1875,
+            "y": 348.796875
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0,
+        "y": -1
+      },
+      "endNormal": {
+        "x": 0,
+        "y": 1
+      },
+      "clip": "none"
+    },
+    "e-727e23be260ac34e": {
+      "start": {
+        "x": 101.1875,
+        "y": 356.796875
+      },
+      "end": {
+        "x": 101.1875,
+        "y": 241.203125
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 101.1875,
+            "y": 241.203125
+          }
+        }
+      ],
+      "startNormal": {
+        "x": 0,
+        "y": 1
+      },
+      "endNormal": {
+        "x": 0,
+        "y": -1
+      },
+      "clip": "none"
+    }
+  },
+  "labels": [
+    {
+      "labelId": "l:external",
+      "frame": {
+        "x": 65.1875,
+        "y": 616.796875,
+        "w": 46.09375,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:external.cdn",
+      "frame": {
+        "x": 90.71875,
+        "y": 647.953125,
+        "w": 20.953125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform",
+      "frame": {
+        "x": 32,
+        "y": 32,
+        "w": 48.25,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:platform.ingress",
+      "frame": {
+        "x": 48,
+        "y": 69.59375,
+        "w": 42.5,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:platform.ingress.lb",
+      "frame": {
+        "x": 60,
+        "y": 206.75,
+        "w": 82.375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform.ingress.waf",
+      "frame": {
+        "x": 91.078125,
+        "y": 100.75,
+        "w": 20.234375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform.services",
+      "frame": {
+        "x": 65.1875,
+        "y": 335.203125,
+        "w": 47.53125,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:platform.services.api",
+      "frame": {
+        "x": 92.515625,
+        "y": 366.34375,
+        "w": 17.34375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:platform.services.worker",
+      "frame": {
+        "x": 81.6875,
+        "y": 472.34375,
+        "w": 39,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    }
+  ]
+}

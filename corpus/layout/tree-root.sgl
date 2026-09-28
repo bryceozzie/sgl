@@ -1,0 +1,12 @@
+// `@layout.root` (DD-12 §12, N27): `api` has an incoming arc, but the hint
+// makes it a root, first, before the nodes with no incoming arc; `client ->
+// api` is then not a tree arc and is drawn straight by the host. No
+// diagnostic.
+@layout: { engine: tree }
+client: "Client"
+api: { @label: "API", @layout: { root: true } }
+auth: "Auth"
+db: { @label: "Database", @shape: cylinder }
+client -> api
+api -> auth
+api -> db
