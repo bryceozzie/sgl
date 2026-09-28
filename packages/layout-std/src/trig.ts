@@ -50,21 +50,26 @@ function cosPoly(x: number): number {
   );
 }
 
-/** `[quadrant 0–3, the rest in radians]` for `t` turns. */
+/** `[quadrant 0–3, the rest in radians]` for `t ≥ 0` turns. Only a
+ *  non-negative turn is reduced (fix round 1, item 3): `Math.round` rounds a
+ *  tie up, so round(4t) at an eighth turn would pick a different quadrant
+ *  for `t` and `−t`, and `sinTurn(−t)` would differ from `−sinTurn(t)` in
+ *  the last bit. The callers reduce `|t|` and reapply the sign. */
 function reduce(t: number): [number, number] {
   const q = Math.round(4 * t);
-  return [((q % 4) + 4) % 4, (t - q / 4) * TAU];
+  return [q % 4, (t - q / 4) * TAU];
 }
 
-/** sin 2πt, the same bits on every engine. `0 - v` rather than `-v`, so a
- *  half turn is `0`, not `-0`. */
+/** sin 2πt, the same bits on every engine; odd bit for bit. `0 - v` rather
+ *  than `-v`, so a half turn is `0`, not `-0`. */
 export function sinTurn(t: number): number {
-  const [q, x] = reduce(t);
-  return q === 0 ? sinPoly(x) : q === 1 ? cosPoly(x) : q === 2 ? 0 - sinPoly(x) : 0 - cosPoly(x);
+  const [q, x] = reduce(Math.abs(t));
+  const s = q === 0 ? sinPoly(x) : q === 1 ? cosPoly(x) : q === 2 ? 0 - sinPoly(x) : 0 - cosPoly(x);
+  return t < 0 ? 0 - s : s;
 }
 
-/** cos 2πt, the same bits on every engine. */
+/** cos 2πt, the same bits on every engine; even bit for bit. */
 export function cosTurn(t: number): number {
-  const [q, x] = reduce(t);
+  const [q, x] = reduce(Math.abs(t));
   return q === 0 ? cosPoly(x) : q === 1 ? 0 - sinPoly(x) : q === 2 ? 0 - cosPoly(x) : sinPoly(x);
 }

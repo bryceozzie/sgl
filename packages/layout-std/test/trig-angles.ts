@@ -27,7 +27,36 @@ export const TRIG_ANGLES: readonly number[] = [
   2.3,
   17.05,
   1000.2,
+  // Fix round 1, item 4: the negative eighth turns; the doubles either side
+  // of each eighth turn in [-1, 1]; large turns, to 2^52 and past it.
+  ...Array.from({ length: 8 }, (_, k) => -(k + 1) / 8),
+  ...Array.from({ length: 17 }, (_, k) => (k - 8) / 8).flatMap((e) => [nextDown(e), nextUp(e)]),
+  1e6,
+  1e6 + 0.1,
+  1e6 + 0.125,
+  1e9 + 0.3,
+  2 ** 40 + 0.375,
+  2 ** 52 - 0.5,
+  2 ** 52 - 0.25,
+  2 ** 52,
+  2 ** 52 + 1,
+  2 ** 53,
+  -(2 ** 52 + 1),
 ];
+
+/** The next double above `x` (below, for `nextDown`). */
+export function nextUp(x: number): number {
+  if (x === 0) return Number.MIN_VALUE;
+  const view = new DataView(new ArrayBuffer(8));
+  view.setFloat64(0, x);
+  const bits = view.getBigUint64(0);
+  view.setBigUint64(0, x > 0 ? bits + 1n : bits - 1n);
+  return view.getFloat64(0);
+}
+
+export function nextDown(x: number): number {
+  return 0 - nextUp(0 - x);
+}
 
 /** A double's 64 bits, as 16 hex digits (big-endian). */
 export function bitsOf(x: number): string {
