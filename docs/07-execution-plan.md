@@ -2231,6 +2231,27 @@ mechanism; Architecture §4.2/§4.4/§4.5/§12, DD-12 N2, DD-06 §2 and §9, DD-
 header that still say "B8/B9" are `feat/b8-wire`'s (DD-14 §11). Next: `feat/b8-compose`, then
 `feat/b8-wire`.
 
+**B8 branch 1, `feat/b8-compose`** (DD-14 §11 branch 1; branched from `main` at `44f50d0`; not
+merged; nothing user-visible, no app change). **The composer**, `@sgl/layout-api/compose`, its own
+entry: `composeLayout` lays out each container a plan names with its own engine on its own view
+(`layoutView`: inner boxes are leaves of their size, no title), bottom-up in one call, snaps a
+`quantized` box to 1/64 before its parent sees its size, places it as one box, moves its contents
+by the box's place, and merges nodes, edges, labels and notes in one canonical order. Edges across
+a box are straight end to end (DD-14 C13 option (a); ports are branch 3). A box whose engine fails
+is laid out by its parent's, with the new warning **`SGL4013`** (catalogue row;
+`NOT_YET_REACHABLE`: no document can reach it with the built-in engines). `ctx.signal` is checked
+between scopes. Conformance: `runHostSequence` and `runConformance` take a plan, and **check 7**
+("honours `scope`") runs by default; `grid`, `fixed` and `elk` pass it. Tests:
+`layout-api/test/compose.test.ts` (26, stub engines) and `layout-elk/test/compose.test.ts` (six new
+composed goldens in `__goldens__/composed/`, double runs, checks 1–6, a 1 000-node elk document of
+100 grid boxes in ~90 ms, and C31 over the corpus). **No existing golden changed.** Core bundle
+**179.64 kB of 184** (179 637 B), **+33 B**: the catalogue row; the composer is on no boot path.
+Deviations are in DD-14 §11.1: crossing edges are in no view yet, so under `elk` they do not rank;
+the goldens are in `layout-elk` with inline fixtures (branch 2 moves them to `corpus/`); `tree` is
+not on `main`, so its check 7 and a `tree`-in-`grid` golden wait for whichever merges second; C31
+holds for every coordinate but not for the unquantized unit normals (last-bit differences). DD-06
+gains §4a (the composer), check 7 in §8 and `SGL4013` in §9.
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —
