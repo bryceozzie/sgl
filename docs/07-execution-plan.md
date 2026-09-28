@@ -2159,6 +2159,42 @@ of 182**, the same as `main` (this branch adds nothing to the boot path). Deviat
 `@direction` do not reach the engine yet (Options does; `fix/root-layout-options`), and spec §9's
 container `@layout: { engine: grid }` is `SGL4010` under `elk`; the help says so.
 
+**B5 branch 4, `feat/b5-tree`** (from `main` at `9f47545`, before `fix/root-layout-options`; not
+merged). This is DD-12 §13's branch 4.
+- **The spanning forest** (`layout-std/src/forest.ts`, DD-12 §7), shared with `radial`: edges lifted
+  to the children of each container (N25), one arc per pair, from → to (N26); one BFS from the roots
+  in order (`@layout.root` hints, then nodes with no incoming arc, then each unreached cycle's first
+  node), successors by `@order` then declaration order (N27, N29). Explicit queues and stacks only.
+- **`tree`** (`sgl.tree`, bare name `tree`; `tree.ts`, `treeDescriptor`): Buchheim–Walker per
+  container, levels as bands, the direction applied last, a container's `@direction` for its
+  subtree; elbow edges for tree arcs, every other edge the host's; `bitwise`; options `direction`,
+  `nodeSpacing`, `rankSpacing`, `edgeRouting`; hints `direction`, `root`; host timeout 5 000 ms. The
+  F11 form: Direction, Node spacing, Rank spacing, Edges.
+- **The lazy `std-trees` chunk** (N52, H9): `treeEngine` (`lazy.ts`) is registered statically in the
+  worker, and its `layout()` imports the chunk on first use. `.size-limit.js` excludes it by name;
+  `check-core-chunks.mjs` proves it is one chunk, holds tree's code, is not reachable from the page
+  or the worker's static imports, and is referenced by the worker; it is precached. **Deviation:** no
+  `manualChunks` rule, since one pulled `@sgl/layout-api` into the chunk and made the worker import
+  it statically (DD-10 §2).
+- **Fixtures:** `corpus/layout/tree-{forest,cycle,diamond,order,direction,root}.sgl`, no
+  diagnostics; the render-svg harness runs them under `tree`.
+- **Goldens.** New: `layout-std/test/__goldens__/tree/` and the fixtures' CST/AST pins. Changed:
+  `render-svg`'s `fonts/corpus-faces.json` gains six entries (append only). No other golden moved.
+- **Tests:** `forest.test.ts`, `tree.test.ts`, `lazy.test.ts`, `conformance.test.ts` (tree),
+  `tree.browser.test.ts` (Chromium equals Node byte for byte), apps/web `engine-options`, `pipeline`
+  and `reference` tests, e2e `tree.spec.ts` (including the chunk failing to load), criterion 1 under
+  `tree`, and `tree` offline in criterion 5.
+- **Help (DD-13 P21):** `tree` in the harness and the build's engine list, and in the prose of the
+  quick start, `@layout`, `@direction` and `@order` (which `tree` now reads; §2.1 F30's `@order` half
+  holds only for the other engines).
+- **Found:** (1) a node named `root` collides with ELK's root id (`ELK_ROOT_ID`), and elk's
+  conformance check 6 fails on it; not fixed. (2) A browser keeps a failed dynamic import for the
+  life of the worker, so neither `std-trees` nor elkjs is fetched again until the next worker.
+- **Size:** core **179.59 kB** of 182, +0.41 kB over `main` (DD-12 §11 estimated 0.70). The lazy
+  chunk is 3.17 kB gzipped.
+- **Docs:** DD-12 §13 (as built, with deviations), DD-06 §3, §7b, §8, §10, DD-10 §2, DD-13 §13, the
+  corpus README.
+
 ### 2.1 Open findings
 
 Things a review has found, confirmed against running code, and deliberately **not** fixed yet —

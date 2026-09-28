@@ -5,8 +5,9 @@
 `@sgl/core` (the `@pin` registry row), `apps/web` (registration, pickers, options forms, the build).
 **Inputs:** `LayoutInput` (DD-06 §2). **Outputs:** `LayoutResult`.
 
-**Status: design (2026-09-27), from `main` at `755bfd0`. Branches 1 (`feat/b5-pin`) and 2
-(`feat/b5-fixed`) are implemented (§13); branches 3–5 are not.**
+**Status: design (2026-09-27), from `main` at `755bfd0`. Branches 1 (`feat/b5-pin`), 2
+(`feat/b5-fixed`) and 4 (`feat/b5-tree`, 2026-09-28) are implemented (§13); branch 3
+(`fix/root-layout-options`) is on its own branch; branch 5 is not.**
 **Human decisions (2026-09-27): every §15 recommendation was accepted, H1–H9.** The documents they
 change (language spec §4 and §9, the backlog, ADR-0004, Architecture §4.5, 01, 06, 07) are updated
 on this branch (§18). The orchestrator also decided that bare engine names are accepted (N22), as a
@@ -702,11 +703,69 @@ begins.
 3. **`fix/root-layout-options`** (small; H6). `checkout.sgl`'s `elk` goldens may be regenerated here. Root `@layout` options reach the
    engine (N40). A pipeline test and an e2e case (`checkout.sgl` goes right under `elk`). Best merged
    before `tree`, whose main option is `direction`.
-4. **`feat/b5-tree`**.
+4. **`feat/b5-tree`**. **Implemented** on `feat/b5-tree` (2026-09-28, from `main` at `9f47545`,
+   before branch 3 merged); the deviations are below the list.
    - `forest.ts` (§7) and `tree.ts`.
    - The lazy `std-trees` chunk infrastructure (N52): the worker's `manualChunks`, `.size-limit.js`,
      `check-core-chunks.mjs`, and the offline e2e.
    - Options and form, goldens, conformance, units and e2e.
+
+   **As built, and its deviations:**
+   - **The files.** `forest.ts` (`liftArcs`, `spanningForest`), `tree.ts` (`layoutTree`,
+     `normalizeTreeOptions`), `std-trees.ts` (the chunk's entry, re-exporting `layoutTree`), and
+     `lazy.ts`: `lazyEngine(descriptor, load)` and `treeEngine`, whose `layout()` runs
+     `import('./std-trees.js')` once. `treeDescriptor` is in `descriptor.ts`. `std-trees.ts` is a
+     tsdown entry of its own, so `dist/std-trees.js` has a stable name; it is not in `exports`.
+     `treeEngine` is `/* @__PURE__ */`, so a bundle that imports the package without registering
+     it carries neither the stub nor the chunk.
+   - **No `manualChunks` rule (N52 said one).** Rollup moves a manual chunk's static dependencies
+     into it, so `@sgl/layout-api` (for `anchorPoint`) followed, and the worker then imported
+     `std-trees` statically. Built and checked: `check-core-chunks.mjs` failed ("is a static
+     import of the layout worker"). The chunk is named after its module, as the page's lazy chunks
+     are, and holds only `forest.ts` and `tree.ts`: shared code stays in the worker.
+     `check-core-chunks.mjs` requires exactly one `std-trees-*.js`, holding tree's code (its
+     `tree: unknown scope` error), neither reachable from the page entry or the worker's static
+     imports nor referenced by a boot chunk, and referenced by the worker.
+   - **`@order` without a value (N29 left it open).** Successors sort by `@order` ascending, then
+     declaration order; a node with no finite `@order` comes after every one that has it.
+   - **Root order (N27).** The roots are listed in the order they are found: the `@layout.root`
+     hints, then the nodes with no incoming arc, then each cycle's first node. That is also the
+     trees' order left to right. The BFS runs from the first two groups at once.
+   - **One elbow per tree arc (N34).** Of the edges between the arc's own two nodes, the first in
+     `graph.edges` order gets the elbow; a parallel duplicate is left to the host, so two edges are
+     not drawn on top of each other. An edge between a container and its own descendant makes no
+     arc at any level (it lies under one child), so it is the host's too.
+   - **A container's direction is inherited (N38):** a container without its own `@direction`
+     takes its parent's; the root takes the option.
+   - **"Trees sit side by side, `nodeSpacing` apart" (N30)** holds where their contours are
+     closest, as Buchheim separates contours level by level; two trees' bounding boxes can be
+     closer than that across levels.
+   - **A failed chunk load (as elk's).** `lazyEngine` forgets a rejected load, so the next
+     request calls `load` again, and the request fails with `SGL4011`, the previous picture kept.
+     In a browser the retry does not fetch: the module map keeps a failed dynamic import for the
+     life of the worker. The chunk loads with the next worker (a reload, or a respawn).
+     `load-elk.ts`'s "a failed load is not cached" is true of its promise in the same way.
+   - **Found: a node named `root` breaks `elk`.** `ELK_ROOT_ID` is `'root'` and node ids go to ELK
+     raw, so a document node `root` collides with ELK's root and conformance check 6 fails on its
+     edges. `layout/tree-order.sgl` avoids the name. Reported, not fixed.
+   - **Branch 3 had not merged.** Root `@layout` options do not reach the engine on this branch, so
+     no fixture sets a root `direction`: a container's `@direction` (a hint) is what the tests use.
+   - **Tests.** `forest.test.ts`; `tree.test.ts` (descriptor and options, tidy invariants on random
+     trees, identical subtrees, forests, directions and exact flips, containers, elbows on ten
+     shapes, host-routed non-tree edges, a 2 000-node path and star, linear growth, a bitwise
+     double run raw and quantized over the whole corpus, goldens in `__goldens__/tree/` for
+     `CLEAN_DOCS` and the six `layout/tree-*.sgl`); `lazy.test.ts` (loads once; a failing load is
+     `SGL4011` through the real host and runtime, then succeeds); `conformance.test.ts` (checks
+     1–6 over the corpus, a 200-node tree and n1000, down and right); `tree.browser.test.ts`
+     (Chromium equals Node byte for byte, quantized through a real worker and raw on the page);
+     apps/web `engine-options`, `pipeline` and `reference` tests; e2e `tree.spec.ts` (picking it,
+     the chunk fetched once and not at boot, the document naming it, Options ▾, the chunk
+     blocked), criterion 1 under `tree`, and `tree` offline in criterion 5 with the chunk from the
+     service worker.
+   - **Size:** core **179.59 kB** of 182 (179 591 B), +0.41 kB over `main` (179 186 B): the page
+     +0.24 kB (the descriptor, the F11 rules, the host timeout), the worker +0.17 kB (the
+     descriptor and `lazyEngine`). §11 estimated 0.70. The lazy `std-trees` chunk is 3.17 kB gz
+     (7.32 kB raw); §11 estimated ~2.2.
 5. **`feat/b5-radial`**. `trig.ts`, `radial.ts` into the same chunk. Options and form, goldens,
    conformance, the cross-browser `bitwise` test, and e2e.
 6. *(Done on this branch, H3: the backlog splits B5, and `force` is B22, Could; 07 §2.1 F10's owner
