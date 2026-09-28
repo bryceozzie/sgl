@@ -278,13 +278,7 @@ export async function composeLayout(
     notes.push(...(abs.notes ?? []));
   }
 
-  // Canonical order: nodes in graph.order, edges in graph.edges order.
-  const orderedNodes: Record<NodeId, NodeLayout> = {};
-  for (const id of graph.order) if (nodes[id] !== undefined) orderedNodes[id] = nodes[id]!;
-  for (const id of Object.keys(nodes).sort() as NodeId[]) if (orderedNodes[id] === undefined) orderedNodes[id] = nodes[id]!;
-  const orderedEdges: Record<EdgeId, LayoutResult['edges'][EdgeId]> = {};
-  for (const e of graph.edges) if (edges[e.id] !== undefined) orderedEdges[e.id] = edges[e.id]!;
-  let merged: LayoutResult = { bounds: rootResult.bounds, nodes: orderedNodes, edges: orderedEdges, labels, ...(notes.length > 0 && { notes }) };
+  let merged: LayoutResult = { bounds: rootResult.bounds, nodes, edges, labels, ...(notes.length > 0 && { notes }) };
 
   // 5. Edges across a boundary, end to end (C15), and their labels (C21).
   const crossing = graph.edges.filter((e) => !e.hidden && !assigned.has(e.id));
@@ -292,10 +286,19 @@ export async function composeLayout(
     merged = routeStraight(input, merged, ctx.metrics);
     const own: Record<LabelId, LabelSpec> = {};
     for (const e of crossing) if (e.labelId !== null && graph.labels[e.labelId] !== undefined) own[e.labelId] = graph.labels[e.labelId]!;
-    const placed = placeLabels({ ...input, graph: { ...graph, labels: own } }, merged, ctx.metrics).labels;
-    merged = { ...merged, labels: [...merged.labels, ...placed] };
+    labels.push(...placeLabels({ ...input, graph: { ...graph, labels: own } }, merged, ctx.metrics).labels);
   }
-  return merged;
+
+  // One canonical order, whichever scope placed what: nodes in `graph.order`,
+  // edges in `graph.edges` order, labels by id (`placeLabels`' own order). So
+  // a `grid` box in a `grid` document gives `grid`'s own result (C31).
+  const orderedNodes: Record<NodeId, NodeLayout> = {};
+  for (const id of graph.order) if (nodes[id] !== undefined) orderedNodes[id] = nodes[id]!;
+  for (const id of Object.keys(nodes).sort() as NodeId[]) if (orderedNodes[id] === undefined) orderedNodes[id] = nodes[id]!;
+  const orderedEdges: Record<EdgeId, LayoutResult['edges'][EdgeId]> = {};
+  for (const e of graph.edges) if (merged.edges[e.id] !== undefined) orderedEdges[e.id] = merged.edges[e.id]!;
+  labels.sort((a, b) => (a.labelId < b.labelId ? -1 : a.labelId > b.labelId ? 1 : 0));
+  return { ...merged, nodes: orderedNodes, edges: orderedEdges, labels };
 }
 
 /** The active boxes directly inside `scope`'s layer that are laid out, with
