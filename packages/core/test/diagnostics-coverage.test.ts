@@ -32,6 +32,10 @@ const NOT_YET_REACHABLE: ReadonlySet<DiagnosticCode> = new Set<DiagnosticCode>([
   'SGL4001',
   'SGL4002',
   'SGL4011',
+  // B8 (DD-14 C28, §9): a box whose own engine fails is laid out by its
+  // parent's, with this warning. No document can make a built-in engine fail;
+  // `layout-api/test/compose.test.ts` covers it with stub engines.
+  'SGL4013',
   // A9 fix round 1: emitted by the app's pipeline when the lazy `imports`
   // chunk cannot load, which no document can cause (DD-08 §15.6);
   // `apps/web/test/pipeline.test.ts` covers it.

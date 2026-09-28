@@ -8,7 +8,7 @@ descriptors. **Outputs:** one `LayoutResult`, as today.
 
 **Status: decided (2026-09-28). Designed 2026-09-27 from `main` at `9f47545`; the human accepted
 every recommendation on 2026-09-28 (⚑1–⚑8, §13). No code is changed by this document**: §11's
-branches implement it. The documents it amends were updated on this branch (§14). It assumes `fix/root-layout-options` (`5dfc16f`, DD-12 H6) is merged first: B8 reuses its
+branches implement it. **Branch 1, `feat/b8-compose`, is built (§11.1).** The documents it amends were updated on this branch (§14). It assumes `fix/root-layout-options` (`5dfc16f`, DD-12 H6) is merged first: B8 reuses its
 `rootLayoutOptions` seam and its `EngineSchemas.accepts`.
 
 **Why now.** Human decision F29 (2026-09-27): keep spec §9's worked example, which puts
@@ -335,9 +335,15 @@ root, and `payments.api -> psp` leaves it.
   it throws (including a lazy chunk that will not load), returns a shape `describeShapeError`
   refuses, or returns a result `validateResult` rejects (`SGL4002`) against its view. The boundary
   is dissolved: its layer joins its parent's view, and its own inner boundaries stay boundaries. The
-  composer adds one note, **`SGL4013`** (warning) at the container's span: "Layout engine `{id}`
+  composer adds one note, **`SGL4013`** (warning) at the container's `@layout` `engine` key (as
+  `SGL4012`'s is; the plan carries the key's span, and the container's span is used only when there
+  is no key; orchestrator decision, `feat/b8-compose` fix round 1): "Layout engine `{id}`
   failed for `{node}` ({detail}); it is laid out by `{parent}` instead." `detail` goes through
-  `workerText`. A failure of the root's engine is today's `SGL4011`/`SGL4002`, and the previous
+  `workerText`. `{parent}` is the engine that really lays the box out: its nearest enclosing
+  boundary that did not fail too, or the root's. A box its parent's engine places at another size
+  than its own engine gave it (more than 1/64 px off) fails the same way, with the detail "resized
+  by its parent's engine", and the parent is run again without it: a box is never drawn at a size
+  its parent did not place (fix round 1). A failure of the root's engine is today's `SGL4011`/`SGL4002`, and the previous
   layout stays. *Degrade to what the document would do without the key: the diagram still draws,
   and the squiggle says why.* §13 ⚑6. **Human decision 2026-09-28: accepted.**
 - **C29. Notes from every scope are merged in scope order**, then `engineNotes` applies the one
@@ -408,7 +414,11 @@ root, and `payments.api -> psp` leaves it.
 - **C39. F16's title detour needs nothing new.** In the parent's view a box is a leaf with no
   title, so ELK never routes through the box's title; the port rule (C16 step 4) keeps legs out of
   it. Inside an `elk` box, `avoidTitle` works on that run's own edges, as today. `titleCrossings`
-  runs on the composed result, so a leg through a title would be counted.
+  runs on the composed result, so a leg through a title would be counted. **Branch 1's known state:**
+  with crossing edges straight end to end (§11.1 deviation 1), such an edge can cross a sibling's
+  frame or a box's title (in the goldens, `storefront.bff -> payments.api` crosses
+  `payments.ledger`, and `client -> rack.top` crosses `rack`'s title); branch 3's ports and legs
+  fix it.
 - **C40. Conformance** (DD-06 §8). `runHostSequence` takes an optional plan, so the suite runs what
   a request runs. Checks 1–6 run on the composed result: check 3 compares siblings as today (a box
   is a node with a frame), check 6 checks that each lifted edge ends at its real endpoint. Check 7
@@ -492,7 +502,7 @@ Measured so far (DD-06 §8, 07 §2.1 F15, Node): `elk` 1 000 nodes ≈ 0.84 s, n
 |---|---|---|---|
 | `SGL4010` | warning | unchanged | no longer for a container's `engine`; a boundary's keys as the root's (C6); a plain container's keys against hints only (C9) |
 | `SGL4012` | warning | Layout engine `{name}` is not available; `{node}` is laid out by `{id}`. | `layoutPlan`, main thread, at the key (C12). Fixture: `corpus/layout/engine-unknown.sgl` |
-| `SGL4013` | warning | Layout engine `{id}` failed for `{node}` ({detail}); it is laid out by `{parent}` instead. | the composer, as a note (C28). No document can cause it with the built-in engines; it joins `SGL4001`/`SGL4002`/`SGL4011` in `NOT_YET_REACHABLE`, and a stub-engine test covers it |
+| `SGL4013` | warning | Layout engine `{id}` failed for `{node}` ({detail}); it is laid out by `{parent}` instead. | the composer, as a note (C28). No document can cause it with the built-in engines; it joins `SGL4001`/`SGL4002`/`SGL4011` in `NOT_YET_REACHABLE`, and a stub-engine test covers it. **Implemented by branch 1** (§11.1) |
 | `SGL4021` | warning | unchanged | judged by the engine that places the node (C10) |
 
 ---
@@ -566,6 +576,85 @@ begins. Prerequisite: `fix/root-layout-options` is on `main`. B8 does not depend
 
 ADR-0002's amendment (C33) and the Architecture §4.2/§4.4 notes were made on this design branch
 once the human approved them (§14), and so was spec §4's text (§3.8).
+
+### 11.1 Branch 1 as built (`feat/b8-compose`, from `main` at `44f50d0`)
+
+**What exists.** `packages/layout-api/src/compose.ts`, its own entry `@sgl/layout-api/compose`
+(`package.json` exports, `tsdown.config.ts`); nothing in `apps/web` imports it.
+
+- `composeLayout(root, input, options, plan, engines, ctx)`: C23 steps 1–6 for one request. `root`
+  is the document's engine and `options` its bag; `engines` looks an id up (the worker's
+  registry); `ctx` is the request's, its `options` replaced per scope and its `signal` checked
+  before every scope (C27). It returns one raw `LayoutResult`; the caller validates and quantizes.
+- `layoutView(input, scope, boxes)`: C24's view. The types `LayoutScope` `{ node, engine, options }`
+  and `LayoutPlan` (C8) are here too, for branch 2's `layoutPlan` and protocol.
+- `SGL4013` is a `LAYOUT_CATALOGUE` row (warning, C28's template), in `NOT_YET_REACHABLE`
+  (`core/test/diagnostics-coverage.test.ts`) and `corpus/README.md`'s "Not yet covered".
+- Conformance (`conformance.ts`): `runHostSequence(…, compose?)` takes `{ plan, engines }` (C40);
+  `ConformanceCase.plan` and `ConformanceOptions.engines` run a case as a request with that plan,
+  with check 3's pin exemption asking the engine that placed the node (C10); **check 7** (C35),
+  `scopeProblem`, runs on every container of every case without a plan, by default
+  (`ConformanceOptions.scopes: false` turns it off). `grid`, `fixed`, `elk` and `tree` pass it over the
+  corpus and the 1 000-node graph.
+- Tests: `layout-api/test/compose.test.ts` (34 units after fix round 1, stub engines: the views, the edge rules,
+  translation and snapping, crossing edges, notes, degrade on a throw, a bad shape, `SGL4002` and
+  an unregistered id with `SGL4013`, a nested box surviving its parent's failure, the root's
+  failure, abort between scopes, hidden boxes, the plan in `runHostSequence` and
+  `runConformance`, check 7 failing three ways); `layout-elk/test/compose.test.ts` (eight composed
+  goldens, double runs, checks 1–6, the 1 000-node mixed graph, and C31 over the corpus). No
+  existing golden changed. Boot: **+33 B**, the catalogue row alone (179 604 → 179 637 B); the
+  composer is on no boot path.
+
+**Deviations.**
+
+1. **Crossing edges are in no view** (C13's option (a) as written: "the parent never sees the
+   edge"), rather than C15's lifted edge in the parent's view with its route discarded. Under an
+   `elk` parent a crossing edge therefore plays no part in ranking yet (in `checkout.sgl`, `psp`
+   lands above `payments`); branch 3's lift and ports change that, and its goldens with it. An edge
+   into a box's own port from inside the box (C22) is drawn end to end too, to the point its parent
+   placed, until branch 3's leg. A straight crossing edge can also cut through a sibling's frame or
+   a box's title: `storefront.bff -> payments.api` crosses `payments.ledger` in the `grid-in-elk`
+   golden, and `client -> rack.top` crosses `rack`'s title in `fixed-in-elk`. That is branch 1's
+   known state (C39), fixed by branch 3's ports.
+2. **The goldens are in `layout-elk/test/__goldens__/composed/`**, not `layout-api`'s:
+   `@sgl/layout-api` may not depend on the engines, and `layout-elk`'s tests already have all
+   three. The fixtures are inline in the test, not `corpus/layout/engine-*.sgl`: until branch 2,
+   the corpus harnesses lay a document out with one engine and would warn `SGL4010` on each.
+   The plan is built in the test from each container's `@layout.engine` (C8 without C6's
+   inheritance, which is `layoutPlan`'s).
+3. **C31 holds for every coordinate, not every byte.** A `grid` box in a `grid` document composes
+   to `grid`'s own quantized result except in `startNormal`/`endNormal`, which `quantize` does not
+   touch: an edge inside a box is routed in the box's coordinates, so its unit normal can differ
+   in the last bits (4e-16 in `wildcards.sgl`). `layout-elk/test/compose.test.ts` checks both. The
+   render goldens (branch 2) should not see it; if they do, round the normals in `quantize`.
+4. **One canonical order** (not in the design): the composed result lists nodes in `graph.order`,
+   edges in `graph.edges` order and labels by id (`placeLabels`' own order), whichever scope
+   placed them, so C31's comparison holds and a result never depends on the plan's shape.
+5. **Small choices C24/C28 left open.** A box's leaf `contentInset` and `padding` are both its own
+   `contentInset`. A self-loop on a box is its parent's edge (the box's outside); an edge from
+   inside a box to the box itself is the box's. Hidden edges go in a view that holds both ends, as
+   today, and are never drawn end to end. `SGL4013`'s `{detail}` is the thrown message, the shape
+   check's text, "returned invalid geometry" (a view `validateResult` rejects; its own detail is
+   not kept), or "not registered in this worker"; a dissolved box's own notes are dropped. An
+   engine's own `AbortError` after the signal fired propagates rather than degrading the box.
+6. **A box is sized from its frame only** (fix round 1, item 4; orchestrator decision: keep it).
+   Content its engine puts outside the box's frame, such as a `fixed` child pinned at a negative
+   offset, stays outside it and can overlap the box's siblings in the parent. This is what `fixed`
+   alone does, where the author gets `SGL4003`; the composed result gets the same `SGL4003` from
+   the host's validation (`layout-elk/test/compose.test.ts`).
+
+**Fix round 1** (orchestrator review; no blocker). `{parent}` is resolved after every box has run,
+from the boundaries still standing (it named a boundary that later failed itself); `SGL4013` is at
+the `engine` key (`LayoutScope.span`); a box its parent resized is dissolved and the parent run
+again; `ctx.signal` is also checked after the root's engine; check 7 is stronger (DD-06 §8): inner
+containers are boxes of an odd fixed size that must be kept, and a second run on the whole graph
+with `scope` set tells a scoped layout from one that ignores `scope`. New unit tests pin a
+crossing edge to a box's own port, the `assigned` rule and the label order.
+
+**After `feat/b5-tree` merged** (`main` `1fd4b22`, merged in as `1a3e7da`): check 7 runs for
+`tree` in its conformance suite (both directions, every container of the corpus and the 1 000-node
+graph) and passes; two more composed goldens, `tree-in-grid` (a `tree` box in a `grid` document)
+and `grid-in-tree` (`tree` places a `grid` box as a leaf of its size).
 
 ---
 

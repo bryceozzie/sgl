@@ -31,4 +31,9 @@ it('elk passes all five conformance checks over the corpus and the 1 000-node gr
   expect(report.failures).toEqual([]);
   expect(timed.withinTimeout).toBe(true);
   expect(report.cases.every((c) => c.deterministic === true)).toBe(true);
+  // Check 7 (DD-14 C35): elk honours `scope` on every container of every case.
+  const scoped = report.cases.map((c) => c.scopes.length);
+  console.warn(`[check 7] elk, containers laid out as a scope: ${scoped.reduce((a, b) => a + b, 0)}`);
+  expect(report.cases.find((c) => c.name === N1000)!.scopes).toHaveLength(100);
+  expect(report.cases.find((c) => c.name === 'checkout.sgl')!.scopes).toEqual(['storefront', 'payments']);
 }, 120_000);

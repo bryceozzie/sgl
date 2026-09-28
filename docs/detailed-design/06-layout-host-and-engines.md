@@ -232,6 +232,56 @@ If an engine returns a self-loop route of fewer than two segments (or none), rep
 
 For nodes with `aspectRatio`, after layout: `w = h = max(w, h)` (ratio 1) or the general form, keeping the centre fixed. Applied only if the engine did not already honour it (capability-free — the host checks the returned frame).
 
+### 4a. The composer: per-container engines (`layout-api/compose.ts`, DD-14; `feat/b8-compose`)
+
+A container whose `@layout` names an engine is a **boundary** (DD-14 C1): its engine lays it and
+everything inside it out, down to the next boundary, and its parent's engine sees it as one box of
+fixed size. `@sgl/layout-api/compose` is its own entry and is on no boot path; branch 2
+(`feat/b8-wire`) loads it in the worker as a lazy chunk for a request that carries a plan.
+
+- **The plan** (`LayoutPlan`, DD-14 C8): `{ node, engine, options }` per boundary, in `graph.order`,
+  each engine a full id and each options bag complete. A scope that is hidden, or has no visible
+  child, is not a boundary.
+- **The view** (`layoutView(input, scope, boxes)`, C24): a `LayoutInput` for one scope. Its graph
+  holds the scope node (its view's only top node, `parent: null`, no ports: they are its parent's),
+  every node inside it down to the next boundary, and each inner boundary as a **leaf** of its laid
+  out size (`children: []`, `labelId: null`, its author ports and `config`; sizing `fixed` =
+  `intrinsic` = the size, the leaf's insets). Its edges are those with both ends in the view (a
+  port on the scope node does not count; a self-loop on the scope node is its parent's). The root's
+  view is the same with `scope: null`. `graph.order` is filtered in place.
+- **The sequence** (`composeLayout`, C23): each boundary in post-order runs its engine on its view
+  with `scope` set, then `applyHostFallbacks` (§4) on the view, then `describeShapeError` and
+  `validateResult` against the view. The result is moved so the boundary's frame starts at
+  `(0, 0)`, snapped to the 1/64 grid when the engine is `quantized` (C31), and stored; its frame's
+  size is the box's size in its parent's view. Then the root's engine on the root's view. Then,
+  pre-order, each box's stored result is moved by the box's frame origin in its parent and merged
+  (the box keeps the ports its parent gave it). Every edge no view held crosses a boundary: one
+  `routeStraight` over the merged result draws it from its real source to its real target, and
+  `placeLabels` over those edges alone labels it (C15, C21). The result lists nodes in
+  `graph.order`, edges in `graph.edges` order and labels by id, and is raw: the caller validates it
+  against the full graph and quantizes it (§5), as for one engine.
+- **Failure** (C28): a boundary whose engine throws, is not registered, or returns a result the
+  shape check or `validateResult` (an error) refuses is **dissolved**: its layer joins its parent's
+  view, its inner boundaries stay boundaries, and the composer adds one `SGL4013` note (§9) at the
+  container's `@layout` `engine` key (`LayoutScope.span`; the container's span without one),
+  naming the engine that really laid it out. A box its parent's engine placed at another size than
+  its own (by more than 1/64 px) is dissolved the same way ("resized by its parent's engine") and
+  the parent run again. The root's engine failing is §3's `SGL4011` (it throws) or §5's `SGL4002`.
+  `ctx.signal` is checked after the root's engine too.
+- **Notes** (C29): the root's, then each box's in document order, with any `SGL4013` at its box;
+  the host's `engineNotes` caps them once for the request.
+- **Abort** (C27): `ctx.signal` is checked before every scope, so a superseded request stops at
+  the next boundary with an `AbortError`.
+- **Crossing edges** are straight end to end under every parent in branch 1 (DD-14 C13's option
+  (a)); branch 3 routes them to fixed ports on the box under `elk`.
+- **Determinism** (C30, C31): as reproducible as the least reproducible engine in the plan. A
+  `grid` box in a `grid` document composes to `grid`'s own quantized result, coordinate for
+  coordinate (`layout-elk/test/compose.test.ts`, over the corpus).
+
+Tests: `layout-api/test/compose.test.ts` (stub engines) and `layout-elk/test/compose.test.ts` (the
+real engines: goldens in `__goldens__/composed/`, double runs, conformance). DD-14 §11.1 lists
+what branch 1 built and its deviations.
+
 ---
 
 ## 5. Validation and quantization
@@ -529,6 +579,9 @@ For each corpus graph (empty, one node, one edge, self-loop, parallel edges, 3-d
 4. Completes within the engine's timeout on the 1 000-node graph.
 5. Engines claiming `labelPlacement: true` return a `LabelPlacement` for every label.
 6. **Every edge is attached** (fix round 1, item 11): each routed edge's `start` lies within `arrowSize + 1` px of its source's frame (or its port's point, for a port-terminated end), and its `end` likewise of its target's — `arrowSize` because the host pulls a directed end back by exactly that (§4.4). An edge drawn in the wrong coordinate system (a container offset lost or doubled) fails it; nothing else did. `detachedEdges`; `grid` and `elk` pass it over the corpus. `layout-elk/test/elk.test.ts` also checks, per directed edge, that the end sits `arrowSize` ± 0.5 px off its node's frame (the reserve applied exactly once).
+7. **The engine honours `scope`** (DD-14 C35, `feat/b8-compose`, strengthened in its fix round 1). For every container with a visible child, two runs (`scopeProblem`). **(a)** As the composer runs a boundary: the container's view (§4a) with `scope` = the container, each inner container directly in its layer given as a box, a leaf whose `sizing.fixed` is `SCOPE_CHECK_BOX` (37.25 × 23.5) and whose `intrinsic` is 1 × 1; through the host fallbacks, the result places exactly the view's visible nodes (the container's own frame included), each box at exactly that size, and passes `validateResult`. **(b)** The document's whole input with `scope` = the container, the engine alone: it places exactly the container and its visible descendants. It proves that the engine lays out the subtree it is given as its own top node, keeps a box's fixed size, and does not lay out anything outside its scope when the graph holds more. It does not prove the layout inside is good (checks 1–6 do, on the composed results), nor anything about crossing edges. An engine that ignores `scope` fails (b); one that ignores a box's `fixed` fails (a). On by default for every case without a plan (`scopes: false` turns it off). `grid`, `fixed`, `elk` and `tree` pass it over the corpus and the 1 000-node graph; an engine that fails it is dissolved wherever a document names it on a container (§4a).
+
+**Plans** (DD-14 C40). `runHostSequence` takes an optional `{ plan, engines }` and then runs `composeLayout` and `quantize`, as a request with that plan does; a case may carry a plan (`ConformanceCase.plan`, `ConformanceOptions.engines`), and checks 1–6 are made on the composed result. Check 3's pin exemption then asks the engine that placed the node.
 
 ---
 
@@ -541,6 +594,7 @@ For each corpus graph (empty, one node, one edge, self-loop, parallel edges, 3-d
 | `SGL4003` | warning | `{node}` extends outside its container after layout. |
 | `SGL4010` | warning | `@layout.{key}` is not an option of engine `{id}`; ignored. — **implemented** (Stage K fix round 1, item 23): a container-level `@layout.engine` naming another engine (until B8 ships; DD-14 C11 ends this case, and B9 is not involved), and any `@layout` key the effective engine does not declare (§2) |
 | `SGL4011` | error | Layout engine `{id}` failed: {message}. |
+| `SGL4013` | warning | Layout engine `{id}` failed for `{node}` ({detail}); it is laid out by `{parent}` instead. **Implemented** (`feat/b8-compose`, DD-14 C28): a composer note (§4a) when a container's own engine fails; the container is laid out by its parent's engine. No document can make a built-in engine fail, so no corpus fixture reaches it; `layout-api/test/compose.test.ts` covers it with stub engines |
 | `SGL4020` | warning | `{node}` has no `@pin`; `fixed` placed it below the pinned nodes. **Implemented** (`feat/b5-fixed`, DD-12 N9, H1, H5): a `fixed` engine note (§3), one per unpinned node, at its span. Fixture: `corpus/layout/pin-half.sgl` |
 | `SGL4021` | warning | `@pin` is not honoured by engine `{id}`; ignored. **Implemented** (`feat/b5-pin`, DD-12 N6, H4, H5): from `layoutConfigDiagnostics`, on the main thread, at the key. It fires once per node (by path), at its first pin key, when the engine does not declare `capabilities.pins`, and not for a pin the resolver dropped with `SGL2011` (fix round 1). Fixture: `corpus/layout/pin-under-elk.sgl` |
 | `SGL4022` | info | {count} more layout warnings not shown. **Implemented** (`feat/b5-fixed` fix round 1, item 3; human decision 2026-09-27): built by the host (`engineNotes`, §3) when an engine returns more than `MAX_ENGINE_NOTES` (100) notes, at the document start; an engine cannot emit it. Fixture: `corpus/layout/pin-many-loose.sgl` |
