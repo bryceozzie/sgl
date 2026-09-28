@@ -444,6 +444,81 @@ describe('tree: every edge between an arc’s two nodes gets its own elbow (fix 
   });
 });
 
+/** Whether segment `pq` passes through the inside of `f` (shrunk by 1 px, so
+ *  a route along or ending on an outline does not count): Liang–Barsky. */
+function crossesFrame(p: Point, q: Point, f: Rect): boolean {
+  const [x0, y0, x1, y1] = [f.x + 1, f.y + 1, f.x + f.w - 1, f.y + f.h - 1];
+  if (x1 <= x0 || y1 <= y0) return false;
+  let lo = 0;
+  let hi = 1;
+  const dx = q.x - p.x;
+  const dy = q.y - p.y;
+  for (const [den, num] of [
+    [-dx, p.x - x0],
+    [dx, x1 - p.x],
+    [-dy, p.y - y0],
+    [dy, y1 - p.y],
+  ] as const) {
+    if (den === 0) {
+      if (num <= 0) return false;
+    } else {
+      const t = num / den;
+      if (den < 0) lo = Math.max(lo, t);
+      else hi = Math.min(hi, t);
+    }
+  }
+  return hi - lo > 1e-9;
+}
+
+/** Edge runs through a leaf that is neither of the edge's ends, counted per
+ *  run and leaf. */
+function throughLeaves(input: LayoutInput, result: LayoutResult): string[] {
+  const out: string[] = [];
+  const leaves = input.graph.order.filter((id) => result.nodes[id] !== undefined && !input.graph.nodes[id]!.children.some((c) => result.nodes[c] !== undefined));
+  for (const e of input.graph.edges) {
+    const layout = result.edges[e.id];
+    if (layout === undefined) continue;
+    for (const [p, q] of runs(layout)) {
+      for (const leaf of leaves) if (leaf !== e.from.node && leaf !== e.to.node && crossesFrame(p, q, result.nodes[leaf]!.frame)) out.push(`${e.from.node}->${e.to.node} through ${leaf}`);
+    }
+  }
+  return out;
+}
+
+describe('tree: non-tree edges through unrelated nodes (fix round 1, item 2; DD-12 §8.2, a known limitation)', () => {
+  /** Today's count per fixture, under the default options. The host routes
+   *  a broken cycle arc or a skip-level edge straight (no obstacle routing
+   *  yet: 07 §2.1 F34), so it can pass through a node. A pin may only go
+   *  down: lower it when a change removes a crossing. */
+  const PINNED: Record<string, number> = {
+    'layout/tree-cycle.sgl': 1, // c -> a through B
+    'layout/tree-diamond.sgl': 0,
+    'layout/tree-direction.sgl': 0,
+    'layout/tree-forest.sgl': 0,
+    'layout/tree-order.sgl': 0,
+    'layout/tree-root.sgl': 0,
+  };
+
+  it('pins every tree fixture', () => {
+    expect(Object.keys(PINNED).sort()).toEqual([...TREE_DOCS].sort());
+  });
+
+  for (const doc of TREE_DOCS) {
+    it(`${doc}: at most the pinned number of edge runs through a leaf that is not their end`, async () => {
+      const input = layoutInputFor(doc);
+      const { result } = await runHostSequence(treeEngine, input, {}, METRICS);
+      const through = throughLeaves(input, result);
+      expect(through.length, through.join('; ')).toBeLessThanOrEqual(PINNED[doc] ?? 0);
+    });
+  }
+
+  it('counts a broken cycle arc drawn straight through the node between', async () => {
+    const input = layoutInputForSource('a: "A"\nb: "B"\nc: "C"\na -> b\nb -> c\nc -> a\n');
+    const { result } = await runHostSequence(treeEngine, input, {}, METRICS);
+    expect(throughLeaves(input, result)).toEqual(['c->a through b']);
+  });
+});
+
 describe('tree: rankSpacing 0 keeps the elbow (fix round 1, item 6)', () => {
   for (const direction of ['down', 'up', 'left', 'right']) {
     it(`${direction}: the first and last runs follow the depth axis, and the arrowhead does too`, async () => {
