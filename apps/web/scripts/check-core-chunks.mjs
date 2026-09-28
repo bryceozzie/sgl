@@ -161,6 +161,52 @@ if (!existsSync(`${DIST}index.html`)) {
   }
   if (process.exitCode !== 1) console.log(`check-core-chunks: tree's layout code is the lazy ${treesChunks.join(', ')}, which only the worker imports, dynamically.`);
 
+  // Fix round 1 of B5 branch 4 (item 3): the signature above is one string of
+  // `tree.ts`, so a static import of `forest.ts` (or of anything else of the
+  // chunk's but `tree.ts`) by the worker went unseen (mutation M14). So, from
+  // the build's module graph (`build/chunk-modules.ts`), mapped back to
+  // source files through each package's `dist` source maps: every module of
+  // STD_TREES_MODULES is carried by the std-trees chunk, and no module the
+  // std-trees chunk carries is carried by any other chunk — so by none the
+  // page or the worker reaches by static imports. `feat/b5-radial` adds its
+  // modules to the list.
+  const STD_TREES_MODULES = ['packages/layout-std/src/forest.ts', 'packages/layout-std/src/tree.ts'];
+  const REPO = fileURLToPath(new URL('../../../', import.meta.url));
+  const graphFile = fileURLToPath(new URL('../node_modules/.sgl-build/chunk-modules.json', import.meta.url));
+  if (!existsSync(graphFile)) fail(`${graphFile} is missing; run \`pnpm build\` (build/chunk-modules.ts writes it).`);
+  else {
+    /** @type {Record<string, string[]>} */
+    const graph = JSON.parse(readFileSync(graphFile, 'utf8'));
+    const jsAssets = assets.filter((f) => f.endsWith('.js')).sort();
+    const recorded = Object.keys(graph).sort();
+    if (JSON.stringify(recorded) !== JSON.stringify(jsAssets)) {
+      fail(`the module graph lists ${recorded.length} chunks and dist/assets has ${jsAssets.length} JS files; it is stale or incomplete (rebuild).`);
+    }
+    // A module of a built package is its `dist` file: read its source map.
+    const sourcesCache = new Map();
+    const sourcesOf = (id) => {
+      if (!sourcesCache.has(id)) {
+        const map = `${REPO}${id}.map`;
+        const sources = /^packages\/[^/]+\/dist\/.*\.js$/.test(id) && existsSync(map)
+          ? JSON.parse(readFileSync(map, 'utf8')).sources.map((s) => fileURLToPath(new URL(s, `file://${REPO}${id}`)).slice(REPO.length))
+          : [id];
+        sourcesCache.set(id, sources);
+      }
+      return sourcesCache.get(id);
+    };
+    const carried = (file) => new Set((graph[file] ?? []).flatMap(sourcesOf));
+    for (const trees of treesChunks) {
+      const own = carried(trees);
+      for (const m of STD_TREES_MODULES) if (!own.has(m)) fail(`${trees} does not carry ${m}; the std-trees chunk must hold all of ${STD_TREES_MODULES.join(', ')}.`);
+      for (const file of recorded) {
+        if (file === trees) continue;
+        const where = seen.has(file) ? 'reachable at boot' : inWorker.has(file) ? 'a static import of the layout worker' : 'another chunk';
+        for (const m of carried(file)) if (own.has(m) || STD_TREES_MODULES.includes(m)) fail(`${file} (${where}) carries ${m}, a module of the lazy std-trees chunk.`);
+      }
+    }
+    if (process.exitCode !== 1) console.log(`check-core-chunks: the module graph puts ${STD_TREES_MODULES.join(', ')} in the std-trees chunk only.`);
+  }
+
   // DD-13 P46 (help branch 2): the help content is lazy. Its compiled form
   // reaches the build only through `virtual:sgl-help-content`, which only the
   // lazy help chunks may import (help branch 4). Neither the boot chunks nor

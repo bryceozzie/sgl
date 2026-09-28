@@ -1,6 +1,7 @@
 import preact from '@preact/preset-vite';
 import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { chunkModules } from './build/chunk-modules.js';
 import { HEADERS_FILE, META_CSP, headersFor, parseHeadersFile } from './build/headers.js';
 import { helpContentPlugin } from './build/help-plugin.js';
 import { sglMinify } from './build/minify.js';
@@ -108,6 +109,9 @@ export default defineConfig({
     // F20: terser, not esbuild, minifies the JS (`build/minify.ts`), so
     // `build.minify` is off below; the worker build takes the same plugin.
     sglMinify(),
+    // Fix round 1 of B5 branch 4: the module graph `check-core-chunks.mjs`
+    // reads (`build/chunk-modules.ts`); the worker's build records its own.
+    chunkModules('page'),
   ],
   // The layout worker is its own Rollup build. It must be an ES module
   // (Vite's default worker format is `iife`, which cannot code-split), so
@@ -124,7 +128,7 @@ export default defineConfig({
   // imports dynamically.
   worker: {
     format: 'es',
-    plugins: () => [sglMinify()],
+    plugins: () => [sglMinify(), chunkModules('worker')],
     rollupOptions: { output: { manualChunks: elkChunk } },
   },
   build: {
