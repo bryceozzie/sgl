@@ -125,5 +125,8 @@ it('tree passes all six conformance checks over the corpus and the 1 000-node gr
     expect(report.cases.every((c) => c.deterministic === true)).toBe(true);
     // No validation warning at all: every child inside its container.
     expect(report.cases.filter((c) => c.validation.length > 0).map((c) => c.name)).toEqual([]);
+    // Check 7 (DD-14 C35): tree honours `scope` on every container.
+    expect(report.cases.find((c) => c.name === N1000)!.scopes).toHaveLength(100);
+    expect(report.cases.find((c) => c.name === 'checkout.sgl')!.scopes).toEqual(['storefront', 'payments']);
   }
 }, 120_000);

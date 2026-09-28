@@ -2,7 +2,7 @@ import { asNodeId, type NodeId } from '@sgl/core';
 import { validateResult, type LayoutEngine, type LayoutInput, type LayoutResult } from '@sgl/layout-api';
 import type { LayoutPlan } from '@sgl/layout-api/compose';
 import { detachedEdges, runConformance, runHostSequence } from '@sgl/layout-api/conformance';
-import { fixedEngine, gridEngine } from '@sgl/layout-std';
+import { fixedEngine, gridEngine, treeEngine } from '@sgl/layout-std';
 import { describe, expect, it } from 'vitest';
 import { scaleDocument } from '../../../bench/scale-document.js';
 import { listCorpusDocs } from '../../theme/test/corpus.js';
@@ -23,7 +23,7 @@ import { documentOptionsFor, layoutInputFor, layoutInputForSource, METRICS } fro
  * in the corpus today they would be laid out by one engine and warn `SGL4010`.
  */
 
-const ENGINES: readonly LayoutEngine[] = [elkEngine, gridEngine, fixedEngine];
+const ENGINES: readonly LayoutEngine[] = [elkEngine, gridEngine, fixedEngine, treeEngine];
 const engineById = (id: string): LayoutEngine | undefined => ENGINES.find((e) => e.id === id);
 const fullId = (name: string): string => (engineById(name) !== undefined ? name : `sgl.${name}`);
 
@@ -131,6 +131,37 @@ x -> cells.c1
 x -> cells
 `;
 
+const TREE_IN_GRID = `@layout: { engine: grid }
+note: "Note"
+org: {
+  @label: "Org"
+  @layout: { engine: tree }
+  ceo: "CEO"
+  cto: "CTO"
+  cfo: "CFO"
+  dev: "Dev"
+  ceo -> cto
+  ceo -> cfo
+  cto -> dev
+}
+note -> org.ceo
+`;
+
+const GRID_IN_TREE = `@layout: { engine: tree }
+root: "Root"
+left: "Left"
+cells: {
+  @label: "Cells"
+  @layout: { engine: grid, columns: 2 }
+  c1: "1"
+  c2: "2"
+  c3: "3"
+}
+root -> left
+root -> cells
+root -> cells.c1
+`;
+
 const FIXTURES: readonly Fixture[] = [
   // Spec §9's worked example: `payments` is a two-column grid in an elk document.
   { name: 'grid-in-elk', root: elkEngine, input: layoutInputFor('checkout.sgl'), options: documentOptionsFor('checkout.sgl') },
@@ -139,6 +170,8 @@ const FIXTURES: readonly Fixture[] = [
   { name: 'three-levels', root: fixedEngine, input: layoutInputForSource(THREE_LEVELS), options: {} },
   { name: 'same-engine', root: elkEngine, input: layoutInputForSource(SAME_ENGINE), options: {} },
   { name: 'grid-in-fixed', root: fixedEngine, input: layoutInputForSource(GRID_IN_FIXED), options: {} },
+  { name: 'tree-in-grid', root: gridEngine, input: layoutInputForSource(TREE_IN_GRID), options: {} },
+  { name: 'grid-in-tree', root: treeEngine, input: layoutInputForSource(GRID_IN_TREE), options: {} },
 ];
 
 const run = (f: Fixture) => runHostSequence(f.root, f.input, f.options, METRICS, { plan: planOf(f.input), engines: engineById });
@@ -155,6 +188,8 @@ describe('composed goldens (DD-14 §10 item 2)', () => {
       'three-levels': ['outer:sgl.elk:{}', 'outer.inner:sgl.grid:{"columns":2}'],
       'same-engine': ['row:sgl.elk:{"direction":"right"}'],
       'grid-in-fixed': ['cells:sgl.grid:{"columns":2}'],
+      'tree-in-grid': ['org:sgl.tree:{}'],
+      'grid-in-tree': ['cells:sgl.grid:{"columns":2}'],
     });
   });
 
@@ -234,6 +269,29 @@ describe('what the composed fixtures show', () => {
     expect(b!.x + b!.w).toBeLessThan(c!.x);
     expect(frameOf(result, 'row').y).toBeGreaterThan(frameOf(result, 'top').y);
     expect(frameOf(result, 'bottom').y).toBeGreaterThan(frameOf(result, 'row').y);
+  });
+});
+
+describe('tree, composed (after feat/b5-tree)', () => {
+  const byName = (name: string) => FIXTURES.find((f) => f.name === name)!;
+
+  it('tree-in-grid: the box is a tree (CTO and CFO one rank below CEO, Dev below CTO), with no SGL4013', async () => {
+    const { result } = await run(byName('tree-in-grid'));
+    const [ceo, cto, cfo, dev] = ['org.ceo', 'org.cto', 'org.cfo', 'org.dev'].map((id) => frameOf(result, id));
+    expect(cto!.y).toBe(cfo!.y);
+    expect(cto!.y).toBeGreaterThan(ceo!.y + ceo!.h);
+    expect(dev!.y).toBeGreaterThan(cto!.y + cto!.h);
+    expect(result.notes ?? []).toEqual([]);
+  });
+
+  it('grid-in-tree: tree places the grid box as a leaf of its size, one rank below the root', async () => {
+    const { result } = await run(byName('grid-in-tree'));
+    const root = frameOf(result, 'root');
+    const cells = frameOf(result, 'cells');
+    expect(cells.y).toBeGreaterThan(root.y + root.h);
+    expect(frameOf(result, 'cells.c2').y).toBe(frameOf(result, 'cells.c1').y);
+    expect(frameOf(result, 'cells.c3').y).toBeGreaterThan(frameOf(result, 'cells.c1').y);
+    expect(result.notes ?? []).toEqual([]);
   });
 });
 

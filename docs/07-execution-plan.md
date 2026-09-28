@@ -2247,8 +2247,7 @@ composed goldens in `__goldens__/composed/`, double runs, checks 1–6, a 1 000-
 100 grid boxes in ~90 ms, and C31 over the corpus). **No existing golden changed.** Core bundle
 **179.64 kB of 184** (179 637 B), **+33 B**: the catalogue row; the composer is on no boot path.
 Deviations are in DD-14 §11.1: crossing edges are in no view yet, so under `elk` they do not rank;
-the goldens are in `layout-elk` with inline fixtures (branch 2 moves them to `corpus/`); `tree` is
-not on `main`, so its check 7 and a `tree`-in-`grid` golden wait for whichever merges second; C31
+the goldens are in `layout-elk` with inline fixtures (branch 2 moves them to `corpus/`); C31
 holds for every coordinate but not for the unquantized unit normals (last-bit differences). DD-06
 gains §4a (the composer), check 7 in §8 and `SGL4013` in §9. **Fix round 1** (orchestrator review,
 no blocker): `SGL4013` names the engine that really laid a box out when nested boxes fail, and sits
@@ -2257,7 +2256,9 @@ with `SGL4013` and the parent run again; `ctx.signal` is also checked after the 
 gives inner containers an odd fixed box size and runs once more on the whole graph with `scope`
 set, so an engine that ignores `scope` or a box's size fails it; new unit tests for a crossing edge
 to a box's own port, the edge-assignment rule and the label order; and a test pinning `SGL4003` for
-content pinned outside a `fixed` box (kept, DD-14 §11.1 deviation 7). No golden changed.
+content pinned outside a `fixed` box (kept, DD-14 §11.1 deviation 6). No golden changed. After
+`feat/b5-tree` was merged in, check 7 runs and passes for `tree`, and two new composed goldens
+cover `tree` in `grid` and `grid` in `tree`.
 
 **B5 branch 4, `feat/b5-tree`** (from `main` at `9f47545`; `main` at `9c543c8`, with
 `fix/root-layout-options` and F31, merged in; not merged). This is DD-12 §13's branch 4.

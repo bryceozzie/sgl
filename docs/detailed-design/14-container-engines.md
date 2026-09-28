@@ -594,13 +594,13 @@ once the human approved them (§14), and so was spec §4's text (§3.8).
   `ConformanceCase.plan` and `ConformanceOptions.engines` run a case as a request with that plan,
   with check 3's pin exemption asking the engine that placed the node (C10); **check 7** (C35),
   `scopeProblem`, runs on every container of every case without a plan, by default
-  (`ConformanceOptions.scopes: false` turns it off). `grid`, `fixed` and `elk` pass it over the
+  (`ConformanceOptions.scopes: false` turns it off). `grid`, `fixed`, `elk` and `tree` pass it over the
   corpus and the 1 000-node graph.
 - Tests: `layout-api/test/compose.test.ts` (34 units after fix round 1, stub engines: the views, the edge rules,
   translation and snapping, crossing edges, notes, degrade on a throw, a bad shape, `SGL4002` and
   an unregistered id with `SGL4013`, a nested box surviving its parent's failure, the root's
   failure, abort between scopes, hidden boxes, the plan in `runHostSequence` and
-  `runConformance`, check 7 failing three ways); `layout-elk/test/compose.test.ts` (six composed
+  `runConformance`, check 7 failing three ways); `layout-elk/test/compose.test.ts` (eight composed
   goldens, double runs, checks 1–6, the 1 000-node mixed graph, and C31 over the corpus). No
   existing golden changed. Boot: **+33 B**, the catalogue row alone (179 604 → 179 637 B); the
   composer is on no boot path.
@@ -622,25 +622,22 @@ once the human approved them (§14), and so was spec §4's text (§3.8).
    the corpus harnesses lay a document out with one engine and would warn `SGL4010` on each.
    The plan is built in the test from each container's `@layout.engine` (C8 without C6's
    inheritance, which is `layoutPlan`'s).
-3. **`tree` is not on `main`** (`feat/b5-tree` is unmerged), so there is no `tree`-in-`grid`
-   golden and no check 7 for `tree`. Whichever of the two branches merges second adds both: the
-   conformance suite runs check 7 by default, so `tree`'s existing suite will run it.
-4. **C31 holds for every coordinate, not every byte.** A `grid` box in a `grid` document composes
+3. **C31 holds for every coordinate, not every byte.** A `grid` box in a `grid` document composes
    to `grid`'s own quantized result except in `startNormal`/`endNormal`, which `quantize` does not
    touch: an edge inside a box is routed in the box's coordinates, so its unit normal can differ
    in the last bits (4e-16 in `wildcards.sgl`). `layout-elk/test/compose.test.ts` checks both. The
    render goldens (branch 2) should not see it; if they do, round the normals in `quantize`.
-5. **One canonical order** (not in the design): the composed result lists nodes in `graph.order`,
+4. **One canonical order** (not in the design): the composed result lists nodes in `graph.order`,
    edges in `graph.edges` order and labels by id (`placeLabels`' own order), whichever scope
    placed them, so C31's comparison holds and a result never depends on the plan's shape.
-6. **Small choices C24/C28 left open.** A box's leaf `contentInset` and `padding` are both its own
+5. **Small choices C24/C28 left open.** A box's leaf `contentInset` and `padding` are both its own
    `contentInset`. A self-loop on a box is its parent's edge (the box's outside); an edge from
    inside a box to the box itself is the box's. Hidden edges go in a view that holds both ends, as
    today, and are never drawn end to end. `SGL4013`'s `{detail}` is the thrown message, the shape
    check's text, "returned invalid geometry" (a view `validateResult` rejects; its own detail is
    not kept), or "not registered in this worker"; a dissolved box's own notes are dropped. An
    engine's own `AbortError` after the signal fired propagates rather than degrading the box.
-7. **A box is sized from its frame only** (fix round 1, item 4; orchestrator decision: keep it).
+6. **A box is sized from its frame only** (fix round 1, item 4; orchestrator decision: keep it).
    Content its engine puts outside the box's frame, such as a `fixed` child pinned at a negative
    offset, stays outside it and can overlap the box's siblings in the parent. This is what `fixed`
    alone does, where the author gets `SGL4003`; the composed result gets the same `SGL4003` from
@@ -653,6 +650,11 @@ again; `ctx.signal` is also checked after the root's engine; check 7 is stronger
 containers are boxes of an odd fixed size that must be kept, and a second run on the whole graph
 with `scope` set tells a scoped layout from one that ignores `scope`. New unit tests pin a
 crossing edge to a box's own port, the `assigned` rule and the label order.
+
+**After `feat/b5-tree` merged** (`main` `1fd4b22`, merged in as `1a3e7da`): check 7 runs for
+`tree` in its conformance suite (both directions, every container of the corpus and the 1 000-node
+graph) and passes; two more composed goldens, `tree-in-grid` (a `tree` box in a `grid` document)
+and `grid-in-tree` (`tree` places a `grid` box as a leaf of its size).
 
 ---
 
