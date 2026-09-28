@@ -127,3 +127,28 @@ the gate policy.
 committed; `packages/layout-std/test/pinned-fixture.test.ts` fails if it drifts
 from the source document or from `grid`'s layout. Re-run it after `pnpm build`
 if either changes on purpose.
+
+## B8: container engines at 2 000 nodes, measured
+
+`scaleDocument(n, { boxes: 'grid' | 'elk' })` gives every container of the
+scale document (200 containers of 10 at 2 000 nodes) that engine of its own
+(DD-14 C49, §8.2). `packages/layout-elk/test/browser/compose.browser.test.ts`
+(the `browser` project) runs each variant through a real Chromium worker
+(`compose.worker.ts`: the real runtime, the lazy composer), warm, three times,
+and prints `[B8-BENCH]` lines; only the request's own timeout is asserted.
+
+Chromium 1194 worker, round trip, 2026-09-28, load ≈ 2 (best / median of 3):
+
+| Document (2 000 nodes) | Best | Median |
+|---|---|---|
+| `elk` alone, no box (F15's measurement) | 971 ms | 1 152 ms |
+| `elk` root, every container a `grid` box | 196 ms | 207 ms |
+| `grid` root, every container an `elk` box (200 ELK runs) | 2 999 ms | 3 378 ms |
+| `elk` root, every container an `elk` box (201 ELK runs) | 3 030 ms | 3 339 ms |
+
+A `grid` box is cheap, so an `elk` document of `grid` boxes is about five
+times faster than `elk` alone. An `elk` box costs about 15 ms per ELK call,
+three to eight times DD-14 §8.2's 2–5 ms guess: 200 of them take about 3 s,
+the whole pipeline's budget at 2 000 nodes (DD-09 §2), inside the 10 s
+timeout. DD-14 C49 names the remedy: the per-subtree cache
+(`perf/b8-cache`, C32), not a cap.

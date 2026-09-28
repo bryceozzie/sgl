@@ -1,0 +1,225 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "ConfigEntry",
+    "key": [
+     "layout"
+    ],
+    "value": {
+     "kind": "Object",
+     "props": [
+      {
+       "kind": "Property",
+       "key": "engine",
+       "isConfig": false,
+       "keySpan": {
+        "from": 341,
+        "to": 347
+       },
+       "value": {
+        "kind": "Word",
+        "value": "elk",
+        "span": {
+         "from": 349,
+         "to": 352
+        }
+       },
+       "span": {
+        "from": 341,
+        "to": 352
+       }
+      }
+     ],
+     "span": {
+      "from": 339,
+      "to": 354
+     }
+    },
+    "keySpan": {
+     "from": 330,
+     "to": 337
+    },
+    "span": {
+     "from": 330,
+     "to": 354
+    }
+   },
+   {
+    "kind": "NodeDecl",
+    "key": "box",
+    "keySpan": {
+     "from": 355,
+     "to": 358
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Box",
+        "span": {
+         "from": 372,
+         "to": 377
+        }
+       },
+       "keySpan": {
+        "from": 364,
+        "to": 370
+       },
+       "span": {
+        "from": 364,
+        "to": 377
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "direction"
+       ],
+       "value": {
+        "kind": "Word",
+        "value": "right",
+        "span": {
+         "from": 392,
+         "to": 397
+        }
+       },
+       "keySpan": {
+        "from": 380,
+        "to": 390
+       },
+       "span": {
+        "from": 380,
+        "to": 397
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "a",
+       "keySpan": {
+        "from": 400,
+        "to": 401
+       },
+       "value": {
+        "kind": "String",
+        "value": "A",
+        "span": {
+         "from": 403,
+         "to": 406
+        }
+       },
+       "span": {
+        "from": 400,
+        "to": 406
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "b",
+       "keySpan": {
+        "from": 409,
+        "to": 410
+       },
+       "value": {
+        "kind": "String",
+        "value": "B",
+        "span": {
+         "from": 412,
+         "to": 415
+        }
+       },
+       "span": {
+        "from": 409,
+        "to": 415
+       }
+      },
+      {
+       "kind": "EdgeStmt",
+       "endpoints": [
+        {
+         "kind": "Endpoint",
+         "path": {
+          "kind": "PathExpr",
+          "root": false,
+          "parents": 0,
+          "segments": [
+           {
+            "kind": "Name",
+            "value": "a",
+            "span": {
+             "from": 418,
+             "to": 419
+            }
+           }
+          ],
+          "span": {
+           "from": 418,
+           "to": 419
+          }
+         },
+         "span": {
+          "from": 418,
+          "to": 419
+         }
+        },
+        {
+         "kind": "Endpoint",
+         "path": {
+          "kind": "PathExpr",
+          "root": false,
+          "parents": 0,
+          "segments": [
+           {
+            "kind": "Name",
+            "value": "b",
+            "span": {
+             "from": 423,
+             "to": 424
+            }
+           }
+          ],
+          "span": {
+           "from": 423,
+           "to": 424
+          }
+         },
+         "span": {
+          "from": 423,
+          "to": 424
+         }
+        }
+       ],
+       "ops": [
+        "->"
+       ],
+       "span": {
+        "from": 418,
+        "to": 424
+       }
+      }
+     ],
+     "span": {
+      "from": 360,
+      "to": 426
+     }
+    },
+    "span": {
+     "from": 355,
+     "to": 426
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 427
+  }
+ },
+ "diagnostics": []
+}

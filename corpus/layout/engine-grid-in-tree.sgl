@@ -1,0 +1,17 @@
+@layout: { engine: tree }
+root: "Root"
+left: "Left"
+cells: {
+  @label: "Cells"
+  @layout: { engine: grid, columns: 2 }
+  c1: "1"
+  c2: "2"
+  c3: "3"
+}
+root -> left
+root -> cells
+root -> cells.c1
+// A `grid` box in a `tree` document: tree places `cells` as a leaf of the
+// size grid gave it, one rank below `root`. No diagnostic. (This note is last
+// so the text above, moved from `layout-elk/test/compose.test.ts`, keeps its
+// spans; a node named `root` is fine under elk since F32.)

@@ -1,0 +1,19 @@
+@layout: { engine: elk }
+client: "Client"
+rack: {
+  @label: "Rack"
+  @layout: { engine: fixed }
+  top: { @label: "Top", @pin: { x: 0, y: 0 } }
+  mid: { @label: "Mid", @pin: { x: 40, y: 60 } }
+  loose: "Loose"
+}
+db: { @label: "DB", @shape: cylinder }
+client -> rack.top
+rack.mid -> db
+client -> db
+client -> rack
+// A `fixed` box in an `elk` document (DD-14 §10 item 2): the pins inside
+// `rack` are honoured, relative to its content box (C10), and are no SGL4021;
+// `loose` has no pin, so `fixed` packs it below and warns SGL4020 (the
+// pipeline harness's DOWNSTREAM_EXTRA). (This note is last so the text above,
+// moved from `layout-elk/test/compose.test.ts`, keeps its spans.)

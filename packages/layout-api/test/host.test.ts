@@ -676,3 +676,60 @@ describe('createWorkerHost (DD-06 §3, Stage H decision D1)', () => {
     expect(workers[0]!.posted).toHaveLength(0); // no 'layout' posted
   });
 });
+
+describe('a request with a plan (DD-14 C23, C25, C26; B8 branch 2)', () => {
+  const plan = [{ node: A, engine: 'sgl.elk', options: {} }];
+
+  it("posts the plan with the request, and only when there is one: a request without one is today's message", async () => {
+    const { spawn, workers } = makeSpawn();
+    const host = createWorkerHost(spawn);
+    // Each run supersedes the last, which rejects with AbortError.
+    host.run('sgl.grid', INPUT, {}, METRICS, {}, new AbortController().signal, plan).catch(() => undefined);
+    const first = workers[0]!.posted[0] as Extract<HostToWorker, { t: 'layout' }>;
+    expect(first.plan).toBe(plan);
+    host.run('sgl.grid', INPUT, {}, METRICS, {}, new AbortController().signal).catch(() => undefined);
+    host.run('sgl.grid', INPUT, {}, METRICS, {}, new AbortController().signal, []).catch(() => undefined);
+    host.dispose();
+    const layouts = workers[0]!.posted.filter((m) => m.t === 'layout');
+    expect(layouts.map((m) => 'plan' in m)).toEqual([true, false, false]);
+  });
+
+  it("the clock is the longest of the plan's engines' timeouts, the root's included (C26); SGL4001 says the layout was composed, and that time (fix round 1, item 3)", async () => {
+    const { spawn } = makeSpawn();
+    const host = createWorkerHost(spawn);
+    // `grid` alone would stop at 2 000 ms; an `elk` box makes it 10 000.
+    const promise = host.run('sgl.grid', INPUT, {}, METRICS, {}, new AbortController().signal, plan);
+    let settled = false;
+    void promise.then(() => (settled = true));
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(8_000);
+    const outcome = await promise;
+    expect(outcome.diagnostics.map((d) => d.message)).toEqual(['Layout (`sgl.grid` with 1 `sgl.elk` box) did not finish within 10000 ms and was stopped. Showing the previous layout.']);
+  });
+
+  it('a plan of engines with shorter timeouts than the root keeps the root\'s', async () => {
+    const { spawn } = makeSpawn();
+    const host = createWorkerHost(spawn, { engineTimeoutMs: { 'test.quick': 500 } });
+    const promise = host.run('sgl.fixed', INPUT, {}, METRICS, {}, new AbortController().signal, [{ node: A, engine: 'test.quick', options: {} }]);
+    let settled = false;
+    void promise.then(() => (settled = true));
+    await vi.advanceTimersByTimeAsync(1_999);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect((await promise).diagnostics[0]!.message).toBe('Layout (`sgl.fixed` with 1 `test.quick` box) did not finish within 2000 ms and was stopped. Showing the previous layout.');
+  });
+
+  it('SGL4001 counts the boxes of each engine, in the plan\'s order', async () => {
+    const { spawn } = makeSpawn();
+    const host = createWorkerHost(spawn);
+    const scopes = [
+      { node: A, engine: 'sgl.fixed', options: {} },
+      { node: B, engine: 'sgl.elk', options: {} },
+      { node: A, engine: 'sgl.elk', options: {} },
+    ];
+    const promise = host.run('sgl.grid', INPUT, {}, METRICS, {}, new AbortController().signal, scopes);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect((await promise).diagnostics[0]!.message).toBe('Layout (`sgl.grid` with 1 `sgl.fixed` box and 2 `sgl.elk` boxes) did not finish within 10000 ms and was stopped. Showing the previous layout.');
+  });
+});

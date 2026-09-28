@@ -1,4 +1,4 @@
-import { createWorkerRuntime, EngineRegistry, type HostToWorker, type WorkerToHost } from '@sgl/layout-api';
+import { createWorkerRuntime, EngineRegistry, type HostToWorker, type WorkerToHost } from '@sgl/layout-api/worker';
 import { elkEngine } from '@sgl/layout-elk';
 import { fixedEngine, gridEngine, radialEngine, treeEngine } from '@sgl/layout-std';
 
@@ -45,11 +45,17 @@ interface WorkerGlobalScopeLike {
 
 const scope = self as unknown as WorkerGlobalScopeLike;
 
-const runtime = createWorkerRuntime(registry, {
-  post: (message) => {
-    scope.postMessage(message);
+// B8 (DD-14 C23, C47): the composer is the lazy `compose` chunk, loaded on
+// the first request whose document names a container engine.
+const runtime = createWorkerRuntime(
+  registry,
+  {
+    post: (message) => {
+      scope.postMessage(message);
+    },
   },
-});
+  () => import('@sgl/layout-api/compose').then((m) => m.composeLayout),
+);
 
 scope.addEventListener('message', (ev: { readonly data: HostToWorker }) => {
   runtime.receive(ev.data);

@@ -1,0 +1,20 @@
+@layout: { engine: grid }
+intro: "Intro"
+pipeline: {
+  @label: "Pipeline"
+  @layout: { engine: elk, direction: right }
+  fetch: "Fetch"
+  parse: "Parse"
+  emit: "Emit"
+  fetch -> parse
+  parse -> emit: "tokens"
+}
+out: "Out"
+intro -> pipeline.fetch
+pipeline.emit -> out: "done"
+intro -> pipeline
+// An `elk` box in a `grid` document (DD-14 §10 item 2): `pipeline` flows
+// rightwards, laid out by elk on its own, and grid places it as one box. The
+// edges into and out of it are drawn straight, end to end (C15). No
+// diagnostic. (This note is last so the text above, moved from
+// `layout-elk/test/compose.test.ts`, keeps its spans.)

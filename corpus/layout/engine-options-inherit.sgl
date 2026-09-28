@@ -1,0 +1,27 @@
+// A boundary's options (DD-14 C6): its own `@layout` keys, over those of the
+// nearest enclosing boundary (or the root) laid out by the same engine, else
+// the engine's defaults. `lane` inherits the root's `direction: right` and
+// `nodeSpacing: 20` and sets `rankSpacing`; `cells` sets `gap: 8`, and
+// `sub`, a grid box inside the elk box inside it, inherits that gap and sets
+// its own `columns`. No diagnostic.
+@layout: { engine: elk, direction: right, nodeSpacing: 20 }
+start: "Start"
+cells: {
+  @label: "Cells"
+  @layout: { engine: grid, gap: 8 }
+  lane: {
+    @label: "Lane"
+    @layout: { engine: elk, rankSpacing: 30 }
+    x: "X"
+    y: "Y"
+    x -> y
+    sub: {
+      @label: "Sub"
+      @layout: { engine: grid, columns: 1 }
+      p: "P"
+      q: "Q"
+    }
+  }
+  z: "Z"
+}
+start -> cells

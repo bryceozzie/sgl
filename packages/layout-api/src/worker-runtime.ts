@@ -1,8 +1,9 @@
+import type { composeLayout } from './compose.js';
 import type { LayoutContext } from './contract.js';
 import { applyHostFallbacks } from './fallbacks.js';
 import type { HostToWorker, WorkerToHost } from './protocol.js';
 import type { EngineRegistry } from './registry.js';
-import { describeShapeError } from './validate.js';
+import { describeShapeError } from './shape.js';
 
 /**
  * The worker-side half of DD-06 §3's protocol (Stage H, decision D2).
@@ -35,7 +36,12 @@ interface RunningRequest {
   readonly controller: AbortController;
 }
 
-export function createWorkerRuntime(registry: EngineRegistry, port: WorkerRuntimePort): WorkerRuntime {
+/** Loads the composer (DD-14 C23, C47): the real worker passes a dynamic
+ *  `import('@sgl/layout-api/compose')`, so it is a lazy chunk fetched on the
+ *  first request with a plan, never on the boot path. */
+export type ComposeLoader = () => Promise<typeof composeLayout>;
+
+export function createWorkerRuntime(registry: EngineRegistry, port: WorkerRuntimePort, loadCompose?: ComposeLoader): WorkerRuntime {
   const running = new Map<number, RunningRequest>();
   const measureWaiters = new Map<number, (layout: unknown) => void>();
   let reqCounter = 0;
@@ -106,6 +112,20 @@ export function createWorkerRuntime(registry: EngineRegistry, port: WorkerRuntim
 
     const start = now();
     try {
+      // B8 (DD-14 C23): a request with a plan is composed, every boundary by
+      // its own engine and the rest by `engine`; the composer applies the
+      // host fallbacks itself, per scope, and returns the whole raw result.
+      // A worker built without the composer refuses a plan (SGL4011).
+      const plan = message.plan;
+      // Anything but an empty array goes to the composer, which refuses a
+      // malformed plan (`MAX_PLAN_SCOPES`, fix round 1, item 5).
+      if (plan !== undefined && (!Array.isArray(plan) || plan.length > 0)) {
+        if (loadCompose === undefined) throw new Error('per-container engines are not available in this worker');
+        const compose = await loadCompose();
+        const result = await compose(engine, message.input, message.options, plan, (id) => registry.get(id), ctx);
+        port.post({ t: 'result', id: message.id, result, ms: now() - start });
+        return;
+      }
       const raw = await engine.layout(message.input, ctx);
       // Host fallbacks (DD-06 §4) — this is the only place in the whole
       // pipeline that has both the engine's `capabilities` (from the

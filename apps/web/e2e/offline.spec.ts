@@ -468,6 +468,53 @@ test('offline, the lazy rich-text chunk comes from the precache: a document with
 });
 
 /**
+ * B8 branch 2 (DD-14 C47): the composer is the layout worker's lazy `compose`
+ * chunk, loaded for a document that names a container engine. Offline, a
+ * reload of such a document still lays the container out with its own
+ * engine, the chunk comes from the service worker, and nothing fails.
+ * Chromium only, as above.
+ */
+test('offline, the lazy compose chunk comes from the precache: a document with a container engine reloads and lays the container out with it', async ({ page, context, browserName }) => {
+  test.skip(browserName !== 'chromium', 'fromServiceWorker() is proof only in Chromium');
+  await page.goto('/');
+  await waitForNodeCount(page, EXAMPLE_NODE_COUNT);
+  expect(await page.evaluate(async () => Boolean((await navigator.serviceWorker.ready).active))).toBe(true);
+  // Under elk alone, `a`, `b`, `c` would stack; the grid box puts them in a row.
+  const doc = 'top\nrow: {\n  @layout: { engine: grid, columns: 3 }\n  a\n  b\n  c\n}\ntop -> row\n';
+  await openFile(page, 'boxes.sgl', doc);
+  await waitForExactNodeCount(page, 5);
+  await expect.poll(async () => (await storedOpenDocument(page))?.source).toBe(doc);
+  const inARow = async (): Promise<boolean> => {
+    const ys = await Promise.all(['a', 'b', 'c'].map((id) => renderedSvg(page).locator(`g[id="n-row.${id}"] > path.n-shape`).evaluate((p) => (p as SVGGraphicsElement).getBBox().y)));
+    return ys[0] === ys[1] && ys[1] === ys[2];
+  };
+  await expect.poll(inARow).toBe(true);
+
+  await clearHttpCache(page, context, browserName);
+  await context.setOffline(true);
+  const responses: Response[] = [];
+  const failed: string[] = [];
+  context.on('response', (r) => {
+    if (r.url().startsWith('http')) responses.push(r);
+  });
+  context.on('requestfailed', (r) => failed.push(`${r.url()} ${r.failure()?.errorText ?? ''}`));
+  try {
+    await page.reload();
+    await waitForExactNodeCount(page, 5);
+    const chunk = (): Response[] => responses.filter((r) => /\/assets\/compose-[^/]*\.js$/.test(new URL(r.url()).pathname));
+    // A live layout, composed offline (not only the stored picture).
+    await expect.poll(() => chunk().length).toBe(1);
+    await expect.poll(inARow).toBe(true);
+    await expect(page.locator('.diagnostics-panel')).toHaveCount(0);
+    expect(chunk().every((r) => r.fromServiceWorker())).toBe(true);
+    expect(responses.filter((r) => !r.fromServiceWorker()).map((r) => r.url())).toEqual([]);
+    expect(failed).toEqual([]);
+  } finally {
+    await context.setOffline(false);
+  }
+});
+
+/**
  * C5: the `high-contrast` and `print` themes are in the core bundle, not a
  * lazy chunk (they cost 0.24 kB; execution plan §2), so a document stored in
  * one of them paints in it on an offline boot, and a pick between them works

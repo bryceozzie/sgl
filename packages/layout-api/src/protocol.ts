@@ -1,3 +1,4 @@
+import type { LayoutPlan } from './compose.js';
 import type { LayoutInput, LayoutResult, ResolvedThemeMetricsView } from './contract.js';
 
 /** The worker wire protocol (DD-06 §3). Every payload is `structuredClone`-able,
@@ -13,6 +14,10 @@ export type HostToWorker =
       readonly metrics: ResolvedThemeMetricsView;
       readonly table: Readonly<Record<string, unknown>>;
       readonly seed: number;
+      /** The request's boundaries (DD-14 C23), present only when the
+       *  document names a container engine: the worker then composes the
+       *  layout (`@sgl/layout-api/compose`, a lazy chunk). */
+      readonly plan?: LayoutPlan;
     }
   | { readonly t: 'abort'; readonly id: number }
   | { readonly t: 'measure-reply'; readonly id: number; readonly req: number; readonly layout: unknown };

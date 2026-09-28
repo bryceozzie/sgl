@@ -1,0 +1,23 @@
+// Edges across boundaries (DD-14 §4, §10 item 2): into a box (`client ->
+// left.a`), out of one (`right.d -> client`), from one box's node to
+// another's through a port (`left.b[out] -> right.c`), and box to box
+// (`left -> right`). Until branch 3's ports they are drawn straight, end to
+// end, under every parent (C15; §11.1 deviation 1). No diagnostic.
+@layout: { engine: elk }
+client: "Client"
+left: {
+  @label: "Left"
+  @layout: { engine: grid, columns: 1 }
+  a: "A"
+  b: { @label: "B", @ports: { out: east } }
+}
+right: {
+  @label: "Right"
+  @layout: { engine: grid }
+  c: "C"
+  d: "D"
+}
+client -> left.a
+left.b[out] -> right.c
+right.d -> client
+left -> right

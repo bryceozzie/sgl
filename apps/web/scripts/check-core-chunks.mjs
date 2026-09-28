@@ -166,6 +166,34 @@ if (!existsSync(`${DIST}index.html`)) {
   }
   if (process.exitCode !== 1) console.log(`check-core-chunks: tree's and radial's layout code is the lazy ${treesChunks.join(', ')}, which only the worker imports, dynamically.`);
 
+  // B8 branch 2 (DD-14 C47, DD-10 §2): the composer, `@sgl/layout-api/compose`,
+  // is the lazy `compose` chunk, which only the worker imports, dynamically,
+  // on the first request with a plan (`layout.worker.ts`'s loader). So:
+  // exactly one such chunk, holding the composer (one of its details, so this
+  // cannot pass vacuously); neither the page's boot chunks nor the worker's
+  // static imports are it, or carry that code; the worker references it; no
+  // boot chunk references it; and it carries no catalogue row either (the
+  // composer's notes are codes, rebuilt by the host; its checks build no
+  // message). The module graph below proves the rest.
+  const COMPOSE_SIGNATURE = "resized by its parent's engine";
+  const composeChunks = assets.filter((f) => /^compose-[\w-]+\.js$/.test(f));
+  if (composeChunks.length !== 1) fail(`expected one assets/compose-*.js chunk, found ${composeChunks.length} (${composeChunks.join(', ')}).`);
+  for (const compose of composeChunks) {
+    const code = readFileSync(`${DIST}assets/${compose}`, 'utf8');
+    if (!code.includes(COMPOSE_SIGNATURE)) fail(`${compose} does not contain '${COMPOSE_SIGNATURE}'; update COMPOSE_SIGNATURE for this minifier output.`);
+    for (const m of code.matchAll(ROW)) fail(`${compose} (the lazy compose chunk) contains catalogue row SGL${m[1]}; the worker and its chunks build no diagnostics.`);
+    for (const file of seen) {
+      if (file === compose) fail(`${compose}, the lazy compose chunk, is reachable at boot.`);
+      else if (readFileSync(`${DIST}assets/${file}`, 'utf8').includes(compose)) fail(`${file} (reachable at boot) references the lazy compose chunk ${compose}; only the layout worker may import it.`);
+    }
+    if (inWorker.has(compose)) fail(`${compose}, the lazy compose chunk, is a static import of the layout worker.`);
+    if (!workers.some((w) => readFileSync(`${DIST}assets/${w}`, 'utf8').includes(compose))) fail(`the layout worker does not reference ${compose}; a plan could not be composed.`);
+  }
+  for (const file of [...seen, ...inWorker]) {
+    if (!composeChunks.includes(file) && readFileSync(`${DIST}assets/${file}`, 'utf8').includes(COMPOSE_SIGNATURE)) fail(`${file} (boot or worker) contains the composer; it belongs to the lazy compose chunk.`);
+  }
+  if (process.exitCode !== 1) console.log(`check-core-chunks: the composer is the lazy ${composeChunks.join(', ')}, which only the worker imports, dynamically.`);
+
   // Fix round 1 of B5 branch 4 (item 3): the signature above is one string of
   // `tree.ts`, so a static import of `forest.ts` (or of anything else of the
   // chunk's but `tree.ts`) by the worker went unseen (mutation M14). So, from
@@ -210,6 +238,27 @@ if (!existsSync(`${DIST}index.html`)) {
       }
     }
     if (process.exitCode !== 1) console.log(`check-core-chunks: the module graph puts ${STD_TREES_MODULES.join(', ')} in the std-trees chunk only.`);
+
+    // B8 branch 2 (DD-14 C47): the composer's own module is carried by the
+    // compose chunk and by no other chunk, page or worker. And no module the
+    // compose chunk carries (the composer, and the checks only it needs in
+    // the worker: `validate.ts`, whose module the page shares) is carried by
+    // the worker's static chunks: that is what keeps it off the worker's boot
+    // path (`@sgl/layout-api/worker`, `shape.ts`). The page's own copy of
+    // `validate.ts` is the page's (the host validates every result).
+    const COMPOSE_MODULES = ['packages/layout-api/src/compose.ts'];
+    const COMPOSE_ONLY_IN_WORKER = ['packages/layout-api/src/compose.ts', 'packages/layout-api/src/validate.ts'];
+    for (const compose of composeChunks) {
+      const own = carried(compose);
+      for (const m of COMPOSE_ONLY_IN_WORKER) if (!own.has(m)) fail(`${compose} does not carry ${m}; the compose chunk must hold all of ${COMPOSE_ONLY_IN_WORKER.join(', ')}.`);
+      for (const file of recorded) {
+        if (file === compose) continue;
+        const theirs = carried(file);
+        for (const m of COMPOSE_MODULES) if (theirs.has(m)) fail(`${file} carries ${m}, the lazy compose chunk's own module.`);
+        if (inWorker.has(file)) for (const m of theirs) if (own.has(m)) fail(`${file} (a static import of the layout worker) carries ${m}, a module of the lazy compose chunk.`);
+      }
+    }
+    if (process.exitCode !== 1) console.log(`check-core-chunks: the module graph puts ${COMPOSE_MODULES.join(', ')} in the compose chunk only, and none of its modules on the worker's boot path.`);
   }
 
   // DD-13 P46 (help branch 2): the help content is lazy. Its compiled form

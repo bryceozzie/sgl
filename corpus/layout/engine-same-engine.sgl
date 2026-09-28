@@ -1,0 +1,20 @@
+@layout: { engine: elk }
+top: "Top"
+row: {
+  @label: "Row"
+  @layout: { engine: elk, direction: right }
+  a: "A"
+  b: "B"
+  c: "C"
+  a -> b
+  b -> c
+}
+bottom: "Bottom"
+top -> row
+row -> bottom
+top -> row.a
+// A container naming its document's own engine is a boundary too (DD-14 C2):
+// `row` is laid out rightwards by a second elk run inside a downward elk
+// document, the only way to give an elk container its own direction. No
+// diagnostic. (This note is last so the text above, moved from
+// `layout-elk/test/compose.test.ts`, keeps its spans.)

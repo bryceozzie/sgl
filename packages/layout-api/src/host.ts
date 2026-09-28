@@ -1,4 +1,5 @@
 import { LAYOUT_CATALOGUE, layoutDiagnostic, NO_SPAN, type Diagnostic, type LayoutDiagnosticCode, type StageResult } from '@sgl/core';
+import type { LayoutPlan } from './compose.js';
 import type { LayoutInput, LayoutResult, ResolvedThemeMetricsView } from './contract.js';
 import type { HostToWorker, WorkerToHost } from './protocol.js';
 import { quantize, validateResult } from './validate.js';
@@ -70,6 +71,9 @@ export interface LayoutHost {
     metrics: ResolvedThemeMetricsView,
     table: Readonly<Record<string, unknown>>,
     signal: AbortSignal,
+    /** The document's container engines (DD-14 C25): the worker composes
+     *  the layout when it is not empty. */
+    plan?: LayoutPlan,
   ): Promise<StageResult<LayoutResult | null>>;
 
   dispose(): void;
@@ -78,6 +82,9 @@ export interface LayoutHost {
 interface InFlight {
   readonly id: number;
   readonly engineId: string;
+  readonly ms: number;
+  /** SGL4001's `{what}`: the engine, or the composed layout (fix round 1, item 3). */
+  readonly what: string;
   readonly input: LayoutInput;
   /** The `'layout'` message as posted, kept so a respawn can post it again. */
   readonly message: Extract<HostToWorker, { t: 'layout' }>;
@@ -263,7 +270,7 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
   }
 
   return {
-    run(engineId, input, options, metrics, table, signal) {
+    run(engineId, input, options, metrics, table, signal, plan) {
       // Calling `run()` on a disposed host is a programming error, not a
       // runtime condition about the input or the engine — §1's "throwing is
       // reserved for a violated invariant." Rejecting a *fresh* `Promise`
@@ -286,6 +293,19 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
       const id = nextId;
       nextId += 1;
 
+      // DD-14 C26: one clock per request, the longest of its engines'.
+      const composed = plan !== undefined && plan.length > 0;
+      const ms = composed ? Math.max(timeoutFor(engineId), ...plan.map((s) => timeoutFor(s.engine))) : timeoutFor(engineId);
+      // SGL4001 names what was stopped: a composed layout is not the root
+      // engine's alone (fix round 1, item 3), "(`sgl.grid` with 2 `sgl.elk`
+      // boxes and 1 `sgl.fixed` box)", engines in the plan's order.
+      let what = `engine \`${engineId}\``;
+      if (composed) {
+        const counts = new Map<string, number>();
+        for (const s of plan) counts.set(s.engine, (counts.get(s.engine) ?? 0) + 1);
+        const boxes = [...counts].map(([id, n]) => `${n} \`${id}\` box${n === 1 ? '' : 'es'}`);
+        what = `(\`${engineId}\` with ${boxes.join(' and ')})`;
+      }
       return new Promise((resolve, reject) => {
         const timer = setTimeout(() => {
           const state = takeCurrent(id);
@@ -293,9 +313,9 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
           respawn();
           state.resolve({
             value: null,
-            diagnostics: [layoutDiagnostic('SGL4001', NO_SPAN, { id: state.engineId, ms: timeoutFor(state.engineId) })],
+            diagnostics: [layoutDiagnostic('SGL4001', NO_SPAN, { what: state.what, ms: state.ms })],
           });
-        }, timeoutFor(engineId));
+        }, ms);
 
         const onAbort = (): void => {
           const state = takeCurrent(id);
@@ -304,8 +324,8 @@ export function createWorkerHost(spawn: () => Worker, options: WorkerHostOptions
         };
         signal.addEventListener('abort', onAbort, { once: true });
 
-        const message: Extract<HostToWorker, { t: 'layout' }> = { t: 'layout', id, engine: engineId, input, options, metrics, table, seed: SEED };
-        current = { id, engineId, input, message, timer, signal, onAbort, resolve, reject };
+        const message: Extract<HostToWorker, { t: 'layout' }> = { t: 'layout', id, engine: engineId, input, options, metrics, table, seed: SEED, ...(composed && { plan }) };
+        current = { id, engineId, ms, what, input, message, timer, signal, onAbort, resolve, reject };
         worker.postMessage(message);
       });
     },

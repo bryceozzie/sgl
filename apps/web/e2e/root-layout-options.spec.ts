@@ -4,23 +4,28 @@ import { corpusDoc, EXAMPLE_NODE_COUNT, renderedSvg, setSource, storedOpenDocume
 /**
  * DD-12 H6 (N40) end to end: the root `@layout` options reach the engine.
  * `corpus/checkout.sgl` says `@layout: { engine: "elk", direction: right }`,
- * so under `elk` every edge runs left to right; Options ▾ shows Direction as
- * the document's, disabled, and the stored options are not touched.
+ * so under `elk` every edge elk lays out runs left to right; Options ▾ shows
+ * Direction as the document's, disabled, and the stored options are not
+ * touched. Since B8 (DD-14) `payments` is a `grid` box of two columns: the
+ * edges inside it are grid's, and the ones across it are drawn straight end
+ * to end (DD-14 §11.1 deviation 1), so only the edges outside it count.
  */
 
 const CHECKOUT = corpusDoc('checkout.sgl');
 
-/** For each edge, whether its source's centre is left of its target's. The
- *  endpoints are read from the edge's `aria-label` ("a to b" or "a to b: label"). */
+/** For each edge with neither end in `payments`, whether its source's centre
+ *  is left of its target's. The endpoints are read from the edge's
+ *  `aria-label` ("a to b" or "a to b: label"). */
 async function edgesRightwards(page: Page): Promise<boolean[]> {
   return renderedSvg(page).evaluate((svg) =>
-    [...svg.querySelectorAll('g.L-edges > g.e')].map((edge) => {
+    [...svg.querySelectorAll('g.L-edges > g.e')].flatMap((edge) => {
       const [from, to] = (edge.getAttribute('aria-label') ?? '').replace(/:.*$/, '').split(' to ');
+      if (from?.startsWith('payments.') || to?.startsWith('payments.')) return [];
       const cx = (id: string | undefined) => {
         const box = (svg.querySelector(`[id="n-${id}"]`) as SVGGraphicsElement).getBBox();
         return box.x + box.width / 2;
       };
-      return cx(from) < cx(to);
+      return [cx(from) < cx(to)];
     }),
   );
 }
@@ -38,8 +43,8 @@ test("checkout.sgl's `direction: right` lays it out rightwards under elk, and th
   await waitForExactNodeCount(page, visibleNodeCount(CHECKOUT));
   await expect(page.locator('.engine-picker select')).toHaveValue('sgl.elk');
 
-  // Every one of its six edges runs left to right.
-  await expect.poll(() => edgesRightwards(page), { timeout: 20_000 }).toEqual([true, true, true, true, true, true]);
+  // Both edges outside `payments` run left to right.
+  await expect.poll(() => edgesRightwards(page), { timeout: 20_000 }).toEqual([true, true]);
 
   await openOptions(page);
   const direction = page.getByLabel('Direction (set by document)');

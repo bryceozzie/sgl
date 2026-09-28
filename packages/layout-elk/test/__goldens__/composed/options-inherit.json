@@ -1,0 +1,259 @@
+{
+  "bounds": {
+    "x": 0,
+    "y": 0,
+    "w": 524,
+    "h": 328.796875
+  },
+  "nodes": {
+    "start": {
+      "frame": {
+        "x": 16,
+        "y": 146.40625,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "cells": {
+      "frame": {
+        "x": 158,
+        "y": 16,
+        "w": 350,
+        "h": 296.796875
+      },
+      "contentFrame": {
+        "x": 174,
+        "y": 53.59375,
+        "w": 318,
+        "h": 243.203125
+      }
+    },
+    "cells.lane": {
+      "frame": {
+        "x": 174,
+        "y": 53.59375,
+        "w": 238,
+        "h": 243.203125
+      },
+      "contentFrame": {
+        "x": 190,
+        "y": 91.1875,
+        "w": 206,
+        "h": 189.59375
+      }
+    },
+    "cells.lane.x": {
+      "frame": {
+        "x": 222,
+        "y": 244.796875,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "cells.lane.y": {
+      "frame": {
+        "x": 324,
+        "y": 244.796875,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "cells.lane.sub": {
+      "frame": {
+        "x": 190,
+        "y": 91.1875,
+        "w": 104,
+        "h": 133.59375
+      },
+      "contentFrame": {
+        "x": 206,
+        "y": 128.796875,
+        "w": 72,
+        "h": 80
+      }
+    },
+    "cells.lane.sub.p": {
+      "frame": {
+        "x": 206,
+        "y": 128.796875,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "cells.lane.sub.q": {
+      "frame": {
+        "x": 206,
+        "y": 172.796875,
+        "w": 72,
+        "h": 36
+      }
+    },
+    "cells.z": {
+      "frame": {
+        "x": 420,
+        "y": 157.203125,
+        "w": 72,
+        "h": 36
+      }
+    }
+  },
+  "edges": {
+    "e-01e4c92825dfe1ea": {
+      "start": {
+        "x": 88,
+        "y": 164.40625
+      },
+      "end": {
+        "x": 150,
+        "y": 164.40625
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 150,
+            "y": 164.40625
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "clip": "none"
+    },
+    "e-4485c56ff28981c4": {
+      "start": {
+        "x": 294,
+        "y": 262.796875
+      },
+      "end": {
+        "x": 316,
+        "y": 262.796875
+      },
+      "route": [
+        {
+          "t": "L",
+          "to": {
+            "x": 316,
+            "y": 262.796875
+          }
+        }
+      ],
+      "startNormal": {
+        "x": -1,
+        "y": 0
+      },
+      "endNormal": {
+        "x": 1,
+        "y": 0
+      },
+      "clip": "none"
+    }
+  },
+  "labels": [
+    {
+      "labelId": "l:cells",
+      "frame": {
+        "x": 174,
+        "y": 32,
+        "w": 28.796875,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:cells.lane",
+      "frame": {
+        "x": 190,
+        "y": 69.59375,
+        "w": 28.828125,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:cells.lane.sub",
+      "frame": {
+        "x": 206,
+        "y": 107.1875,
+        "w": 23.0625,
+        "h": 15.59375
+      },
+      "align": "start",
+      "baseline": "top"
+    },
+    {
+      "labelId": "l:cells.lane.sub.p",
+      "frame": {
+        "x": 237.671875,
+        "y": 138.34375,
+        "w": 8.671875,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:cells.lane.sub.q",
+      "frame": {
+        "x": 236.9375,
+        "y": 182.34375,
+        "w": 10.109375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:cells.lane.x",
+      "frame": {
+        "x": 253.671875,
+        "y": 254.34375,
+        "w": 8.671875,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:cells.lane.y",
+      "frame": {
+        "x": 355.671875,
+        "y": 254.34375,
+        "w": 8.671875,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:cells.z",
+      "frame": {
+        "x": 452.03125,
+        "y": 166.75,
+        "w": 7.9375,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    },
+    {
+      "labelId": "l:start",
+      "frame": {
+        "x": 38.265625,
+        "y": 155.953125,
+        "w": 27.453125,
+        "h": 16.90625
+      },
+      "align": "middle",
+      "baseline": "middle"
+    }
+  ]
+}

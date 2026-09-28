@@ -2260,6 +2260,48 @@ content pinned outside a `fixed` box (kept, DD-14 §11.1 deviation 6). No golden
 `feat/b5-tree` was merged in, check 7 runs and passes for `tree`, and two new composed goldens
 cover `tree` in `grid` and `grid` in `tree`.
 
+**B8 branch 2, `feat/b8-wire`** (DD-14 §11 branch 2; branched from `main` at `707dd0c`; not
+merged). **A container's own layout engine works for users; F29 is cleared.** The page builds the
+**plan** (`layoutPlan`, `@sgl/layout-api`): the containers naming an available engine, each with its
+engine and options, complete, inheriting from the nearest scope using the same engine, the root's
+being the request's bag (C6). The request carries it (`'layout'.plan`, `run(…, plan)`; the clock is
+the plan's longest timeout), and the worker composes it with the composer loaded as the lazy
+**`compose-*.js`** chunk (3.68 kB gz; `.size-limit.js`, `check-core-chunks.mjs` with a module-graph
+check, the precache, an offline e2e case). A new entry, `@sgl/layout-api/worker`, with `shape.ts`
+and `checkResult`, keeps the composer's checks and every catalogue row off the worker's boot path.
+The `@layout` checks are **scope-aware**: a container's `engine` is not `SGL4010`, a boundary's keys
+are its engine's options, any other node's are the surrounding engine's hints (so `@direction` on a
+plain container under `elk` is now `SGL4010`), and a pin is judged by the engine that places the
+node. New warning **`SGL4012`** ("Layout engine `{name}` is not available; `{node}` is laid out by
+`{id}`."), at the key. The plan is in the layout skip key. Fixtures `corpus/layout/engine-*.sgl`
+(eight; four are branch 1's inline sources, text unchanged); `nested-engine.sgl` names `grid`; the
+render-svg harness lays out a container's `grid`, `fixed`, `tree` or `elk`. Help: `@layout`,
+`@direction`, `@pin` rewritten for container engines (DD-13 P21). Tests: `layout-plan.test.ts`,
+worker-runtime and host plan cases, pipeline tests (spec §9 through the real engines: only its two
+`SGL3006` infos for `cloud`; `SGL4013` from a stub engine), composed goldens for `crossing` and
+`options-inherit`, a Chromium worker equal to Node for `grid-in-elk` and `elk-in-grid`, and
+`e2e/container-engines.spec.ts` (spec §9 with grid inside elk, re-layout on an engine edit,
+`SGL4012`). **No engine or render golden changed:** `checkout.sgl` is now composed in the render
+harness and draws its goldens byte for byte (C31); `nested-engine.sgl`'s CST/AST pins changed with
+its text, and `fonts/corpus-faces.json` gained eight entries. **Bench** (§8.2 variants, Chromium
+worker, 2 000 nodes): an `elk` root over 200 `grid` boxes ~0.2 s (elk alone ~1.0 s); 200 `elk` boxes
+~3.0–3.4 s under either root, about 15 ms per ELK call, three times DD-14's estimate, so
+`perf/b8-cache` (C32) is warranted. Core bundle **180.82 kB of 184** (+753 B: page +618, worker
++135). Deviations are in DD-14 §11.2. DD-06 §2, §3, §4a, §9, DD-08 §3, §10, DD-10 §2, the corpus
+README and bench/README.md updated.
+
+**B8 branch 2, fix round 1** (on `feat/b8-wire`, `main` at `900f93b` merged in: `radial`, F32).
+`SGL4010` now says "not a hint" for a key checked against the surrounding engine's hints (a plain
+container's or a leaf's), "not an option" at the root and on a boundary (a `{kind}` parameter; the
+code is unchanged). The `@layout` key check skips what the plan skips: a hidden subtree, and a node
+naming an engine with no visible child (`layoutPlan`'s `quiet`). `SGL4001` for a composed request
+says so ("Layout (`sgl.grid` with 12 `sgl.elk` boxes) did not finish …"); degrading under time
+pressure is left to `perf/b8-cache` (DD-14 §11.2). `planKey` is kept as defence in depth (no test
+can isolate it). The worker refuses a malformed plan with a fixed `SGL4011` reason (at most 10 000
+scopes). The help says crossing edges are straight for now. `grid-in-tree` moved to
+`corpus/layout/engine-grid-in-tree.sgl` after F32. New finding F37 (`__proto__`). Core **181.14 kB** of 184 (181 142 B), +947 B over `main` at
+`900f93b`; the compose chunk 3.81 kB. DD-14 §11.2, DD-06 §3, §9.
+
 **B5 branch 4, `feat/b5-tree`** (from `main` at `9f47545`; `main` at `9c543c8`, with
 `fix/root-layout-options` and F31, merged in; not merged). This is DD-12 §13's branch 4.
 - **The spanning forest** (`layout-std/src/forest.ts`, DD-12 §7), shared with `radial`: edges lifted
@@ -2391,7 +2433,7 @@ it rot: a register that outlives its findings is the same failure as a stale §2
 | **F34** | **`tree` draws non-tree edges straight through unrelated nodes:** a cycle's broken arc, a second parent or a skip-level edge is left to the host's straight route (DD-06 §4.2), which ignores the nodes between its ends (`layout/tree-cycle.sgl`: `c -> a` crosses `B`). DD-12 §8.2 records it as a known limitation. `packages/layout-std/test/tree.test.ts` pins the count of edge runs through a leaf that is not their end per `layout/tree-*.sgl` fixture (`tree-cycle` 1, the others 0), so it can only go down. Remedy: obstacle-avoiding routing for the host's fallback or for `tree`'s non-tree edges. Found by B5 branch 4's review (fix round 1, 2026-09-28). | Orchestrator, after B5 |
 | **F36** | **`radial`'s edge labels can overlap nodes:** the host places an edge label at its straight route's arc-length midpoint (DD-06 §4.1), with no regard for the nodes around it; on a ring, a spoke's midpoint can fall on a neighbouring node, or a chord's across the disc. Found by B5 branch 5's review (fix round 1, 2026-09-28); no code changed. Remedy: host label placement that avoids frames, or a radial-specific placement along the spoke. | Orchestrator |
 | **F35** | **Quantizing to 1/64 px can make touching siblings overlap:** at `nodeSpacing: 0` two siblings whose frames touch exactly can, once `quantize` rounds each frame's position and size (DD-06 §5), overlap by up to a 1/64 px step. Host-wide, not `tree`'s: any engine that places frames edge to edge meets it. Found by B5 branch 4's review (fix round 1, 2026-09-28); no code changed. Remedy: quantize the edges of a frame rather than its position and size, or let conformance check 3 allow a 1/64 px overlap. | Orchestrator |
-| **F29** | **Spec §9's worked example puts `@layout: { engine: grid }` on a container, which this build does not support** (per-container engines are B8). Under `elk` it gives two `SGL4010` warnings. Found by help branch 2 (2026-09-27). **Human decision 2026-09-27: keep the example and build B8 (per-container engines) sooner.** | B8's implementer (prioritised in Stage L; design [DD-14](detailed-design/14-container-engines.md), decided 2026-09-28): `feat/b8-compose` (the composer), then `feat/b8-wire`, which clears this row |
+| **F37** | **A node named `__proto__` breaks `compile()`:** `SemanticGraph.nodes` is a plain object keyed by node id, so `nodes['__proto__'] = …` sets the prototype instead of an entry. It predates B8 (found by `feat/b8-wire`'s review, 2026-09-28). Likely remedy: a null-prototype object (`Object.create(null)`) or an own-property guard in `@sgl/core`'s compile, with a corpus fixture. | orchestrator (core: `graph.nodes` as a plain object) |
 | **F30** | **Three keys are accepted and kept, but nothing uses them:** `@order`, `@tooltip` and `@size.aspectRatio`. The help says so. Each needs either an implementation or `SGL2010` ("no effect in this version") so authors are not misled. Found by help branch 2 (2026-09-27). | Orchestrator triage (small code fix per key) |
 
 ---

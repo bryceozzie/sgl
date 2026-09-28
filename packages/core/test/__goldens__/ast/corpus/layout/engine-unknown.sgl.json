@@ -1,0 +1,203 @@
+{
+ "ast": {
+  "kind": "Document",
+  "entries": [
+   {
+    "kind": "NodeDecl",
+    "key": "box",
+    "keySpan": {
+     "from": 197,
+     "to": 200
+    },
+    "value": {
+     "kind": "Block",
+     "entries": [
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "label"
+       ],
+       "value": {
+        "kind": "String",
+        "value": "Box",
+        "span": {
+         "from": 214,
+         "to": 219
+        }
+       },
+       "keySpan": {
+        "from": 206,
+        "to": 212
+       },
+       "span": {
+        "from": 206,
+        "to": 219
+       }
+      },
+      {
+       "kind": "ConfigEntry",
+       "key": [
+        "layout"
+       ],
+       "value": {
+        "kind": "Object",
+        "props": [
+         {
+          "kind": "Property",
+          "key": "engine",
+          "isConfig": false,
+          "keySpan": {
+           "from": 233,
+           "to": 239
+          },
+          "value": {
+           "kind": "Word",
+           "value": "dagre",
+           "span": {
+            "from": 241,
+            "to": 246
+           }
+          },
+          "span": {
+           "from": 233,
+           "to": 246
+          }
+         }
+        ],
+        "span": {
+         "from": 231,
+         "to": 248
+        }
+       },
+       "keySpan": {
+        "from": 222,
+        "to": 229
+       },
+       "span": {
+        "from": 222,
+        "to": 248
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "a",
+       "keySpan": {
+        "from": 251,
+        "to": 252
+       },
+       "value": {
+        "kind": "String",
+        "value": "A",
+        "span": {
+         "from": 254,
+         "to": 257
+        }
+       },
+       "span": {
+        "from": 251,
+        "to": 257
+       }
+      },
+      {
+       "kind": "NodeDecl",
+       "key": "b",
+       "keySpan": {
+        "from": 260,
+        "to": 261
+       },
+       "value": {
+        "kind": "String",
+        "value": "B",
+        "span": {
+         "from": 263,
+         "to": 266
+        }
+       },
+       "span": {
+        "from": 260,
+        "to": 266
+       }
+      },
+      {
+       "kind": "EdgeStmt",
+       "endpoints": [
+        {
+         "kind": "Endpoint",
+         "path": {
+          "kind": "PathExpr",
+          "root": false,
+          "parents": 0,
+          "segments": [
+           {
+            "kind": "Name",
+            "value": "a",
+            "span": {
+             "from": 269,
+             "to": 270
+            }
+           }
+          ],
+          "span": {
+           "from": 269,
+           "to": 270
+          }
+         },
+         "span": {
+          "from": 269,
+          "to": 270
+         }
+        },
+        {
+         "kind": "Endpoint",
+         "path": {
+          "kind": "PathExpr",
+          "root": false,
+          "parents": 0,
+          "segments": [
+           {
+            "kind": "Name",
+            "value": "b",
+            "span": {
+             "from": 274,
+             "to": 275
+            }
+           }
+          ],
+          "span": {
+           "from": 274,
+           "to": 275
+          }
+         },
+         "span": {
+          "from": 274,
+          "to": 275
+         }
+        }
+       ],
+       "ops": [
+        "->"
+       ],
+       "span": {
+        "from": 269,
+        "to": 275
+       }
+      }
+     ],
+     "span": {
+      "from": 202,
+      "to": 277
+     }
+    },
+    "span": {
+     "from": 197,
+     "to": 277
+    }
+   }
+  ],
+  "span": {
+   "from": 0,
+   "to": 278
+  }
+ },
+ "diagnostics": []
+}
