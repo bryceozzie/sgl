@@ -92,7 +92,10 @@ const CTX = {
 };
 
 function inputFor(name) {
-  const source = readFileSync(`${corpusDir}${name}`, 'utf8');
+  return inputForSource(readFileSync(`${corpusDir}${name}`, 'utf8'));
+}
+
+function inputForSource(source) {
   const { model } = resolve(parse(source).ast);
   const { graph } = compile(model);
   const { value: theme } = resolveTheme(neutralLight, (id) => BUILT_IN[id]);
@@ -121,6 +124,25 @@ async function fixedCases() {
   return out;
 }
 
+/** Fix round 1 of B5 branch 4 (item 8): a 60-node tree, parsed from source,
+ *  whose labels are one to three characters or thirty to fifty, so
+ *  neighbouring subtrees differ strongly in breadth. A fixed LCG, so the
+ *  source is the same on every run. */
+function mixedWidthsTree() {
+  let s = 7;
+  const next = () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+  const lines = [];
+  for (let i = 0; i < 60; i += 1) {
+    const len = next() < 0.3 ? 30 + Math.floor(next() * 21) : 1 + Math.floor(next() * 3);
+    lines.push(`n${i}: "${'W'.repeat(len)}"`);
+    if (i > 0) lines.push(`n${Math.max(0, i - 1 - Math.floor(next() * Math.min(i, 6)))} -> n${i}`);
+  }
+  return `${lines.join('\n')}\n`;
+}
+
 /** B5 branch 4 (DD-12 §12 item 3): `tree` through a real Worker, for
  *  `tree.browser.test.ts` — nested containers with mixed directions
  *  (`tree-direction`), a DAG whose second parent is host-routed
@@ -129,8 +151,9 @@ async function fixedCases() {
  *  run with Node's, as well as the quantized result through the worker. */
 async function treeCases() {
   const out = {};
-  for (const name of ['layout/tree-direction.sgl', 'layout/tree-diamond.sgl', 'forty-three-level.sgl', 'n50.sgl']) {
-    const input = inputFor(name);
+  const inputs = ['layout/tree-direction.sgl', 'layout/tree-diamond.sgl', 'forty-three-level.sgl', 'n50.sgl'].map((name) => [name, inputFor(name)]);
+  inputs.push(['mixed-widths', inputForSource(mixedWidthsTree())]);
+  for (const [name, input] of inputs) {
     const raw = await treeEngine.layout(input, { ...CTX, random: seededRandom(SEED) });
     out[name] = { input, raw, expected: quantize(applyHostFallbacks(input, raw, treeEngine.capabilities, METRICS), 64) };
   }
