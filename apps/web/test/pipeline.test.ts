@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { asNodeId, diagnostic, NO_SPAN, parse, type Diagnostic, type LabelId } from '@sgl/core';
 import type { LayoutEngine, LayoutHost, LayoutInput, LayoutPlan, LayoutResult, ResolvedThemeMetricsView } from '@sgl/layout-api';
 import { gridEngine } from '@sgl/layout-std';
+import { elkEngine } from '@sgl/layout-elk';
+import { runHostSequence } from '@sgl/layout-api/conformance';
 import type { StageResult } from '@sgl/core';
 import { labelRunKey, StaticMetricsMeasurer } from '@sgl/measure';
 import { DEFAULT_THEME_ID } from '@sgl/theme';
@@ -580,10 +582,11 @@ describe('container engines (DD-14, B8 branch 2)', () => {
     const corpus = readFileSync(new URL('../../../corpus/checkout.sgl', import.meta.url), 'utf8');
     // `corpus/checkout.sgl` is the example, after its one comment line.
     expect(corpus.slice(corpus.indexOf('\n') + 1)).toBe(example);
-    const h = await createHarness(example, { engineSchemas, defaultEngineId: 'sgl.elk' }, { firstRender: false });
+    // Load elkjs first: its first import can outlast the harness's settle on a busy machine.
+    const empty = { nodes: {}, edges: [], rootChildren: [], order: [], labels: {}, meta: { nodeCount: 0, edgeCount: 0, containerCount: 0 } };
+    await runHostSequence(elkEngine, { graph: empty, scope: null, sizing: {}, labelSizes: {} }, {}, METRICS);
+    const h = await createHarness(example, { engineSchemas, defaultEngineId: 'sgl.elk' });
     try {
-      // elkjs's first load can outlast one `settle()` on a busy machine.
-      for (let i = 0; i < 40 && (h.pipeline.lastGood.value === null || h.pipeline.inFlight.value); i += 1) await h.settle().catch(() => undefined);
       // `cloud` is a shape name this version does not draw (SGL3006, info;
       // corpus/README.md), not a layout matter: nothing else, and no warning.
       expect(h.pipeline.diags.value.map((d) => [d.code, d.severity])).toEqual([

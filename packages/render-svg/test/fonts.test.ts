@@ -148,7 +148,9 @@ describe('escaping: the output stays well-formed XML with one <style>', () => {
       expect(XMLValidator.validate(out), doc).toBe(true);
       expect(out.match(/<style>/g)?.length ?? 0, doc).toBe(svg.match(/<style>/g)?.length ?? 0);
     }
-  });
+    // The whole corpus, n2000 and the `elk` boxes of `engine-*.sgl` included
+    // (B8): seconds of CPU, more under load; not a timing test.
+  }, 60_000);
 
   it('a hostile family name is escaped for CSS and then for XML', () => {
     const family = "Evil'</style><script>alert(1)</script>&\\";
@@ -233,7 +235,7 @@ describe('usedFontFaces per element, with run rules (DD-11 T50)', () => {
       expect(svg).not.toMatch(/class="r-/);
       expect(usedFontFaces(svg, ALL).map((f) => `${f.family} ${f.style} ${f.weight}`), doc).toEqual(pinned[doc]);
     }
-  });
+  }, 60_000);
 
   it('embeds the chosen faces, sorted, and the file stays well-formed', async () => {
     const { rendered } = await runPipeline('a: "**Pay** `v2` *it*"\nb\na -> b: "***x***"\n', undefined, undefined, {}, undefined, INLINE);
